@@ -1,0 +1,2358 @@
+(
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geospatial Network Uganda - Professional GIS Login</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            /* Earth Tone Color Palette */
+            --primary: #8B4513;
+            --primary-dark: #654321;
+            --primary-light: #A0522D;
+            --secondary: #2D5016;
+            --secondary-light: #3D6B2A;
+            --accent: #D2B48C;
+            --accent-light: #DEB887;
+            --success: #4A7C59;
+            --warning: #D4A574;
+            --danger: #B8860B;
+            --light: #F5F5DC;
+            --dark: #2C2416;
+            --dark-light: #3D2F1F;
+            --text-primary: #2C2416;
+            --text-secondary: #5C4A3A;
+            --bg-gradient-start: #8B7355;
+            --bg-gradient-end: #5C4A3A;
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --card-shadow: rgba(44, 36, 22, 0.15);
+        }
+
+        /* Dark Mode Variables */
+        [data-theme="dark"] {
+            --primary: #C19A6B;
+            --primary-dark: #A0522D;
+            --primary-light: #D4A574;
+            --secondary: #5A8B3A;
+            --secondary-light: #6BA84A;
+            --accent: #E6D5B8;
+            --accent-light: #F0E6D2;
+            --text-primary: #F5F5DC;
+            --text-secondary: #D2B48C;
+            --bg-gradient-start: #3D2F1F;
+            --bg-gradient-end: #2C2416;
+            --card-bg: rgba(44, 36, 22, 0.85);
+            --card-shadow: rgba(0, 0, 0, 0.4);
+            --light: #2C2416;
+            --dark: #F5F5DC;
+        }
+
+        [data-theme="dark"] body {
+            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+        }
+
+        [data-theme="dark"] .container {
+            background: var(--card-bg);
+            border: 1px solid rgba(210, 180, 140, 0.15);
+        }
+
+        [data-theme="dark"] .header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+        }
+
+        [data-theme="dark"] .input-wrapper {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(210, 180, 140, 0.2);
+        }
+
+        [data-theme="dark"] input,
+        [data-theme="dark"] select {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        [data-theme="dark"] input:focus,
+        [data-theme="dark"] select:focus {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+            overflow: auto;
+            position: relative;
+            padding-top: 80px;
+        }
+
+        /* Animated Geometric Background */
+        .geometric-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .animated-grid {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(rgba(210, 180, 140, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(210, 180, 140, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% {
+                transform: translate(0, 0);
+            }
+
+            100% {
+                transform: translate(50px, 50px);
+            }
+        }
+
+        .geometric-shapes {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        .shape {
+            position: absolute;
+            opacity: 0.08;
+            animation: float 15s ease-in-out infinite;
+        }
+
+        .shape-triangle {
+            width: 0;
+            height: 0;
+            border-left: 30px solid transparent;
+            border-right: 30px solid transparent;
+            border-bottom: 50px solid var(--accent);
+        }
+
+        .shape-hexagon {
+            width: 60px;
+            height: 60px;
+            background: var(--accent);
+            clip-path: polygon(30% 0%, 70% 0%, 100% 50%, 70% 100%, 30% 100%, 0% 50%);
+        }
+
+        .shape-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--primary-light);
+        }
+
+        .shape-1 {
+            top: 10%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .shape-2 {
+            top: 20%;
+            right: 15%;
+            animation-delay: 2s;
+        }
+
+        .shape-3 {
+            bottom: 15%;
+            left: 20%;
+            animation-delay: 4s;
+        }
+
+        .shape-4 {
+            bottom: 25%;
+            right: 10%;
+            animation-delay: 6s;
+        }
+
+        .shape-5 {
+            top: 50%;
+            left: 5%;
+            animation-delay: 8s;
+        }
+
+        .shape-6 {
+            top: 60%;
+            right: 5%;
+            animation-delay: 10s;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translate(0, 0) rotate(0deg);
+            }
+
+            33% {
+                transform: translate(30px, -30px) rotate(120deg);
+            }
+
+            66% {
+                transform: translate(-20px, 20px) rotate(240deg);
+            }
+        }
+
+        .parallax-layer {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 20% 30%, rgba(210, 180, 140, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(139, 69, 19, 0.1) 0%, transparent 50%);
+            animation: parallaxMove 25s ease-in-out infinite;
+        }
+
+        @keyframes parallaxMove {
+
+            0%,
+            100% {
+                transform: translate(0, 0) scale(1);
+            }
+
+            50% {
+                transform: translate(-20px, -20px) scale(1.05);
+            }
+        }
+
+        /* Decorative Map Elements */
+        .map-elements {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Roads */
+        .road {
+            position: absolute;
+            background: rgba(210, 180, 140, 0.4);
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(210, 180, 140, 0.3);
+        }
+
+        .road-1 {
+            top: 20%;
+            left: 0;
+            width: 100%;
+            height: 12px;
+            transform: rotate(5deg);
+        }
+
+        .road-2 {
+            top: 60%;
+            left: 0;
+            width: 100%;
+            height: 10px;
+            transform: rotate(-3deg);
+        }
+
+        /* Property Boundaries */
+        .property-boundary {
+            position: absolute;
+            border: 3px dashed rgba(139, 69, 19, 0.5);
+            box-shadow: 0 0 15px rgba(139, 69, 19, 0.4);
+            background: rgba(139, 69, 19, 0.05);
+        }
+
+        .boundary-1 {
+            top: 30%;
+            left: 15%;
+            width: 150px;
+            height: 150px;
+            transform: rotate(15deg);
+        }
+
+        .boundary-2 {
+            top: 50%;
+            right: 10%;
+            width: 120px;
+            height: 120px;
+            transform: rotate(-10deg);
+        }
+
+        /* Control Points */
+        .control-point {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: rgba(184, 134, 11, 0.9);
+            border-radius: 50%;
+            border: 3px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 0 4px rgba(184, 134, 11, 0.6), 0 0 15px rgba(184, 134, 11, 0.5);
+            animation: pulsePoint 2s infinite;
+        }
+
+        @keyframes pulsePoint {
+
+            0%,
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 4px rgba(184, 134, 11, 0.6), 0 0 15px rgba(184, 134, 11, 0.5);
+            }
+
+            50% {
+                transform: scale(1.15);
+                box-shadow: 0 0 0 6px rgba(184, 134, 11, 0.8), 0 0 20px rgba(184, 134, 11, 0.7);
+            }
+        }
+
+        .point-1 {
+            top: 25%;
+            left: 25%;
+        }
+
+        .point-2 {
+            top: 65%;
+            right: 20%;
+        }
+
+        .point-3 {
+            bottom: 30%;
+            left: 40%;
+        }
+
+        /* Forests */
+        .forest {
+            position: absolute;
+            background: rgba(45, 80, 22, 0.5);
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(45, 80, 22, 0.4);
+        }
+
+        .forest-1 {
+            top: 15%;
+            right: 20%;
+            width: 120px;
+            height: 120px;
+        }
+
+        .forest-2 {
+            bottom: 20%;
+            left: 15%;
+            width: 100px;
+            height: 100px;
+        }
+
+        /* Rivers */
+        .river {
+            position: absolute;
+            background: rgba(139, 69, 19, 0.4);
+            border-radius: 12px;
+            box-shadow: 0 0 15px rgba(139, 69, 19, 0.3);
+        }
+
+        .river-1 {
+            top: 75%;
+            left: 10%;
+            width: 200px;
+            height: 18px;
+            transform: rotate(20deg);
+        }
+
+        /* Buildings */
+        .building {
+            position: absolute;
+            background: rgba(160, 82, 45, 0.6);
+            box-shadow: 0 0 15px rgba(160, 82, 45, 0.4);
+        }
+
+        .building-1 {
+            top: 40%;
+            right: 15%;
+            width: 45px;
+            height: 65px;
+        }
+
+        .building-2 {
+            bottom: 25%;
+            left: 20%;
+            width: 65px;
+            height: 45px;
+        }
+
+        /* Contours with Labels */
+        .contour-line {
+            position: absolute;
+            border-bottom: 2px dashed rgba(210, 180, 140, 0.5);
+            box-shadow: 0 2px 5px rgba(210, 180, 140, 0.2);
+        }
+
+        .contour-label {
+            position: absolute;
+            color: rgba(44, 36, 22, 0.7);
+            font-size: 10px;
+            font-weight: 600;
+            background: rgba(245, 245, 220, 0.8);
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: 1px solid rgba(210, 180, 140, 0.5);
+            pointer-events: none;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .contour-1 {
+            top: 30%;
+            right: 30%;
+            width: 100px;
+            transform: rotate(45deg);
+        }
+
+        .contour-1-label {
+            top: 28%;
+            right: 28%;
+        }
+
+        .contour-2 {
+            bottom: 35%;
+            left: 30%;
+            width: 80px;
+            transform: rotate(-30deg);
+        }
+
+        .contour-2-label {
+            bottom: 33%;
+            left: 28%;
+        }
+
+        .contour-3 {
+            top: 55%;
+            left: 50%;
+            width: 120px;
+            transform: rotate(10deg);
+        }
+
+        .contour-3-label {
+            top: 53%;
+            left: 48%;
+        }
+
+        /* Navigation Bar */
+        .top-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(44, 36, 22, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: center;
+            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            border-bottom: 2px solid rgba(210, 180, 140, 0.2);
+        }
+
+        .nav-container {
+            display: flex;
+            gap: 12px;
+            max-width: 1200px;
+            width: 100%;
+            justify-content: center;
+            flex-wrap: wrap;
+            align-items: center;
+            position: relative;
+        }
+
+        .nav-btn {
+            background: rgba(210, 180, 140, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--light);
+            padding: 10px 18px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            letter-spacing: 0.3px;
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .nav-btn:hover::before {
+            left: 100%;
+        }
+
+        .nav-btn:hover {
+            background: rgba(210, 180, 140, 0.25);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+
+        .nav-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .dropdown {
+            position: relative;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            background: var(--card-bg);
+            min-width: 280px;
+            box-shadow: 0 8px 24px rgba(44, 36, 22, 0.2);
+            border-radius: 12px;
+            z-index: 1001;
+            overflow: hidden;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid rgba(210, 180, 140, 0.2);
+            animation: dropdownFadeIn 0.3s ease-out;
+        }
+
+        @keyframes dropdownFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+
+        .dropdown-content a {
+            color: var(--text-primary);
+            padding: 14px 18px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            font-size: 0.9rem;
+            border-bottom: 1px solid rgba(210, 180, 140, 0.1);
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .dropdown-content a:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-content a:hover {
+            background: rgba(210, 180, 140, 0.15);
+            color: var(--primary);
+            padding-left: 22px;
+        }
+
+        .dropdown-content a i {
+            margin-right: 12px;
+            color: var(--primary);
+            width: 18px;
+            text-align: center;
+        }
+
+
+        /* Main container */
+        .container {
+            width: 100%;
+            max-width: 480px;
+            max-height: 90vh;
+            background: var(--card-bg);
+            border-radius: 24px;
+            box-shadow: 0 20px 60px var(--card-shadow), 0 0 0 1px rgba(210, 180, 140, 0.1);
+            overflow-y: auto;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(210, 180, 140, 0.2);
+            z-index: 10;
+            position: relative;
+            transform: translateY(0);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            margin: 40px 0;
+        }
+
+        .container:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 28px 80px var(--card-shadow), 0 0 0 1px rgba(210, 180, 140, 0.2);
+        }
+
+        .container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .container::-webkit-scrollbar-track {
+            background: rgba(210, 180, 140, 0.1);
+            border-radius: 4px;
+        }
+
+        .container::-webkit-scrollbar-thumb {
+            background: var(--accent);
+            border-radius: 4px;
+        }
+
+        .container::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-light);
+        }
+
+        /* Header with compact design */
+        .header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 28px 24px;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            border-radius: 24px 24px 0 0;
+        }
+
+        .header-content {
+            flex: 1;
+        }
+
+        /* Dark Mode Toggle Button in Navigation */
+        .dark-mode-toggle {
+            width: auto;
+            height: auto;
+            padding: 10px 18px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            color: var(--light);
+            font-weight: 500;
+            font-size: 0.9rem;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dark-mode-toggle::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .dark-mode-toggle:hover::before {
+            left: 100%;
+        }
+
+        .dark-mode-toggle:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .dark-mode-toggle:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .dark-mode-toggle i {
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.9);
+            transition: all 0.3s ease;
+        }
+
+        .dark-mode-toggle:hover i {
+            color: var(--accent-light);
+        }
+
+        [data-theme="dark"] .dark-mode-toggle {
+            background: rgba(210, 180, 140, 0.15);
+            border-color: rgba(210, 180, 140, 0.3);
+        }
+
+        [data-theme="dark"] .dark-mode-toggle:hover {
+            background: rgba(210, 180, 140, 0.2);
+        }
+
+        /* Position dark mode toggle on the right */
+        .dark-mode-toggle {
+            margin-left: auto;
+        }
+
+        @media (max-width: 768px) {
+            .dark-mode-toggle {
+                margin-left: 0;
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        .header:before {
+            content: "";
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(210, 180, 140, 0.15) 0%, transparent 70%);
+            transform: rotate(45deg);
+            animation: headerGlow 8s ease-in-out infinite;
+        }
+
+        @keyframes headerGlow {
+
+            0%,
+            100% {
+                opacity: 0.5;
+            }
+
+            50% {
+                opacity: 0.8;
+            }
+        }
+
+        .header h1 {
+            font-size: 1.75rem;
+            margin-bottom: 6px;
+            position: relative;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            letter-spacing: 0.5px;
+            font-weight: 700;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .header p {
+            opacity: 0.95;
+            font-size: 0.9rem;
+            position: relative;
+            margin: 0;
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        .logo {
+            position: relative;
+            width: 56px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(210, 180, 140, 0.2);
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(210, 180, 140, 0.4);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+            flex-shrink: 0;
+            transition: transform 0.3s ease;
+        }
+
+        .logo:hover {
+            transform: scale(1.05) rotate(5deg);
+        }
+
+        .logo i {
+            font-size: 28px;
+            color: var(--accent-light);
+            animation: rotateGlobe 25s linear infinite;
+        }
+
+        @keyframes rotateGlobe {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .form-container {
+            padding: 32px 28px;
+        }
+
+        /* Modern tabs */
+        .tabs {
+            display: flex;
+            margin-bottom: 32px;
+            border-bottom: 2px solid rgba(210, 180, 140, 0.2);
+            position: relative;
+            gap: 0;
+        }
+
+        .tabs:after {
+            content: "";
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 50%;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--primary-light));
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1;
+            border-radius: 3px 3px 0 0;
+        }
+
+        .tabs.signup-active:after {
+            transform: translateX(100%);
+            width: 50%;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 14px 0;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-secondary);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            z-index: 2;
+            font-size: 1rem;
+            letter-spacing: 0.3px;
+        }
+
+        .tab:hover {
+            color: var(--primary);
+        }
+
+        .tab.active {
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .form-section {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .form-section.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+            position: relative;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            letter-spacing: 0.2px;
+        }
+
+        /* Modern styled inputs */
+        .input-wrapper {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(44, 36, 22, 0.08);
+            border: 2px solid rgba(210, 180, 140, 0.3);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: white;
+        }
+
+        .input-wrapper:focus-within {
+            box-shadow: 0 0 0 4px rgba(139, 69, 19, 0.15), 0 4px 12px rgba(44, 36, 22, 0.12);
+            border-color: var(--primary);
+            transform: translateY(-1px);
+        }
+
+        input {
+            width: 100%;
+            padding: 16px 20px;
+            border: none;
+            font-size: 1rem;
+            background: white;
+            transition: all 0.3s;
+            padding-left: 52px;
+            color: var(--text-primary);
+            font-weight: 400;
+        }
+
+        input::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.6;
+        }
+
+        select {
+            width: 100%;
+            padding: 16px 20px;
+            border: none;
+            font-size: 1rem;
+            background: white;
+            transition: all 0.3s;
+            padding-left: 52px;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            color: var(--text-primary);
+            font-weight: 400;
+            cursor: pointer;
+        }
+
+        input:focus {
+            outline: none;
+            background: rgba(245, 245, 220, 0.3);
+        }
+
+        select:focus {
+            outline: none;
+            background: rgba(245, 245, 220, 0.3);
+        }
+
+        .input-wrapper select {
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><path fill="%238B4513" d="M4.646 6.646a.5.5 0 0 1 .708 0L8 9.293l2.646-2.647a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 0-.708z"/></svg>');
+            background-repeat: no-repeat;
+            background-position: right 20px center;
+            background-size: 16px;
+            padding-right: 52px;
+        }
+
+        .form-helper {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            line-height: 1.5;
+            opacity: 0.8;
+        }
+
+        #forgot-password {
+            color: var(--primary);
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            display: inline-block;
+            position: relative;
+        }
+
+        #forgot-password:hover {
+            color: var(--primary-light);
+        }
+
+        #forgot-password:hover::after {
+            width: 100%;
+        }
+
+        #forgot-password::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--primary);
+            transition: width 0.3s ease;
+        }
+
+        #back-to-login {
+            color: var(--primary);
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #back-to-login:hover {
+            color: var(--primary-light);
+            transform: translateX(-4px);
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(210, 180, 140, 0.2);
+            font-size: 1.15rem;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 3;
+            backdrop-filter: blur(10px) saturate(180%);
+            -webkit-backdrop-filter: blur(10px) saturate(180%);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        .password-toggle:hover {
+            background: rgba(210, 180, 140, 0.2);
+            color: var(--primary);
+            transform: translateY(-50%) scale(1.1);
+            border-color: rgba(210, 180, 140, 0.4);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+
+        .password-toggle:active {
+            transform: translateY(-50%) scale(0.95);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Apple Glass Morphism Buttons */
+        .btn {
+            width: 100%;
+            padding: 16px 24px;
+            border: none;
+            border-radius: 16px;
+            color: white;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            letter-spacing: 0.5px;
+            font-family: 'Poppins', sans-serif;
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.05));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            border-radius: 16px;
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s ease, height 0.6s ease;
+        }
+
+        .btn:hover::before {
+            opacity: 1;
+        }
+
+        .btn:active::after {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.4),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-login {
+            background: linear-gradient(135deg,
+                    rgba(139, 69, 19, 0.7),
+                    rgba(101, 67, 33, 0.8));
+        }
+
+        .btn-login:hover {
+            background: linear-gradient(135deg,
+                    rgba(160, 82, 45, 0.75),
+                    rgba(139, 69, 19, 0.8));
+        }
+
+        .btn-signup {
+            background: linear-gradient(135deg,
+                    rgba(45, 80, 22, 0.7),
+                    rgba(61, 107, 42, 0.8));
+        }
+
+        .btn-signup:hover {
+            background: linear-gradient(135deg,
+                    rgba(61, 107, 42, 0.75),
+                    rgba(45, 80, 22, 0.8));
+        }
+
+        .btn-reset {
+            background: linear-gradient(135deg,
+                    rgba(212, 165, 116, 0.7),
+                    rgba(193, 154, 107, 0.8));
+            margin-top: 10px;
+        }
+
+        .btn-reset:hover {
+            background: linear-gradient(135deg,
+                    rgba(193, 154, 107, 0.75),
+                    rgba(212, 165, 116, 0.8));
+        }
+
+        [data-theme="dark"] .btn {
+            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        [data-theme="dark"] .btn:hover {
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.25),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+        }
+
+        /* Status messages */
+        .message {
+            margin-top: 20px;
+            padding: 16px 20px;
+            border-radius: 12px;
+            text-align: center;
+            font-size: 0.9rem;
+            animation: slideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 500;
+            line-height: 1.5;
+            border: 2px solid;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px) scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .success {
+            background-color: rgba(74, 124, 89, 0.1);
+            color: #2D5016;
+            border-color: rgba(74, 124, 89, 0.3);
+        }
+
+        .error {
+            background-color: rgba(184, 134, 11, 0.1);
+            color: #8B4513;
+            border-color: rgba(184, 134, 11, 0.3);
+        }
+
+        .warning {
+            background-color: rgba(212, 165, 116, 0.15);
+            color: #654321;
+            border-color: rgba(212, 165, 116, 0.4);
+        }
+
+        /* Footer */
+        .footer {
+            padding: 20px 24px;
+            text-align: center;
+            border-top: 2px solid rgba(210, 180, 140, 0.2);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            background: rgba(245, 245, 220, 0.3);
+            border-radius: 0 0 24px 24px;
+            line-height: 1.6;
+        }
+
+        .footer a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-block;
+            margin: 0 6px;
+            position: relative;
+        }
+
+        .footer a:after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--primary);
+            transition: width 0.3s ease;
+        }
+
+        .footer a:hover {
+            color: var(--primary-light);
+        }
+
+        .footer a:hover:after {
+            width: 100%;
+        }
+
+        /* Password strength meter */
+        .password-strength {
+            height: 6px;
+            background: rgba(210, 180, 140, 0.2);
+            border-radius: 6px;
+            margin-top: 12px;
+            overflow: hidden;
+            box-shadow: inset 0 1px 2px rgba(44, 36, 22, 0.1);
+        }
+
+        .password-strength-bar {
+            height: 100%;
+            width: 0%;
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.4s ease;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        .password-rules {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 10px;
+            line-height: 1.5;
+            opacity: 0.8;
+        }
+
+        .password-match {
+            font-size: 0.85rem;
+            margin-top: 10px;
+            display: none;
+            font-weight: 600;
+            padding-left: 4px;
+        }
+
+        .match {
+            color: var(--secondary);
+        }
+
+        .no-match {
+            color: var(--danger);
+        }
+
+        /* Information box */
+        .admin-info {
+            background: rgba(212, 165, 116, 0.1);
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 24px;
+            border-left: 4px solid var(--warning);
+            font-size: 0.85rem;
+            box-shadow: 0 2px 8px rgba(44, 36, 22, 0.08);
+            position: relative;
+            overflow: hidden;
+            line-height: 1.6;
+        }
+
+        .admin-info:before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(180deg, var(--warning), var(--accent));
+        }
+
+        .admin-info strong {
+            display: block;
+            margin-bottom: 10px;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            font-weight: 700;
+        }
+
+        .admin-info p {
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+        }
+
+        .admin-info p:last-child {
+            margin-bottom: 0;
+        }
+
+        .admin-info a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+
+        .admin-info a:hover {
+            color: var(--primary-light);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+            vertical-align: middle;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.2);
+                opacity: 0.7;
+            }
+        }
+
+        .status-active {
+            background-color: var(--secondary);
+        }
+
+        .status-pending {
+            background-color: var(--warning);
+        }
+
+        .map-icon {
+            position: absolute;
+            font-size: 1.2rem;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--primary);
+            z-index: 2;
+            transition: color 0.3s ease;
+        }
+
+        .input-wrapper:focus-within .map-icon {
+            color: var(--primary-light);
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .geometric-shapes {
+                display: none;
+            }
+
+            .map-elements .road,
+            .map-elements .property-boundary,
+            .map-elements .forest,
+            .map-elements .river,
+            .map-elements .building,
+            .map-elements .contour-line {
+                opacity: 0.6;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .container {
+                max-width: 100%;
+                max-height: 95vh;
+                border-radius: 20px;
+                margin: 20px 0;
+            }
+
+            .header {
+                padding: 20px;
+                border-radius: 20px 20px 0 0;
+            }
+
+            .logo {
+                width: 48px;
+                height: 48px;
+            }
+
+            .logo i {
+                font-size: 24px;
+            }
+
+            .header h1 {
+                font-size: 1.4rem;
+            }
+
+            .header p {
+                font-size: 0.85rem;
+            }
+
+            .dark-mode-toggle span {
+                display: none;
+            }
+
+            .dark-mode-toggle {
+                width: 44px;
+                height: 44px;
+                padding: 0;
+                justify-content: center;
+            }
+
+            .dark-mode-toggle i {
+                font-size: 18px;
+            }
+
+            .form-container {
+                padding: 24px 20px;
+            }
+
+            .btn {
+                padding: 14px 20px;
+                font-size: 0.95rem;
+            }
+
+            .nav-container {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .nav-btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .dropdown-content {
+                min-width: 200px;
+                left: 50%;
+                transform: translateX(-50%);
+            }
+
+            .top-nav {
+                padding: 10px 15px;
+            }
+
+            body {
+                padding-top: 140px;
+            }
+
+            input,
+            select {
+                padding: 14px 18px;
+                padding-left: 48px;
+            }
+
+            .map-icon {
+                left: 16px;
+                font-size: 1.1rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navigation Bar -->
+    <nav class="top-nav">
+        <div class="nav-container">
+            <div class="dropdown">
+                <button class="nav-btn">
+                    <i class="fas fa-info-circle"></i> About
+                </button>
+                <div class="dropdown-content">
+                    <a href="https://kwssgfanbntfjdclchfi.supabase.co/storage/v1/object/public/uploads/ABOUT%20GEOSPATIALNETWORK%20UGANDA%20V1.pdf"
+                        target="_blank">
+                        <i class="fas fa-file-pdf"></i> About GeospatialNetwork Uganda V1
+                    </a>
+                    <a href="https://kwssgfanbntfjdclchfi.supabase.co/storage/v1/object/public/uploads/ABOUT%20GEOSPATIALNETWORK%20UGANDA%20V2.pdf"
+                        target="_blank">
+                        <i class="fas fa-file-pdf"></i> About GeospatialNetwork Uganda V2
+                    </a>
+                </div>
+            </div>
+
+            <div class="dropdown">
+                <button class="nav-btn">
+                    <i class="fas fa-graduation-cap"></i> Tutorials
+                </button>
+                <div class="dropdown-content">
+                    <a href="https://youtu.be/_7B5egSq5SI?si=gHunNyxDdOvcbe70" target="_blank">
+                        <i class="fab fa-youtube"></i> HOW TO USE GEOSPATIALNETWORKUG WEB MAP
+                    </a>
+                    <a href="https://youtu.be/IIyyize3cYc?si=Rn-s9xb743GJCjmk" target="_blank">
+                        <i class="fab fa-youtube"></i> GEOSPATIALNETWORKUG IN QGIS
+                    </a>
+                    <a href="https://youtu.be/QuYz_tSEZ7U?si=y6u3AI7GxUj_Rmvj" target="_blank">
+                        <i class="fab fa-youtube"></i> HOW TO OBTAIN DXF FROM GEOSPATIALNETWORKUG
+                    </a>
+                    <a href="https://youtu.be/ot8XXvF2GOI?si=pkrub6zAW3frapA1" target="_blank">
+                        <i class="fab fa-youtube"></i> HOW TO UPDATE GEOSPATIALNETWORKUG USING QGIS
+                    </a>
+                    <a href="https://youtu.be/_I-aCQDxFXo?si=TA-rrZqED_SvPwkv" target="_blank">
+                        <i class="fab fa-youtube"></i> HOW TO CONNECT TO GEOSPATIAL NETWORK WITH LAND STAR
+                    </a>
+                    <a href="https://youtube.com/shorts/j47jZeNGgmA?si=BoPnxOKjM9rSf9i9" target="_blank">
+                        <i class="fab fa-youtube"></i> HOW TO CONNECT TO GEOSPARTIALNETWORKUS WITH FIELD GENIUS
+                    </a>
+                    <a href="https://youtube.com/shorts/X2Xmyvrw7Ms?si=S7hyFlxZmZsWgnQ-" target="_blank">
+                        <i class="fab fa-youtube"></i> HOW TO CONNECT TO GEOSPATIALNETWORKUG WITH SIGULAR PAD
+                    </a>
+                    <a href="https://youtube.com/shorts/MG4vCSJxxyM?si=tnritGxFeWwczJzI" target="_blank">
+                        <i class="fab fa-youtube"></i> HOW TO CONNECT TO GEOSPARTIALNETWORKUG WITH SURV STAR
+                    </a>
+                </div>
+            </div>
+
+            <!-- Additional buttons from Excel -->
+            <div class="dropdown">
+                <button class="nav-btn">
+                    <i class="fas fa-truck-moving"></i> J.R.J MOVERS
+                </button>
+                <div class="dropdown-content">
+                    <a href="https://wa.me/256773079054" target="_blank">
+                        <i class="fab fa-whatsapp"></i> AMODING SUSAN - MBALE MZO
+                    </a>
+                    <a href="https://wa.me/256788122482" target="_blank">
+                        <i class="fab fa-whatsapp"></i> OKIA NICHOLAS - MBALE MZO
+                    </a>
+                    <a href="https://wa.me/256781349475" target="_blank">
+                        <i class="fab fa-whatsapp"></i> KABALIISA EDITH - WAKISO MZO
+                    </a>
+                    <a href="https://wa.me/256742029180" target="_blank">
+                        <i class="fab fa-whatsapp"></i> MUSA SSEGUJJA - LUWEERO
+                    </a>
+                    <a href="https://wa.me/256779005444" target="_blank">
+                        <i class="fab fa-whatsapp"></i> ORENA BRIAN - SOROTI MZO
+                    </a>
+                    <a href="https://wa.me/256756435959" target="_blank">
+                        <i class="fab fa-whatsapp"></i> LUYIKI ISAAC - LUWEERO
+                    </a>
+                    <a href="https://wa.me/256773639903" target="_blank">
+                        <i class="fab fa-whatsapp"></i> SAVANA - MUKONO
+                    </a>
+                    <a href="https://wa.me/256753771256" target="_blank">
+                        <i class="fab fa-whatsapp"></i> KIGGUNDU - MUKONO
+                    </a>
+                    <a href="https://wa.me/256753808985" target="_blank">
+                        <i class="fab fa-whatsapp"></i> APIO ESTHER - WAKISO MZO
+                    </a>
+                    <a href="https://wa.me/256783404444" target="_blank">
+                        <i class="fab fa-whatsapp"></i> ISABIRYE SIMON - MASINDI
+                    </a>
+                </div>
+            </div>
+
+            <div class="dropdown">
+                <button class="nav-btn">
+                    <i class="fas fa-truck-pickup"></i> HIRE ROVER
+                </button>
+                <div class="dropdown-content">
+                    <a href="https://wa.me/256705743067" target="_blank">
+                        <i class="fab fa-whatsapp"></i> KARIM - MUKONO (CHC)
+                    </a>
+                    <a href="https://wa.me/256777138028" target="_blank">
+                        <i class="fab fa-whatsapp"></i> NAMAJJA SHARIF - JINJA (CHC)
+                    </a>
+                    <a href="https://wa.me/256742202575" target="_blank">
+                        <i class="fab fa-whatsapp"></i> CONTACT - KAMPALA (CHC)
+                    </a>
+                    <a href="https://wa.me/256781989621" target="_blank">
+                        <i class="fab fa-whatsapp"></i> ISMAIL - KAMPALA (CHC)
+                    </a>
+                    <a href="https://wa.me/256753771256" target="_blank">
+                        <i class="fab fa-whatsapp"></i> KIGGUNDU MUHAMAD - MUKONO (CHC)
+                    </a>
+                    <a href="https://wa.me/256773864660" target="_blank">
+                        <i class="fab fa-whatsapp"></i> KYABAGU PAUL - WAKISO (CHC)
+                    </a>
+                    <a href="https://wa.me/256702764735" target="_blank">
+                        <i class="fab fa-whatsapp"></i> LYDIA - MUKONO (CHC)
+                    </a>
+                    <a href="https://wa.me/256706297897" target="_blank">
+                        <i class="fab fa-whatsapp"></i> SAIMAN BUWEMBO - MPIGI (CHC)
+                    </a>
+                    <a href="https://wa.me/256701653716" target="_blank">
+                        <i class="fab fa-whatsapp"></i> TWAHA WASWA - MPIGI (CHC)
+                    </a>
+                    <a href="https://wa.me/256779005444" target="_blank">
+                        <i class="fab fa-whatsapp"></i> ORENA BRIAN - BUKEDEA (sino GNSS)
+                    </a>
+                </div>
+            </div>
+
+            <div class="dropdown">
+                <button class="nav-btn">
+                    <i class="fas fa-user-tie"></i> MZO INFO
+                </button>
+                <div class="dropdown-content">
+                    <a href="https://wa.me/256773079054" target="_blank">
+                        <i class="fab fa-whatsapp"></i> AMODING SUSAN - MBALE MZO
+                    </a>
+                    <a href="https://wa.me/256788122482" target="_blank">
+                        <i class="fab fa-whatsapp"></i> OKIA NICHOLAS - MBALE MZO
+                    </a>
+                    <a href="https://wa.me/256781349475" target="_blank">
+                        <i class="fab fa-whatsapp"></i> KABALIISA EDITH - WAKISO MZO
+                    </a>
+                    <a href="https://wa.me/256742029180" target="_blank">
+                        <i class="fab fa-whatsapp"></i> MUSA SSEGUJJA - LUWEERO
+                    </a>
+                    <a href="https://wa.me/256779005444" target="_blank">
+                        <i class="fab fa-whatsapp"></i> ORENA BRIAN - SOROTI MZO
+                    </a>
+                    <a href="https://wa.me/256756435959" target="_blank">
+                        <i class="fab fa-whatsapp"></i> LUYIKI ISAAC - LUWEERO
+                    </a>
+                    <a href="https://wa.me/256773639903" target="_blank">
+                        <i class="fab fa-whatsapp"></i> SAVANA - MUKONO
+                    </a>
+                    <a href="https://wa.me/256753771256" target="_blank">
+                        <i class="fab fa-whatsapp"></i> KIGGUNDU - MUKONO
+                    </a>
+                    <a href="https://wa.me/256782693527" target="_blank">
+                        <i class="fab fa-whatsapp"></i> WYCLIFFE - ENTEBE
+                    </a>
+                    <a href="https://wa.me/257777103118" target="_blank">
+                        <i class="fab fa-whatsapp"></i> KIBENGE - WAKISO MZO
+                    </a>
+                    <a href="https://wa.me/256783404444" target="_blank">
+                        <i class="fab fa-whatsapp"></i> ISABIRYE SIMON - MASINDI
+                    </a>
+                </div>
+            </div>
+
+            <!-- Dark Mode Toggle -->
+            <button class="dark-mode-toggle" id="darkModeToggle" aria-label="Toggle dark mode">
+                <i class="fas fa-moon" id="darkModeIcon"></i>
+                <span>Dark Mode</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Animated Geometric Background -->
+    <div class="geometric-background">
+        <div class="animated-grid"></div>
+        <div class="parallax-layer"></div>
+        <div class="geometric-shapes">
+            <div class="shape shape-triangle shape-1"></div>
+            <div class="shape shape-hexagon shape-2"></div>
+            <div class="shape shape-circle shape-3"></div>
+            <div class="shape shape-triangle shape-4"></div>
+            <div class="shape shape-hexagon shape-5"></div>
+            <div class="shape shape-circle shape-6"></div>
+        </div>
+
+        <!-- Decorative Map Elements -->
+        <div class="map-elements">
+            <!-- Roads -->
+            <div class="road road-1"></div>
+            <div class="road road-2"></div>
+
+            <!-- Property Boundaries -->
+            <div class="property-boundary boundary-1"></div>
+            <div class="property-boundary boundary-2"></div>
+
+            <!-- Control Points -->
+            <div class="control-point point-1"></div>
+            <div class="control-point point-2"></div>
+            <div class="control-point point-3"></div>
+
+            <!-- Forests -->
+            <div class="forest forest-1"></div>
+            <div class="forest forest-2"></div>
+
+            <!-- Rivers -->
+            <div class="river river-1"></div>
+
+            <!-- Buildings -->
+            <div class="building building-1"></div>
+            <div class="building building-2"></div>
+
+            <!-- Contours with Labels -->
+            <div class="contour-line contour-1"></div>
+            <div class="contour-label contour-1-label">120m</div>
+
+            <div class="contour-line contour-2"></div>
+            <div class="contour-label contour-2-label">95m</div>
+
+            <div class="contour-line contour-3"></div>
+            <div class="contour-label contour-3-label">150m</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <i class="fas fa-globe-africa"></i>
+            </div>
+            <div class="header-content">
+                <h1>Geospatial Network Uganda</h1>
+                <p>Professional GIS Web Mapping Platform</p>
+            </div>
+        </div>
+
+        <div class="form-container">
+            <div class="tabs" id="tabs-container">
+                <div class="tab active" data-tab="login">Login</div>
+                <div class="tab" data-tab="signup">Sign Up</div>
+            </div>
+
+            <!-- Login Form -->
+            <div class="form-section active" id="login-section">
+                <div class="form-group">
+                    <label for="login-email">Email</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-envelope map-icon"></i>
+                        <input type="email" id="login-email" placeholder="Enter your email">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-lock map-icon"></i>
+                        <input type="password" id="login-password" placeholder="Enter your password">
+                        <button class="password-toggle" id="login-toggle">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div style="text-align: right; margin-bottom: 18px;">
+                    <a href="#" id="forgot-password">Forgot password?</a>
+                </div>
+
+                <button class="btn btn-login" id="login-btn">
+                    <i class="fas fa-sign-in-alt"></i> Login to Map Portal
+                </button>
+
+                <div id="login-message" class="message"></div>
+            </div>
+
+            <!-- Password Reset Form -->
+            <div class="form-section" id="reset-section">
+                <div class="form-group">
+                    <label for="reset-email">Email Address</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-envelope map-icon"></i>
+                        <input type="email" id="reset-email" placeholder="Enter your email">
+                    </div>
+                </div>
+
+                <button class="btn btn-reset" id="reset-btn">
+                    <i class="fas fa-paper-plane"></i> Send Password Reset Link
+                </button>
+
+                <div style="text-align: center; margin-top: 20px;">
+                    <a href="#" id="back-to-login">
+                        <i class="fas fa-arrow-left"></i> Back to login
+                    </a>
+                </div>
+
+                <div id="reset-message" class="message"></div>
+            </div>
+
+            <!-- Sign Up Form -->
+            <div class="form-section" id="signup-section">
+                <div class="form-group">
+                    <label for="signup-email">Email</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-envelope map-icon"></i>
+                        <input type="email" id="signup-email" placeholder="Enter your email">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="signup-password">Password</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-lock map-icon"></i>
+                        <input type="password" id="signup-password" placeholder="Create a password (min. 6 characters)">
+                        <button class="password-toggle" id="signup-toggle">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <div class="password-strength">
+                        <div class="password-strength-bar" id="password-strength-bar"></div>
+                    </div>
+                    <div class="password-rules">
+                        Use 8+ characters with a mix of letters, numbers & symbols
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm-password">Confirm Password</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-lock map-icon"></i>
+                        <input type="password" id="confirm-password" placeholder="Confirm your password">
+                        <button class="password-toggle" id="confirm-toggle">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <div class="password-match" id="password-match">
+                        Passwords match
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="signup-role">Account Type</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-user-tag map-icon"></i>
+                        <select id="signup-role">
+                            <option value="general">General user (shared data features)</option>
+                            <option value="valuer">Valuer (private valuation workspace)</option>
+                            <option value="LAND_CLERK">Land Clerk (untitled land registration)</option>
+                        </select>
+                    </div>
+                    <div class="form-helper">
+                        Valuers receive a private environment for comparables and valuation tools. Land Clerks can
+                        register and manage untitled land parcels. Other users access shared mapping features.
+                    </div>
+                </div>
+
+                <button class="btn btn-signup" id="signup-btn">
+                    <i class="fas fa-user-plus"></i> Create Professional Account
+                </button>
+
+                <div id="signup-message" class="message"></div>
+
+                <div class="admin-info">
+                    <strong>Account Activation Process:</strong>
+                    <p>After sign up, your account will be in <span class="status-pending status-indicator"></span>
+                        <strong>Pending Activation</strong> status.
+                    </p>
+                    <p>Valuers can request verification for private workspace access. Please contact the admin at <a
+                            href="tel:+256753771256">+256753771256</a> to activate your subscription.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Need assistance? Contact admin at <a href="tel:+256753771256">+256753771256</a> or <a
+                    href="mailto:admin@geospatialnetworkug.xyz">admin@geospatialnetworkug.xyz</a></p>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Supabase with proper error handling
+        // Check if supabase is already declared to avoid duplicate declaration error
+        var supabase;
+        if (typeof window.supabaseClient === 'undefined') {
+            try {
+                const supabaseUrl = 'https://kwssgfanbntfjdclchfi.supabase.co';
+                const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3c3NnZmFuYm50ZmpkY2xjaGZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNjM4ODUsImV4cCI6MjA3MDkzOTg4NX0.zPKcOwWdWu3-7ii19c2ep6g2i-kCTaUBZablTYDgZwA';
+
+                if (!supabaseUrl || !supabaseKey) {
+                    throw new Error('Supabase URL or API key is missing');
+                }
+
+                supabase = window.supabase.createClient(supabaseUrl, supabaseKey, {
+                    auth: {
+                        autoRefreshToken: true,
+                        persistSession: true,
+                        detectSessionInUrl: true
+                    }
+                });
+
+                window.supabaseClient = supabase; // Store in window for global access
+                console.log('Supabase initialized successfully');
+            } catch (error) {
+                console.error('Error initializing Supabase:', error);
+                // Show error message to user
+                document.addEventListener('DOMContentLoaded', function () {
+                    const loginMessage = document.getElementById('login-message');
+                    showMessage(loginMessage, 'Configuration error: ' + error.message, 'error');
+                });
+            }
+        } else {
+            // Use existing supabase client if already initialized
+            supabase = window.supabaseClient;
+            console.log('Using existing Supabase client');
+        }
+
+        // DOM Elements
+        const tabsContainer = document.getElementById('tabs-container');
+        const tabs = document.querySelectorAll('.tab');
+        const loginSection = document.getElementById('login-section');
+        const signupSection = document.getElementById('signup-section');
+        const resetSection = document.getElementById('reset-section');
+        const loginBtn = document.getElementById('login-btn');
+        const signupBtn = document.getElementById('signup-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const loginMessage = document.getElementById('login-message');
+        const signupMessage = document.getElementById('signup-message');
+        const resetMessage = document.getElementById('reset-message');
+        const forgotPassword = document.getElementById('forgot-password');
+        const backToLogin = document.getElementById('back-to-login');
+        const signupRoleSelect = document.getElementById('signup-role');
+
+        // Password toggle functionality
+        function setupPasswordToggle(toggleId, inputId) {
+            const toggle = document.getElementById(toggleId);
+            const input = document.getElementById(inputId);
+
+            toggle.addEventListener('click', () => {
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    toggle.innerHTML = '<i class="fas fa-eye-slash"></i>';
+                } else {
+                    input.type = 'password';
+                    toggle.innerHTML = '<i class="fas fa-eye"></i>';
+                }
+            });
+        }
+
+        // Setup password toggles
+        setupPasswordToggle('login-toggle', 'login-password');
+        setupPasswordToggle('signup-toggle', 'signup-password');
+        setupPasswordToggle('confirm-toggle', 'confirm-password');
+
+        // Password strength indicator
+        document.getElementById('signup-password').addEventListener('input', function () {
+            const password = this.value;
+            const strengthBar = document.getElementById('password-strength-bar');
+            let strength = 0;
+
+            if (password.length > 7) strength += 25;
+            if (/[A-Z]/.test(password)) strength += 25;
+            if (/[0-9]/.test(password)) strength += 25;
+            if (/[^A-Za-z0-9]/.test(password)) strength += 25;
+
+            strengthBar.style.width = strength + '%';
+
+            if (strength < 50) {
+                strengthBar.style.backgroundColor = '#e74c3c';
+            } else if (strength < 75) {
+                strengthBar.style.backgroundColor = '#f39c12';
+            } else {
+                strengthBar.style.backgroundColor = '#2ecc71';
+            }
+        });
+
+        // Password match indicator
+        document.getElementById('confirm-password').addEventListener('input', function () {
+            const password = document.getElementById('signup-password').value;
+            const confirmPassword = this.value;
+            const matchDiv = document.getElementById('password-match');
+
+            matchDiv.style.display = 'block';
+
+            if (password === confirmPassword && password.length > 0) {
+                matchDiv.className = 'password-match match';
+                matchDiv.innerHTML = '<i class="fas fa-check-circle"></i> Passwords match';
+            } else if (confirmPassword.length > 0) {
+                matchDiv.className = 'password-match no-match';
+                matchDiv.innerHTML = '<i class="fas fa-times-circle"></i> Passwords do not match';
+            } else {
+                matchDiv.style.display = 'none';
+            }
+        });
+
+        // Tab Switching
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                if (tab.dataset.tab === 'login') {
+                    loginSection.classList.add('active');
+                    signupSection.classList.remove('active');
+                    resetSection.classList.remove('active');
+                    tabsContainer.classList.remove('signup-active');
+                } else {
+                    signupSection.classList.add('active');
+                    loginSection.classList.remove('active');
+                    resetSection.classList.remove('active');
+                    tabsContainer.classList.add('signup-active');
+                }
+
+                // Clear messages
+                loginMessage.textContent = '';
+                loginMessage.className = 'message';
+                signupMessage.textContent = '';
+                signupMessage.className = 'message';
+                resetMessage.textContent = '';
+                resetMessage.className = 'message';
+            });
+        });
+
+        // Forgot password flow
+        forgotPassword.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginSection.classList.remove('active');
+            signupSection.classList.remove('active');
+            resetSection.classList.add('active');
+            tabsContainer.classList.remove('signup-active');
+        });
+
+        backToLogin.addEventListener('click', (e) => {
+            e.preventDefault();
+            resetSection.classList.remove('active');
+            loginSection.classList.add('active');
+        });
+
+        // Login Function
+        loginBtn.addEventListener('click', async () => {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            if (!email || !password) {
+                showMessage(loginMessage, 'Please enter both email and password', 'error');
+                return;
+            }
+
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Authenticating...';
+
+            try {
+                // Sign in with email and password
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email,
+                    password
+                });
+
+                if (error) {
+                    if (error.message.includes('Invalid login credentials')) {
+                        throw new Error('Invalid email or password. Please try again.');
+                    } else if (error.message.includes('Email not confirmed')) {
+                        throw new Error('Please confirm your email address before logging in.');
+                    } else {
+                        throw error;
+                    }
+                }
+
+                // Get user profile to check subscription status
+                const { data: profile, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('subscription, role')
+                    .eq('id', data.user.id)
+                    .single();
+
+                if (profileError) throw profileError;
+
+                // If we have a pending role assignment stored locally, reconcile it now
+                try {
+                    const pendingRoleRaw = localStorage.getItem('pendingProfileRole');
+                    if (pendingRoleRaw) {
+                        const pendingRole = JSON.parse(pendingRoleRaw);
+                        if (pendingRole?.userId === data.user.id && pendingRole?.role) {
+                            await supabase
+                                .from('profiles')
+                                .upsert({ id: data.user.id, role: pendingRole.role }, { onConflict: 'id' });
+                            localStorage.removeItem('pendingProfileRole');
+                        }
+                    }
+                } catch (reconcileError) {
+                    console.warn('Unable to reconcile pending role metadata:', reconcileError);
+                }
+
+                if (profile.subscription) {
+                    // Subscription active - set secure authentication cookie
+                    if (data && data.session) {
+                        // Set secure authentication cookie
+                        document.cookie = `supabase_auth_token=${data.session.access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+
+                        // Also store session data in localStorage as backup along with role hint
+                        localStorage.setItem('supabase.auth.token', data.session.access_token);
+                        localStorage.setItem('supabase.auth.session', JSON.stringify(data.session));
+                        if (profile.role) {
+                            localStorage.setItem('supabase.profile.role', profile.role);
+                        }
+
+                        // Wait a moment for cookie to be set before redirecting
+                        setTimeout(() => {
+                            window.location.href = 'webmap.html';
+                        }, 200);
+                    } else {
+                        showMessage(loginMessage, 'Session data not available. Please try again.', 'error');
+                    }
+                } else {
+                    // Subscription inactive
+                    showMessage(
+                        loginMessage,
+                        'Your account is not yet subscribed. Please contact the admin at +256753771256 to activate your subscription.',
+                        'warning'
+                    );
+                }
+            } catch (error) {
+                showMessage(loginMessage, error.message || 'Login failed. Please check your credentials and try again.', 'error');
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login to Map Portal';
+            }
+        });
+
+        // Sign Up Function
+        signupBtn.addEventListener('click', async () => {
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            const selectedRole = signupRoleSelect ? signupRoleSelect.value : 'general';
+
+            if (!email) {
+                showMessage(signupMessage, 'Please enter your email', 'error');
+                return;
+            }
+
+            if (!password || password.length < 6) {
+                showMessage(signupMessage, 'Password must be at least 6 characters', 'error');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showMessage(signupMessage, 'Passwords do not match', 'error');
+                return;
+            }
+
+            signupBtn.disabled = true;
+            signupBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating account...';
+
+            try {
+                // Create new user - this will trigger the database function
+                const { data, error } = await supabase.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        emailRedirectTo: window.location.origin,
+                        data: { role: selectedRole }
+                    }
+                });
+
+                if (error) {
+                    if (error.message.includes('User already registered')) {
+                        throw new Error('This email is already registered. Please try logging in instead.');
+                    } else {
+                        throw error;
+                    }
+                }
+
+                const successCopy = selectedRole === 'valuer'
+                    ? 'Valuer account created! Check your email to confirm, then contact the admin at +256753771256 to activate your private workspace.'
+                    : 'Account created successfully! Please check your email to confirm your account, then contact the admin at +256753771256 to activate your subscription.';
+
+                showMessage(signupMessage, successCopy, 'success');
+
+                // Attempt to persist role into profiles table when a session is available
+                try {
+                    if (data?.user && data?.session) {
+                        const { data: profileData, error: profileError } = await supabase
+                            .from('profiles')
+                            .upsert({ id: data.user.id, role: selectedRole }, { onConflict: 'id' });
+
+                        if (profileError) {
+                            console.error('Profile upsert error:', profileError);
+                        } else {
+                            console.log('Profile created successfully:', profileData);
+                        }
+                    } else if (data?.user) {
+                        localStorage.setItem('pendingProfileRole', JSON.stringify({ userId: data.user.id, role: selectedRole }));
+                        console.log('No session yet, saved role to localStorage');
+                    }
+                } catch (profileError) {
+                    console.error('Unable to upsert profile role at signup:', profileError);
+                }
+
+                // Clear form
+                document.getElementById('signup-email').value = '';
+                document.getElementById('signup-password').value = '';
+                document.getElementById('confirm-password').value = '';
+                if (signupRoleSelect) {
+                    signupRoleSelect.value = 'general';
+                }
+                document.getElementById('password-strength-bar').style.width = '0%';
+                document.getElementById('password-match').style.display = 'none';
+            } catch (error) {
+                console.error('Signup error details:', error);
+                console.error('Error message:', error.message);
+                console.error('Error code:', error.code);
+                console.error('Error status:', error.status);
+                showMessage(signupMessage, `Sign up failed: ${error.message || 'Unknown error'}. Check console for details.`, 'error');
+            } finally {
+                signupBtn.disabled = false;
+                signupBtn.innerHTML = '<i class="fas fa-user-plus"></i> Create Professional Account';
+            }
+        });
+
+        // Password Reset Function
+        resetBtn.addEventListener('click', async () => {
+            const email = document.getElementById('reset-email').value;
+
+            if (!email) {
+                showMessage(resetMessage, 'Please enter your email', 'error');
+                return;
+            }
+
+            resetBtn.disabled = true;
+            resetBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+
+            try {
+                // PATCH: Redirect back to login after password update (avoid 404 on missing update-password.html)
+                const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: window.location.origin + '/login.html'
+                });
+
+                if (error) throw error;
+
+                showMessage(
+                    resetMessage,
+                    'Password reset email sent! Please check your inbox for instructions.',
+                    'success'
+                );
+
+                // Clear form
+                document.getElementById('reset-email').value = '';
+            } catch (error) {
+                showMessage(resetMessage, error.message || 'Failed to send reset email. Please try again.', 'error');
+            } finally {
+                resetBtn.disabled = false;
+                resetBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Password Reset Link';
+            }
+        });
+
+        // Helper function to show messages
+        function showMessage(element, text, type) {
+            element.textContent = text;
+            element.className = `message ${type}`;
+        }
+
+        // Dark Mode Toggle Functionality
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const darkModeIcon = document.getElementById('darkModeIcon');
+        const htmlElement = document.documentElement;
+
+        // Check for saved theme preference or default to light mode
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        htmlElement.setAttribute('data-theme', currentTheme);
+
+        // Update icon based on current theme
+        function updateDarkModeIcon(theme) {
+            if (darkModeIcon) {
+                if (theme === 'dark') {
+                    darkModeIcon.className = 'fas fa-sun';
+                } else {
+                    darkModeIcon.className = 'fas fa-moon';
+                }
+            }
+        }
+
+        updateDarkModeIcon(currentTheme);
+
+        // Toggle dark mode
+        if (darkModeToggle) {
+            darkModeToggle.addEventListener('click', function () {
+                const currentTheme = htmlElement.getAttribute('data-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+                htmlElement.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                updateDarkModeIcon(newTheme);
+
+                // Add smooth transition
+                htmlElement.style.transition = 'background 0.3s ease, color 0.3s ease';
+            });
+        }
+
+        // Test Supabase connection on load
+        document.addEventListener('DOMContentLoaded', async function () {
+            if (supabase) {
+                try {
+                    const { data, error } = await supabase.auth.getSession();
+                    if (error) {
+                        console.error('Supabase connection test failed:', error);
+                    } else {
+                        console.log('Supabase connection test successful');
+                    }
+                } catch (error) {
+                    console.error('Supabase connection test error:', error);
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
