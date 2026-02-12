@@ -442,6 +442,15 @@ function setupUIHandlers() {
     if (drawPolygonBtn) drawPolygonBtn.onclick = () => startDrawing('Polygon');
     if (stopDrawBtn) stopDrawBtn.onclick = stopDrawing;
 
+    // Modify/Delete buttons
+    const modifyBtn = document.getElementById('modifyFeatureBtn');
+    const deleteBtn = document.getElementById('deleteFeatureBtn');
+    const stopModifyBtn = document.getElementById('stopModifyBtn');
+
+    if (modifyBtn) modifyBtn.onclick = startModify;
+    if (deleteBtn) deleteBtn.onclick = startDelete;
+    if (stopModifyBtn) stopModifyBtn.onclick = stopModify;
+
     console.log('Symbols Library: UI handlers attached');
 }
 
@@ -477,6 +486,146 @@ function handleMapMove() {
 }
 
 /**
+ * Load user's features from Supabase
+ */
+async function loadMyFeatures() {
+    if (!supabaseClient || !currentUserId) {
+        showMessage('User not authenticated', 'error');
+        return;
+    }
+
+    try {
+        console.log('[SL] Loading features for user:', currentUserId);
+
+        const { data, error } = await supabaseClient
+            .from('map_features')
+            .select('*')
+            .eq('user_id', currentUserId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        console.log(`[SL] Loaded ${data?.length || 0} features for user`);
+
+        // Clear existing user features from map
+        const existingFeatures = Array.from(loadedFeatures.values())
+            .filter(f => f.get('user_id') === currentUserId);
+        existingFeatures.forEach(f => featuresSource.removeFeature(f));
+
+        // Add features to map
+        if (data && data.length > 0) {
+            const geojson = {
+                type: 'FeatureCollection',
+                features: data.map(row => ({
+                    type: 'Feature',
+                    id: row.id,
+                    geometry: JSON.parse(row.geom),
+                    properties: {
+                        user_id: row.user_id,
+                        symbol_key: row.symbol_key,
+                        geom_type: row.geom_type,
+                        name: row.name,
+                        description: row.description,
+                        status: row.status,
+                        style: row.style,
+                        metadata: row.metadata,
+                        created_at: row.created_at,
+                        updated_at: row.updated_at
+                    }
+                }))
+            };
+
+            const features = new ol.format.GeoJSON().readFeatures(geojson, {
+                dataProjection: 'EPSG:4326',
+                featureProjection: map.getView().getProjection()
+            });
+
+            features.forEach(feature => {
+                featuresSource.addFeature(feature);
+                loadedFeatures.set(feature.getId(), feature);
+            });
+        }
+
+        updateMyFeaturesTab();
+        showMessage(`Loaded ${data?.length || 0} features`, 'success');
+
+    } catch (error) {
+        console.error('[SL] Error loading my features:', error);
+        showMessage('Failed to load features', 'error');
+    }
+}
+
+/**
+ * Zoom map to feature extent
+ */
+function zoomToFeature(featureId) {
+    const feature = loadedFeatures.get(featureId);
+    if (!feature) {
+        console.warn('[SL] Feature not found:', featureId);
+        return;
+    }
+
+    const geometry = feature.getGeometry();
+    const extent = geometry.getExtent();
+
+    // Add padding around extent
+    const padding = [50, 50, 50, 50];
+    map.getView().fit(extent, {
+        padding: padding,
+        duration: 500,
+        maxZoom: 18
+    });
+
+    // Temporarily highlight the feature
+    highlightFeature(feature);
+
+    console.log('[SL] Zoomed to feature:', featureId);
+}
+
+/**
+ * Temporarily highlight a feature
+ */
+function highlightFeature(feature) {
+    const geomType = feature.get('geom_type');
+
+    // Create highlight style
+    let highlightStyle;
+    if (geomType === 'Point') {
+        highlightStyle = new ol.style.Style({
+            image: new ol.style.Circle({
+                radius: 12,
+                fill: new ol.style.Fill({ color: 'rgba(59, 130, 246, 0.3)' }),
+                stroke: new ol.style.Stroke({ color: '#3b82f6', width: 3 })
+            })
+        });
+    } else if (geomType === 'LineString') {
+        highlightStyle = new ol.style.Style({
+            stroke: new ol.style.Stroke({
+                color: '#3b82f6',
+                width: 5,
+                lineCap: 'round'
+            })
+        });
+    } else if (geomType === 'Polygon') {
+        highlightStyle = new ol.style.Style({
+            fill: new ol.style.Fill({ color: 'rgba(59, 130, 246, 0.2)' }),
+            stroke: new ol.style.Stroke({ color: '#3b82f6', width: 3 })
+        });
+    }
+
+    // Store original style
+    const originalStyle = feature.getStyle();
+
+    // Apply highlight
+    feature.setStyle(highlightStyle);
+
+    // Restore original after 2 seconds
+    setTimeout(() => {
+        feature.setStyle(originalStyle);
+    }, 2000);
+}
+
+/**
  * Update My Features tab
  */
 function updateMyFeaturesTab() {
@@ -484,35 +633,445 @@ function updateMyFeaturesTab() {
     if (!myFeaturesTab) return;
 
     const myFeatures = Array.from(loadedFeatures.values())
-        .filter(f => f.get('user_id') === currentUserId);
+        .filter(f => f.get('user_id') === currentUserId)
+        .sort((a, b) => {
+            const dateA = new Date(a.get('created_at'));
+            const dateB = new Date(b.get('created_at'));
+            return dateB - dateA; // Most recent first
+        });
 
-    let html = '<div style="padding: 10px;">';
-    html += `<h4>My Features (${myFeatures.length})</h4>`;
+    let html = '<div style="padding: 15px;">';
+
+    // Header with Load button
+    html += `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h4 style="margin: 0;">My Features (${myFeatures.length})</h4>
+            <button id="loadMyFeaturesBtn" class="action-btn" style="padding: 8px 12px; font-size: 12px;">
+                <i class="fas fa-sync-alt"></i> Load
+            </button>
+        </div>
+    `;
 
     if (myFeatures.length === 0) {
-        html += '<p style="color: #6b7280;">No features yet. Use the Draw tab to create features.</p>';
+        html += '<p style="color: #6b7280; text-align: center; padding: 20px;">No features yet. Use the Draw tab to create features.</p>';
     } else {
-        html += '<ul style="list-style: none; padding: 0;">';
+        html += '<div class="features-list" style="max-height: 400px; overflow-y: auto;">';
+
         myFeatures.forEach(feature => {
+            const id = feature.getId();
             const name = feature.get('name') || 'Unnamed';
             const symbolKey = feature.get('symbol_key');
             const symbol = symbolCatalog.find(s => s.symbol_key === symbolKey);
+            const geomType = feature.get('geom_type');
+            const createdAt = new Date(feature.get('created_at')).toLocaleDateString();
+
+            // Icon based on geometry type
+            let icon = '📍';
+            if (geomType === 'LineString') icon = '🛣️';
+            if (geomType === 'Polygon') icon = '🟩';
+
             html += `
-        <li style="padding: 8px; border-bottom: 1px solid #e5e7eb;">
-          <strong>${name}</strong> (${symbol?.name || symbolKey})
-        </li>
-      `;
+                <div class="feature-item" data-feature-id="${id}" style="
+                    padding: 12px;
+                    border: 1px solid #e5e7eb;
+                    border-radius: 6px;
+                    margin-bottom: 8px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    background: #f9fafb;
+                ">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="font-size: 24px;">${icon}</div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: #1f2937; margin-bottom: 2px;">
+                                ${name}
+                            </div>
+                            <div style="font-size: 11px; color: #6b7280;">
+                                ${symbol?.name || symbolKey} • ${createdAt}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
         });
-        html += '</ul>';
+
+        html += '</div>';
     }
 
     html += '</div>';
     myFeaturesTab.innerHTML = html;
+
+    // Add click handlers for feature items
+    const featureItems = myFeaturesTab.querySelectorAll('.feature-item');
+    featureItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const featureId = item.dataset.featureId;
+            zoomToFeature(featureId);
+        });
+
+        // Hover effect
+        item.addEventListener('mouseenter', () => {
+            item.style.background = '#eff6ff';
+            item.style.borderColor = '#3b82f6';
+        });
+        item.addEventListener('mouseleave', () => {
+            item.style.background = '#f9fafb';
+            item.style.borderColor = '#e5e7eb';
+        });
+    });
+
+    // Add Load button handler
+    const loadBtn = document.getElementById('loadMyFeaturesBtn');
+    if (loadBtn) {
+        loadBtn.onclick = loadMyFeatures;
+    }
+}
+
+// ====================================
+// STEP 9: MODIFY & DELETE FEATURES
+// ====================================
+
+let editMode = null; // 'modify' or 'delete'
+let selectedFeatureForEdit = null;
+
+/**
+ * Start modify mode - allow users to edit their own features
+ */
+function startModify() {
+    console.log('[SL] Starting modify mode');
+
+    // Stop drawing if active
+    if (drawInteraction) {
+        map.removeInteraction(drawInteraction);
+        drawInteraction = null;
+    }
+
+    // Remove existing interactions
+    if (selectInteraction) map.removeInteraction(selectInteraction);
+    if (modifyInteraction) map.removeInteraction(modifyInteraction);
+
+    // Create Select interaction
+    selectInteraction = new ol.interaction.Select({
+        layers: [featuresLayer],
+        style: new ol.style.Style({
+            image: new ol.style.Circle({
+                radius: 8,
+                fill: new ol.style.Fill({ color: 'rgba(59, 130, 246, 0.3)' }),
+                stroke: new ol.style.Stroke({ color: '#3b82f6', width: 3 })
+            }),
+            stroke: new ol.style.Stroke({ color: '#3b82f6', width: 3 }),
+            fill: new ol.style.Fill({ color: 'rgba(59, 130, 246, 0.2)' })
+        })
+    });
+
+    selectInteraction.on('select', (event) => {
+        if (event.selected.length > 0) {
+            handleFeatureSelect(event.selected[0]);
+        }
+    });
+
+    map.addInteraction(selectInteraction);
+
+    // Create Modify interaction for geometry editing
+    modifyInteraction = new ol.interaction.Modify({
+        features: selectInteraction.getFeatures()
+    });
+
+    modifyInteraction.on('modifyend', (event) => {
+        const feature = event.features.getArray()[0];
+        if (feature) {
+            updateFeatureGeometryConfirm(feature);
+        }
+    });
+
+    map.addInteraction(modifyInteraction);
+
+    editMode = 'modify';
+    showMessage('Modify mode active. Click a feature to select it.', 'info');
 }
 
 /**
- * Load features from Supabase within current map extent
+ * Stop modify mode
  */
+function stopModify() {
+    if (selectInteraction) {
+        map.removeInteraction(selectInteraction);
+        selectInteraction = null;
+    }
+    if (modifyInteraction) {
+        map.removeInteraction(modifyInteraction);
+        modifyInteraction = null;
+    }
+    editMode = null;
+    selectedFeatureForEdit = null;
+
+    // Hide edit form if shown
+    const editForm = document.getElementById('editFeatureForm');
+    if (editForm) editForm.style.display = 'none';
+
+    console.log('[SL] Modify mode stopped');
+    showMessage('Modify mode stopped', 'info');
+}
+
+/**
+ * Handle feature selection - check ownership and show edit form
+ */
+function handleFeatureSelect(feature) {
+    const featureUserId = feature.get('user_id');
+
+    if (featureUserId !== currentUserId) {
+        showMessage('You can only edit your own features', 'warning');
+        // Deselect
+        if (selectInteraction) {
+            selectInteraction.getFeatures().clear();
+        }
+        return;
+    }
+
+    selectedFeatureForEdit = feature;
+    console.log('[SL] Feature selected for edit:', feature.getId());
+
+    if (editMode === 'modify') {
+        showEditForm(feature);
+    } else if (editMode === 'delete') {
+        deleteFeatureConfirm(feature);
+    }
+}
+
+/**
+ * Show edit form for feature attributes
+ */
+function showEditForm(feature) {
+    const name = feature.get('name') || '';
+    const description = feature.get('description') || '';
+    const status = feature.get('status') || 'existing';
+
+    // Create or update edit form
+    let editForm = document.getElementById('editFeatureForm');
+    if (!editForm) {
+        editForm = document.createElement('div');
+        editForm.id = 'editFeatureForm';
+        editForm.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            z-index: 10000;
+            width: 350px;
+        `;
+        document.body.appendChild(editForm);
+    }
+
+    editForm.innerHTML = `
+        <h4 style="margin: 0 0 15px 0;">Edit Feature</h4>
+        <div style="margin-bottom: 12px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 4px;">Name:</label>
+            <input type="text" id="editFeatureName" value="${name}" 
+                style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px;" />
+        </div>
+        <div style="margin-bottom: 12px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 4px;">Description:</label>
+            <textarea id="editFeatureDesc" rows="3"
+                style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px;">${description}</textarea>
+        </div>
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 4px;">Status:</label>
+            <select id="editFeatureStatus"
+                style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px;">
+                <option value="existing" ${status === 'existing' ? 'selected' : ''}>Existing</option>
+                <option value="proposed" ${status === 'proposed' ? 'selected' : ''}>Proposed</option>
+                <option value="under_construction" ${status === 'under_construction' ? 'selected' : ''}>Under Construction</option>
+                <option value="demolished" ${status === 'demolished' ? 'selected' : ''}>Demolished</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button id="saveFeatureEditsBtn" class="action-btn" style="flex: 1;">
+                <i class="fas fa-save"></i> Save
+            </button>
+            <button id="cancelFeatureEditsBtn" class="action-btn" style="flex: 1; background: #6b7280;">
+                Cancel
+            </button>
+        </div>
+    `;
+
+    editForm.style.display = 'block';
+
+    // Add event listeners
+    document.getElementById('saveFeatureEditsBtn').onclick = () => {
+        updateFeatureAttributes(feature);
+    };
+
+    document.getElementById('cancelFeatureEditsBtn').onclick = () => {
+        editForm.style.display = 'none';
+        stopModify();
+    };
+}
+
+/**
+ * Update feature attributes (name, description, status)
+ */
+async function updateFeatureAttributes(feature) {
+    const name = document.getElementById('editFeatureName').value;
+    const description = document.getElementById('editFeatureDesc').value;
+    const status = document.getElementById('editFeatureStatus').value;
+
+    try {
+        const { error } = await supabaseClient
+            .rpc('update_map_feature', {
+                feature_id: feature.getId(),
+                name: name || null,
+                description: description || null,
+                status: status
+            });
+
+        if (error) throw error;
+
+        // Update local feature
+        feature.set('name', name);
+        feature.set('description', description);
+        feature.set('status', status);
+        feature.set('updated_at', new Date().toISOString());
+
+        console.log('[SL] Feature attributes updated:', feature.getId());
+        showMessage('Feature updated successfully', 'success');
+
+        document.getElementById('editFeatureForm').style.display = 'none';
+        updateMyFeaturesTab();
+
+    } catch (error) {
+        console.error('[SL] Error updating feature:', error);
+        showMessage('Failed to update feature', 'error');
+    }
+}
+
+/**
+ * Update feature geometry after modification
+ */
+async function updateFeatureGeometryConfirm(feature) {
+    if (feature.get('user_id') !== currentUserId) {
+        showMessage('You can only modify your own features', 'warning');
+        return;
+    }
+
+    try {
+        const geometry = feature.getGeometry();
+        const geojson = new ol.format.GeoJSON().writeGeometryObject(geometry, {
+            dataProjection: 'EPSG:4326',
+            featureProjection: map.getView().getProjection()
+        });
+
+        const { error } = await supabaseClient
+            .rpc('update_map_feature', {
+                feature_id: feature.getId(),
+                geom_geojson: geojson
+            });
+
+        if (error) throw error;
+
+        console.log('[SL] Feature geometry updated:', feature.getId());
+        showMessage('Geometry updated successfully', 'success');
+
+    } catch (error) {
+        console.error('[SL] Error updating geometry:', error);
+        showMessage('Failed to update geometry', 'error');
+    }
+}
+
+/**
+ * Start delete mode
+ */
+function startDelete() {
+    console.log('[SL] Starting delete mode');
+
+    // Stop drawing if active
+    if (drawInteraction) {
+        map.removeInteraction(drawInteraction);
+        drawInteraction = null;
+    }
+
+    // Remove existing interactions
+    if (selectInteraction) map.removeInteraction(selectInteraction);
+    if (modifyInteraction) map.removeInteraction(modifyInteraction);
+
+    // Create Select interaction
+    selectInteraction = new ol.interaction.Select({
+        layers: [featuresLayer],
+        style: new ol.style.Style({
+            image: new ol.style.Circle({
+                radius: 8,
+                fill: new ol.style.Fill({ color: 'rgba(220, 38, 38, 0.3)' }),
+                stroke: new ol.style.Stroke({ color: '#dc2626', width: 3 })
+            }),
+            stroke: new ol.style.Stroke({ color: '#dc2626', width: 3 }),
+            fill: new ol.style.Fill({ color: 'rgba(220, 38, 38, 0.2)' })
+        })
+    });
+
+    selectInteraction.on('select', (event) => {
+        if (event.selected.length > 0) {
+            handleFeatureSelect(event.selected[0]);
+        }
+    });
+
+    map.addInteraction(selectInteraction);
+    editMode = 'delete';
+    showMessage('Delete mode active. Click a feature to delete it.', 'warning');
+}
+
+/**
+ * Confirm and delete feature
+ */
+function deleteFeatureConfirm(feature) {
+    const name = feature.get('name') || 'this feature';
+
+    if (!confirm(`Are you sure you want to delete "${name}"?`)) {
+        // Deselect
+        if (selectInteraction) {
+            selectInteraction.getFeatures().clear();
+        }
+        return;
+    }
+
+    deleteFeature(feature);
+}
+
+/**
+ * Delete feature from database and map
+ */
+async function deleteFeature(feature) {
+    const featureId = feature.getId();
+
+    try {
+        const { error } = await supabaseClient
+            .from('map_features')
+            .delete()
+            .eq('id', featureId);
+
+        if (error) throw error;
+
+        // Remove from map
+        featuresSource.removeFeature(feature);
+        loadedFeatures.delete(featureId);
+
+        console.log('[SL] Feature deleted:', featureId);
+        showMessage('Feature deleted successfully', 'success');
+        updateMyFeaturesTab();
+
+        // Deselect
+        if (selectInteraction) {
+            selectInteraction.getFeatures().clear();
+        }
+
+    } catch (error) {
+        console.error('[SL] Error deleting feature:', error);
+        showMessage('Failed to delete feature', 'error');
+    }
+}
+
 async function loadFeatures() {
     if (!map || !supabaseClient) {
         console.warn('[SL] Cannot load features: map or supabase not initialized');
