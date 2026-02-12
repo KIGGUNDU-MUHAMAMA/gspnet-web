@@ -776,75 +776,6 @@ function handleMapMove() {
 }
 
 /**
- * Populate catalog UI with symbols
- */
-function populateCatalogUI() {
-    const catalogTab = document.getElementById('catalogTab');
-    if (!catalogTab) return;
-
-    const categories = {
-        point: [],
-        line: [],
-        polygon: []
-    };
-
-    symbolCatalog.forEach(symbol => {
-        if (categories[symbol.category]) {
-            categories[symbol.category].push(symbol);
-        }
-    });
-
-    let html = '<div style="padding: 10px;">';
-
-    for (const [category, symbols] of Object.entries(categories)) {
-        if (symbols.length === 0) continue;
-
-        html += `<h4 style="margin-top: 15px;">${category.charAt(0).toUpperCase() + category.slice(1)}s</h4>`;
-        html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px;">';
-
-        symbols.forEach(symbol => {
-            html += `
-        <div class="symbol-card" data-symbol="${symbol.symbol_key}" style="
-          border: 2px solid #e5e7eb;
-          border-radius: 4px;
-          padding: 10px;
-          text-align: center;
-          cursor: pointer;
-          transition: all 0.2s;
-        ">
-          <div style="font-size: 11px; font-weight: 600;">${symbol.name}</div>
-        </div>
-      `;
-        });
-
-        html += '</div>';
-    }
-
-    html += '</div>';
-    catalogTab.innerHTML = html;
-
-    // Add click handlers to symbol cards
-    catalogTab.querySelectorAll('.symbol-card').forEach(card => {
-        card.onclick = () => {
-            // Remove selection from all cards
-            catalogTab.querySelectorAll('.symbol-card').forEach(c => {
-                c.style.borderColor = '#e5e7eb';
-                c.style.backgroundColor = 'transparent';
-            });
-
-            // Highlight selected
-            card.style.borderColor = '#3b82f6';
-            card.style.backgroundColor = '#eff6ff';
-
-            // Set selected symbol
-            const symbolKey = card.dataset.symbol;
-            selectedSymbol = symbolCatalog.find(s => s.symbol_key === symbolKey);
-            console.log('Selected symbol:', selectedSymbol);
-        };
-    });
-}
-
-/**
  * Update My Features tab
  */
 function updateMyFeaturesTab() {
@@ -876,6 +807,183 @@ function updateMyFeaturesTab() {
 
     html += '</div>';
     myFeaturesTab.innerHTML = html;
+}
+
+/**
+ * Load features from Supabase within current map extent
+ */
+async function loadFeatures() {
+    if (!map || !supabaseClient) {
+        console.warn('[SL] Cannot load features: map or supabase not initialized');
+        return;
+    }
+
+    try {
+        console.log('[SL] Loading features...');
+
+        // Get map extent and transform to EPSG:4326
+        const extent = map.getView().calculateExtent(map.getSize());
+        const [minX, minY, maxX, maxY] = ol.proj.transformExtent(extent, map.getView().getProjection(), 'EPSG:4326');
+
+        // Expand bbox by 20% buffer
+        const bufferX = (maxX - minX) * 0.2;
+        const bufferY = (maxY - minY) * 0.2;
+
+        const { data, error } = await supabaseClient.rpc('get_features_bbox', {
+            min_lon: minX - bufferX,
+            min_lat: minY - bufferY,
+            max_lon: maxX + bufferX,
+            max_lat: maxY + bufferY,
+            lim: 500
+        });
+
+        if (error) throw error;
+
+        console.log(`[SL] Loaded ${data?.features?.length || 0} features`);
+
+        if (data && data.features) {
+            const format = new ol.format.GeoJSON();
+            const features = format.readFeatures(data, {
+                dataProjection: 'EPSG:4326',
+                featureProjection: map.getView().getProjection()
+            });
+
+            // Upsert features (update existing, add new)
+            features.forEach(feature => {
+                const id = feature.get('id');
+                if (loadedFeatures.has(id)) {
+                    // Update existing
+                    const existing = loadedFeatures.get(id);
+                    existing.setGeometry(feature.getGeometry());
+                    existing.setProperties(feature.getProperties());
+                } else {
+                    // Add new
+                    featuresSource.addFeature(feature);
+                    loadedFeatures.set(id, feature);
+                }
+            });
+        }
+
+        showMessage(`Loaded ${data?.features?.length || 0} features`, 'success');
+    } catch (error) {
+        console.error('[SL] Failed to load features:', error);
+        showMessage(`Error loading features: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * Start drawing interaction
+ */
+function startDrawing(geomType) {
+    if (!selectedSymbol) {
+        showMessage('Please select a symbol from the Catalog first', 'warning');
+        console.warn('[SL] No symbol selected');
+        return;
+    }
+
+    console.log('[SL] Starting drawing:', geomType, 'with symbol:', selectedSymbol.name);
+
+    // Remove existing interaction
+    if (drawInteraction) {
+        map.removeInteraction(drawInteraction);
+    }
+
+    // Create new draw interaction
+    drawInteraction = new ol.interaction.Draw({
+        source: featuresSource,
+        type: geomType
+    });
+
+    drawInteraction.on('drawend', handleDrawEnd);
+    map.addInteraction(drawInteraction);
+
+    showMessage(`Drawing ${geomType}... Click on map to draw`, 'info');
+}
+
+/**
+ * Stop drawing interaction
+ */
+function stopDrawing() {
+    if (drawInteraction) {
+        map.removeInteraction(drawInteraction);
+        drawInteraction = null;
+        console.log('[SL] Drawing stopped');
+        showMessage('Drawing stopped', 'info');
+    }
+}
+
+/**
+ * Handle draw end event
+ */
+function handleDrawEnd(event) {
+    const feature = event.feature;
+    const geometry = feature.getGeometry();
+
+    console.log('[SL] Draw completed');
+
+    // Remove the temporary feature (we'll add it after saving)
+    featuresSource.removeFeature(feature);
+
+    // Prompt user for feature attributes
+    const name = prompt(`Name for this ${selectedSymbol.name}:`, `New ${selectedSymbol.name}`);
+    if (!name) {
+        showMessage('Feature creation cancelled', 'info');
+        return;
+    }
+
+    const description = prompt('Description (optional):', '');
+
+    // Save feature
+    saveFeature(geometry, {
+        name: name,
+        description: description || null,
+        symbol_key: selectedSymbol.symbol_key,
+        geom_type: selectedSymbol.geom_type,
+        status: 'existing',
+        style: selectedSymbol.default_style || {}
+    });
+}
+
+/**
+ * Save feature to Supabase
+ */
+async function saveFeature(geometry, attributes) {
+    try {
+        console.log('[SL] Saving feature...', attributes);
+
+        // Transform geometry to EPSG:4326
+        const geom4326 = geometry.clone().transform(
+            map.getView().getProjection(),
+            'EPSG:4326'
+        );
+
+        // Convert to GeoJSON
+        const format = new ol.format.GeoJSON();
+        const geojson = format.writeGeometryObject(geom4326);
+
+        // Call Supabase RPC
+        const { data, error } = await supabaseClient.rpc('insert_map_feature', {
+            geom_geojson: geojson,
+            geom_type: attributes.geom_type,
+            symbol_key: attributes.symbol_key,
+            name: attributes.name,
+            description: attributes.description,
+            status: attributes.status,
+            style: attributes.style
+        });
+
+        if (error) throw error;
+
+        console.log('[SL] Feature saved:', data);
+        showMessage(`${attributes.name} saved successfully!`, 'success');
+
+        // Reload features to show the new one
+        await loadFeatures();
+
+    } catch (error) {
+        console.error('[SL] Failed to save feature:', error);
+        showMessage(`Error saving feature: ${error.message}`, 'error');
+    }
 }
 
 /**
