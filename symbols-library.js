@@ -24,7 +24,7 @@ let selectedSymbol = null;
  * @param {ol.Map} olMap - OpenLayers map instance
  * @param {Object} supabase - Supabase client instance
  */
-export async function initSymbolsLibrary(olMap, supabase) {
+async function initSymbolsLibrary(olMap, supabase) {
     console.log('[SL] initSymbolsLibrary called', { hasMap: !!olMap, hasSupabase: !!supabase });
     map = olMap;
     supabaseClient = supabase;
