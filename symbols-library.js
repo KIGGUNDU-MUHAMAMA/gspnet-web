@@ -451,6 +451,10 @@ function setupUIHandlers() {
     if (deleteBtn) deleteBtn.onclick = startDelete;
     if (stopModifyBtn) stopModifyBtn.onclick = stopModify;
 
+    // Legend export button
+    const exportLegendBtn = document.getElementById('exportLegendBtn');
+    if (exportLegendBtn) exportLegendBtn.onclick = exportLegend;
+
     console.log('Symbols Library: UI handlers attached');
 }
 
@@ -1262,6 +1266,228 @@ function showMessage(message, type = 'info') {
     } else {
         // Fallback to console if toast not available
         console.log(`[SL] ${type.toUpperCase()}: ${message}`);
+    }
+}
+
+// ====================================
+// STEP 10: FLAGGING SYSTEM
+// ====================================
+
+/**
+ * Show flag dialog (simplified - using browser prompt/confirm for now)
+ * In production, would create a proper modal
+ */
+function flagSelectedFeature() {
+    if (!selectedFeatureForEdit) {
+        showMessage('Please select a feature to flag by clicking it', 'warning');
+        return;
+    }
+
+    const featureUserId = selectedFeatureForEdit.get('user_id');
+
+    if (featureUserId === currentUserId) {
+        showMessage('You cannot flag your own features', 'warning');
+        return;
+    }
+
+    const reasons = ['wrong_location', 'wrong_type', 'duplicate', 'outdated', 'needs_review', 'other'];
+    const reasonText = prompt(`Select reason to flag:
+1 - Wrong Location
+2 - Wrong Type
+3 - Duplicate
+4 - Outdated
+5 - Needs Review
+6 - Other
+
+Enter number (1-6):`);
+
+    if (!reasonText) return; // Canceled
+
+    const reasonIndex = parseInt(reasonText) - 1;
+    if (reasonIndex < 0 || reasonIndex >= reasons.length) {
+        showMessage('Invalid reason selection', 'error');
+        return;
+    }
+
+    const reason = reasons[reasonIndex];
+    const comment = prompt('Additional comment (optional):');
+
+    submitFlag(selectedFeatureForEdit.getId(), reason, comment || '');
+}
+
+/**
+ * Submit flag to database
+ */
+async function submitFlag(featureId, reason, comment) {
+    try {
+        const { error } = await supabaseClient
+            .from('feature_flags')
+            .insert({
+                feature_id: featureId,
+                flagged_by: currentUserId,
+                reason: reason,
+                comment: comment,
+                status: 'open'
+            });
+
+        if (error) throw error;
+
+        console.log('[SL] Flag submitted for feature:', featureId);
+        showMessage('Feature flagged successfully', 'success');
+
+        // Refresh flags tab
+        updateFlagsTab();
+
+    } catch (error) {
+        console.error('[SL] Error submitting flag:', error);
+        showMessage('Failed to submit flag', 'error');
+    }
+}
+
+/**
+ * Update Flags tab
+ */
+async function updateFlagsTab() {
+    const flagsTab = document.getElementById('flagsTab');
+    if (!flagsTab) return;
+
+    let html = '<div style="padding: 15px;">';
+    html += '<h4 style="margin: 0 0 15px 0;">My Flags</h4>';
+
+    try {
+        const { data, error } = await supabaseClient
+            .from('feature_flags')
+            .select('*, map_features(name, symbol_key)')
+            .eq('flagged_by', currentUserId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            html += '<p style="color: #6b7280; text-align: center; padding: 20px;">No flags yet.</p>';
+        } else {
+            html += '<div class="flags-list" style="max-height: 400px; overflow-y: auto;">';
+
+            data.forEach(flag => {
+                const statusColor = flag.status === 'open' ? '#f59e0b' :
+                    flag.status === 'resolved' ? '#22c55e' : '#6b7280';
+                const reasonText = flag.reason.replace(/_/g, ' ').toUpperCase();
+                const date = new Date(flag.created_at).toLocaleDateString();
+
+                html += `
+                    <div style="
+                        padding: 12px;
+                        border: 1px solid #e5e7eb;
+                        border-radius: 6px;
+                        margin-bottom: 8px;
+                        background: #f9fafb;
+                    ">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
+                            <strong style="color: #1f2937;">${flag.map_features?.name || 'Unknown Feature'}</strong>
+                            <span style="
+                                background: ${statusColor};
+                                color: white;
+                                padding: 2px 8px;
+                                border-radius: 4px;
+                                font-size: 10px;
+                                font-weight: 600;
+                            ">${flag.status.toUpperCase()}</span>
+                        </div>
+                        <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">
+                            <strong>Reason:</strong> ${reasonText}
+                        </div>
+                        ${flag.comment ? `<div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">${flag.comment}</div>` : ''}
+                        <div style="font-size: 10px; color: #9ca3af;">${date}</div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+        }
+
+    } catch (error) {
+        console.error('[SL] Error loading flags:', error);
+        html += '<p style="color: #dc2626;">Failed to load flags</p>';
+    }
+
+    html += '</div>';
+    flagsTab.innerHTML = html;
+}
+
+// ====================================
+// STEP 11: LEGEND PDF EXPORT
+// ====================================
+
+/**
+ * Export legend as PDF
+ */
+async function exportLegend() {
+    // Check for jsPDF library
+    if (typeof jsPDF === 'undefined') {
+        showMessage('PDF library not available. Legend export disabled.', 'error');
+        console.warn('[SL] jsPDF library not found');
+        return;
+    }
+
+    try {
+        // Get unique symbols from user's features
+        const myFeatures = Array.from(loadedFeatures.values())
+            .filter(f => f.get('user_id') === currentUserId);
+
+        if (myFeatures.length === 0) {
+            showMessage('No features to export', 'warning');
+            return;
+        }
+
+        // Count features by symbol
+        const symbolCounts = {};
+        myFeatures.forEach(feature => {
+            const symbolKey = feature.get('symbol_key');
+            symbolCounts[symbolKey] = (symbolCounts[symbolKey] || 0) + 1;
+        });
+
+        // Create PDF
+        const doc = new jsPDF();
+        doc.setFontSize(16);
+        doc.text('Symbols Legend', 20, 20);
+
+        doc.setFontSize(10);
+        doc.text(`Generated: ${new Date().toLocaleString()}`, 20, 30);
+        doc.text(`Total Features: ${myFeatures.length}`, 20, 36);
+
+        let y = 50;
+
+        // Add each symbol
+        Object.entries(symbolCounts).forEach(([symbolKey, count]) => {
+            const symbol = symbolCatalog.find(s => s.symbol_key === symbolKey);
+            if (symbol) {
+                // Check page break
+                if (y > 270) {
+                    doc.addPage();
+                    y = 20;
+                }
+
+                doc.setFontSize(12);
+                doc.text(`• ${symbol.name}`, 25, y);
+                doc.setFontSize(9);
+                doc.setTextColor(100);
+                doc.text(`(${count} feature${count > 1 ? 's' : ''})`, 25, y + 5);
+                doc.setTextColor(0);
+
+                y += 12;
+            }
+        });
+
+        // Download PDF
+        const filename = `symbols_legend_${new Date().getTime()}.pdf`;
+        doc.save(filename);
+
+        console.log('[SL] Legend PDF exported:', filename);
+        showMessage('Legend exported successfully', 'success');
+
+    } catch (error) {
+        console.error('[SL] Error exporting legend:', error);
+        showMessage('Failed to export legend', 'error');
     }
 }
 
