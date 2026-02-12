@@ -85,6 +85,113 @@ async function loadSymbolCatalog() {
 }
 
 /**
+ * Populate catalog UI with symbols
+ */
+function populateCatalogUI() {
+    const catalogContainer = document.getElementById('catalogSymbols');
+    if (!catalogContainer) {
+        console.warn('[SL] Catalog container not found');
+        return;
+    }
+
+    console.log('[SL] Populating catalog with', symbolCatalog.length, 'symbols');
+
+    // Group symbols by geometry type
+    const grouped = {
+        Point: [],
+        LineString: [],
+        Polygon: []
+    };
+
+    symbolCatalog.forEach(symbol => {
+        if (grouped[symbol.geom_type]) {
+            grouped[symbol.geom_type].push(symbol);
+        }
+    });
+
+    let html = '';
+
+    // Render Points
+    if (grouped.Point.length > 0) {
+        html += `<h4><i class="fas fa-map-marker-alt"></i> Points (${grouped.Point.length})</h4>`;
+        html += '<div class="symbol-grid">';
+        grouped.Point.forEach(symbol => {
+            html += `
+                <div class="symbol-card" data-symbol-key="${symbol.symbol_key}" data-geom-type="Point">
+                    <div class="symbol-icon">${symbol.svg || '📍'}</div>
+                    <div class="symbol-name">${symbol.name}</div>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+
+    // Render Lines
+    if (grouped.LineString.length > 0) {
+        html += `<h4><i class="fas fa-route"></i> Lines (${grouped.LineString.length})</h4>`;
+        html += '<div class="symbol-grid">';
+        grouped.LineString.forEach(symbol => {
+            const color = symbol.default_style?.stroke_color || '#3b82f6';
+            html += `
+                <div class="symbol-card" data-symbol-key="${symbol.symbol_key}" data-geom-type="LineString">
+                    <div class="symbol-icon">
+                        <svg width="40" height="40" viewBox="0 0 40 40">
+                            <line x1="5" y1="35" x2="35" y2="5" stroke="${color}" stroke-width="3"/>
+                        </svg>
+                    </div>
+                    <div class="symbol-name">${symbol.name}</div>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+
+    // Render Polygons
+    if (grouped.Polygon.length > 0) {
+        html += `<h4><i class="fas fa-draw-polygon"></i> Polygons (${grouped.Polygon.length})</h4>`;
+        html += '<div class="symbol-grid">';
+        grouped.Polygon.forEach(symbol => {
+            const fillColor = symbol.default_style?.fill_color || '#22c55e';
+            const strokeColor = symbol.default_style?.stroke_color || '#166534';
+            html += `
+                <div class="symbol-card" data-symbol-key="${symbol.symbol_key}" data-geom-type="Polygon">
+                    <div class="symbol-icon">
+                        <svg width="40" height="40" viewBox="0 0 40 40">
+                            <rect x="5" y="5" width="30" height="30" fill="${fillColor}" fill-opacity="0.5" stroke="${strokeColor}" stroke-width="2"/>
+                        </svg>
+                    </div>
+                    <div class="symbol-name">${symbol.name}</div>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+
+    catalogContainer.innerHTML = html;
+
+    // Add click handlers for symbol selection
+    const symbolCards = catalogContainer.querySelectorAll('.symbol-card');
+    symbolCards.forEach(card => {
+        card.addEventListener('click', () => {
+            // Remove selected class from all cards
+            symbolCards.forEach(c => c.classList.remove('selected'));
+            // Add selected class to clicked card
+            card.classList.add('selected');
+
+            const symbolKey = card.getAttribute('data-symbol-key');
+            selectedSymbol = symbolCatalog.find(s => s.symbol_key === symbolKey);
+
+            console.log('[SL] Symbol selected:', selectedSymbol?.name);
+
+            // Show notification
+            showMessage(`Selected: ${selectedSymbol?.name}`, 'success');
+        });
+    });
+
+    console.log('[SL] Catalog UI populated');
+}
+
+/**
  * Setup OpenLayers vector layer for features
  */
 function setupFeaturesLayer() {
@@ -575,6 +682,35 @@ function setupUIHandlers() {
         };
     }
 
+    // Tab switching
+    console.log('[SL] Setting up tab switching...');
+    const tabButtons = document.querySelectorAll('.dock-tab-btn');
+    const tabContents = document.querySelectorAll('.dock-tab-content');
+
+    console.log('[SL] Found tab buttons:', tabButtons.length);
+    console.log('[SL] Found tab contents:', tabContents.length);
+
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const targetTab = button.getAttribute('data-target');
+            console.log('[SL] Tab clicked:', targetTab);
+
+            // Remove active class from all tabs and contents
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
+
+            // Add active class to clicked tab and corresponding content
+            button.classList.add('active');
+            const targetContent = document.getElementById(`${targetTab}Tab`);
+            if (targetContent) {
+                targetContent.classList.add('active');
+                console.log('[SL] Switched to tab:', targetTab);
+            } else {
+                console.warn('[SL] Tab content not found:', `${targetTab}Tab`);
+            }
+        });
+    });
+
     // Load Features button
     const loadFeaturesBtn = document.getElementById('loadFeaturesBtn');
     if (loadFeaturesBtn) {
@@ -742,8 +878,31 @@ function updateMyFeaturesTab() {
     myFeaturesTab.innerHTML = html;
 }
 
+/**
+ * Show notification message to user
+ */
+function showMessage(message, type = 'info') {
+    // Try to use existing toast notification system
+    const toastDiv = document.getElementById('toastMessage');
+    if (toastDiv) {
+        toastDiv.textContent = message;
+        toastDiv.className = `toast-message ${type}`;
+        toastDiv.style.display = 'block';
+        setTimeout(() => {
+            toastDiv.style.display = 'none';
+        }, 3000);
+    } else {
+        // Fallback to console if toast not available
+        console.log(`[SL] ${type.toUpperCase()}: ${message}`);
+    }
+}
+
+// Export initialization function (now accessible globally via window)
+window.initSymbolsLibrary = initSymbolsLibrary;
+
 // Export additional functions if needed
 export {
+    initSymbolsLibrary,
     loadFeatures,
     startDrawing,
     stopDrawing
