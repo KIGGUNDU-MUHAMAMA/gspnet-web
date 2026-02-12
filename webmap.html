@@ -2269,13 +2269,6 @@
             This is an official document issued by GEOSPATIAL NETWORK UGANDA<br/>
             Certificate ID: ${registration.id}
         </div>
-    </div>
-    <div class="no-print" style="text-align: center; margin: 20px;">
-        <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">🖨️ Print</button>
-        <button onclick="window.close()" style="padding: 10px 20px; font-size: 16px; cursor: pointer; margin-left: 10px;">❌ Close</button>
-    </div>
-</body>
-</html>
                 `);
                 printWindow.document.close();
 
@@ -12967,6 +12960,11 @@
                         <i class="fas fa-folder-open"></i> <span>PROJECT LIBRARY</span>
                     </button>
 
+                    <!-- Symbols Library Button -->
+                    <button type="button" class="control-btn" id="symbolsLibraryToggleBtn" title="Symbols Library">
+                        <i class="fas fa-toolbox"></i> <span>🧰 SYMBOLS</span>
+                    </button>
+
                     <!-- Coordinate Search Button -->
                     <button type="button" class="control-btn" id="coordSearchBtn" title="Coordinate Search">
                         <i class="fas fa-crosshairs"></i> <span>COORD SEARCH</span>
@@ -12989,6 +12987,232 @@
             <div class="toast-notification" id="toastNotification">
                 <span class="toast-close" id="toastClose">&times;</span>
                 <div id="toastMessage"></div>
+            </div>
+
+            <style>
+                /* Symbols Library Dock Styles */
+                .symbols-library-dock {
+                    position: fixed;
+                    top: 80px;
+                    left: 20px;
+                    width: 400px;
+                    max-height: calc(100vh - 100px);
+                    background: white;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+                    z-index: 1000;
+                    overflow: hidden;
+                    display: flex;
+                    flex-direction: column;
+                }
+
+                .dock-header {
+                    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                    color: white;
+                    padding: 15px 20px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+
+                .dock-header h3 {
+                    margin: 0;
+                    font-size: 18px;
+                    font-weight: 600;
+                }
+
+                .dock-close-btn {
+                    background: transparent;
+                    border: none;
+                    color: white;
+                    font-size: 24px;
+                    cursor: pointer;
+                    padding: 0;
+                    width: 30px;
+                    height: 30px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border-radius: 4px;
+                    transition: background 0.2s;
+                }
+
+                .dock-close-btn:hover {
+                    background: rgba(255, 255, 255, 0.2);
+                }
+
+                .dock-tabs {
+                    display: flex;
+                    background: #f3f4f6;
+                    border-bottom: 1px solid #e5e7eb;
+                    overflow-x: auto;
+                }
+
+                .dock-tab-btn {
+                    flex: 1;
+                    padding: 12px 10px;
+                    background: transparent;
+                    border: none;
+                    cursor: pointer;
+                    font-size: 13px;
+                    color: #6b7280;
+                    transition: all 0.2s;
+                    border-bottom: 3px solid transparent;
+                    white-space: nowrap;
+                }
+
+                .dock-tab-btn:hover {
+                    background: #e5e7eb;
+                    color: #111827;
+                }
+
+                .dock-tab-btn.active {
+                    background: white;
+                    color: #3b82f6;
+                    border-bottom-color: #3b82f6;
+                    font-weight: 600;
+                }
+
+                .dock-content {
+                    flex: 1;
+                    overflow-y: auto;
+                    background: white;
+                }
+
+                .dock-tab-content {
+                    display: none;
+                }
+
+                .dock-tab-content.active {
+                    display: block;
+                }
+
+                .draw-tool-btn,
+                .action-btn {
+                    padding: 10px 16px;
+                    background: #3b82f6;
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                    transition: all 0.2s;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+
+                .draw-tool-btn:hover,
+                .action-btn:hover {
+                    background: #2563eb;
+                    transform: translateY(-1px);
+                    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+                }
+
+                .draw-tool-btn:active,
+                .action-btn:active {
+                    transform: translateY(0);
+                }
+            </style>
+
+            <!-- Symbols Library Dock -->
+            <div class="symbols-library-dock" id="symbolsLibraryDock" style="display: none;">
+                <div class="dock-header">
+                    <h3><i class="fas fa-map-marked-alt"></i> Symbols Library</h3>
+                    <button class="dock-close-btn" aria-label="Close Symbols Library">&times;</button>
+                </div>
+
+                <div class="dock-tabs">
+                    <button class="dock-tab-btn active" data-target="catalog">
+                        <i class="fas fa-th"></i> Catalog
+                    </button>
+                    <button class="dock-tab-btn" data-target="draw">
+                        <i class="fas fa-pencil-alt"></i> Draw
+                    </button>
+                    <button class="dock-tab-btn" data-target="myfeatures">
+                        <i class="fas fa-user"></i> My Features
+                    </button>
+                    <button class="dock-tab-btn" data-target="flags">
+                        <i class="fas fa-flag"></i> Flags
+                    </button>
+                    <button class="dock-tab-btn" data-target="legend">
+                        <i class="fas fa-file-pdf"></i> Legend
+                    </button>
+                </div>
+
+                <div class="dock-content">
+                    <!-- Catalog Tab -->
+                    <div id="catalogTab" class="dock-tab-content active">
+                        <p style="color: #6b7280; text-align: center; padding: 20px;">
+                            Symbol catalog will load here...
+                        </p>
+                    </div>
+
+                    <!-- Draw Tab -->
+                    <div id="drawTab" class="dock-tab-content" style="display: none;">
+                        <div style="padding: 15px;">
+                            <p style="margin-bottom: 15px; color: #6b7280;">
+                                Select a symbol from the Catalog, then choose a drawing tool:
+                            </p>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+                                <button id="drawPointBtn" class="draw-tool-btn">
+                                    <i class="fas fa-map-pin"></i> Point
+                                </button>
+                                <button id="drawLineBtn" class="draw-tool-btn">
+                                    <i class="fas fa-minus"></i> Line
+                                </button>
+                                <button id="drawPolygonBtn" class="draw-tool-btn">
+                                    <i class="fas fa-draw-polygon"></i> Polygon
+                                </button>
+                                <button id="stopDrawBtn" class="action-btn" style="background: #ef4444;">
+                                    <i class="fas fa-stop"></i> Stop
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- My Features Tab -->
+                    <div id="myfeaturesTab" class="dock-tab-content" style="display: none;">
+                        <div style="padding: 15px;">
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                <button id="loadFeaturesBtn" class="action-btn" style="flex: 1;">
+                                    <i class="fas fa-download"></i> Load Features
+                                </button>
+                            </div>
+                            <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
+                                <input type="checkbox" id="autoLoadToggle">
+                                <span>Auto-load when panning/zooming</span>
+                            </label>
+                            <div id="featuresListContainer">
+                                <p style="color: #6b7280; text-align: center;">
+                                    Click "Load Features" to see your features.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Flags Tab -->
+                    <div id="flagsTab" class="dock-tab-content" style="display: none;">
+                        <div style="padding: 15px;">
+                            <p style="color: #6b7280; text-align: center;">
+                                Flagging functionality coming soon.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Legend Tab -->
+                    <div id="legendTab" class="dock-tab-content" style="display: none;">
+                        <div style="padding: 15px;">
+                            <button class="action-btn" style="width: 100%; margin-bottom: 15px;">
+                                <i class="fas fa-download"></i> Export as PDF
+                            </button>
+                            <p style="color: #6b7280; text-align: center;">
+                                Legend export functionality coming soon.
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Enhanced GSPNET.assist Floating Button -->
@@ -52186,6 +52410,225 @@ function smoothChaikin(points) {
         </div>
 
         <!-- ============================================ -->
+        <!-- SYMBOLS LIBRARY SIDE PANEL -->
+        <!-- ============================================ -->
+        <style>
+            .symbols-library-dock {
+                position: fixed;
+                top: 0;
+                right: 0;
+                width: 400px;
+                height: 100vh;
+                background: white;
+                box-shadow: -2px 0 10px rgba(0, 0, 0, 0.15);
+                z-index: 9999;
+                overflow-y: auto;
+            }
+
+            .symbols-library-dock .dock-header {
+                background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                color: white;
+                padding: 15px 20px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 2px solid #1d4ed8;
+            }
+
+            .symbols-library-dock .dock-header h3 {
+                margin: 0;
+                font-size: 18px;
+                font-weight: 600;
+            }
+
+            .symbols-library-dock .dock-close {
+                background: rgba(255, 255, 255, 0.2);
+                border: none;
+                color: white;
+                font-size: 24px;
+                width: 32px;
+                height: 32px;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+
+            .symbols-library-dock .dock-close:hover {
+                background: rgba(255, 255, 255, 0.3);
+            }
+
+            .symbols-library-dock .dock-body {
+                padding: 0;
+            }
+
+            .symbols-tabs {
+                display: flex;
+                background: #f3f4f6;
+                border-bottom: 2px solid #e5e7eb;
+                overflow-x: auto;
+            }
+
+            .symbols-tab {
+                flex: 1;
+                padding: 12px 8px;
+                background: transparent;
+                border: none;
+                border-bottom: 3px solid transparent;
+                font-size: 12px;
+                font-weight: 500;
+                color: #6b7280;
+                cursor: pointer;
+                transition: all 0.2s;
+                white-space: nowrap;
+            }
+
+            .symbols-tab:hover {
+                background: rgba(59, 130, 246, 0.1);
+                color: #3b82f6;
+            }
+
+            .symbols-tab.active {
+                background: white;
+                color: #3b82f6;
+                border-bottom-color: #3b82f6;
+            }
+
+            .symbols-tab i {
+                margin-right: 4px;
+            }
+
+            .symbols-tab-content {
+                min-height: 300px;
+            }
+
+            .draw-tool-btn,
+            .action-btn {
+                width: 100%;
+                padding: 10px;
+                margin: 5px 0;
+                background: #3b82f6;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                font-size: 14px;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+
+            .draw-tool-btn:hover,
+            .action-btn:hover {
+                background: #2563eb;
+            }
+
+            .draw-tool-btn i,
+            .action-btn i {
+                margin-right: 6px;
+            }
+        </style>
+
+        <div class="symbols-library-dock" id="symbolsLibraryDock" style="display: none;">
+            <div class="dock-header">
+                <h3><i class="fas fa-map-marked-alt"></i> Symbols Library</h3>
+                <button class="dock-close" id="symbolsLibraryClose">&times;</button>
+            </div>
+            <div class="dock-body">
+                <!-- Tab Selection -->
+                <div class="symbols-tabs">
+                    <button class="symbols-tab active" data-tab="catalog" id="catalogTabBtn">
+                        <i class="fas fa-th"></i> Catalog
+                    </button>
+                    <button class="symbols-tab" data-tab="draw" id="drawTabBtn">
+                        <i class="fas fa-pen"></i> Draw
+                    </button>
+                    <button class="symbols-tab" data-tab="myfeatures" id="myfeaturesTabBtn">
+                        <i class="fas fa-layer-group"></i> My Features
+                    </button>
+                    <button class="symbols-tab" data-tab="flags" id="flagsTabBtn">
+                        <i class="fas fa-flag"></i> Flags
+                    </button>
+                    <button class="symbols-tab" data-tab="legend" id="legendTabBtn">
+                        <i class="fas fa-list"></i> Legend
+                    </button>
+                </div>
+
+                <!-- Tab Content Areas -->
+
+                <!-- Catalog Tab -->
+                <div class="symbols-tab-content active" id="catalogTab">
+                    <div style="padding: 10px;">
+                        <p style="color: #6b7280; font-size: 14px;">Loading symbols...</p>
+                    </div>
+                </div>
+
+                <!-- Draw Tab -->
+                <div class="symbols-tab-content" id="drawTab" style="display: none;">
+                    <div style="padding: 10px;">
+                        <h4 style="margin-top: 0;">Draw Features</h4>
+                        <p style="font-size: 13px; color: #6b7280;">Select a symbol from the Catalog tab, then choose a
+                            drawing tool:</p>
+
+                        <div style="margin: 15px 0;">
+                            <button id="drawPointBtn" class="draw-tool-btn">
+                                <i class="fas fa-map-pin"></i> Draw Point
+                            </button>
+                            <button id="drawLineBtn" class="draw-tool-btn">
+                                <i class="fas fa-minus"></i> Draw Line
+                            </button>
+                            <button id="drawPolygonBtn" class="draw-tool-btn">
+                                <i class="fas fa-draw-polygon"></i> Draw Polygon
+                            </button>
+                            <button id="stopDrawBtn" class="draw-tool-btn" style="background: #dc2626;">
+                                <i class="fas fa-stop"></i> Stop Drawing
+                            </button>
+                        </div>
+
+                        <div id="drawFormContainer"></div>
+                    </div>
+                </div>
+
+                <!-- My Features Tab -->
+                <div class="symbols-tab-content" id="myfeaturesTab" style="display: none;">
+                    <div style="padding: 10px;">
+                        <h4 style="margin-top: 0;">My Features</h4>
+                        <div style="margin-bottom: 15px;">
+                            <button id="loadFeaturesBtn" class="action-btn">
+                                <i class="fas fa-download"></i> Load Features
+                            </button>
+                            <label style="display: block; margin-top: 10px;">
+                                <input type="checkbox" id="autoLoadToggle" />
+                                <span style="margin-left: 5px; font-size: 13px;">Auto-load on map move</span>
+                            </label>
+                        </div>
+                        <div id="myFeaturesListContainer">
+                            <p style="color: #6b7280; font-size: 13px;">Click "Load Features" to see your features.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Flags Tab -->
+                <div class="symbols-tab-content" id="flagsTab" style="display: none;">
+                    <div style="padding: 10px;">
+                        <h4 style="margin-top: 0;">Flagged Features</h4>
+                        <p style="font-size: 13px; color: #6b7280;">View and manage flagged features (coming soon in v1)
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Legend Tab -->
+                <div class="symbols-tab-content" id="legendTab" style="display: none;">
+                    <div style="padding: 10px;">
+                        <h4 style="margin-top: 0;">Legend</h4>
+                        <button id="exportLegendBtn" class="action-btn">
+                            <i class="fas fa-file-pdf"></i> Export Legend PDF
+                        </button>
+                        <p style="font-size: 13px; color: #6b7280; margin-top: 10px;">Export a PDF showing all symbols
+                            you've used (coming soon in v1)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
         <!-- LAND CLERK REGISTRATION MODAL -->
         <!-- ============================================ -->
         <div id="clerkModal" class="clerk-modal" style="display: none;">
@@ -52206,6 +52649,126 @@ function smoothChaikin(points) {
                 </div>
             </div>
         </div>
+
+        <!-- ============================================ -->
+        <!-- SYMBOLS LIBRARY MODULE IMPORT -->
+        <!-- ============================================ -->
+        <script type="module">
+            import { initSymbolsLibrary } from './symbols-library.js';
+
+            // Initialize when DOM is ready and map is available
+            function initSymbols() {
+                // Wait for map and supabaseClient to be available
+                if (typeof map !== 'undefined' && typeof supabaseClient !== 'undefined') {
+                    console.log('Initializing Symbols Library...');
+                    initSymbolsLibrary(map, supabaseClient);
+
+                    // Setup dock toggle handlers
+                    setupSymbolsLibraryDock();
+                } else {
+                    // Retry after a short delay
+                    setTimeout(initSymbols, 500);
+                }
+            }
+
+            function setupSymbolsLibraryDock() {
+                const dock = document.getElementById('symbolsLibraryDock');
+                const closeBtn = document.getElementById('symbolsLibraryClose');
+                const toggleBtn = document.getElementById('symbolsLibraryToggleBtn');
+
+                // Toggle button
+                if (toggleBtn) {
+                    toggleBtn.onclick = () => {
+                        if (dock.style.display === 'none') {
+                            dock.style.display = 'block';
+                        } else {
+                            dock.style.display = 'none';
+                        }
+                    };
+                }
+
+                // Close button
+                if (closeBtn) {
+                    closeBtn.onclick = () => {
+                        dock.style.display = 'none';
+                    };
+                }
+
+                // Tab switching
+                const tabButtons = document.querySelectorAll('.symbols-tab');
+                const tabContents = document.querySelectorAll('.symbols-tab-content');
+
+                tabButtons.forEach(btn => {
+                    btn.onclick = () => {
+                        const targetTab = btn.dataset.tab;
+
+                        // Remove active class from all tabs and contents
+                        tabButtons.forEach(b => b.classList.remove('active'));
+                        tabContents.forEach(c => {
+                            c.classList.remove('active');
+                            c.style.display = 'none';
+                        });
+
+                        // Add active class to clicked tab and show content
+                        btn.classList.add('active');
+                        const targetContent = document.getElementById(targetTab + 'Tab');
+                        if (targetContent) {
+                            targetContent.classList.add('active');
+                            targetContent.style.display = 'block';
+                        }
+                    };
+                });
+
+                console.log('Symbols Library dock handlers attached');
+            }
+
+            // Start initialization
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initSymbols);
+            } else {
+                initSymbols();
+            }
+        </script>
+
+        <!-- Symbols Library Module -->
+        <script type="module">
+            console.log('[SYMBOLS] Module script started');
+
+            import { initSymbolsLibrary } from './symbols-library.js';
+
+            console.log('[SYMBOLS] Module imported successfully');
+
+            // Wait for map to be ready
+            function initSymbolsLibraryWhenReady() {
+                console.log('[SYMBOLS] Checking for map and supabase...', {
+                    hasMap: typeof map !== 'undefined',
+                    mapValue: typeof map !== 'undefined' ? 'exists' : 'undefined',
+                    hasWindowSupabase: typeof window.supabaseClient !== 'undefined',
+                    supabaseValue: typeof window.supabaseClient !== 'undefined' ? 'exists' : 'undefined'
+                });
+
+                if (typeof map !== 'undefined' && map &&
+                    typeof window.supabaseClient !== 'undefined' && window.supabaseClient) {
+                    console.log('[SYMBOLS] Initializing Symbols Library...');
+                    initSymbolsLibrary(map, window.supabaseClient).catch(error => {
+                        console.error('[SYMBOLS] Failed to initialize:', error);
+                    });
+                } else {
+                    console.log('[SYMBOLS] Waiting for dependencies... retrying in 100ms');
+                    setTimeout(initSymbolsLibraryWhenReady, 100);
+                }
+            }
+
+            // Start initialization when DOM is ready
+            console.log('[SYMBOLS] Document ready state:', document.readyState);
+            if (document.readyState === 'loading') {
+                console.log('[SYMBOLS] Waiting for DOMContentLoaded');
+                document.addEventListener('DOMContentLoaded', initSymbolsLibraryWhenReady);
+            } else {
+                console.log('[SYMBOLS] DOM already loaded, starting init');
+                initSymbolsLibraryWhenReady();
+            }
+        </script>
 
 </body>
 
