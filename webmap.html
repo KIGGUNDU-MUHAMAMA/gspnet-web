@@ -52607,6 +52607,48 @@ function smoothChaikin(points) {
             .action-btn i {
                 margin-right: 6px;
             }
+
+            .symbol-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+                gap: 10px;
+                margin: 10px 0;
+            }
+
+            .symbol-card {
+                border: 2px solid #e5e7eb;
+                border-radius: 8px;
+                padding: 10px;
+                text-align: center;
+                cursor: pointer;
+                transition: all 0.2s;
+                background: #f9fafb;
+            }
+
+            .symbol-card:hover {
+                border-color: #3b82f6;
+                background: #eff6ff;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            }
+
+            .symbol-card.selected {
+                border-color: #3b82f6;
+                background: #dbeafe;
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+            }
+
+            .symbol-icon {
+                font-size: 32px;
+                margin-bottom: 8px;
+            }
+
+            .symbol-name {
+                font-size: 11px;
+                color: #374151;
+                font-weight: 500;
+                word-wrap: break-word;
+            }
         </style>
 
         <div class="symbols-library-dock" id="symbolsLibraryDock" style="display: none;">
@@ -52638,7 +52680,7 @@ function smoothChaikin(points) {
 
                 <!-- Catalog Tab -->
                 <div class="symbols-tab-content active" id="catalogTab">
-                    <div style="padding: 10px;">
+                    <div id="catalogSymbols" style="padding: 10px;">
                         <p style="color: #6b7280; font-size: 14px;">Loading symbols...</p>
                     </div>
                 </div>
