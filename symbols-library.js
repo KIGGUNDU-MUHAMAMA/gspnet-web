@@ -88,7 +88,7 @@ async function loadSymbolCatalog() {
  * Populate catalog UI with symbols
  */
 function populateCatalogUI() {
-    const catalogContainer = document.getElementById('catalogTab');
+    const catalogContainer = document.getElementById('catalogSymbols');
     if (!catalogContainer) {
         console.warn('[SL] Catalog container not found');
         return;
