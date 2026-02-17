@@ -355,56 +355,63 @@ function hexToRgba(hex, alpha) {
 function setupUIHandlers() {
     console.log('[SL] setupUIHandlers called');
 
+    // Get reference to the dock
+    const dock = document.getElementById('symbolsLibraryDock');
+    if (!dock) {
+        console.error('[SL] symbolsLibraryDock not found!');
+        return;
+    }
+
     // Toggle button to open/close dock
     const toggleBtn = document.getElementById('symbolsLibraryToggleBtn') || document.getElementById('symbolsLibraryBtn');
     console.log('[SL] Toggle button:', toggleBtn ? 'FOUND' : 'NOT FOUND', toggleBtn);
     if (toggleBtn) {
         toggleBtn.onclick = () => {
             console.log('[SL] Toggle button clicked!');
-            const dock = document.getElementById('symbolsLibraryDock');
-            console.log('[SL] Dock element:', dock ? 'FOUND' : 'NOT FOUND');
             if (dock) {
-                console.log('[SL] Setting dock display to block');
                 dock.style.display = dock.style.display === 'block' ? 'none' : 'block';
+                console.log('[SL] Dock display set to:', dock.style.display);
             }
         };
         console.log('[SL] Toggle button click handler attached');
     }
 
-    // Close button in dock header
-    const closeDockBtn = document.getElementById('symbolsLibraryClose');
+    // Close button in dock header (uses class .dock-close-btn in original HTML)
+    const closeDockBtn = dock.querySelector('.dock-close-btn');
     console.log('[SL] Close button:', closeDockBtn ? 'FOUND' : 'NOT FOUND');
     if (closeDockBtn) {
         closeDockBtn.onclick = () => {
-            const dock = document.getElementById('symbolsLibraryDock');
-            if (dock) {
-                dock.style.display = 'none';
-            }
+            console.log('[SL] Close button clicked!');
+            dock.style.display = 'none';
         };
     }
 
-    // Tab switching
+    // Tab switching - use selectors scoped to the dock element
     console.log('[SL] Setting up tab switching...');
-    const tabButtons = document.querySelectorAll('.symbols-tab');
-    const tabContents = document.querySelectorAll('.symbols-tab-content');
+    const tabButtons = dock.querySelectorAll('.dock-tab-btn');
+    const tabContents = dock.querySelectorAll('.dock-tab-content');
 
     console.log('[SL] Found tab buttons:', tabButtons.length);
     console.log('[SL] Found tab contents:', tabContents.length);
 
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
-            const targetTab = button.getAttribute('data-tab');
+            const targetTab = button.getAttribute('data-target');
             console.log('[SL] Tab clicked:', targetTab);
 
-            // Remove active class from all tabs and contents
+            // Remove active class from all tabs and hide all contents
             tabButtons.forEach(btn => btn.classList.remove('active'));
-            tabContents.forEach(content => content.classList.remove('active'));
+            tabContents.forEach(content => {
+                content.classList.remove('active');
+                content.style.display = 'none';
+            });
 
-            // Add active class to clicked tab and corresponding content
+            // Add active class to clicked tab and show corresponding content
             button.classList.add('active');
             const targetContent = document.getElementById(`${targetTab}Tab`);
             if (targetContent) {
                 targetContent.classList.add('active');
+                targetContent.style.display = 'block';
                 console.log('[SL] Switched to tab:', targetTab);
             } else {
                 console.warn('[SL] Tab content not found:', `${targetTab}Tab`);
