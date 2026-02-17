@@ -398,17 +398,13 @@ function setupUIHandlers() {
 
             // Remove active class from all tabs and contents
             tabButtons.forEach(btn => btn.classList.remove('active'));
-            tabContents.forEach(content => {
-                content.classList.remove('active');
-                content.style.display = 'none';
-            });
+            tabContents.forEach(content => content.classList.remove('active'));
 
             // Add active class to clicked tab and corresponding content
             button.classList.add('active');
             const targetContent = document.getElementById(`${targetTab}Tab`);
             if (targetContent) {
                 targetContent.classList.add('active');
-                targetContent.style.display = 'block';
                 console.log('[SL] Switched to tab:', targetTab);
             } else {
                 console.warn('[SL] Tab content not found:', `${targetTab}Tab`);
