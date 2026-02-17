@@ -369,7 +369,7 @@ function setupUIHandlers() {
         toggleBtn.onclick = () => {
             console.log('[SL] Toggle button clicked!');
             if (dock) {
-                dock.style.display = dock.style.display === 'block' ? 'none' : 'block';
+                dock.style.display = dock.style.display === 'flex' ? 'none' : 'flex';
                 console.log('[SL] Dock display set to:', dock.style.display);
             }
         };
@@ -1147,9 +1147,17 @@ async function loadFeatures() {
  */
 function startDrawing(geomType) {
     if (!selectedSymbol) {
-        showMessage('Please select a symbol from the Catalog first', 'warning');
-        console.warn('[SL] No symbol selected');
-        return;
+        // Default to a generic symbol so users can draw immediately
+        selectedSymbol = symbolCatalog.find(s => s.geom_type === geomType) || {
+            symbol_key: 'generic_' + geomType.toLowerCase(),
+            name: 'Generic ' + geomType,
+            geom_type: geomType,
+            default_style: geomType === 'Point' ? { color: '#ef4444', size: 24 }
+                : geomType === 'LineString' ? { strokeColor: '#3b82f6', strokeWidth: 3 }
+                    : { fillColor: '#22c55e', fillOpacity: 0.4, strokeColor: '#166534', strokeWidth: 2 }
+        };
+        console.log('[SL] No symbol selected, using default:', selectedSymbol.name);
+        showMessage(`Using default ${geomType} symbol. You can pick one from Catalog.`, 'info');
     }
 
     console.log('[SL] Starting drawing:', geomType, 'with symbol:', selectedSymbol.name);
