@@ -17972,7 +17972,7 @@
 
             // Resolution thresholds for progressive detail
             const RES_THRESHOLD = {
-                LABELS: 1.2,      // ~500m scale bar: show polygons + labels
+                LABELS: 2.0,      // ~500m scale bar: show polygons + labels
                 DISTANCES: 0.6,   // ~200m scale bar: add distance measurements
                 FULL_DETAIL: 0.3  // ~100m scale bar: all details (markers, haversine, etc.)
             };
@@ -17994,7 +17994,7 @@
                 const layer = new ol.layer.Vector({
                     title: config.name,
                     source: source,
-                    maxResolution: isBlock || isProtected ? 10 : 1.2,
+                    maxResolution: isBlock || isProtected ? 10 : 2.0,
                     style: isProtected ?
                         function (feature) { return getProtectedAreasStyle(feature); } :
                         config.name === 'Mukono Blocks' ?
@@ -18343,54 +18343,54 @@
 
             // Create vector sources and layers for each NLIS layer
             nlisLayerConfigs.forEach(config => {
-                // Use bbox strategy like original implementation to ensure all data loads
-                const source = new ol.source.Vector({
-                    strategy: ol.loadingstrategy.bbox
-                });
+                const source = new ol.source.Vector();
 
-                // Create custom loader that tries multiple URLs
-                const loader = function (extent, resolution, projection) {
-                    // Only load if not already loaded
-                    if (source.getFeatures().length > 0) {
-                        return; // Already loaded
-                    }
-
-                    const urls = config.urls || [config.url];
-                    let urlIndex = 0;
-
-                    const tryNextUrl = () => {
-                        if (urlIndex >= urls.length) {
-                            console.error(`Failed to load ${config.name} from all URLs`);
-                            return;
-                        }
-
-                        const url = urls[urlIndex];
-                        urlIndex++;
-
-                        console.log(`Loading ${config.name} from ${url}...`);
-                        try {
-                            flatgeobuf.createLoader(source, url, "EPSG:4326", () => [extent], true);
-                        } catch (error) {
-                            console.warn(`Failed to load ${config.name} from ${url}:`, error);
-                            tryNextUrl(); // Try next URL
-                        }
-                    };
-
-                    tryNextUrl();
-                };
-
-                source.setLoader(loader);
-
-                // Create layer with styling
+                // Create layer with styling — DEFERRED LOADING
                 const layer = new ol.layer.Vector({
                     title: config.name,
                     source: source,
                     zIndex: 10000, // Much higher than basemaps
-                    maxResolution: 1.2, // Only render at ~500m zoom and closer
+                    maxResolution: 2.0, // Only render at ~500m zoom and closer
                     style: function (feature) {
                         return getNlisPolygonStyle(feature);
                     },
                     visible: false // Hidden by default, visible when toggled in layer switcher
+                });
+
+                // Store URLs for deferred loading
+                layer._fgbUrls = config.urls || [config.url];
+                layer._fgbLoaded = false;
+
+                // Deferred loading: only download FlatGeoBuf when layer is toggled visible
+                layer.on('change:visible', function () {
+                    if (this.getVisible() && !this._fgbLoaded) {
+                        this._fgbLoaded = true;
+                        const urls = this._fgbUrls;
+                        let urlIndex = 0;
+                        const src = this.getSource();
+
+                        const tryNextUrl = () => {
+                            if (urlIndex >= urls.length) {
+                                console.error(`[FGB] Failed to load ${config.name} from all URLs`);
+                                return;
+                            }
+                            const url = urls[urlIndex];
+                            urlIndex++;
+                            console.log(`[FGB] Deferred loading: ${config.name} from ${url}`);
+                            try {
+                                const loader = flatgeobuf.createLoader(
+                                    src, url, "EPSG:4326",
+                                    function (extent) { return [extent]; },
+                                    true
+                                );
+                                src.setLoader(loader);
+                            } catch (error) {
+                                console.warn(`[FGB] Failed ${config.name} from ${url}:`, error);
+                                tryNextUrl();
+                            }
+                        };
+                        tryNextUrl();
+                    }
                 });
 
                 nlisLayers[config.name] = layer;
