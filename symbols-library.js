@@ -90,6 +90,27 @@ async function loadSymbolCatalog() {
         if (error) throw error;
 
         symbolCatalog = data || [];
+
+        // Log actual column names from DB to debug schema issues
+        if (symbolCatalog.length > 0) {
+            const columns = Object.keys(symbolCatalog[0]);
+            console.log('[SL] DB columns:', columns);
+            console.log('[SL] Sample record:', JSON.stringify(symbolCatalog[0]));
+
+            // Auto-detect geometry type column name
+            const geomColCandidates = ['geom_type', 'geometry_type', 'type', 'geomType', 'geometryType', 'geom'];
+            const foundGeomCol = geomColCandidates.find(col => symbolCatalog[0][col] !== undefined);
+            if (foundGeomCol && foundGeomCol !== 'geom_type') {
+                console.log(`[SL] Detected geometry column: "${foundGeomCol}" (not "geom_type"). Remapping...`);
+                // Remap column to expected name
+                symbolCatalog = symbolCatalog.map(s => ({
+                    ...s,
+                    geom_type: s[foundGeomCol]
+                }));
+            }
+            console.log('[SL] geom_type values:', [...new Set(symbolCatalog.map(s => s.geom_type))]);
+        }
+
         console.log(`Symbols Library: Loaded ${symbolCatalog.length} symbols`);
 
         // Populate catalog UI
