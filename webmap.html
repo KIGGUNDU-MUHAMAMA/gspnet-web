@@ -18163,6 +18163,18 @@
                 return R * c;
             }
 
+            // Auto-detect CRS and ensure WGS84 (EPSG:4326) coordinates for distance calculation
+            // If |x| > 180 or |y| > 90, coordinates are in EPSG:3857 (meters) → transform to 4326
+            // Otherwise they're already in EPSG:4326 (degrees) → use directly
+            function toWgs84Coords(coords) {
+                if (coords.length === 0) return coords;
+                const sample = coords[0];
+                if (Math.abs(sample[0]) > 180 || Math.abs(sample[1]) > 90) {
+                    return coords.map(c => ol.proj.transform(c, 'EPSG:3857', 'EPSG:4326'));
+                }
+                return coords;
+            }
+
             // NLIS Polygon style function — RESOLUTION-AWARE
             // Tier 1 (res <= 5.0, ~500m): Stroke + labels
             // Tier 2 (res <= 2.0, ~200m): + distance labels
@@ -18185,10 +18197,10 @@
 
                 // TIER 2: Distance labels at 200m zoom
                 if (resolution <= RES_THRESHOLD.DISTANCES) {
-                    // FlatGeoBuf coordinates are already in EPSG:4326 (lon/lat degrees)
-                    for (let i = 0; i < coordinates.length - 1; i++) {
-                        const p1 = coordinates[i];
-                        const p2 = coordinates[i + 1];
+                    const wgs84Coords = toWgs84Coords(coordinates);
+                    for (let i = 0; i < wgs84Coords.length - 1; i++) {
+                        const p1 = wgs84Coords[i];
+                        const p2 = wgs84Coords[i + 1];
                         const distanceMeters = haversineDistance(p1[0], p1[1], p2[0], p2[1]);
                         const edgeLine = new ol.geom.LineString([coordinates[i], coordinates[i + 1]]);
                         styles.push(new ol.style.Style({
@@ -18570,10 +18582,10 @@
 
                 // TIER 2: Distance labels at 200m zoom (res <= 2.0)
                 if (resolution <= RES_THRESHOLD.DISTANCES) {
-                    // FlatGeoBuf coordinates are already in EPSG:4326 (lon/lat degrees)
-                    for (let i = 0; i < coordinates.length - 1; i++) {
-                        const p1 = coordinates[i];
-                        const p2 = coordinates[i + 1];
+                    const wgs84Coords = toWgs84Coords(coordinates);
+                    for (let i = 0; i < wgs84Coords.length - 1; i++) {
+                        const p1 = wgs84Coords[i];
+                        const p2 = wgs84Coords[i + 1];
                         const distanceMeters = haversineDistance(p1[0], p1[1], p2[0], p2[1]);
                         const edgeLine = new ol.geom.LineString([coordinates[i], coordinates[i + 1]]);
                         styles.push(new ol.style.Style({
