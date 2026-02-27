@@ -18185,10 +18185,10 @@
 
                 // TIER 2: Distance labels at 200m zoom
                 if (resolution <= RES_THRESHOLD.DISTANCES) {
-                    const wgs84Coords = coordinates.map(coord => ol.proj.transform(coord, 'EPSG:3857', 'EPSG:4326'));
-                    for (let i = 0; i < wgs84Coords.length - 1; i++) {
-                        const p1 = wgs84Coords[i];
-                        const p2 = wgs84Coords[i + 1];
+                    // FlatGeoBuf coordinates are already in EPSG:4326 (lon/lat degrees)
+                    for (let i = 0; i < coordinates.length - 1; i++) {
+                        const p1 = coordinates[i];
+                        const p2 = coordinates[i + 1];
                         const distanceMeters = haversineDistance(p1[0], p1[1], p2[0], p2[1]);
                         const edgeLine = new ol.geom.LineString([coordinates[i], coordinates[i + 1]]);
                         styles.push(new ol.style.Style({
@@ -18570,10 +18570,10 @@
 
                 // TIER 2: Distance labels at 200m zoom (res <= 2.0)
                 if (resolution <= RES_THRESHOLD.DISTANCES) {
-                    const wgs84Coords = coordinates.map(coord => ol.proj.transform(coord, 'EPSG:3857', 'EPSG:4326'));
-                    for (let i = 0; i < wgs84Coords.length - 1; i++) {
-                        const p1 = wgs84Coords[i];
-                        const p2 = wgs84Coords[i + 1];
+                    // FlatGeoBuf coordinates are already in EPSG:4326 (lon/lat degrees)
+                    for (let i = 0; i < coordinates.length - 1; i++) {
+                        const p1 = coordinates[i];
+                        const p2 = coordinates[i + 1];
                         const distanceMeters = haversineDistance(p1[0], p1[1], p2[0], p2[1]);
                         const edgeLine = new ol.geom.LineString([coordinates[i], coordinates[i + 1]]);
                         styles.push(new ol.style.Style({
