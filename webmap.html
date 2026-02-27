@@ -17972,9 +17972,9 @@
 
             // Resolution thresholds for progressive detail
             const RES_THRESHOLD = {
-                LABELS: 2.0,      // ~500m scale bar: show polygons + labels
-                DISTANCES: 0.6,   // ~200m scale bar: add distance measurements
-                FULL_DETAIL: 0.3  // ~100m scale bar: all details (markers, haversine, etc.)
+                LABELS: 5.0,      // ~500m scale bar: show polygons + labels
+                DISTANCES: 2.0,   // ~200m scale bar: add distance measurements
+                FULL_DETAIL: 1.0  // ~100m scale bar: all details (markers, haversine, etc.)
             };
 
             // Create FlatGeobuf layers with DEFERRED loading and maxResolution
@@ -17994,7 +17994,7 @@
                 const layer = new ol.layer.Vector({
                     title: config.name,
                     source: source,
-                    maxResolution: isBlock || isProtected ? 10 : 2.0,
+                    maxResolution: isBlock || isProtected ? 10 : 5.0,
                     style: isProtected ?
                         function (feature) { return getProtectedAreasStyle(feature); } :
                         config.name === 'Mukono Blocks' ?
@@ -18164,9 +18164,9 @@
             }
 
             // NLIS Polygon style function — RESOLUTION-AWARE
-            // Tier 1 (res <= 1.2, ~500m): Stroke + labels
-            // Tier 2 (res <= 0.6, ~200m): + distance labels
-            // Tier 3 (res <= 0.3, ~100m): + corner circles
+            // Tier 1 (res <= 5.0, ~500m): Stroke + labels
+            // Tier 2 (res <= 2.0, ~200m): + distance labels
+            // Tier 3 (res <= 1.0, ~100m): + corner circles
             function getNlisPolygonStyle(feature) {
                 const geometry = feature.getGeometry();
                 if (!geometry || geometry.getType() !== 'Polygon') {
@@ -18241,7 +18241,7 @@
                 // Always show base fill + stroke (reuse shared cached styles)
                 const styles = [SHARED_STYLES.blockFillWhiteBuffer, SHARED_STYLES.blockBlackStroke];
 
-                // Only add label when zoomed in enough (res <= 1.2, ~500m)
+                // Only add label when zoomed in enough (res <= 5.0, ~500m)
                 if (resolution <= RES_THRESHOLD.LABELS) {
                     const numberAttr = feature.get('Number_');
                     const labelText = numberAttr ? numberAttr.toString() : null;
@@ -18278,7 +18278,7 @@
                 // Always show base fill + stroke (reuse shared cached styles)
                 const styles = [SHARED_STYLES.blockFillWhiteBuffer, SHARED_STYLES.blockBlackStroke];
 
-                // Only add label when zoomed in enough (res <= 1.2, ~500m)
+                // Only add label when zoomed in enough (res <= 5.0, ~500m)
                 if (resolution <= RES_THRESHOLD.LABELS) {
                     const nlisId = feature.get('nlis_id');
                     const labelText = nlisId ? nlisId.toString() : null;
@@ -18315,7 +18315,7 @@
                 // Always show base fill + stroke (reuse shared cached styles)
                 const styles = [SHARED_STYLES.protectedFillWhiteBuffer, SHARED_STYLES.protectedBlackStroke];
 
-                // Only add label when zoomed in enough (res <= 1.2, ~500m)
+                // Only add label when zoomed in enough (res <= 5.0, ~500m)
                 if (resolution <= RES_THRESHOLD.LABELS) {
                     const nlisId = feature.get('nlis_id');
                     if (nlisId) {
@@ -18350,7 +18350,7 @@
                     title: config.name,
                     source: source,
                     zIndex: 10000, // Much higher than basemaps
-                    maxResolution: 2.0, // Only render at ~500m zoom and closer
+                    maxResolution: 5.0, // Only render at ~500m zoom and closer
                     style: function (feature) {
                         return getNlisPolygonStyle(feature);
                     },
@@ -18548,25 +18548,27 @@
                 // TIER 1: Always show base strokes (reuse shared cached styles)
                 const styles = [SHARED_STYLES.parcelWhiteBuffer, SHARED_STYLES.parcelBlackStroke];
 
-                // TIER 1: Polygon label (cheap — just a text style)
-                const nlisId = feature.get('nlis_id');
-                if (nlisId) {
-                    const centroid = ol.extent.getCenter(geometry.getExtent());
-                    styles.push(new ol.style.Style({
-                        geometry: new ol.geom.Point(centroid),
-                        text: new ol.style.Text({
-                            text: nlisId.toString(),
-                            font: 'bold 12px sans-serif',
-                            fill: new ol.style.Fill({ color: '#000000' }),
-                            stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
-                            textAlign: 'center',
-                            textBaseline: 'middle',
-                            offsetY: 0
-                        })
-                    }));
+                // TIER 1: Polygon label at 500m zoom (res <= 5.0)
+                if (resolution <= RES_THRESHOLD.LABELS) {
+                    const nlisId = feature.get('nlis_id');
+                    if (nlisId) {
+                        const centroid = ol.extent.getCenter(geometry.getExtent());
+                        styles.push(new ol.style.Style({
+                            geometry: new ol.geom.Point(centroid),
+                            text: new ol.style.Text({
+                                text: nlisId.toString(),
+                                font: 'bold 12px sans-serif',
+                                fill: new ol.style.Fill({ color: '#000000' }),
+                                stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                                textAlign: 'center',
+                                textBaseline: 'middle',
+                                offsetY: 0
+                            })
+                        }));
+                    }
                 }
 
-                // TIER 2: Distance labels at 200m zoom (res <= 0.6)
+                // TIER 2: Distance labels at 200m zoom (res <= 2.0)
                 if (resolution <= RES_THRESHOLD.DISTANCES) {
                     const wgs84Coords = coordinates.map(coord => ol.proj.transform(coord, 'EPSG:3857', 'EPSG:4326'));
                     for (let i = 0; i < wgs84Coords.length - 1; i++) {
@@ -18592,7 +18594,7 @@
                     }
                 }
 
-                // TIER 3: Survey markers at 100m zoom (res <= 0.3)
+                // TIER 3: Survey markers at 100m zoom (res <= 1.0)
                 if (resolution <= RES_THRESHOLD.FULL_DETAIL) {
                     const radiusInPixels = resolution ? (1 / resolution) : 3;
                     const circleRadius = Math.max(3, Math.min(12, radiusInPixels));
