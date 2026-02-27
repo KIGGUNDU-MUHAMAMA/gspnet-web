@@ -17934,58 +17934,96 @@
                 return bufferedExtent;
             }
 
-            // Create FlatGeobuf layers using the EXACT pattern from large.html
-            function createBufferedExtent(coord) {
-                const extent = ol.extent.boundingExtent([coord]);
-                const bufferedExtent = ol.extent.buffer(extent, 1000);
-                return bufferedExtent;
-            }
+            // ========================================
+            // SHARED STYLE CACHE (created once, reused for all features)
+            // ========================================
+            const SHARED_STYLES = {
+                // Parcel styles
+                parcelWhiteBuffer: new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#ffffff', width: 4, lineCap: 'round', lineJoin: 'round' })
+                }),
+                parcelBlackStroke: new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#000000', width: 2, lineCap: 'round', lineJoin: 'round' })
+                }),
+                // Block styles
+                blockFillWhiteBuffer: new ol.style.Style({
+                    fill: new ol.style.Fill({ color: 'rgba(52, 152, 219, 0.15)' }),
+                    stroke: new ol.style.Stroke({ color: '#ffffff', width: 3, lineCap: 'round', lineJoin: 'round' })
+                }),
+                blockBlackStroke: new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#000000', width: 1.5, lineCap: 'round', lineJoin: 'round' })
+                }),
+                // Protected areas styles
+                protectedFillWhiteBuffer: new ol.style.Style({
+                    fill: new ol.style.Fill({ color: 'rgba(255, 0, 0, 0.1)' }),
+                    stroke: new ol.style.Stroke({ color: '#ffffff', width: 4, lineCap: 'round', lineJoin: 'round' })
+                }),
+                protectedBlackStroke: new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#000000', width: 2, lineCap: 'round', lineJoin: 'round' })
+                }),
+                // NLIS styles
+                nlisWhiteBuffer: new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#ffffff', width: 4, lineCap: 'round', lineJoin: 'round' })
+                }),
+                nlisBlackStroke: new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#000000', width: 2, lineCap: 'round', lineJoin: 'round' })
+                })
+            };
 
-            // Create FlatGeobuf layers using newexample.html pattern
+            // Resolution thresholds for progressive detail
+            const RES_THRESHOLD = {
+                LABELS: 1.2,      // ~500m scale bar: show polygons + labels
+                DISTANCES: 0.6,   // ~200m scale bar: add distance measurements
+                FULL_DETAIL: 0.3  // ~100m scale bar: all details (markers, haversine, etc.)
+            };
+
+            // Create FlatGeobuf layers with DEFERRED loading and maxResolution
             const gspnetLayers = [];
             const layerConfigs = layersData.map(layerData => ({
                 name: layerData.title,
                 url: layerData.url,
-                color: [26, 95, 180, 0.6], // Blue color
-                borderColor: [26, 95, 180, 1],
-                borderWidth: 2,
-                visible: false,
-                featureCount: 0
+                visible: false
             }));
 
-            // Load each layer like newexample.html
+            // Build layers with deferred loading (only download .fgb when toggled visible)
             layerConfigs.forEach(config => {
                 const source = new ol.source.Vector();
-                const loader = flatgeobuf.createLoader(
-                    source,
-                    config.url,
-                    "EPSG:4326",
-                    function (extent) {
-                        return [extent];
-                    },
-                    true // autoLoad
-                );
-                source.setLoader(loader);
+                const isBlock = config.name.toLowerCase().includes('blocks') || config.name.toLowerCase().includes('block');
+                const isProtected = config.name === 'Protected Areas';
 
                 const layer = new ol.layer.Vector({
                     title: config.name,
                     source: source,
-                    style: config.name === 'Protected Areas' ?
-                        function (feature) {
-                            return getProtectedAreasStyle(feature);
-                        } :
+                    maxResolution: isBlock || isProtected ? 10 : 1.2,
+                    style: isProtected ?
+                        function (feature) { return getProtectedAreasStyle(feature); } :
                         config.name === 'Mukono Blocks' ?
-                            function (feature) {
-                                return getMukonoBlocksStyle(feature);
-                            } :
-                            (config.name.toLowerCase().includes('blocks') || config.name.toLowerCase().includes('block')) ?
-                                function (feature) {
-                                    return getBlockBoundaryStyle(feature);
-                                } :
-                                function (feature) {
-                                    return getFlatGeobufParcelStyle(feature);
-                                },
+                            function (feature) { return getMukonoBlocksStyle(feature); } :
+                            isBlock ?
+                                function (feature) { return getBlockBoundaryStyle(feature); } :
+                                function (feature) { return getFlatGeobufParcelStyle(feature); },
                     visible: config.visible
+                });
+
+                // Store URL for deferred loading
+                layer._fgbUrl = config.url;
+                layer._fgbLoaded = false;
+
+                // Deferred loading: only download FlatGeoBuf file when layer is toggled visible
+                layer.on('change:visible', function () {
+                    if (this.getVisible() && !this._fgbLoaded) {
+                        this._fgbLoaded = true;
+                        console.log(`[FGB] Deferred loading: ${config.name}`);
+                        const src = this.getSource();
+                        const loader = flatgeobuf.createLoader(
+                            src,
+                            this._fgbUrl,
+                            "EPSG:4326",
+                            function (extent) { return [extent]; },
+                            true
+                        );
+                        src.setLoader(loader);
+                    }
                 });
 
                 gspnetLayers.push(layer);
@@ -18112,295 +18150,190 @@
 
 
 
-            // NLIS Polygon style function (similar to Survey Polygons)
+            // Shared Haversine distance function (extracted for reuse, avoids re-creation per feature)
+            function haversineDistance(lon1, lat1, lon2, lat2) {
+                const R = 6371000; // Earth radius in meters
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLon = (lon2 - lon1) * Math.PI / 180;
+                const a =
+                    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                return R * c;
+            }
+
+            // NLIS Polygon style function — RESOLUTION-AWARE
+            // Tier 1 (res <= 1.2, ~500m): Stroke + labels
+            // Tier 2 (res <= 0.6, ~200m): + distance labels
+            // Tier 3 (res <= 0.3, ~100m): + corner circles
             function getNlisPolygonStyle(feature) {
                 const geometry = feature.getGeometry();
                 if (!geometry || geometry.getType() !== 'Polygon') {
                     return [];
                 }
 
-                const coordinates = geometry.getCoordinates()[0];
-                const styles = [];
-
-                // Base stroke style with white buffer (two strokes layered)
-                // Bottom layer: white stroke (wider for buffer effect)
-                styles.push(new ol.style.Style({
-                    stroke: new ol.style.Stroke({
-                        color: '#ffffff',
-                        width: 4,
-                        lineCap: 'round',
-                        lineJoin: 'round'
-                    })
-                }));
-
-                // Top layer: black stroke (narrower)
-                styles.push(new ol.style.Style({
-                    stroke: new ol.style.Stroke({
-                        color: '#000000',
-                        width: 2,
-                        lineCap: 'round',
-                        lineJoin: 'round'
-                    })
-                    // No fill as specified
-                }));
-
-                // Get map resolution for corner circles (1 meter radius scaled by resolution)
                 const view = map.getView();
                 const resolution = view.getResolution();
-                const radiusInPixels = resolution ? (1 / resolution) : 3;
-                const circleRadius = Math.max(2, Math.min(10, radiusInPixels));
+                const coordinates = geometry.getCoordinates()[0];
 
-                // Haversine distance function (for WGS84 coordinates)
-                function haversineDistance(lon1, lat1, lon2, lat2) {
-                    const R = 6371000; // Earth radius in meters
-                    const dLat = (lat2 - lat1) * Math.PI / 180;
-                    const dLon = (lon2 - lon1) * Math.PI / 180;
-                    const a =
-                        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                    return R * c;
+                // TIER 1: Always show base strokes (reuse shared cached styles)
+                const styles = [SHARED_STYLES.nlisWhiteBuffer, SHARED_STYLES.nlisBlackStroke];
+
+                // TIER 1: Show polygon label at 500m zoom
+                // (no extra work needed — label is cheap)
+
+                // TIER 2: Distance labels at 200m zoom
+                if (resolution <= RES_THRESHOLD.DISTANCES) {
+                    const wgs84Coords = coordinates.map(coord => ol.proj.transform(coord, 'EPSG:3857', 'EPSG:4326'));
+                    for (let i = 0; i < wgs84Coords.length - 1; i++) {
+                        const p1 = wgs84Coords[i];
+                        const p2 = wgs84Coords[i + 1];
+                        const distanceMeters = haversineDistance(p1[0], p1[1], p2[0], p2[1]);
+                        const edgeLine = new ol.geom.LineString([coordinates[i], coordinates[i + 1]]);
+                        styles.push(new ol.style.Style({
+                            text: new ol.style.Text({
+                                text: `${distanceMeters.toFixed(2)} m`,
+                                font: '12px sans-serif',
+                                fill: new ol.style.Fill({ color: '#333' }),
+                                stroke: new ol.style.Stroke({ color: '#fff', width: 2 }),
+                                offsetY: -10,
+                                placement: 'line',
+                                textAlign: 'center',
+                                textBaseline: 'middle',
+                                overflow: true,
+                                maxAngle: Math.PI / 4
+                            }),
+                            geometry: edgeLine
+                        }));
+                    }
                 }
 
-                // Transform coordinates from Web Mercator to WGS84 for accurate distance calculation
-                const wgs84Coords = coordinates.map(coord => {
-                    return ol.proj.transform(coord, 'EPSG:3857', 'EPSG:4326');
-                });
-
-                // Add distance labels for each edge (same as Survey Polygons)
-                for (let i = 0; i < wgs84Coords.length - 1; i++) {
-                    const p1 = wgs84Coords[i];
-                    const p2 = wgs84Coords[i + 1];
-
-                    // Calculate distance using Haversine (accurate for WGS84)
-                    const distanceMeters = haversineDistance(p1[0], p1[1], p2[0], p2[1]);
-
-                    // Use LineString geometry for automatic text alignment along the edge
-                    const p1Merc = coordinates[i];
-                    const p2Merc = coordinates[i + 1];
-                    const edgeLine = new ol.geom.LineString([p1Merc, p2Merc]);
-
-                    styles.push(new ol.style.Style({
-                        text: new ol.style.Text({
-                            text: `${distanceMeters.toFixed(2)} m`,
-                            font: '12px sans-serif',
-                            fill: new ol.style.Fill({ color: '#333' }),
-                            stroke: new ol.style.Stroke({ color: '#fff', width: 2 }),
-                            offsetY: -10, // Offset perpendicular to line
-                            placement: 'line', // Automatically aligns text along the line
-                            textAlign: 'center',
-                            textBaseline: 'middle',
-                            overflow: true,
-                            maxAngle: Math.PI / 4 // Only show text if line is not too steep
-                        }),
-                        geometry: edgeLine // Use line geometry instead of point
-                    }));
-                }
-
-                // Add 1-meter radius circles at every corner (vertex) - same as Survey Polygons
-                for (let i = 0; i < coordinates.length - 1; i++) { // Exclude closing point
-                    styles.push(new ol.style.Style({
-                        image: new ol.style.Circle({
-                            radius: circleRadius, // 1 meter in pixels (scaled by resolution)
-                            fill: new ol.style.Fill({ color: '#000000' }), // Black fill
-                            stroke: new ol.style.Stroke({
-                                color: '#ffffff', // White stroke for visibility
-                                width: 1.5
-                            })
-                        }),
-                        geometry: new ol.geom.Point(coordinates[i])
-                    }));
+                // TIER 3: Corner circles at 100m zoom
+                if (resolution <= RES_THRESHOLD.FULL_DETAIL) {
+                    const radiusInPixels = resolution ? (1 / resolution) : 3;
+                    const circleRadius = Math.max(2, Math.min(10, radiusInPixels));
+                    for (let i = 0; i < coordinates.length - 1; i++) {
+                        styles.push(new ol.style.Style({
+                            image: new ol.style.Circle({
+                                radius: circleRadius,
+                                fill: new ol.style.Fill({ color: '#000000' }),
+                                stroke: new ol.style.Stroke({ color: '#ffffff', width: 1.5 })
+                            }),
+                            geometry: new ol.geom.Point(coordinates[i])
+                        }));
+                    }
                 }
 
                 return styles;
             }
 
-            // Special styling for Mukono Blocks (uses Number_ attribute for labeling)
+            // Mukono Blocks style — RESOLUTION-AWARE (uses shared cached styles)
             function getMukonoBlocksStyle(feature) {
                 const geometry = feature.getGeometry();
                 if (!geometry || geometry.getType() !== 'Polygon') {
                     return [];
                 }
 
-                const numberAttr = feature.get('Number_'); // Use Number_ attribute for Mukono Blocks
-                const styles = [];
+                const view = map.getView();
+                const resolution = view.getResolution();
 
-                // 1. MAIN POLYGON STYLING: Simple bluish transparent fill, black stroke with white buffer
-                // Bottom layer: white stroke (wider for buffer effect)
-                styles.push(new ol.style.Style({
-                    fill: new ol.style.Fill({
-                        color: 'rgba(52, 152, 219, 0.15)' // Light bluish transparent fill
-                    }),
-                    stroke: new ol.style.Stroke({
-                        color: '#ffffff', // White buffer
-                        width: 3,
-                        lineCap: 'round',
-                        lineJoin: 'round'
-                    })
-                }));
+                // Always show base fill + stroke (reuse shared cached styles)
+                const styles = [SHARED_STYLES.blockFillWhiteBuffer, SHARED_STYLES.blockBlackStroke];
 
-                // Top layer: black stroke (narrower)
-                styles.push(new ol.style.Style({
-                    stroke: new ol.style.Stroke({
-                        color: '#000000', // Black stroke
-                        width: 1.5,
-                        lineCap: 'round',
-                        lineJoin: 'round'
-                    })
-                }));
-
-                // 2. POLYGON LABEL: Black text with white buffer using Number_ attribute
-                const labelText = numberAttr ? numberAttr.toString() : null;
-                if (labelText) {
-                    // Calculate polygon centroid for label placement
-                    const centroid = ol.extent.getCenter(geometry.getExtent());
-
-                    styles.push(new ol.style.Style({
-                        geometry: new ol.geom.Point(centroid),
-                        text: new ol.style.Text({
-                            text: labelText,
-                            font: '11px sans-serif',
-                            fill: new ol.style.Fill({ color: '#000000' }), // Black text
-                            stroke: new ol.style.Stroke({
-                                color: '#ffffff', // White buffer
-                                width: 2
-                            }),
-                            textAlign: 'center',
-                            textBaseline: 'middle',
-                            offsetY: 0
-                        })
-                    }));
+                // Only add label when zoomed in enough (res <= 1.2, ~500m)
+                if (resolution <= RES_THRESHOLD.LABELS) {
+                    const numberAttr = feature.get('Number_');
+                    const labelText = numberAttr ? numberAttr.toString() : null;
+                    if (labelText) {
+                        const centroid = ol.extent.getCenter(geometry.getExtent());
+                        styles.push(new ol.style.Style({
+                            geometry: new ol.geom.Point(centroid),
+                            text: new ol.style.Text({
+                                text: labelText,
+                                font: '11px sans-serif',
+                                fill: new ol.style.Fill({ color: '#000000' }),
+                                stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }),
+                                textAlign: 'center',
+                                textBaseline: 'middle',
+                                offsetY: 0
+                            })
+                        }));
+                    }
                 }
-
-                // Note: No survey markers or distance measurements for block boundaries
-                // as requested - this distinguishes them from survey parcels
 
                 return styles;
             }
 
-            // Special styling for Block layers (administrative boundaries)
+            // Block Boundary style — RESOLUTION-AWARE (uses shared cached styles)
             function getBlockBoundaryStyle(feature) {
                 const geometry = feature.getGeometry();
                 if (!geometry || geometry.getType() !== 'Polygon') {
                     return [];
                 }
 
-                const nlisId = feature.get('nlis_id'); // Use the normalized nlis_id attribute if available
-                const styles = [];
+                const view = map.getView();
+                const resolution = view.getResolution();
 
-                // 1. MAIN POLYGON STYLING: Simple bluish transparent fill, black stroke with white buffer
-                // Bottom layer: white stroke (wider for buffer effect)
-                styles.push(new ol.style.Style({
-                    fill: new ol.style.Fill({
-                        color: 'rgba(52, 152, 219, 0.15)' // Light bluish transparent fill
-                    }),
-                    stroke: new ol.style.Stroke({
-                        color: '#ffffff', // White buffer
-                        width: 3,
-                        lineCap: 'round',
-                        lineJoin: 'round'
-                    })
-                }));
+                // Always show base fill + stroke (reuse shared cached styles)
+                const styles = [SHARED_STYLES.blockFillWhiteBuffer, SHARED_STYLES.blockBlackStroke];
 
-                // Top layer: black stroke (narrower)
-                styles.push(new ol.style.Style({
-                    stroke: new ol.style.Stroke({
-                        color: '#000000', // Black stroke
-                        width: 1.5,
-                        lineCap: 'round',
-                        lineJoin: 'round'
-                    })
-                }));
-
-                // 2. POLYGON LABEL: Black text with white buffer using nlis_id (if available)
-                // Unlike parcel style, we accept features without nlis_id for block boundaries
-                const labelText = nlisId ? nlisId.toString() : null;
-                if (labelText) {
-                    // Calculate polygon centroid for label placement
-                    const centroid = ol.extent.getCenter(geometry.getExtent());
-
-                    styles.push(new ol.style.Style({
-                        geometry: new ol.geom.Point(centroid),
-                        text: new ol.style.Text({
-                            text: labelText,
-                            font: '11px sans-serif',
-                            fill: new ol.style.Fill({ color: '#000000' }), // Black text
-                            stroke: new ol.style.Stroke({
-                                color: '#ffffff', // White buffer
-                                width: 2
-                            }),
-                            textAlign: 'center',
-                            textBaseline: 'middle',
-                            offsetY: 0
-                        })
-                    }));
+                // Only add label when zoomed in enough (res <= 1.2, ~500m)
+                if (resolution <= RES_THRESHOLD.LABELS) {
+                    const nlisId = feature.get('nlis_id');
+                    const labelText = nlisId ? nlisId.toString() : null;
+                    if (labelText) {
+                        const centroid = ol.extent.getCenter(geometry.getExtent());
+                        styles.push(new ol.style.Style({
+                            geometry: new ol.geom.Point(centroid),
+                            text: new ol.style.Text({
+                                text: labelText,
+                                font: '11px sans-serif',
+                                fill: new ol.style.Fill({ color: '#000000' }),
+                                stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }),
+                                textAlign: 'center',
+                                textBaseline: 'middle',
+                                offsetY: 0
+                            })
+                        }));
+                    }
                 }
-
-                // Note: No survey markers or distance measurements for block boundaries
-                // as requested - this distinguishes them from survey parcels
 
                 return styles;
             }
 
-            // Special styling for Protected Areas layer
+            // Protected Areas style — RESOLUTION-AWARE (uses shared cached styles)
             function getProtectedAreasStyle(feature) {
                 const geometry = feature.getGeometry();
                 if (!geometry || geometry.getType() !== 'Polygon') {
                     return [];
                 }
 
-                const nlisId = feature.get('nlis_id'); // Use the normalized nlis_id attribute
-                const styles = [];
+                const view = map.getView();
+                const resolution = view.getResolution();
 
-                // 1. MAIN POLYGON STYLING: Light transparent red fill, black stroke with white buffer
-                // Bottom layer: white stroke (wider for buffer effect)
-                styles.push(new ol.style.Style({
-                    fill: new ol.style.Fill({
-                        color: 'rgba(255, 0, 0, 0.1)' // Very light transparent red fill
-                    }),
-                    stroke: new ol.style.Stroke({
-                        color: '#ffffff', // White buffer
-                        width: 4,
-                        lineCap: 'round',
-                        lineJoin: 'round'
-                    })
-                }));
+                // Always show base fill + stroke (reuse shared cached styles)
+                const styles = [SHARED_STYLES.protectedFillWhiteBuffer, SHARED_STYLES.protectedBlackStroke];
 
-                // Top layer: black stroke (narrower)
-                styles.push(new ol.style.Style({
-                    stroke: new ol.style.Stroke({
-                        color: '#000000', // Black stroke
-                        width: 2,
-                        lineCap: 'round',
-                        lineJoin: 'round'
-                    })
-                }));
-
-                // 2. POLYGON LABEL: Black text with white buffer using nlis_id
-                if (nlisId) {
-                    // Calculate polygon centroid for label placement
-                    const centroid = ol.extent.getCenter(geometry.getExtent());
-
-                    styles.push(new ol.style.Style({
-                        geometry: new ol.geom.Point(centroid),
-                        text: new ol.style.Text({
-                            text: nlisId.toString(),
-                            font: 'bold 12px sans-serif',
-                            fill: new ol.style.Fill({ color: '#000000' }), // Black text
-                            stroke: new ol.style.Stroke({
-                                color: '#ffffff', // White buffer
-                                width: 3
-                            }),
-                            textAlign: 'center',
-                            textBaseline: 'middle',
-                            offsetY: 0
-                        })
-                    }));
+                // Only add label when zoomed in enough (res <= 1.2, ~500m)
+                if (resolution <= RES_THRESHOLD.LABELS) {
+                    const nlisId = feature.get('nlis_id');
+                    if (nlisId) {
+                        const centroid = ol.extent.getCenter(geometry.getExtent());
+                        styles.push(new ol.style.Style({
+                            geometry: new ol.geom.Point(centroid),
+                            text: new ol.style.Text({
+                                text: nlisId.toString(),
+                                font: 'bold 12px sans-serif',
+                                fill: new ol.style.Fill({ color: '#000000' }),
+                                stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                                textAlign: 'center',
+                                textBaseline: 'middle',
+                                offsetY: 0
+                            })
+                        }));
+                    }
                 }
-
-                // Note: No survey markers or distance measurements for protected areas
-                // as requested - this distinguishes them from survey parcels
 
                 return styles;
             }
@@ -18453,7 +18386,7 @@
                     title: config.name,
                     source: source,
                     zIndex: 10000, // Much higher than basemaps
-                    minResolution: 76.4, // Only show at zoom level 10 or higher
+                    maxResolution: 1.2, // Only render at ~500m zoom and closer
                     style: function (feature) {
                         return getNlisPolygonStyle(feature);
                     },
@@ -18598,56 +18531,34 @@
                 }, 350); // Debounce 350ms
             }
 
-            // Polygon style function
-            // Professional FlatGeobuf Parcel Styling Function
+            // FlatGeobuf Parcel Styling — RESOLUTION-AWARE
+            // Tier 1 (res <= 1.2, ~500m): Stroke + polygon label
+            // Tier 2 (res <= 0.6, ~200m): + distance labels
+            // Tier 3 (res <= 0.3, ~100m): + survey markers (red circles with black dots)
             function getFlatGeobufParcelStyle(feature) {
                 const geometry = feature.getGeometry();
                 if (!geometry || geometry.getType() !== 'Polygon') {
                     return [];
                 }
 
-                const nlisId = feature.get('nlis_id'); // Use the normalized nlis_id attribute
+                const view = map.getView();
+                const resolution = view.getResolution();
                 const coordinates = geometry.getCoordinates()[0];
-                const styles = [];
 
-                // 1. MAIN POLYGON STYLING: No fill, black stroke with white buffer
-                // Bottom layer: white stroke (wider for buffer effect)
-                styles.push(new ol.style.Style({
-                    stroke: new ol.style.Stroke({
-                        color: '#ffffff', // White buffer
-                        width: 4,
-                        lineCap: 'round',
-                        lineJoin: 'round'
-                    })
-                }));
+                // TIER 1: Always show base strokes (reuse shared cached styles)
+                const styles = [SHARED_STYLES.parcelWhiteBuffer, SHARED_STYLES.parcelBlackStroke];
 
-                // Top layer: black stroke (narrower)
-                styles.push(new ol.style.Style({
-                    stroke: new ol.style.Stroke({
-                        color: '#000000', // Black stroke
-                        width: 2,
-                        lineCap: 'round',
-                        lineJoin: 'round'
-                    })
-                    // No fill as specified
-                }));
-
-                // 2. POLYGON LABEL: Black text with white buffer using nlis_id (if available)
-                // Unlike block boundaries, parcel layers should still try to label with nlis_id when available
+                // TIER 1: Polygon label (cheap — just a text style)
+                const nlisId = feature.get('nlis_id');
                 if (nlisId) {
-                    // Calculate polygon centroid for label placement
                     const centroid = ol.extent.getCenter(geometry.getExtent());
-
                     styles.push(new ol.style.Style({
                         geometry: new ol.geom.Point(centroid),
                         text: new ol.style.Text({
                             text: nlisId.toString(),
                             font: 'bold 12px sans-serif',
-                            fill: new ol.style.Fill({ color: '#000000' }), // Black text
-                            stroke: new ol.style.Stroke({
-                                color: '#ffffff', // White buffer
-                                width: 3
-                            }),
+                            fill: new ol.style.Fill({ color: '#000000' }),
+                            stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
                             textAlign: 'center',
                             textBaseline: 'middle',
                             offsetY: 0
@@ -18655,91 +18566,56 @@
                     }));
                 }
 
-                // 3. SURVEY MARKERS: 1 meter red circles with black dots at corners
-                // Get map resolution for accurate 1-meter sizing
-                const view = map.getView();
-                const resolution = view.getResolution();
-                const radiusInPixels = resolution ? (1 / resolution) : 3; // 1 meter in pixels
-                const circleRadius = Math.max(3, Math.min(12, radiusInPixels)); // Clamp to reasonable size
-
-                // Add markers at each corner (excluding closing point)
-                for (let i = 0; i < coordinates.length - 1; i++) {
-                    styles.push(new ol.style.Style({
-                        geometry: new ol.geom.Point(coordinates[i]),
-                        image: new ol.style.Circle({
-                            radius: circleRadius,
-                            fill: new ol.style.Fill({
-                                color: '#ff0000' // Red fill
+                // TIER 2: Distance labels at 200m zoom (res <= 0.6)
+                if (resolution <= RES_THRESHOLD.DISTANCES) {
+                    const wgs84Coords = coordinates.map(coord => ol.proj.transform(coord, 'EPSG:3857', 'EPSG:4326'));
+                    for (let i = 0; i < wgs84Coords.length - 1; i++) {
+                        const p1 = wgs84Coords[i];
+                        const p2 = wgs84Coords[i + 1];
+                        const distanceMeters = haversineDistance(p1[0], p1[1], p2[0], p2[1]);
+                        const edgeLine = new ol.geom.LineString([coordinates[i], coordinates[i + 1]]);
+                        styles.push(new ol.style.Style({
+                            text: new ol.style.Text({
+                                text: `${distanceMeters.toFixed(2)} m`,
+                                font: '11px sans-serif',
+                                fill: new ol.style.Fill({ color: '#000000' }),
+                                stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }),
+                                offsetY: -8,
+                                placement: 'line',
+                                textAlign: 'center',
+                                textBaseline: 'middle',
+                                overflow: true,
+                                maxAngle: Math.PI / 4
                             }),
-                            stroke: new ol.style.Stroke({
-                                color: '#000000', // Black stroke
-                                width: 1.5
-                            })
-                        })
-                    }));
-
-                    // Add black dot in center of red circle for survey marker effect
-                    styles.push(new ol.style.Style({
-                        geometry: new ol.geom.Point(coordinates[i]),
-                        image: new ol.style.Circle({
-                            radius: Math.max(1, circleRadius / 4), // Smaller black dot
-                            fill: new ol.style.Fill({
-                                color: '#000000' // Black dot
-                            })
-                        })
-                    }));
+                            geometry: edgeLine
+                        }));
+                    }
                 }
 
-                // 4. DISTANCE LABELS: Corner-to-corner measurements along polygon edges
-                // Transform coordinates to WGS84 for accurate distance calculation
-                const wgs84Coords = coordinates.map(coord => {
-                    return ol.proj.transform(coord, 'EPSG:3857', 'EPSG:4326');
-                });
+                // TIER 3: Survey markers at 100m zoom (res <= 0.3)
+                if (resolution <= RES_THRESHOLD.FULL_DETAIL) {
+                    const radiusInPixels = resolution ? (1 / resolution) : 3;
+                    const circleRadius = Math.max(3, Math.min(12, radiusInPixels));
 
-                // Haversine distance function for accurate measurements
-                function haversineDistance(lon1, lat1, lon2, lat2) {
-                    const R = 6371000; // Earth radius in meters
-                    const dLat = (lat2 - lat1) * Math.PI / 180;
-                    const dLon = (lon2 - lon1) * Math.PI / 180;
-                    const a =
-                        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                    return R * c;
-                }
-
-                // Add distance labels along each edge
-                for (let i = 0; i < wgs84Coords.length - 1; i++) {
-                    const p1 = wgs84Coords[i];
-                    const p2 = wgs84Coords[i + 1];
-
-                    // Calculate distance using Haversine formula
-                    const distanceMeters = haversineDistance(p1[0], p1[1], p2[0], p2[1]);
-
-                    // Create LineString geometry for automatic text alignment
-                    const p1Merc = coordinates[i];
-                    const p2Merc = coordinates[i + 1];
-                    const edgeLine = new ol.geom.LineString([p1Merc, p2Merc]);
-
-                    styles.push(new ol.style.Style({
-                        text: new ol.style.Text({
-                            text: `${distanceMeters.toFixed(2)} m`,
-                            font: '11px sans-serif',
-                            fill: new ol.style.Fill({ color: '#000000' }), // Black text
-                            stroke: new ol.style.Stroke({
-                                color: '#ffffff', // White buffer
-                                width: 2
-                            }),
-                            offsetY: -8, // Offset perpendicular to line
-                            placement: 'line', // Automatically aligns text along the line
-                            textAlign: 'center',
-                            textBaseline: 'middle',
-                            overflow: true,
-                            maxAngle: Math.PI / 4 // Only show text if line is not too steep
-                        }),
-                        geometry: edgeLine
-                    }));
+                    for (let i = 0; i < coordinates.length - 1; i++) {
+                        // Red circle
+                        styles.push(new ol.style.Style({
+                            geometry: new ol.geom.Point(coordinates[i]),
+                            image: new ol.style.Circle({
+                                radius: circleRadius,
+                                fill: new ol.style.Fill({ color: '#ff0000' }),
+                                stroke: new ol.style.Stroke({ color: '#000000', width: 1.5 })
+                            })
+                        }));
+                        // Black dot in center
+                        styles.push(new ol.style.Style({
+                            geometry: new ol.geom.Point(coordinates[i]),
+                            image: new ol.style.Circle({
+                                radius: Math.max(1, circleRadius / 4),
+                                fill: new ol.style.Fill({ color: '#000000' })
+                            })
+                        }));
+                    }
                 }
 
                 return styles;
