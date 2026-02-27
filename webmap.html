@@ -13013,6 +13013,7 @@
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
+                    flex-shrink: 0;
                 }
 
                 .dock-header h3 {
@@ -13046,6 +13047,7 @@
                     background: #f3f4f6;
                     border-bottom: 1px solid #e5e7eb;
                     overflow-x: auto;
+                    flex-shrink: 0;
                 }
 
                 .dock-tab-btn {
@@ -13077,6 +13079,7 @@
                     flex: 1;
                     overflow-y: auto;
                     background: white;
+                    min-height: 0;
                 }
 
                 .dock-tab-content {
@@ -52492,73 +52495,73 @@ function smoothChaikin(points) {
             </div>
         </div>
 
+    </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- LAND CLERK REGISTRATION MODAL -->
+    <!-- ============================================ -->
+    <div id="clerkModal" class="clerk-modal" style="display: none;">
+        <div class="clerk-modal-content">
+            <div class="clerk-header">
+                <h2>🏛️ Land Registration System</h2>
+                <button class="clerk-close" id="closeClerkModal">&times;</button>
+            </div>
+
+            <div class="clerk-tabs">
+                <button class="clerk-tab active" data-tab="register">Register New</button>
+                <button class="clerk-tab" data-tab="transfer">Transfer</button>
+                <button class="clerk-tab" data-tab="search">Search</button>
+            </div>
+
+            <div id="clerkContent" class="clerk-content">
+                <!-- Content loaded dynamically -->
             </div>
         </div>
+    </div>
 
-        <!-- ============================================ -->
-        <!-- LAND CLERK REGISTRATION MODAL -->
-        <!-- ============================================ -->
-        <div id="clerkModal" class="clerk-modal" style="display: none;">
-            <div class="clerk-modal-content">
-                <div class="clerk-header">
-                    <h2>🏛️ Land Registration System</h2>
-                    <button class="clerk-close" id="closeClerkModal">&times;</button>
-                </div>
-
-                <div class="clerk-tabs">
-                    <button class="clerk-tab active" data-tab="register">Register New</button>
-                    <button class="clerk-tab" data-tab="transfer">Transfer</button>
-                    <button class="clerk-tab" data-tab="search">Search</button>
-                </div>
-
-                <div id="clerkContent" class="clerk-content">
-                    <!-- Content loaded dynamically -->
-                </div>
-            </div>
-        </div>
-
-        <!-- ============================================ -->
+    <!-- ============================================ -->
 
 
-        <!-- Symbols Library Module -->
-        <script type="module">
-            console.log('[SYMBOLS] Module script started');
+    <!-- Symbols Library Module -->
+    <script type="module">
+        console.log('[SYMBOLS] Module script started');
 
-            import { initSymbolsLibrary } from './symbols-library.js';
+        import { initSymbolsLibrary } from './symbols-library.js';
 
-            console.log('[SYMBOLS] Module imported successfully');
+        console.log('[SYMBOLS] Module imported successfully');
 
-            // Wait for map to be ready
-            function initSymbolsLibraryWhenReady() {
-                console.log('[SYMBOLS] Checking for map and supabase...', {
-                    hasMap: typeof map !== 'undefined',
-                    mapValue: typeof map !== 'undefined' ? 'exists' : 'undefined',
-                    hasWindowSupabase: typeof window.supabaseClient !== 'undefined',
-                    supabaseValue: typeof window.supabaseClient !== 'undefined' ? 'exists' : 'undefined'
+        // Wait for map to be ready
+        function initSymbolsLibraryWhenReady() {
+            console.log('[SYMBOLS] Checking for map and supabase...', {
+                hasMap: typeof map !== 'undefined',
+                mapValue: typeof map !== 'undefined' ? 'exists' : 'undefined',
+                hasWindowSupabase: typeof window.supabaseClient !== 'undefined',
+                supabaseValue: typeof window.supabaseClient !== 'undefined' ? 'exists' : 'undefined'
+            });
+
+            if (typeof map !== 'undefined' && map &&
+                typeof window.supabaseClient !== 'undefined' && window.supabaseClient) {
+                console.log('[SYMBOLS] Initializing Symbols Library...');
+                initSymbolsLibrary(map, window.supabaseClient).catch(error => {
+                    console.error('[SYMBOLS] Failed to initialize:', error);
                 });
-
-                if (typeof map !== 'undefined' && map &&
-                    typeof window.supabaseClient !== 'undefined' && window.supabaseClient) {
-                    console.log('[SYMBOLS] Initializing Symbols Library...');
-                    initSymbolsLibrary(map, window.supabaseClient).catch(error => {
-                        console.error('[SYMBOLS] Failed to initialize:', error);
-                    });
-                } else {
-                    console.log('[SYMBOLS] Waiting for dependencies... retrying in 100ms');
-                    setTimeout(initSymbolsLibraryWhenReady, 100);
-                }
-            }
-
-            // Start initialization when DOM is ready
-            console.log('[SYMBOLS] Document ready state:', document.readyState);
-            if (document.readyState === 'loading') {
-                console.log('[SYMBOLS] Waiting for DOMContentLoaded');
-                document.addEventListener('DOMContentLoaded', initSymbolsLibraryWhenReady);
             } else {
-                console.log('[SYMBOLS] DOM already loaded, starting init');
-                initSymbolsLibraryWhenReady();
+                console.log('[SYMBOLS] Waiting for dependencies... retrying in 100ms');
+                setTimeout(initSymbolsLibraryWhenReady, 100);
             }
-        </script>
+        }
+
+        // Start initialization when DOM is ready
+        console.log('[SYMBOLS] Document ready state:', document.readyState);
+        if (document.readyState === 'loading') {
+            console.log('[SYMBOLS] Waiting for DOMContentLoaded');
+            document.addEventListener('DOMContentLoaded', initSymbolsLibraryWhenReady);
+        } else {
+            console.log('[SYMBOLS] DOM already loaded, starting init');
+            initSymbolsLibraryWhenReady();
+        }
+    </script>
 
 </body>
 
