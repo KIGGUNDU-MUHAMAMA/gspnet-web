@@ -2123,7 +2123,8 @@
                         if (pendingRole?.userId === data.user.id && pendingRole?.role) {
                             await supabase
                                 .from('profiles')
-                                .upsert({ id: data.user.id, role: pendingRole.role }, { onConflict: 'id' });
+                                .update({ role: pendingRole.role })
+                                .eq('id', data.user.id);
                             localStorage.removeItem('pendingProfileRole');
                         }
                     }
@@ -2222,7 +2223,8 @@
                     if (data?.user && data?.session) {
                         const { data: profileData, error: profileError } = await supabase
                             .from('profiles')
-                            .upsert({ id: data.user.id, role: selectedRole }, { onConflict: 'id' });
+                            .update({ role: selectedRole })
+                            .eq('id', data.user.id);
 
                         if (profileError) {
                             console.error('Profile upsert error:', profileError);
