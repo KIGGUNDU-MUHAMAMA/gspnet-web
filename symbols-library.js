@@ -20,18 +20,19 @@ let autoLoadTimeout = null;
 let selectedSymbol = null;
 
 /**
- * Normalize geom_type from DB (lowercase) to OpenLayers format (PascalCase)
- * DB stores: point, linestring, polygon
+ * Normalize geometry type from DB category to OpenLayers format
+ * DB category column stores: point, line, polygon
  * OL expects: Point, LineString, Polygon
  */
-function normalizeGeomType(geomType) {
-    if (!geomType) return geomType;
-    const map = {
+function normalizeGeomType(value) {
+    if (!value) return value;
+    const mapping = {
         'point': 'Point',
+        'line': 'LineString',
         'linestring': 'LineString',
         'polygon': 'Polygon'
     };
-    return map[geomType.toLowerCase()] || geomType;
+    return mapping[value.toLowerCase()] || value;
 }
 
 /**
@@ -91,24 +92,19 @@ async function loadSymbolCatalog() {
 
         symbolCatalog = data || [];
 
-        // Log actual column names from DB to debug schema issues
+        // The DB table uses 'category' column (point/line/polygon) instead of 'geom_type'.
+        // Map category to geom_type (OL PascalCase) on every symbol.
         if (symbolCatalog.length > 0) {
-            const columns = Object.keys(symbolCatalog[0]);
-            console.log('[SL] DB columns:', columns);
+            console.log('[SL] DB columns:', Object.keys(symbolCatalog[0]));
             console.log('[SL] Sample record:', JSON.stringify(symbolCatalog[0]));
 
-            // Auto-detect geometry type column name
-            const geomColCandidates = ['geom_type', 'geometry_type', 'type', 'geomType', 'geometryType', 'geom'];
-            const foundGeomCol = geomColCandidates.find(col => symbolCatalog[0][col] !== undefined);
-            if (foundGeomCol && foundGeomCol !== 'geom_type') {
-                console.log(`[SL] Detected geometry column: "${foundGeomCol}" (not "geom_type"). Remapping...`);
-                // Remap column to expected name
-                symbolCatalog = symbolCatalog.map(s => ({
-                    ...s,
-                    geom_type: s[foundGeomCol]
-                }));
-            }
-            console.log('[SL] geom_type values:', [...new Set(symbolCatalog.map(s => s.geom_type))]);
+            // Remap: category -> geom_type with normalization
+            symbolCatalog = symbolCatalog.map(s => ({
+                ...s,
+                geom_type: normalizeGeomType(s.category)
+            }));
+
+            console.log('[SL] geom_type values after mapping:', [...new Set(symbolCatalog.map(s => s.geom_type))]);
         }
 
         console.log(`Symbols Library: Loaded ${symbolCatalog.length} symbols`);
@@ -131,11 +127,6 @@ function populateCatalogUI() {
     }
 
     console.log('[SL] Populating catalog with', symbolCatalog.length, 'symbols');
-    // DEBUG: Log actual geom_type values and sample data
-    const geomTypes = [...new Set(symbolCatalog.map(s => s.geom_type))];
-    console.log('[SL] DEBUG - Unique geom_type values in catalog:', geomTypes);
-    console.log('[SL] DEBUG - Sample symbol:', JSON.stringify(symbolCatalog[0]));
-    console.log('[SL] DEBUG - All symbol keys:', symbolCatalog.map(s => s.symbol_key));
 
     // Group symbols by geometry type (normalize from DB lowercase to PascalCase)
     const grouped = {
