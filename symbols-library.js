@@ -110,6 +110,11 @@ function populateCatalogUI() {
     }
 
     console.log('[SL] Populating catalog with', symbolCatalog.length, 'symbols');
+    // DEBUG: Log actual geom_type values and sample data
+    const geomTypes = [...new Set(symbolCatalog.map(s => s.geom_type))];
+    console.log('[SL] DEBUG - Unique geom_type values in catalog:', geomTypes);
+    console.log('[SL] DEBUG - Sample symbol:', JSON.stringify(symbolCatalog[0]));
+    console.log('[SL] DEBUG - All symbol keys:', symbolCatalog.map(s => s.symbol_key));
 
     // Group symbols by geometry type (normalize from DB lowercase to PascalCase)
     const grouped = {
