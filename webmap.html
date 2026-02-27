@@ -18163,16 +18163,25 @@
                 return R * c;
             }
 
-            // Auto-detect CRS and ensure WGS84 (EPSG:4326) coordinates for distance calculation
-            // If |x| > 180 or |y| > 90, coordinates are in EPSG:3857 (meters) → transform to 4326
-            // Otherwise they're already in EPSG:4326 (degrees) → use directly
-            function toWgs84Coords(coords) {
-                if (coords.length === 0) return coords;
-                const sample = coords[0];
-                if (Math.abs(sample[0]) > 180 || Math.abs(sample[1]) > 90) {
-                    return coords.map(c => ol.proj.transform(c, 'EPSG:3857', 'EPSG:4326'));
+            // Robust edge distance calculation for FlatGeoBuf layers
+            // Uses ol.sphere.getLength with auto-detected projection
+            let _fgbCrsLogged = false;
+            function getEdgeDistance(c1, c2) {
+                // Detect coordinate system from magnitude
+                const isProjected = Math.abs(c1[0]) > 180 || Math.abs(c1[1]) > 90;
+                const proj = isProjected ? 'EPSG:3857' : 'EPSG:4326';
+
+                // Log once for debugging
+                if (!_fgbCrsLogged) {
+                    _fgbCrsLogged = true;
+                    console.log('[FGB Distance] Coordinate sample:', c1, '| Detected CRS:', proj);
                 }
-                return coords;
+
+                // Use ol.sphere.getLength which handles geodesic calculation correctly
+                const segment = new ol.geom.LineString([c1, c2]);
+                const dist = ol.sphere.getLength(segment, { projection: proj });
+
+                return dist;
             }
 
             // NLIS Polygon style function — RESOLUTION-AWARE
@@ -18197,11 +18206,8 @@
 
                 // TIER 2: Distance labels at 200m zoom
                 if (resolution <= RES_THRESHOLD.DISTANCES) {
-                    const wgs84Coords = toWgs84Coords(coordinates);
-                    for (let i = 0; i < wgs84Coords.length - 1; i++) {
-                        const p1 = wgs84Coords[i];
-                        const p2 = wgs84Coords[i + 1];
-                        const distanceMeters = haversineDistance(p1[0], p1[1], p2[0], p2[1]);
+                    for (let i = 0; i < coordinates.length - 1; i++) {
+                        const distanceMeters = getEdgeDistance(coordinates[i], coordinates[i + 1]);
                         const edgeLine = new ol.geom.LineString([coordinates[i], coordinates[i + 1]]);
                         styles.push(new ol.style.Style({
                             text: new ol.style.Text({
@@ -18582,11 +18588,8 @@
 
                 // TIER 2: Distance labels at 200m zoom (res <= 2.0)
                 if (resolution <= RES_THRESHOLD.DISTANCES) {
-                    const wgs84Coords = toWgs84Coords(coordinates);
-                    for (let i = 0; i < wgs84Coords.length - 1; i++) {
-                        const p1 = wgs84Coords[i];
-                        const p2 = wgs84Coords[i + 1];
-                        const distanceMeters = haversineDistance(p1[0], p1[1], p2[0], p2[1]);
+                    for (let i = 0; i < coordinates.length - 1; i++) {
+                        const distanceMeters = getEdgeDistance(coordinates[i], coordinates[i + 1]);
                         const edgeLine = new ol.geom.LineString([coordinates[i], coordinates[i + 1]]);
                         styles.push(new ol.style.Style({
                             text: new ol.style.Text({
