@@ -252,14 +252,23 @@ const styleCache = new Map();
 function featureStyleFunction(feature) {
     const props = feature.getProperties();
     const symbolKey = props.symbol_key;
-    const geomType = normalizeGeomType(props.geom_type);
+    const geomType = normalizeGeomType(props.geom_type || props.category);
     const style = props.style || {};
+
+    // Skip features that aren't symbol features (e.g., Graticule grid lines)
+    if (!symbolKey) {
+        return null;
+    }
 
     // Find symbol in catalog
     const symbol = symbolCatalog.find(s => s.symbol_key === symbolKey);
     if (!symbol) {
-        // Provide a fallback style instead of returning null
-        console.warn(`Symbol not found in catalog: ${symbolKey}, using fallback style`);
+        // Only warn once per unknown key to avoid console spam
+        if (!featureStyleFunction._warned) featureStyleFunction._warned = new Set();
+        if (!featureStyleFunction._warned.has(symbolKey)) {
+            console.warn(`[SL] Symbol not found in catalog: "${symbolKey}", using fallback style`);
+            featureStyleFunction._warned.add(symbolKey);
+        }
         if (geomType === 'Point') {
             return new ol.style.Style({
                 image: new ol.style.Circle({
