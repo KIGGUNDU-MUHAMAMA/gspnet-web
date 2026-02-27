@@ -20,6 +20,21 @@ let autoLoadTimeout = null;
 let selectedSymbol = null;
 
 /**
+ * Normalize geom_type from DB (lowercase) to OpenLayers format (PascalCase)
+ * DB stores: point, linestring, polygon
+ * OL expects: Point, LineString, Polygon
+ */
+function normalizeGeomType(geomType) {
+    if (!geomType) return geomType;
+    const map = {
+        'point': 'Point',
+        'linestring': 'LineString',
+        'polygon': 'Polygon'
+    };
+    return map[geomType.toLowerCase()] || geomType;
+}
+
+/**
  * Initialize the Symbols Library
  * @param {ol.Map} olMap - OpenLayers map instance
  * @param {Object} supabase - Supabase client instance
@@ -96,7 +111,7 @@ function populateCatalogUI() {
 
     console.log('[SL] Populating catalog with', symbolCatalog.length, 'symbols');
 
-    // Group symbols by geometry type
+    // Group symbols by geometry type (normalize from DB lowercase to PascalCase)
     const grouped = {
         Point: [],
         LineString: [],
@@ -104,8 +119,9 @@ function populateCatalogUI() {
     };
 
     symbolCatalog.forEach(symbol => {
-        if (grouped[symbol.geom_type]) {
-            grouped[symbol.geom_type].push(symbol);
+        const normalized = normalizeGeomType(symbol.geom_type);
+        if (grouped[normalized]) {
+            grouped[normalized].push(symbol);
         }
     });
 
@@ -219,14 +235,32 @@ const styleCache = new Map();
 function featureStyleFunction(feature) {
     const props = feature.getProperties();
     const symbolKey = props.symbol_key;
-    const geomType = props.geom_type;
+    const geomType = normalizeGeomType(props.geom_type);
     const style = props.style || {};
 
     // Find symbol in catalog
     const symbol = symbolCatalog.find(s => s.symbol_key === symbolKey);
     if (!symbol) {
-        console.warn(`Symbol not found: ${symbolKey}`);
-        return null;
+        // Provide a fallback style instead of returning null
+        console.warn(`Symbol not found in catalog: ${symbolKey}, using fallback style`);
+        if (geomType === 'Point') {
+            return new ol.style.Style({
+                image: new ol.style.Circle({
+                    radius: 6,
+                    fill: new ol.style.Fill({ color: '#ef4444' }),
+                    stroke: new ol.style.Stroke({ color: '#fff', width: 2 })
+                })
+            });
+        } else if (geomType === 'LineString') {
+            return new ol.style.Style({
+                stroke: new ol.style.Stroke({ color: '#3b82f6', width: 3 })
+            });
+        } else {
+            return new ol.style.Style({
+                fill: new ol.style.Fill({ color: 'rgba(59, 130, 246, 0.3)' }),
+                stroke: new ol.style.Stroke({ color: '#3b82f6', width: 2 })
+            });
+        }
     }
 
     // Merge default style with per-feature overrides
@@ -1147,17 +1181,15 @@ async function loadFeatures() {
  */
 function startDrawing(geomType) {
     if (!selectedSymbol) {
-        // Default to a generic symbol so users can draw immediately
-        selectedSymbol = symbolCatalog.find(s => s.geom_type === geomType) || {
-            symbol_key: 'generic_' + geomType.toLowerCase(),
-            name: 'Generic ' + geomType,
-            geom_type: geomType,
-            default_style: geomType === 'Point' ? { color: '#ef4444', size: 24 }
-                : geomType === 'LineString' ? { strokeColor: '#3b82f6', strokeWidth: 3 }
-                    : { fillColor: '#22c55e', fillOpacity: 0.4, strokeColor: '#166534', strokeWidth: 2 }
-        };
-        console.log('[SL] No symbol selected, using default:', selectedSymbol.name);
-        showMessage(`Using default ${geomType} symbol. You can pick one from Catalog.`, 'info');
+        // Auto-select first matching symbol from catalog (normalize case for comparison)
+        selectedSymbol = symbolCatalog.find(s => normalizeGeomType(s.geom_type) === geomType);
+        if (!selectedSymbol) {
+            showMessage('No symbols available for this geometry type. Please select from Catalog first.', 'warning');
+            console.warn('[SL] No symbol found for geomType:', geomType);
+            return;
+        }
+        console.log('[SL] Auto-selected symbol:', selectedSymbol.name, '(' + selectedSymbol.symbol_key + ')');
+        showMessage(`Using: ${selectedSymbol.name}. You can pick a different one from Catalog.`, 'info');
     }
 
     console.log('[SL] Starting drawing:', geomType, 'with symbol:', selectedSymbol.name);
