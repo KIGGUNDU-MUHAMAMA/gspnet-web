@@ -42297,7 +42297,7 @@ function smoothChaikin(points) {
                                 if (prop.user_id && prop.user_id !== userId) return false;
                                 const coords = getPropertyCoordinates(prop);
                                 if (!coords) return false;
-                                const distance = haversineDistance(lat, lon, coords.lat, coords.lon);
+                                const distance = proximityDistanceKm(lat, lon, coords.lat, coords.lon);
                                 return distance <= radiusKm;
                             });
                             if (comparables.length) {
@@ -42382,7 +42382,7 @@ function smoothChaikin(points) {
                             if (filters.price_max !== null && Number(prop.price_ugx) > filters.price_max) return false;
                             const coords = getPropertyCoordinates(prop);
                             if (!coords) return false;
-                            const distance = haversineDistance(lat, lon, coords.lat, coords.lon);
+                            const distance = proximityDistanceKm(lat, lon, coords.lat, coords.lon);
                             return distance <= radiusKm;
                         }) : [];
 
@@ -42930,7 +42930,7 @@ function smoothChaikin(points) {
 
             // Vincenty-based distance calculation (returns km)
             // Note: param order is (lat, lon) for backward compatibility with callers
-            function haversineDistance(lat1, lon1, lat2, lon2) {
+            function proximityDistanceKm(lat1, lon1, lat2, lon2) {
                 return vincentyDistance(lon1, lat1, lon2, lat2) / 1000; // Vincenty returns meters, convert to km
             }
 
@@ -43107,7 +43107,7 @@ function smoothChaikin(points) {
                     const propCoords = parseLocation(prop.location);
                     if (!propCoords) return;
 
-                    const distance = haversineDistance(
+                    const distance = proximityDistanceKm(
                         formData.lat || 0,
                         formData.lon || 0,
                         propCoords.lat,
@@ -43613,7 +43613,7 @@ function smoothChaikin(points) {
                 const distancesWithData = filteredComparables.map(prop => {
                     const propCoords = parseLocation(prop.location);
                     if (!propCoords) return null;
-                    const distance = haversineDistance(lat, lon, propCoords.lat, propCoords.lon);
+                    const distance = proximityDistanceKm(lat, lon, propCoords.lat, propCoords.lon);
                     return {
                         prop: prop,
                         distance: distance,
