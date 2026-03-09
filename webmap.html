@@ -18150,38 +18150,92 @@
 
 
 
-            // Shared Haversine distance function (extracted for reuse, avoids re-creation per feature)
-            function haversineDistance(lon1, lat1, lon2, lat2) {
-                const R = 6371000; // Earth radius in meters
-                const dLat = (lat2 - lat1) * Math.PI / 180;
-                const dLon = (lon2 - lon1) * Math.PI / 180;
-                const a =
-                    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                return R * c;
+            // Vincenty inverse formula for geodesic distance on WGS84 ellipsoid
+            // Replaces Haversine (spherical) for survey-grade accuracy (~0.5mm)
+            // WGS84 params: a=6378137m, f=1/298.257223563
+            function vincentyDistance(lon1, lat1, lon2, lat2) {
+                const a = 6378137;               // semi-major axis (m)
+                const f = 1 / 298.257223563;     // flattening
+                const b = a * (1 - f);           // semi-minor axis
+
+                const toRad = Math.PI / 180;
+                const U1 = Math.atan((1 - f) * Math.tan(lat1 * toRad));
+                const U2 = Math.atan((1 - f) * Math.tan(lat2 * toRad));
+                const sinU1 = Math.sin(U1), cosU1 = Math.cos(U1);
+                const sinU2 = Math.sin(U2), cosU2 = Math.cos(U2);
+                const L = (lon2 - lon1) * toRad;
+
+                let lambda = L, lambdaPrev;
+                let sinSigma, cosSigma, sigma, sinAlpha, cos2Alpha, cos2SigmaM;
+                let iterations = 200;
+
+                do {
+                    const sinLambda = Math.sin(lambda), cosLambda = Math.cos(lambda);
+                    sinSigma = Math.sqrt(
+                        (cosU2 * sinLambda) ** 2 +
+                        (cosU1 * sinU2 - sinU1 * cosU2 * cosLambda) ** 2
+                    );
+
+                    if (sinSigma === 0) return 0; // coincident points
+
+                    cosSigma = sinU1 * sinU2 + cosU1 * cosU2 * cosLambda;
+                    sigma = Math.atan2(sinSigma, cosSigma);
+                    sinAlpha = cosU1 * cosU2 * sinLambda / sinSigma;
+                    cos2Alpha = 1 - sinAlpha ** 2;
+                    cos2SigmaM = cos2Alpha !== 0 ? cosSigma - 2 * sinU1 * sinU2 / cos2Alpha : 0;
+
+                    const C = f / 16 * cos2Alpha * (4 + f * (4 - 3 * cos2Alpha));
+                    lambdaPrev = lambda;
+                    lambda = L + (1 - C) * f * sinAlpha * (
+                        sigma + C * sinSigma * (cos2SigmaM + C * cosSigma * (-1 + 2 * cos2SigmaM ** 2))
+                    );
+                } while (Math.abs(lambda - lambdaPrev) > 1e-12 && --iterations > 0);
+
+                if (iterations === 0) {
+                    // Vincenty failed to converge (nearly antipodal points) — fallback to Haversine
+                    const R = 6371000;
+                    const dLat = (lat2 - lat1) * toRad;
+                    const dLon = (lon2 - lon1) * toRad;
+                    const ah = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * toRad) * Math.cos(lat2 * toRad) * Math.sin(dLon / 2) ** 2;
+                    return R * 2 * Math.atan2(Math.sqrt(ah), Math.sqrt(1 - ah));
+                }
+
+                const uSq = cos2Alpha * (a ** 2 - b ** 2) / (b ** 2);
+                const A = 1 + uSq / 16384 * (4096 + uSq * (-768 + uSq * (320 - 175 * uSq)));
+                const B = uSq / 1024 * (256 + uSq * (-128 + uSq * (74 - 47 * uSq)));
+                const deltaSigma = B * sinSigma * (cos2SigmaM + B / 4 * (
+                    cosSigma * (-1 + 2 * cos2SigmaM ** 2) -
+                    B / 6 * cos2SigmaM * (-3 + 4 * sinSigma ** 2) * (-3 + 4 * cos2SigmaM ** 2)
+                ));
+
+                return b * A * (sigma - deltaSigma);
             }
 
+            // Alias for backward compatibility — all existing callers work unchanged
+            const haversineDistance = vincentyDistance;
+
             // Robust edge distance calculation for FlatGeoBuf layers
-            // Uses ol.sphere.getLength with auto-detected projection
+            // Uses Vincenty on WGS84 ellipsoid for survey-grade accuracy
             let _fgbCrsLogged = false;
             function getEdgeDistance(c1, c2) {
                 // Detect coordinate system from magnitude
                 const isProjected = Math.abs(c1[0]) > 180 || Math.abs(c1[1]) > 90;
-                const proj = isProjected ? 'EPSG:3857' : 'EPSG:4326';
 
                 // Log once for debugging
                 if (!_fgbCrsLogged) {
                     _fgbCrsLogged = true;
-                    console.log('[FGB Distance] Coordinate sample:', c1, '| Detected CRS:', proj);
+                    console.log('[FGB Distance] Coordinate sample:', c1, '| Detected CRS:', isProjected ? 'EPSG:3857' : 'EPSG:4326');
                 }
 
-                // Use ol.sphere.getLength which handles geodesic calculation correctly
-                const segment = new ol.geom.LineString([c1, c2]);
-                const dist = ol.sphere.getLength(segment, { projection: proj });
+                // Transform to WGS84 if in Web Mercator
+                let p1 = c1, p2 = c2;
+                if (isProjected) {
+                    p1 = ol.proj.transform(c1, 'EPSG:3857', 'EPSG:4326');
+                    p2 = ol.proj.transform(c2, 'EPSG:3857', 'EPSG:4326');
+                }
 
-                return dist;
+                // Use Vincenty for ellipsoidal accuracy
+                return vincentyDistance(p1[0], p1[1], p2[0], p2[1]);
             }
 
             // NLIS Polygon style function — RESOLUTION-AWARE
@@ -18672,18 +18726,8 @@
                 // Clamp to reasonable range (2-10 pixels) for visibility
                 const circleRadius = Math.max(2, Math.min(10, radiusInPixels));
 
-                // Haversine distance function (for WGS84 coordinates)
-                function haversineDistance(lon1, lat1, lon2, lat2) {
-                    const R = 6371000; // Earth radius in meters
-                    const dLat = (lat2 - lat1) * Math.PI / 180;
-                    const dLon = (lon2 - lon1) * Math.PI / 180;
-                    const a =
-                        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                    return R * c;
-                }
+                // Use outer vincentyDistance (WGS84 ellipsoidal accuracy)
+                // No need for a local haversineDistance — vincentyDistance is available in outer scope
 
                 const areaHectares = feature.get('area_hectares');
                 if (areaHectares) {
@@ -23306,10 +23350,9 @@
                 for (let i = 0; i < coordinates.length - 1; i++) {
                     const start = coordinates[i];
                     const end = coordinates[i + 1];
-                    const edgeLength = ol.sphere.getDistance(
-                        ol.proj.transform(start, 'EPSG:4326', 'EPSG:4326'),
-                        ol.proj.transform(end, 'EPSG:4326', 'EPSG:4326')
-                    );
+                    const p1wgs = ol.proj.transform(start, 'EPSG:4326', 'EPSG:4326');
+                    const p2wgs = ol.proj.transform(end, 'EPSG:4326', 'EPSG:4326');
+                    const edgeLength = vincentyDistance(p1wgs[0], p1wgs[1], p2wgs[0], p2wgs[1]);
 
                     if (edgeLength > longestEdge.length) {
                         longestEdge = { start, end, length: edgeLength };
@@ -36929,7 +36972,7 @@ function smoothChaikin(points) {
                         for (let i = 0; i < coordinates.length - 1; i++) {
                             const from = ol.proj.transform(coordinates[i], 'EPSG:3857', 'EPSG:4326');
                             const to = ol.proj.transform(coordinates[i + 1], 'EPSG:3857', 'EPSG:4326');
-                            const distance = ol.sphere.getDistance(from, to);
+                            const distance = vincentyDistance(from[0], from[1], to[0], to[1]);
                             totalDistance += distance;
                         }
 
@@ -42885,16 +42928,10 @@ function smoothChaikin(points) {
                 return null;
             }
 
-            // Haversine distance calculation
+            // Vincenty-based distance calculation (returns km)
+            // Note: param order is (lat, lon) for backward compatibility with callers
             function haversineDistance(lat1, lon1, lat2, lon2) {
-                const R = 6371; // Earth radius in km
-                const dLat = (lat2 - lat1) * Math.PI / 180;
-                const dLon = (lon2 - lon1) * Math.PI / 180;
-                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                return R * c; // Distance in km
+                return vincentyDistance(lon1, lat1, lon2, lat2) / 1000; // Vincenty returns meters, convert to km
             }
 
             // Helper: Calculate Property Type Match Score
