@@ -53221,7 +53221,7 @@ function smoothChaikin(points) {
                         notes: u.notes
                     }));
 
-                    const { error: uErr } = await supabaseClient.from('condo_units').insert(unitRows);
+                    const { error: uErr } = await supabaseClient.from('condo_units').upsert(unitRows, { onConflict: 'unit_id' });
                     if (uErr) throw uErr;
                 }
 

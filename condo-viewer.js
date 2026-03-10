@@ -7,7 +7,7 @@
 // ============================================
 // 1. COORDINATE UTILITIES
 // ============================================
-const CondoCoordUtils = {
+var CondoCoordUtils = {
     // Projection definitions for proj4 (if available)
     projDefs: {
         'EPSG:32636': '+proj=utm +zone=36 +datum=WGS84 +units=m +no_defs',
@@ -129,7 +129,7 @@ const CondoCoordUtils = {
 // ============================================
 // 2. CSV PARSER
 // ============================================
-class CondoCSVParser {
+var CondoCSVParser = class CondoCSVParser {
 
     /**
      * Parse a footprint CSV string
@@ -298,13 +298,13 @@ class CondoCSVParser {
 
         return { floors, summary, errors };
     }
-}
+};
 
 
 // ============================================
 // 3. THREE.JS 3D VIEWER
 // ============================================
-class CondoViewer {
+var CondoViewer = class CondoViewer {
 
     constructor(containerElement) {
         this.container = containerElement;
@@ -763,7 +763,7 @@ class CondoViewer {
         this.floorGroups = [];
         this.selectedMesh = null;
     }
-}
+};
 
 // Export globally
 window.CondoViewer = CondoViewer;
