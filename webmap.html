@@ -18244,13 +18244,15 @@
             // Tier 3 (res <= 1.0, ~100m): + corner circles
             function getNlisPolygonStyle(feature) {
                 const geometry = feature.getGeometry();
-                if (!geometry || geometry.getType() !== 'Polygon') {
+                const geomType = geometry ? geometry.getType() : null;
+                if (!geometry || (geomType !== 'Polygon' && geomType !== 'MultiPolygon')) {
                     return [];
                 }
 
                 const view = map.getView();
                 const resolution = view.getResolution();
-                const coordinates = geometry.getCoordinates()[0];
+                // For MultiPolygon, use the first polygon's outer ring
+                const coordinates = geomType === 'MultiPolygon' ? geometry.getCoordinates()[0][0] : geometry.getCoordinates()[0];
 
                 // TIER 1: Always show base strokes (reuse shared cached styles)
                 const styles = [SHARED_STYLES.nlisWhiteBuffer, SHARED_STYLES.nlisBlackStroke];
@@ -18303,7 +18305,8 @@
             // Mukono Blocks style — RESOLUTION-AWARE (uses shared cached styles)
             function getMukonoBlocksStyle(feature) {
                 const geometry = feature.getGeometry();
-                if (!geometry || geometry.getType() !== 'Polygon') {
+                const geomType = geometry ? geometry.getType() : null;
+                if (!geometry || (geomType !== 'Polygon' && geomType !== 'MultiPolygon')) {
                     return [];
                 }
 
@@ -18340,7 +18343,8 @@
             // Block Boundary style — RESOLUTION-AWARE (uses shared cached styles)
             function getBlockBoundaryStyle(feature) {
                 const geometry = feature.getGeometry();
-                if (!geometry || geometry.getType() !== 'Polygon') {
+                const geomType = geometry ? geometry.getType() : null;
+                if (!geometry || (geomType !== 'Polygon' && geomType !== 'MultiPolygon')) {
                     return [];
                 }
 
@@ -18377,7 +18381,8 @@
             // Protected Areas style — RESOLUTION-AWARE (uses shared cached styles)
             function getProtectedAreasStyle(feature) {
                 const geometry = feature.getGeometry();
-                if (!geometry || geometry.getType() !== 'Polygon') {
+                const geomType = geometry ? geometry.getType() : null;
+                if (!geometry || (geomType !== 'Polygon' && geomType !== 'MultiPolygon')) {
                     return [];
                 }
 
@@ -18609,13 +18614,15 @@
             // Tier 3 (res <= 0.3, ~100m): + survey markers (red circles with black dots)
             function getFlatGeobufParcelStyle(feature) {
                 const geometry = feature.getGeometry();
-                if (!geometry || geometry.getType() !== 'Polygon') {
+                const geomType = geometry ? geometry.getType() : null;
+                if (!geometry || (geomType !== 'Polygon' && geomType !== 'MultiPolygon')) {
                     return [];
                 }
 
                 const view = map.getView();
                 const resolution = view.getResolution();
-                const coordinates = geometry.getCoordinates()[0];
+                // For MultiPolygon, use the first polygon's outer ring
+                const coordinates = geomType === 'MultiPolygon' ? geometry.getCoordinates()[0][0] : geometry.getCoordinates()[0];
 
                 // TIER 1: Always show base strokes (reuse shared cached styles)
                 const styles = [SHARED_STYLES.parcelWhiteBuffer, SHARED_STYLES.parcelBlackStroke];
