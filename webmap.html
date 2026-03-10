@@ -11,6 +11,10 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Three.js for 3D Condominium Viewer -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="condo-viewer.js"></script>
     <script>
         // ============================================
         // SUPABASE CLIENT INITIALIZATION
@@ -12980,6 +12984,11 @@
                         title="GSP.NET UPDATES - Edit PostGIS Layers">
                         <i class="fas fa-database"></i> <span>GSP.NET UPDATES</span>
                     </button>
+
+                    <!-- 3D Condominium Properties Button -->
+                    <button type="button" class="control-btn" id="condoBtn" title="3D Condominium Properties" onclick="toggleCondoPanel()">
+                        <i class="fas fa-building"></i> <span>🏢 3D</span>
+                    </button>
                 </div>
             </div>
 
@@ -12987,6 +12996,105 @@
             <div class="toast-notification" id="toastNotification">
                 <span class="toast-close" id="toastClose">&times;</span>
                 <div id="toastMessage"></div>
+            </div>
+
+            <!-- ============================================ -->
+            <!-- 3D CONDOMINIUM PANEL -->
+            <!-- ============================================ -->
+            <style>
+                .condo-panel{position:fixed;top:0;right:0;width:420px;height:100vh;background:#1a1a2e;color:#e0e0e0;z-index:1100;transform:translateX(100%);transition:transform .3s ease;display:flex;flex-direction:column;box-shadow:-4px 0 20px rgba(0,0,0,.4);overflow:hidden}
+                .condo-panel.open{transform:translateX(0)}
+                .condo-panel-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(135deg,#0d47a1,#1565c0);flex-shrink:0}
+                .condo-panel-header h3{margin:0;font-size:15px;font-weight:600;color:#fff}
+                .condo-panel-close{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:0 4px;line-height:1}
+                .condo-tabs{display:flex;background:#16213e;flex-shrink:0}
+                .condo-tab{flex:1;padding:10px 8px;text-align:center;cursor:pointer;font-size:12px;font-weight:500;color:#90caf9;border-bottom:3px solid transparent;transition:all .2s}
+                .condo-tab:hover{background:#1a2744}
+                .condo-tab.active{color:#fff;border-bottom-color:#42a5f5;background:#1a2744}
+                .condo-tab i{display:block;font-size:16px;margin-bottom:4px}
+                .condo-content{flex:1;overflow-y:auto;padding:16px}
+                .condo-content::-webkit-scrollbar{width:6px}
+                .condo-content::-webkit-scrollbar-track{background:#16213e}
+                .condo-content::-webkit-scrollbar-thumb{background:#42a5f5;border-radius:3px}
+                .condo-form-group{margin-bottom:14px}
+                .condo-form-group label{display:block;font-size:12px;font-weight:600;color:#90caf9;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+                .condo-input,.condo-select{width:100%;padding:8px 10px;background:#16213e;border:1px solid #2a3a5c;border-radius:6px;color:#e0e0e0;font-size:13px;box-sizing:border-box}
+                .condo-input:focus,.condo-select:focus{border-color:#42a5f5;outline:none;box-shadow:0 0 0 2px rgba(66,165,245,.2)}
+                .condo-btn{padding:8px 16px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+                .condo-btn-primary{background:linear-gradient(135deg,#1565c0,#1976d2);color:#fff}
+                .condo-btn-primary:hover{background:linear-gradient(135deg,#1976d2,#1e88e5);transform:translateY(-1px)}
+                .condo-btn-secondary{background:#2a3a5c;color:#90caf9}
+                .condo-btn-secondary:hover{background:#3a4a6c}
+                .condo-btn-success{background:linear-gradient(135deg,#2e7d32,#43a047);color:#fff}
+                .condo-btn-success:hover{background:linear-gradient(135deg,#388e3c,#4caf50)}
+                .condo-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+                .condo-step-indicator{display:flex;gap:4px;margin-bottom:16px}
+                .condo-step-dot{flex:1;height:4px;border-radius:2px;background:#2a3a5c}
+                .condo-step-dot.active{background:#42a5f5}
+                .condo-step-dot.completed{background:#66bb6a}
+                .condo-step-title{font-size:14px;font-weight:600;color:#fff;margin-bottom:12px}
+                .condo-csv-area{border:2px dashed #2a3a5c;border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:12px}
+                .condo-csv-area:hover,.condo-csv-area.dragover{border-color:#42a5f5;background:rgba(66,165,245,.05)}
+                .condo-csv-area.has-file{border-color:#66bb6a;background:rgba(102,187,106,.05)}
+                .condo-csv-area i{font-size:28px;color:#42a5f5;margin-bottom:8px}
+                .condo-csv-area p{margin:4px 0;font-size:12px;color:#90caf9}
+                .condo-summary-box{background:#16213e;border:1px solid #2a3a5c;border-radius:8px;padding:12px;margin:12px 0}
+                .condo-summary-box .count{font-size:18px;font-weight:700;color:#42a5f5}
+                .condo-summary-box .label{font-size:11px;color:#90caf9;text-transform:uppercase}
+                .condo-error{background:rgba(239,83,80,.1);border:1px solid #ef5350;border-radius:6px;padding:8px 12px;margin:8px 0;font-size:12px;color:#ef9a9a}
+                .condo-success{background:rgba(102,187,106,.1);border:1px solid #66bb6a;border-radius:6px;padding:8px 12px;margin:8px 0;font-size:12px;color:#a5d6a7}
+                .condo-3d-canvas{width:100%;height:300px;background:#0d1117;border-radius:8px;overflow:hidden;margin-bottom:12px;position:relative}
+                .condo-floor-slider{width:100%;margin:8px 0}
+                .condo-unit-card{background:#16213e;border:1px solid #2a3a5c;border-radius:8px;padding:12px;margin-top:12px}
+                .condo-unit-card h4{margin:0 0 8px;color:#42a5f5;font-size:14px}
+                .condo-unit-card .attr-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+                .condo-unit-card .attr{font-size:11px}
+                .condo-unit-card .attr-label{color:#90caf9}
+                .condo-unit-card .attr-value{color:#fff;font-weight:600}
+                .condo-unit-card .status-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;text-transform:uppercase}
+                .condo-unit-card .status-badge.vacant{background:#ef6c00;color:#fff}
+                .condo-unit-card .status-badge.occupied{background:#2e7d32;color:#fff}
+                .condo-unit-card .status-badge.registered{background:#1565c0;color:#fff}
+                .condo-unit-card .status-badge.sold{background:#6a1b9a;color:#fff}
+                .condo-image-gallery{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+                .condo-image-gallery img{width:calc(50% - 4px);height:100px;object-fit:cover;border-radius:6px;cursor:pointer;border:2px solid transparent;transition:border-color .2s}
+                .condo-image-gallery img:hover{border-color:#42a5f5}
+                .condo-search-results{margin-top:12px}
+                .condo-search-result{background:#16213e;border:1px solid #2a3a5c;border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:all .2s}
+                .condo-search-result:hover{border-color:#42a5f5;background:#1a2744}
+                .condo-search-result h4{margin:0 0 4px;font-size:13px;color:#fff}
+                .condo-search-result p{margin:0;font-size:11px;color:#90caf9}
+                .condo-attr-form{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+                .condo-attr-form .full-width{grid-column:1/-1}
+                .condo-checkbox-group{display:flex;align-items:center;gap:6px;font-size:12px;color:#e0e0e0}
+                .condo-checkbox-group input[type=checkbox]{accent-color:#42a5f5}
+                .condo-tree{margin:8px 0}
+                .condo-tree-floor{margin-bottom:6px}
+                .condo-tree-floor-header{font-size:12px;font-weight:600;color:#42a5f5;cursor:pointer;padding:4px 8px;background:#16213e;border-radius:4px}
+                .condo-tree-units{padding-left:16px;margin-top:4px;display:none}
+                .condo-tree-units.show{display:block}
+                .condo-tree-unit{font-size:11px;color:#90caf9;padding:2px 0}
+            </style>
+
+            <div id="condoPanel" class="condo-panel">
+                <div class="condo-panel-header">
+                    <h3><i class="fas fa-building"></i> CONDOMINIUM PROPERTIES</h3>
+                    <button class="condo-panel-close" onclick="closeCondoPanel()">&times;</button>
+                </div>
+                <div class="condo-tabs">
+                    <div class="condo-tab active" data-tab="condo-new" onclick="switchCondoTab('condo-new')">
+                        <i class="fas fa-plus-circle"></i> New
+                    </div>
+                    <div class="condo-tab" data-tab="condo-search" onclick="switchCondoTab('condo-search')">
+                        <i class="fas fa-search"></i> Search
+                    </div>
+                    <div class="condo-tab" data-tab="condo-3d" onclick="switchCondoTab('condo-3d')">
+                        <i class="fas fa-cube"></i> 3D View
+                    </div>
+                </div>
+                <div class="condo-content" id="condoContent">
+                    <p style="color:#90caf9;text-align:center;margin-top:40px;">Select a tab to begin</p>
+                </div>
             </div>
 
             <style>
@@ -52455,6 +52563,959 @@ function smoothChaikin(points) {
             console.log('[SYMBOLS] DOM already loaded, starting init');
             initSymbolsLibraryWhenReady();
         }
+    </script>
+
+    <!-- Three.js CDN for 3D Condominium Viewer -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Condominium Viewer Module -->
+    <script src="condo-viewer.js"></script>
+
+    <!-- ============================================ -->
+    <!-- CONDOMINIUM SYSTEM JAVASCRIPT -->
+    <!-- ============================================ -->
+    <script>
+        // ============================================
+        // CONDOMINIUM STATE
+        // ============================================
+        const condoState = {
+            currentStep: 1,
+            totalSteps: 7,
+            viewer: null,
+            currentBuilding: null,
+            currentUnits: [],
+            parsedFootprint: null,
+            parsedUnits: null,
+            footprintLayer: null,
+            data: {
+                building_name: '',
+                building_prefix: '',
+                plot_id: '',
+                block_number: '',
+                district: '',
+                county: '',
+                subcounty: '',
+                parish: '',
+                village: '',
+                coordinate_system: 'EPSG:32636',
+                footprint_coords: [],
+                footprint_geojson: null,
+                floors_above: 1,
+                floors_below: 0,
+                floor_to_floor_height: 3.0,
+                image_urls: [],
+                unitData: [] // parsed from CSV + attributes
+            }
+        };
+
+        // ============================================
+        // PANEL OPEN / CLOSE / TAB SWITCH
+        // ============================================
+        function toggleCondoPanel() {
+            const panel = document.getElementById('condoPanel');
+            if (panel.classList.contains('open')) {
+                closeCondoPanel();
+            } else {
+                panel.classList.add('open');
+                switchCondoTab('condo-new');
+            }
+        }
+
+        function closeCondoPanel() {
+            document.getElementById('condoPanel').classList.remove('open');
+            if (condoState.viewer) {
+                condoState.viewer.dispose();
+                condoState.viewer = null;
+            }
+        }
+
+        function switchCondoTab(tabName) {
+            document.querySelectorAll('.condo-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.condo-tab[data-tab="${tabName}"]`).classList.add('active');
+
+            const content = document.getElementById('condoContent');
+            switch (tabName) {
+                case 'condo-new': renderCondoNewTab(content); break;
+                case 'condo-search': renderCondoSearchTab(content); break;
+                case 'condo-3d': renderCondo3DTab(content); break;
+            }
+        }
+
+        // ============================================
+        // TAB 1: NEW CONDOMINIUM — STEP WIZARD
+        // ============================================
+        function renderCondoNewTab(content) {
+            condoState.currentStep = 1;
+            renderCondoStep(content);
+        }
+
+        function renderCondoStep(content) {
+            const s = condoState.currentStep;
+            const dots = Array.from({length: condoState.totalSteps}, (_, i) => {
+                const cls = i + 1 < s ? 'completed' : i + 1 === s ? 'active' : '';
+                return `<div class="condo-step-dot ${cls}"></div>`;
+            }).join('');
+
+            const stepLabels = ['Property Info', 'Ground Footprint', 'Vertical Config', 'Building Images', 'Unit Coordinates', 'Plot & Attributes', 'Review & Save'];
+            let stepHTML = '';
+
+            switch (s) {
+                case 1: stepHTML = renderCondoStep1(); break;
+                case 2: stepHTML = renderCondoStep2(); break;
+                case 3: stepHTML = renderCondoStep3(); break;
+                case 4: stepHTML = renderCondoStep4(); break;
+                case 5: stepHTML = renderCondoStep5(); break;
+                case 6: stepHTML = renderCondoStep6(); break;
+                case 7: stepHTML = renderCondoStep7(); break;
+            }
+
+            content.innerHTML = `
+                <div class="condo-step-indicator">${dots}</div>
+                <div class="condo-step-title">Step ${s}: ${stepLabels[s - 1]}</div>
+                ${stepHTML}
+            `;
+            attachCondoStepEvents(s);
+        }
+
+        // STEP 1: Property Information
+        function renderCondoStep1() {
+            const d = condoState.data;
+            return `
+                <div class="condo-form-group"><label>Building Name *</label><input class="condo-input" id="condoName" value="${d.building_name}" placeholder="e.g., Acacia Heights"></div>
+                <div class="condo-form-group"><label>Building Prefix (for Unit IDs)</label><input class="condo-input" id="condoPrefix" value="${d.building_prefix}" placeholder="Auto-generated, e.g., ACH" maxlength="4" style="text-transform:uppercase"></div>
+                <div class="condo-form-group"><label>Plot Number / ID</label><input class="condo-input" id="condoPlotId" value="${d.plot_id}" placeholder="e.g., BLB-005000"></div>
+                <div class="condo-form-group"><label>Block Number</label><input class="condo-input" id="condoBlock" value="${d.block_number}" placeholder="e.g., Block 14"></div>
+                <div class="condo-form-group"><label>District *</label><input class="condo-input" id="condoDistrict" value="${d.district}" placeholder="e.g., Kampala"></div>
+                <div class="condo-form-group"><label>County</label><input class="condo-input" id="condoCounty" value="${d.county}" placeholder="e.g., Kyadondo"></div>
+                <div class="condo-form-group"><label>Subcounty</label><input class="condo-input" id="condoSubcounty" value="${d.subcounty}"></div>
+                <div class="condo-form-group"><label>Parish</label><input class="condo-input" id="condoParish" value="${d.parish}"></div>
+                <div class="condo-form-group"><label>Village</label><input class="condo-input" id="condoVillage" value="${d.village}"></div>
+                <div style="display:flex;gap:8px;margin-top:16px">
+                    <button class="condo-btn condo-btn-primary" onclick="condoNextStep(1)">Next → Ground Footprint</button>
+                </div>
+            `;
+        }
+
+        // STEP 2: Ground Footprint CSV Import
+        function renderCondoStep2() {
+            const d = condoState.data;
+            const hasFP = condoState.parsedFootprint && condoState.parsedFootprint.length > 0;
+            return `
+                <div class="condo-form-group">
+                    <label>Coordinate Reference System *</label>
+                    <select class="condo-select" id="condoCRS">
+                        <option value="EPSG:32636" ${d.coordinate_system === 'EPSG:32636' ? 'selected' : ''}>UTM Zone 36N (EPSG:32636)</option>
+                        <option value="EPSG:32637" ${d.coordinate_system === 'EPSG:32637' ? 'selected' : ''}>UTM Zone 37N (EPSG:32637)</option>
+                        <option value="EPSG:21036" ${d.coordinate_system === 'EPSG:21036' ? 'selected' : ''}>Arc 1960 UTM 36S (EPSG:21036)</option>
+                        <option value="EPSG:21037" ${d.coordinate_system === 'EPSG:21037' ? 'selected' : ''}>Arc 1960 UTM 37S (EPSG:21037)</option>
+                    </select>
+                </div>
+                <div class="condo-csv-area ${hasFP ? 'has-file' : ''}" id="condoFPDropArea">
+                    <i class="fas fa-file-csv"></i>
+                    <p><strong>Import Ground Footprint Coordinates</strong></p>
+                    <p>CSV: point_number, easting, northing</p>
+                    <p style="font-size:10px;color:#666">Drag & drop or click to browse</p>
+                    <input type="file" id="condoFPFileInput" accept=".csv,.txt" style="display:none">
+                </div>
+                <div id="condoFPResult"></div>
+                ${hasFP ? `<div class="condo-success">✅ ${condoState.parsedFootprint.length} points loaded</div>` : ''}
+                <div style="display:flex;gap:8px;margin-top:16px">
+                    <button class="condo-btn condo-btn-secondary" onclick="condoPrevStep()">← Back</button>
+                    <button class="condo-btn condo-btn-primary" onclick="condoNextStep(2)" ${!hasFP ? 'disabled' : ''}>Next → Vertical Config</button>
+                </div>
+            `;
+        }
+
+        // STEP 3: Vertical Configuration
+        function renderCondoStep3() {
+            const d = condoState.data;
+            return `
+                <div class="condo-form-group">
+                    <label>Storeys Above Ground *</label>
+                    <input class="condo-input" type="number" id="condoFloorsAbove" value="${d.floors_above}" min="1" max="100">
+                    <small style="color:#90caf9;font-size:10px">Ground floor counts as floor 1</small>
+                </div>
+                <div class="condo-form-group">
+                    <label>Basement / Underground Levels</label>
+                    <input class="condo-input" type="number" id="condoFloorsBelow" value="${d.floors_below}" min="0" max="10">
+                    <small style="color:#90caf9;font-size:10px">Number of levels below ground (parking, storage, etc.)</small>
+                </div>
+                <div class="condo-form-group">
+                    <label>Floor-to-Floor Height (meters) *</label>
+                    <input class="condo-input" type="number" id="condoFloorHeight" value="${d.floor_to_floor_height}" min="2" max="10" step="0.1">
+                </div>
+                <div class="condo-summary-box">
+                    <div style="display:flex;gap:16px">
+                        <div><div class="count" id="condoTotalHeight">${((d.floors_above + d.floors_below) * d.floor_to_floor_height).toFixed(1)}</div><div class="label">Total Height (m)</div></div>
+                        <div><div class="count" id="condoTotalFloors">${d.floors_above + d.floors_below}</div><div class="label">Total Floors</div></div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:16px">
+                    <button class="condo-btn condo-btn-secondary" onclick="condoPrevStep()">← Back</button>
+                    <button class="condo-btn condo-btn-primary" onclick="condoNextStep(3)">Next → Building Images</button>
+                </div>
+            `;
+        }
+
+        // STEP 4: Building Images
+        function renderCondoStep4() {
+            const imgs = condoState.data.image_urls;
+            let galleryHTML = imgs.length > 0 ? `<div class="condo-image-gallery">${imgs.map((url, i) => `<img src="${url}" alt="Facade ${i+1}" onclick="window.open('${url}','_blank')">`).join('')}</div>` : '';
+            return `
+                <p style="font-size:12px;color:#90caf9;margin-bottom:12px">Upload photos of the building facades. These will be displayed in the 3D viewer.</p>
+                <div class="condo-csv-area" id="condoImageDropArea">
+                    <i class="fas fa-camera"></i>
+                    <p><strong>Upload Building Photos</strong></p>
+                    <p>JPG, PNG (max 20MB each)</p>
+                    <input type="file" id="condoImageInput" accept="image/*" multiple style="display:none">
+                </div>
+                <div id="condoImageStatus"></div>
+                ${galleryHTML}
+                <div style="display:flex;gap:8px;margin-top:16px">
+                    <button class="condo-btn condo-btn-secondary" onclick="condoPrevStep()">← Back</button>
+                    <button class="condo-btn condo-btn-primary" onclick="condoNextStep(4)">Next → Unit Coordinates</button>
+                </div>
+            `;
+        }
+
+        // STEP 5: Unit Coordinates CSV Import
+        function renderCondoStep5() {
+            const parsed = condoState.parsedUnits;
+            let summaryHTML = '';
+            let treeHTML = '';
+
+            if (parsed && parsed.floors.length > 0) {
+                summaryHTML = `<div class="condo-success">${parsed.summary.message}</div>`;
+                treeHTML = '<div class="condo-tree">';
+                parsed.floors.forEach(f => {
+                    treeHTML += `<div class="condo-tree-floor">
+                        <div class="condo-tree-floor-header" onclick="this.nextElementSibling.classList.toggle('show')">
+                            📁 ${f.floorLabel} (${f.units.length} units)
+                        </div>
+                        <div class="condo-tree-units">
+                            ${f.units.map(u => `<div class="condo-tree-unit">📐 Unit ${u.unitNumber} — ${u.coords.length} points — ${u.area.toFixed(1)} m²</div>`).join('')}
+                        </div>
+                    </div>`;
+                });
+                treeHTML += '</div>';
+            }
+
+            return `
+                <div class="condo-csv-area ${parsed ? 'has-file' : ''}" id="condoUnitDropArea">
+                    <i class="fas fa-file-csv"></i>
+                    <p><strong>Import Unit Coordinates</strong></p>
+                    <p>CSV: floor_number, unit_number, point_number, easting, northing, description</p>
+                    <p style="font-size:10px;color:#666">Negative floor numbers = basement levels</p>
+                    <input type="file" id="condoUnitFileInput" accept=".csv,.txt" style="display:none">
+                </div>
+                <div id="condoUnitResult"></div>
+                ${summaryHTML}
+                ${treeHTML}
+                <div style="display:flex;gap:8px;margin-top:16px">
+                    <button class="condo-btn condo-btn-secondary" onclick="condoPrevStep()">← Back</button>
+                    <button class="condo-btn condo-btn-primary" onclick="condoNextStep(5)" ${!parsed ? 'disabled' : ''}>Next → Plot & Attributes</button>
+                </div>
+            `;
+        }
+
+        // STEP 6: Plot Units & Fill Attributes
+        function renderCondoStep6() {
+            const parsed = condoState.parsedUnits;
+            if (!parsed || parsed.floors.length === 0) return '<div class="condo-error">No unit data. Go back and import CSV.</div>';
+
+            const floorOptions = parsed.floors.map(f => `<option value="${f.floorNumber}">${f.floorLabel}</option>`).join('');
+            return `
+                <div class="condo-form-group">
+                    <label>Select Floor</label>
+                    <select class="condo-select" id="condoAttrFloor" onchange="condoOnFloorSelect()">${floorOptions}</select>
+                </div>
+                <div class="condo-form-group">
+                    <label>Select Unit</label>
+                    <select class="condo-select" id="condoAttrUnit" onchange="condoOnUnitSelect()"><option>Select floor first</option></select>
+                </div>
+                <div id="condoAttrForm"></div>
+                <div style="display:flex;gap:8px;margin-top:16px">
+                    <button class="condo-btn condo-btn-secondary" onclick="condoPrevStep()">← Back</button>
+                    <button class="condo-btn condo-btn-success" onclick="condoNextStep(6)">Next → Review & Save</button>
+                </div>
+            `;
+        }
+
+        // STEP 7: Review & Save
+        function renderCondoStep7() {
+            const d = condoState.data;
+            const totalUnits = condoState.parsedUnits ? condoState.parsedUnits.summary.totalUnits : 0;
+            const totalHeight = ((d.floors_above + d.floors_below) * d.floor_to_floor_height).toFixed(1);
+            return `
+                <div class="condo-summary-box">
+                    <h4 style="color:#42a5f5;margin:0 0 8px">${d.building_name || '(unnamed)'}</h4>
+                    <div class="attr-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px">
+                        <div><span class="attr-label">Prefix: </span><span class="attr-value">${d.building_prefix}</span></div>
+                        <div><span class="attr-label">Plot: </span><span class="attr-value">${d.plot_id || '—'}</span></div>
+                        <div><span class="attr-label">Block: </span><span class="attr-value">${d.block_number || '—'}</span></div>
+                        <div><span class="attr-label">District: </span><span class="attr-value">${d.district}</span></div>
+                        <div><span class="attr-label">Floors Above: </span><span class="attr-value">${d.floors_above}</span></div>
+                        <div><span class="attr-label">Basement Levels: </span><span class="attr-value">${d.floors_below}</span></div>
+                        <div><span class="attr-label">Floor Height: </span><span class="attr-value">${d.floor_to_floor_height}m</span></div>
+                        <div><span class="attr-label">Total Height: </span><span class="attr-value">${totalHeight}m</span></div>
+                        <div><span class="attr-label">Footprint Points: </span><span class="attr-value">${d.footprint_coords.length}</span></div>
+                        <div><span class="attr-label">Total Units: </span><span class="attr-value">${totalUnits}</span></div>
+                        <div><span class="attr-label">Images: </span><span class="attr-value">${d.image_urls.length}</span></div>
+                        <div><span class="attr-label">CRS: </span><span class="attr-value">${d.coordinate_system}</span></div>
+                    </div>
+                </div>
+                <div id="condoSaveResult"></div>
+                <div style="display:flex;gap:8px;margin-top:16px">
+                    <button class="condo-btn condo-btn-secondary" onclick="condoPrevStep()">← Back</button>
+                    <button class="condo-btn condo-btn-success" id="condoSaveBtn" onclick="condoSaveBuilding()"><i class="fas fa-save"></i> Save Condominium</button>
+                </div>
+            `;
+        }
+
+        // ============================================
+        // STEP NAVIGATION & VALIDATION
+        // ============================================
+        function condoNextStep(fromStep) {
+            const d = condoState.data;
+            if (fromStep === 1) {
+                d.building_name = document.getElementById('condoName').value.trim();
+                d.building_prefix = document.getElementById('condoPrefix').value.trim().toUpperCase() || CondoCoordUtils.generatePrefix(d.building_name);
+                d.plot_id = document.getElementById('condoPlotId').value.trim();
+                d.block_number = document.getElementById('condoBlock').value.trim();
+                d.district = document.getElementById('condoDistrict').value.trim();
+                d.county = document.getElementById('condoCounty').value.trim();
+                d.subcounty = document.getElementById('condoSubcounty').value.trim();
+                d.parish = document.getElementById('condoParish').value.trim();
+                d.village = document.getElementById('condoVillage').value.trim();
+                if (!d.building_name) { alert('Building name is required'); return; }
+                if (!d.district) { alert('District is required'); return; }
+            }
+            if (fromStep === 2) {
+                d.coordinate_system = document.getElementById('condoCRS').value;
+                if (!condoState.parsedFootprint || condoState.parsedFootprint.length < 3) { alert('Import footprint coordinates first'); return; }
+                d.footprint_coords = condoState.parsedFootprint;
+                d.footprint_geojson = CondoCoordUtils.toGeoJSON(d.footprint_coords, d.coordinate_system);
+                condoDisplayFootprintOnMap(d.footprint_coords, d.coordinate_system, d.building_name);
+            }
+            if (fromStep === 3) {
+                d.floors_above = parseInt(document.getElementById('condoFloorsAbove').value) || 1;
+                d.floors_below = parseInt(document.getElementById('condoFloorsBelow').value) || 0;
+                d.floor_to_floor_height = parseFloat(document.getElementById('condoFloorHeight').value) || 3.0;
+            }
+            if (fromStep === 5) {
+                if (!condoState.parsedUnits) { alert('Import unit coordinates first'); return; }
+            }
+            condoState.currentStep = fromStep + 1;
+            renderCondoStep(document.getElementById('condoContent'));
+        }
+
+        function condoPrevStep() {
+            if (condoState.currentStep > 1) {
+                condoState.currentStep--;
+                renderCondoStep(document.getElementById('condoContent'));
+            }
+        }
+
+        // ============================================
+        // CSV EVENT HANDLERS
+        // ============================================
+        function attachCondoStepEvents(step) {
+            if (step === 2) {
+                const area = document.getElementById('condoFPDropArea');
+                const input = document.getElementById('condoFPFileInput');
+                if (area && input) {
+                    area.addEventListener('click', () => input.click());
+                    area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('dragover'); });
+                    area.addEventListener('dragleave', () => area.classList.remove('dragover'));
+                    area.addEventListener('drop', e => { e.preventDefault(); area.classList.remove('dragover'); handleCondoFPFile(e.dataTransfer.files[0]); });
+                    input.addEventListener('change', e => { if (e.target.files[0]) handleCondoFPFile(e.target.files[0]); });
+                }
+            }
+            if (step === 4) {
+                const area = document.getElementById('condoImageDropArea');
+                const input = document.getElementById('condoImageInput');
+                if (area && input) {
+                    area.addEventListener('click', () => input.click());
+                    area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('dragover'); });
+                    area.addEventListener('dragleave', () => area.classList.remove('dragover'));
+                    area.addEventListener('drop', e => { e.preventDefault(); area.classList.remove('dragover'); handleCondoImageUpload(e.dataTransfer.files); });
+                    input.addEventListener('change', e => { if (e.target.files.length) handleCondoImageUpload(e.target.files); });
+                }
+            }
+            if (step === 5) {
+                const area = document.getElementById('condoUnitDropArea');
+                const input = document.getElementById('condoUnitFileInput');
+                if (area && input) {
+                    area.addEventListener('click', () => input.click());
+                    area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('dragover'); });
+                    area.addEventListener('dragleave', () => area.classList.remove('dragover'));
+                    area.addEventListener('drop', e => { e.preventDefault(); area.classList.remove('dragover'); handleCondoUnitFile(e.dataTransfer.files[0]); });
+                    input.addEventListener('change', e => { if (e.target.files[0]) handleCondoUnitFile(e.target.files[0]); });
+                }
+            }
+            if (step === 6) {
+                condoOnFloorSelect();
+            }
+            if (step === 3) {
+                ['condoFloorsAbove', 'condoFloorsBelow', 'condoFloorHeight'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.addEventListener('input', () => {
+                        const above = parseInt(document.getElementById('condoFloorsAbove').value) || 0;
+                        const below = parseInt(document.getElementById('condoFloorsBelow').value) || 0;
+                        const h = parseFloat(document.getElementById('condoFloorHeight').value) || 3;
+                        document.getElementById('condoTotalHeight').textContent = ((above + below) * h).toFixed(1);
+                        document.getElementById('condoTotalFloors').textContent = above + below;
+                    });
+                });
+            }
+        }
+
+        function handleCondoFPFile(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                const result = CondoCSVParser.parseFootprintCSV(e.target.result);
+                const resultDiv = document.getElementById('condoFPResult');
+                if (result.errors.length > 0) {
+                    resultDiv.innerHTML = result.errors.map(e => `<div class="condo-error">${e}</div>`).join('');
+                    return;
+                }
+                condoState.parsedFootprint = result.points;
+                condoState.currentStep = 2;
+                renderCondoStep(document.getElementById('condoContent'));
+            };
+            reader.readAsText(file);
+        }
+
+        function handleCondoUnitFile(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                const result = CondoCSVParser.parseUnitCSV(e.target.result);
+                const resultDiv = document.getElementById('condoUnitResult');
+                if (result.errors.length > 0) {
+                    resultDiv.innerHTML = result.errors.map(e => `<div class="condo-error">${e}</div>`).join('');
+                    if (result.floors.length === 0) return;
+                }
+                condoState.parsedUnits = result;
+                condoState.currentStep = 5;
+                renderCondoStep(document.getElementById('condoContent'));
+            };
+            reader.readAsText(file);
+        }
+
+        async function handleCondoImageUpload(files) {
+            const statusDiv = document.getElementById('condoImageStatus');
+            const buildingId = condoState.data.building_prefix || 'temp';
+            statusDiv.innerHTML = '<p style="color:#42a5f5">⏳ Uploading...</p>';
+            for (const file of files) {
+                try {
+                    const timestamp = Date.now();
+                    const filename = `${buildingId}_${timestamp}_${file.name}`;
+                    const url = await uploadToCloudflare(file, `images/Condominium/${buildingId}`, filename);
+                    condoState.data.image_urls.push(url);
+                } catch (err) {
+                    statusDiv.innerHTML += `<div class="condo-error">Failed: ${file.name} — ${err.message}</div>`;
+                }
+            }
+            statusDiv.innerHTML = `<div class="condo-success">✅ ${files.length} image(s) uploaded</div>`;
+            // Re-render to show gallery
+            condoState.currentStep = 4;
+            renderCondoStep(document.getElementById('condoContent'));
+        }
+
+        // ============================================
+        // STEP 6: FLOOR/UNIT SELECTORS & ATTRIBUTE FORM
+        // ============================================
+        function condoOnFloorSelect() {
+            const floorNum = parseInt(document.getElementById('condoAttrFloor').value);
+            const unitSelect = document.getElementById('condoAttrUnit');
+            const parsed = condoState.parsedUnits;
+            if (!parsed) return;
+
+            const floor = parsed.floors.find(f => f.floorNumber === floorNum);
+            if (!floor) return;
+
+            unitSelect.innerHTML = floor.units.map(u => `<option value="${u.unitNumber}">Unit ${u.unitNumber} (${u.area.toFixed(1)} m², ${u.coords.length} pts)</option>`).join('');
+            condoOnUnitSelect();
+        }
+
+        function condoOnUnitSelect() {
+            const floorNum = parseInt(document.getElementById('condoAttrFloor').value);
+            const unitNum = parseInt(document.getElementById('condoAttrUnit').value);
+            const formDiv = document.getElementById('condoAttrForm');
+            const parsed = condoState.parsedUnits;
+            if (!parsed) return;
+
+            const floor = parsed.floors.find(f => f.floorNumber === floorNum);
+            const unit = floor ? floor.units.find(u => u.unitNumber === unitNum) : null;
+            if (!unit) return;
+
+            const prefix = condoState.data.building_prefix;
+            const unitId = CondoCoordUtils.generateUnitId(prefix, floorNum, unitNum);
+
+            // Check if attributes already exist in unitData
+            const existing = condoState.data.unitData.find(u => u.floor_number === floorNum && u.unit_number === unitNum) || {};
+
+            formDiv.innerHTML = `
+                <div class="condo-summary-box" style="margin-bottom:12px">
+                    <div style="font-size:13px;color:#42a5f5;font-weight:600">${unitId}</div>
+                    <div style="font-size:11px;color:#90caf9">Area: ${unit.area.toFixed(2)} m² | Perimeter: ${unit.perimeter.toFixed(2)} m | Points: ${unit.coords.length}</div>
+                </div>
+                <div class="condo-attr-form">
+                    <div class="condo-form-group"><label>Unit Type</label>
+                        <select class="condo-select" id="condoUnitType">
+                            <option value="RESIDENTIAL" ${existing.unit_type === 'RESIDENTIAL' ? 'selected' : ''}>Residential</option>
+                            <option value="COMMERCIAL" ${existing.unit_type === 'COMMERCIAL' ? 'selected' : ''}>Commercial</option>
+                            <option value="PARKING" ${existing.unit_type === 'PARKING' ? 'selected' : ''}>Parking</option>
+                            <option value="STORAGE" ${existing.unit_type === 'STORAGE' ? 'selected' : ''}>Storage</option>
+                            <option value="UTILITY" ${existing.unit_type === 'UTILITY' ? 'selected' : ''}>Utility</option>
+                        </select>
+                    </div>
+                    <div class="condo-form-group"><label>Status</label>
+                        <select class="condo-select" id="condoUnitStatus">
+                            <option value="VACANT" ${existing.status === 'VACANT' ? 'selected' : ''}>Vacant</option>
+                            <option value="OCCUPIED" ${existing.status === 'OCCUPIED' ? 'selected' : ''}>Occupied</option>
+                            <option value="REGISTERED" ${existing.status === 'REGISTERED' ? 'selected' : ''}>Registered</option>
+                            <option value="SOLD" ${existing.status === 'SOLD' ? 'selected' : ''}>Sold</option>
+                        </select>
+                    </div>
+                    <div class="condo-form-group"><label>Bedrooms</label><input class="condo-input" type="number" id="condoBedrooms" value="${existing.bedrooms || 0}" min="0"></div>
+                    <div class="condo-form-group"><label>Bathrooms</label><input class="condo-input" type="number" id="condoBathrooms" value="${existing.bathrooms || 0}" min="0"></div>
+                    <div class="condo-form-group"><label>En-suite</label><input class="condo-input" type="number" id="condoEnsuite" value="${existing.en_suite || 0}" min="0"></div>
+                    <div class="condo-form-group"><label>Sitting Rooms</label><input class="condo-input" type="number" id="condoSitting" value="${existing.sitting_rooms || 0}" min="0"></div>
+                    <div class="condo-form-group"><label>Toilets</label><input class="condo-input" type="number" id="condoToilets" value="${existing.toilets || 0}" min="0"></div>
+                    <div class="full-width" style="display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 8px">
+                        <label class="condo-checkbox-group"><input type="checkbox" id="condoKitchen" ${existing.kitchen ? 'checked' : ''}> Kitchen</label>
+                        <label class="condo-checkbox-group"><input type="checkbox" id="condoBalcony" ${existing.balcony ? 'checked' : ''}> Balcony</label>
+                        <label class="condo-checkbox-group"><input type="checkbox" id="condoStoreRoom" ${existing.store_room ? 'checked' : ''}> Store Room</label>
+                        <label class="condo-checkbox-group"><input type="checkbox" id="condoServants" ${existing.servants_quarters ? 'checked' : ''}> Servants Quarters</label>
+                        <label class="condo-checkbox-group"><input type="checkbox" id="condoGarage" ${existing.garage ? 'checked' : ''}> Garage</label>
+                        <label class="condo-checkbox-group"><input type="checkbox" id="condoLaundry" ${existing.laundry_room ? 'checked' : ''}> Laundry</label>
+                        <label class="condo-checkbox-group"><input type="checkbox" id="condoDining" ${existing.dining_room ? 'checked' : ''}> Dining Room</label>
+                        <label class="condo-checkbox-group"><input type="checkbox" id="condoStudy" ${existing.study_room ? 'checked' : ''}> Study Room</label>
+                    </div>
+                    <div class="condo-form-group full-width"><label>Owner Name</label><input class="condo-input" id="condoOwnerName" value="${existing.owner_name || ''}"></div>
+                    <div class="condo-form-group full-width"><label>Owner Contact</label><input class="condo-input" id="condoOwnerContact" value="${existing.owner_contact || ''}"></div>
+                    <div class="condo-form-group full-width"><label>Notes</label><input class="condo-input" id="condoNotes" value="${existing.notes || ''}"></div>
+                </div>
+                <button class="condo-btn condo-btn-primary" onclick="condoSaveUnitAttrs(${floorNum}, ${unitNum})" style="margin-top:8px;width:100%">
+                    <i class="fas fa-check"></i> Save Unit ${unitNum} Attributes
+                </button>
+            `;
+        }
+
+        function condoSaveUnitAttrs(floorNum, unitNum) {
+            const prefix = condoState.data.building_prefix;
+            const unitId = CondoCoordUtils.generateUnitId(prefix, floorNum, unitNum);
+            const parsed = condoState.parsedUnits;
+            const floor = parsed.floors.find(f => f.floorNumber === floorNum);
+            const unit = floor ? floor.units.find(u => u.unitNumber === unitNum) : null;
+
+            const attrs = {
+                floor_number: floorNum,
+                unit_number: unitNum,
+                unit_id: unitId,
+                unit_coords: unit ? unit.coords : [],
+                area_sqm: unit ? unit.area : 0,
+                perimeter_m: unit ? unit.perimeter : 0,
+                point_descriptions: unit ? unit.descriptions : {},
+                unit_type: document.getElementById('condoUnitType').value,
+                status: document.getElementById('condoUnitStatus').value,
+                bedrooms: parseInt(document.getElementById('condoBedrooms').value) || 0,
+                bathrooms: parseInt(document.getElementById('condoBathrooms').value) || 0,
+                en_suite: parseInt(document.getElementById('condoEnsuite').value) || 0,
+                sitting_rooms: parseInt(document.getElementById('condoSitting').value) || 0,
+                toilets: parseInt(document.getElementById('condoToilets').value) || 0,
+                kitchen: document.getElementById('condoKitchen').checked,
+                balcony: document.getElementById('condoBalcony').checked,
+                store_room: document.getElementById('condoStoreRoom').checked,
+                servants_quarters: document.getElementById('condoServants').checked,
+                garage: document.getElementById('condoGarage').checked,
+                laundry_room: document.getElementById('condoLaundry').checked,
+                dining_room: document.getElementById('condoDining').checked,
+                study_room: document.getElementById('condoStudy').checked,
+                owner_name: document.getElementById('condoOwnerName').value.trim(),
+                owner_contact: document.getElementById('condoOwnerContact').value.trim(),
+                notes: document.getElementById('condoNotes').value.trim()
+            };
+
+            // Update or add in unitData
+            const idx = condoState.data.unitData.findIndex(u => u.floor_number === floorNum && u.unit_number === unitNum);
+            if (idx >= 0) condoState.data.unitData[idx] = attrs;
+            else condoState.data.unitData.push(attrs);
+
+            alert(`✅ Unit ${unitId} attributes saved locally. Proceed to next unit or continue to Review.`);
+        }
+
+        // ============================================
+        // SAVE TO SUPABASE
+        // ============================================
+        async function condoSaveBuilding() {
+            const d = condoState.data;
+            const btn = document.getElementById('condoSaveBtn');
+            const resultDiv = document.getElementById('condoSaveResult');
+            btn.disabled = true;
+            btn.textContent = '⏳ Saving...';
+
+            try {
+                const { data: { user } } = await supabaseClient.auth.getUser();
+                if (!user) throw new Error('You must be logged in');
+
+                // 1. Insert building
+                const { data: building, error: bErr } = await supabaseClient
+                    .from('condo_buildings')
+                    .insert({
+                        building_name: d.building_name,
+                        building_prefix: d.building_prefix,
+                        plot_id: d.plot_id,
+                        block_number: d.block_number,
+                        district: d.district,
+                        county: d.county,
+                        subcounty: d.subcounty,
+                        parish: d.parish,
+                        village: d.village,
+                        footprint_coords: d.footprint_coords,
+                        footprint_geojson: d.footprint_geojson,
+                        coordinate_system: d.coordinate_system,
+                        floors_above: d.floors_above,
+                        floors_below: d.floors_below,
+                        floor_to_floor_height: d.floor_to_floor_height,
+                        image_urls: d.image_urls,
+                        created_by: user.id
+                    })
+                    .select()
+                    .single();
+
+                if (bErr) throw bErr;
+
+                // 2. Insert all units
+                if (d.unitData.length > 0) {
+                    const unitRows = d.unitData.map(u => ({
+                        building_id: building.id,
+                        unit_id: u.unit_id,
+                        floor_number: u.floor_number,
+                        unit_number: u.unit_number,
+                        unit_coords: u.unit_coords,
+                        unit_geojson: CondoCoordUtils.toGeoJSON(u.unit_coords, d.coordinate_system),
+                        area_sqm: u.area_sqm,
+                        perimeter_m: u.perimeter_m,
+                        unit_type: u.unit_type,
+                        bedrooms: u.bedrooms,
+                        bathrooms: u.bathrooms,
+                        sitting_rooms: u.sitting_rooms,
+                        toilets: u.toilets,
+                        kitchen: u.kitchen,
+                        balcony: u.balcony,
+                        store_room: u.store_room,
+                        servants_quarters: u.servants_quarters,
+                        garage: u.garage,
+                        laundry_room: u.laundry_room,
+                        dining_room: u.dining_room,
+                        study_room: u.study_room,
+                        en_suite: u.en_suite,
+                        point_descriptions: u.point_descriptions,
+                        status: u.status,
+                        owner_name: u.owner_name,
+                        owner_contact: u.owner_contact,
+                        notes: u.notes
+                    }));
+
+                    const { error: uErr } = await supabaseClient.from('condo_units').insert(unitRows);
+                    if (uErr) throw uErr;
+                }
+
+                resultDiv.innerHTML = `<div class="condo-success">✅ Condominium "${d.building_name}" saved successfully with ${d.unitData.length} units!</div>`;
+                btn.textContent = '✅ Saved';
+
+                // Refresh footprint layer
+                loadCondoFootprints();
+
+            } catch (err) {
+                console.error('[Condo] Save error:', err);
+                resultDiv.innerHTML = `<div class="condo-error">❌ Error: ${err.message}</div>`;
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-save"></i> Retry Save';
+            }
+        }
+
+        // ============================================
+        // TAB 2: SEARCH CONDOMINIUM
+        // ============================================
+        function renderCondoSearchTab(content) {
+            content.innerHTML = `
+                <div class="condo-form-group">
+                    <label>Search by Name or Plot ID</label>
+                    <div style="display:flex;gap:8px">
+                        <input class="condo-input" id="condoSearchInput" placeholder="e.g., Acacia Heights or BLB-005000" style="flex:1">
+                        <button class="condo-btn condo-btn-primary" onclick="condoSearch()"><i class="fas fa-search"></i></button>
+                    </div>
+                </div>
+                <div id="condoSearchResults" class="condo-search-results"></div>
+            `;
+            document.getElementById('condoSearchInput').addEventListener('keypress', e => { if (e.key === 'Enter') condoSearch(); });
+        }
+
+        async function condoSearch() {
+            const query = document.getElementById('condoSearchInput').value.trim();
+            const resultsDiv = document.getElementById('condoSearchResults');
+            if (!query) { resultsDiv.innerHTML = ''; return; }
+
+            resultsDiv.innerHTML = '<p style="color:#42a5f5;text-align:center">⏳ Searching...</p>';
+            try {
+                const { data, error } = await supabaseClient
+                    .from('condo_buildings')
+                    .select('*')
+                    .or(`building_name.ilike.%${query}%,plot_id.ilike.%${query}%,building_prefix.ilike.%${query}%`)
+                    .limit(20);
+
+                if (error) throw error;
+                if (!data || data.length === 0) { resultsDiv.innerHTML = '<p style="color:#90caf9;text-align:center">No results found</p>'; return; }
+
+                resultsDiv.innerHTML = data.map(b => `
+                    <div class="condo-search-result" onclick="condoZoomToBuilding('${b.id}')">
+                        <h4>${b.building_name} <span style="color:#42a5f5;font-size:11px">[${b.building_prefix}]</span></h4>
+                        <p>Plot: ${b.plot_id || '—'} | ${b.district} | ${b.floors_above}F + ${b.floors_below}B | ${b.coordinate_system}</p>
+                    </div>
+                `).join('');
+            } catch (err) {
+                resultsDiv.innerHTML = `<div class="condo-error">Error: ${err.message}</div>`;
+            }
+        }
+
+        async function condoZoomToBuilding(buildingId) {
+            try {
+                const { data: building } = await supabaseClient.from('condo_buildings').select('*').eq('id', buildingId).single();
+                if (!building || !building.footprint_geojson) return;
+
+                const coords = building.footprint_geojson.coordinates[0];
+                const olCoords = coords.map(c => ol.proj.fromLonLat(c));
+                const extent = ol.extent.boundingExtent(olCoords);
+                map.getView().fit(extent, { padding: [100, 100, 100, 100], maxZoom: 18, duration: 1000 });
+
+                // Load 3D view
+                condoState.currentBuilding = building;
+                const { data: units } = await supabaseClient.from('condo_units').select('*').eq('building_id', buildingId);
+                condoState.currentUnits = units || [];
+
+                switchCondoTab('condo-3d');
+            } catch (err) {
+                console.error('[Condo] Zoom error:', err);
+            }
+        }
+
+        // ============================================
+        // TAB 3: 3D VIEW
+        // ============================================
+        function renderCondo3DTab(content) {
+            const b = condoState.currentBuilding;
+            if (!b) {
+                content.innerHTML = '<p style="color:#90caf9;text-align:center;margin-top:40px">No building selected.<br><br>Use the <strong>Search</strong> tab or click a condominium on the map.</p>';
+                return;
+            }
+
+            const maxF = b.floors_above || 1;
+            const imgHTML = b.image_urls && b.image_urls.length > 0
+                ? `<div class="condo-image-gallery">${b.image_urls.map((url, i) => `<img src="${url}" alt="Facade ${i+1}" onclick="window.open('${url}','_blank')">`).join('')}</div>`
+                : '';
+
+            content.innerHTML = `
+                <div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:8px">${b.building_name}</div>
+                <p style="font-size:11px;color:#90caf9;margin:0 0 8px">${b.plot_id || ''} | ${b.district} | ${b.floors_above}F + ${b.floors_below}B</p>
+                <div class="condo-3d-canvas" id="condo3DCanvas"></div>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                    <label style="font-size:11px;color:#90caf9;white-space:nowrap">Floor:</label>
+                    <input type="range" class="condo-floor-slider" id="condoFloorSlider" min="${-b.floors_below || 0}" max="${maxF}" value="${maxF}">
+                    <span id="condoFloorSliderLabel" style="font-size:12px;color:#42a5f5;min-width:30px">All</span>
+                </div>
+                ${imgHTML}
+                <div id="condoUnitInfoCard">
+                    <p style="font-size:11px;color:#90caf9;text-align:center;margin-top:8px">Click a unit in the 3D view to see details</p>
+                </div>
+            `;
+
+            // Initialize 3D viewer
+            setTimeout(() => {
+                const canvas = document.getElementById('condo3DCanvas');
+                if (!canvas) return;
+                if (condoState.viewer) condoState.viewer.dispose();
+
+                condoState.viewer = new CondoViewer(canvas);
+                condoState.viewer.buildFromData(b, condoState.currentUnits);
+                condoState.viewer.onUnitClick(unitData => {
+                    renderCondoUnitInfoCard(unitData);
+                });
+
+                // Floor slider
+                const slider = document.getElementById('condoFloorSlider');
+                const sliderLabel = document.getElementById('condoFloorSliderLabel');
+                slider.addEventListener('input', () => {
+                    const val = parseInt(slider.value);
+                    if (val >= maxF) {
+                        sliderLabel.textContent = 'All';
+                        condoState.viewer.showAllFloors();
+                    } else {
+                        sliderLabel.textContent = val < 0 ? `B${Math.abs(val)}` : `F${val}`;
+                        condoState.viewer.showFloorsUpTo(val);
+                    }
+                });
+            }, 100);
+        }
+
+        function renderCondoUnitInfoCard(u) {
+            const card = document.getElementById('condoUnitInfoCard');
+            if (!card || !u) return;
+            const statusCls = (u.status || 'vacant').toLowerCase();
+            card.innerHTML = `
+                <div class="condo-unit-card">
+                    <h4>${u.unit_id || 'Unit'} <span class="status-badge ${statusCls}">${u.status || 'VACANT'}</span></h4>
+                    <div class="attr-grid">
+                        <div class="attr"><span class="attr-label">Floor: </span><span class="attr-value">${u.floor_number}</span></div>
+                        <div class="attr"><span class="attr-label">Type: </span><span class="attr-value">${u.unit_type || '—'}</span></div>
+                        <div class="attr"><span class="attr-label">Area: </span><span class="attr-value">${u.area_sqm ? u.area_sqm.toFixed(2) + ' m²' : '—'}</span></div>
+                        <div class="attr"><span class="attr-label">Perimeter: </span><span class="attr-value">${u.perimeter_m ? u.perimeter_m.toFixed(2) + ' m' : '—'}</span></div>
+                        <div class="attr"><span class="attr-label">Bedrooms: </span><span class="attr-value">${u.bedrooms || 0}</span></div>
+                        <div class="attr"><span class="attr-label">Bathrooms: </span><span class="attr-value">${u.bathrooms || 0}</span></div>
+                        <div class="attr"><span class="attr-label">En-suite: </span><span class="attr-value">${u.en_suite || 0}</span></div>
+                        <div class="attr"><span class="attr-label">Sitting Rooms: </span><span class="attr-value">${u.sitting_rooms || 0}</span></div>
+                        <div class="attr"><span class="attr-label">Toilets: </span><span class="attr-value">${u.toilets || 0}</span></div>
+                        <div class="attr"><span class="attr-label">Kitchen: </span><span class="attr-value">${u.kitchen ? '✅' : '—'}</span></div>
+                        <div class="attr"><span class="attr-label">Balcony: </span><span class="attr-value">${u.balcony ? '✅' : '—'}</span></div>
+                        <div class="attr"><span class="attr-label">Store: </span><span class="attr-value">${u.store_room ? '✅' : '—'}</span></div>
+                        <div class="attr"><span class="attr-label">Garage: </span><span class="attr-value">${u.garage ? '✅' : '—'}</span></div>
+                        <div class="attr"><span class="attr-label">Laundry: </span><span class="attr-value">${u.laundry_room ? '✅' : '—'}</span></div>
+                        ${u.owner_name ? `<div class="attr" style="grid-column:1/-1"><span class="attr-label">Owner: </span><span class="attr-value">${u.owner_name}</span></div>` : ''}
+                        ${u.owner_contact ? `<div class="attr" style="grid-column:1/-1"><span class="attr-label">Contact: </span><span class="attr-value">${u.owner_contact}</span></div>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // ============================================
+        // MAP INTEGRATION: FOOTPRINT LAYER
+        // ============================================
+        function condoDisplayFootprintOnMap(coords, crs, label) {
+            // Convert coords to WGS84 then to map projection
+            const olCoords = coords.map(([e, n]) => {
+                const wgs = CondoCoordUtils.toWGS84(e, n, crs);
+                return ol.proj.fromLonLat([wgs.lon, wgs.lat]);
+            });
+            // Close the ring
+            olCoords.push(olCoords[0]);
+
+            const polygon = new ol.geom.Polygon([olCoords]);
+            const feature = new ol.Feature({ geometry: polygon, name: label });
+
+            const style = new ol.style.Style({
+                stroke: new ol.style.Stroke({ color: '#42a5f5', width: 2, lineDash: [6, 4] }),
+                fill: new ol.style.Fill({ color: 'rgba(66,165,245,0.15)' }),
+                text: new ol.style.Text({
+                    text: label,
+                    font: 'bold 12px Arial',
+                    fill: new ol.style.Fill({ color: '#ffffff' }),
+                    stroke: new ol.style.Stroke({ color: '#0d47a1', width: 3 }),
+                    overflow: true
+                })
+            });
+            feature.setStyle(style);
+
+            // Temp layer for preview
+            const tempLayer = new ol.layer.Vector({
+                source: new ol.source.Vector({ features: [feature] }),
+                zIndex: 50
+            });
+            map.addLayer(tempLayer);
+            map.getView().fit(polygon.getExtent(), { padding: [60, 60, 60, 60], maxZoom: 18, duration: 500 });
+        }
+
+        async function loadCondoFootprints() {
+            try {
+                const { data: buildings, error } = await supabaseClient
+                    .from('condo_buildings')
+                    .select('id, building_name, building_prefix, plot_id, floors_above, floors_below, footprint_geojson');
+
+                if (error) throw error;
+                if (!buildings || buildings.length === 0) return;
+
+                // Remove old layer
+                if (condoState.footprintLayer) {
+                    map.removeLayer(condoState.footprintLayer);
+                }
+
+                const features = [];
+                buildings.forEach(b => {
+                    if (!b.footprint_geojson || !b.footprint_geojson.coordinates) return;
+                    const coords = b.footprint_geojson.coordinates[0].map(c => ol.proj.fromLonLat(c));
+                    const polygon = new ol.geom.Polygon([coords]);
+                    const feature = new ol.Feature({
+                        geometry: polygon,
+                        building_id: b.id,
+                        name: b.building_name,
+                        prefix: b.building_prefix,
+                        plot_id: b.plot_id,
+                        floors_above: b.floors_above,
+                        floors_below: b.floors_below
+                    });
+
+                    feature.setStyle(new ol.style.Style({
+                        stroke: new ol.style.Stroke({ color: '#42a5f5', width: 2 }),
+                        fill: new ol.style.Fill({ color: 'rgba(66,165,245,0.12)' }),
+                        text: new ol.style.Text({
+                            text: b.building_name,
+                            font: 'bold 11px Arial',
+                            fill: new ol.style.Fill({ color: '#ffffff' }),
+                            stroke: new ol.style.Stroke({ color: '#0d47a1', width: 3 }),
+                            overflow: true
+                        })
+                    }));
+                    features.push(feature);
+                });
+
+                condoState.footprintLayer = new ol.layer.Vector({
+                    source: new ol.source.Vector({ features }),
+                    zIndex: 45,
+                    title: 'Condominium Footprints'
+                });
+                map.addLayer(condoState.footprintLayer);
+                console.log(`[Condo] Loaded ${features.length} building footprints`);
+
+            } catch (err) {
+                console.error('[Condo] Failed to load footprints:', err);
+            }
+        }
+
+        // Map click handler for condo footprints
+        function initCondoMapClick() {
+            map.on('singleclick', async (evt) => {
+                if (!condoState.footprintLayer) return;
+                const features = map.getFeaturesAtPixel(evt.pixel, {
+                    layerFilter: l => l === condoState.footprintLayer
+                });
+                if (features && features.length > 0) {
+                    const feature = features[0];
+                    const buildingId = feature.get('building_id');
+                    if (buildingId) {
+                        // Open panel and show 3D view
+                        document.getElementById('condoPanel').classList.add('open');
+                        await condoZoomToBuilding(buildingId);
+                    }
+                }
+            });
+        }
+
+        // ============================================
+        // AUTO-INITIALIZE ON MAP READY
+        // ============================================
+        function initCondoSystem() {
+            if (typeof map !== 'undefined' && map) {
+                loadCondoFootprints();
+                initCondoMapClick();
+                console.log('[Condo] System initialized');
+            } else {
+                setTimeout(initCondoSystem, 500);
+            }
+        }
+        setTimeout(initCondoSystem, 1000);
     </script>
 
 </body>
