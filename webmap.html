@@ -13908,80 +13908,9 @@
                                 <option value="EPSG:3857">Web Mercator — EPSG:3857</option>
                             </select>
 
-                            <label for="coordExtractorLayerSelect" style="margin-top: 15px; display: block;">Layer for
-                                Snapping:</label>
-                            <select id="coordExtractorLayerSelect" name="layer" class="crs-selector">
-                                <option value="">-- Select Layer --</option>
-                                <!-- Options will be populated dynamically -->
-                            </select>
-
-                            <label for="snapping-tolerance" style="margin-top: 15px; display: block;">Snapping Tolerance
-                                (meters):</label>
-                            <div class="tolerance-controls">
-                                <input type="range" id="snapping-tolerance" min="1" max="50" value="5" step="1">
-                                <span id="tolerance-value">5m</span>
-                            </div>
-
-                            <label for="snapping-mode" style="margin-top: 15px; display: block;">Snapping Mode:</label>
-                            <select id="snapping-mode" class="crs-selector">
-                                <option value="both">Vertex & Edge Snapping</option>
-                                <option value="vertex">Vertex Only</option>
-                                <option value="edge">Edge Only</option>
-                            </select>
-
-                            <div class="coord-controls-row">
+                            <div class="coord-controls-row" style="margin-top: 20px;">
                                 <button type="button" class="coord-control-btn primary" id="start-extraction-btn">
-                                    <i class="fas fa-play"></i> Start Extraction
-                                </button>
-                                <button type="button" class="coord-control-btn secondary" id="export-csv-btn" disabled>
-                                    <i class="fas fa-file-export"></i> Export CSV
-                                </button>
-                            </div>
-
-                            <div class="coord-controls-row">
-                                <button type="button" class="coord-control-btn warning" id="undo-btn" disabled>
-                                    <i class="fas fa-undo"></i> Undo
-                                </button>
-                                <button type="button" class="coord-control-btn warning" id="clear-all-btn" disabled>
-                                    <i class="fas fa-trash"></i> Clear All
-                                </button>
-                            </div>
-
-                            <!-- Snapping Toggle Button -->
-                            <div class="coord-controls-row">
-                                <button type="button" class="coord-control-btn" id="snapping-toggle-btn">
-                                    <i class="fas fa-magnet"></i> Snapping: OFF
-                                </button>
-                            </div>
-
-                            <!-- Validation Toggle -->
-                            <div class="coord-controls-row">
-                                <button type="button" class="coord-control-btn info" id="validation-toggle-btn">
-                                    <i class="fas fa-check-circle"></i> Validation: ON
-                                </button>
-                            </div>
-
-                            <!-- Batch Operations -->
-                            <div class="batch-operations"
-                                style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 4px;">
-                                <h4 style="margin: 0 0 10px 0; color: #2c3e50;">Batch Operations</h4>
-                                <div class="coord-controls-row">
-                                    <button type="button" class="coord-control-btn success"
-                                        id="extract-polygon-vertices-btn">
-                                        <i class="fas fa-draw-polygon"></i> Extract Polygon Vertices
-                                    </button>
-                                </div>
-                                <div class="coord-controls-row" style="margin-top: 5px;">
-                                    <button type="button" class="coord-control-btn success" id="extract-along-edge-btn">
-                                        <i class="fas fa-route"></i> Extract Along Edge
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Test Transform Button -->
-                            <div class="coord-controls-row">
-                                <button type="button" class="coord-control-btn" id="test-transform-btn">
-                                    <i class="fas fa-cog"></i> Test Transform
+                                    <i class="fas fa-mouse-pointer"></i> Select Polygon on Map
                                 </button>
                             </div>
 
@@ -13989,24 +13918,6 @@
                                 <i class="fas fa-info-circle"></i> <span id="coord-status-text">Ready to start</span>
                                 <span id="wfs-loading-indicator" style="display:none;" class="loading-indicator"></span>
                             </div>
-                        </div>
-
-                        <div class="coord-extractor-results-panel">
-                            <h4>Extracted Coordinates:</h4>
-                            <table class="coord-result-table">
-                                <thead>
-                                    <tr>
-                                        <th>Point ID</th>
-                                        <th>Easting</th>
-                                        <th>Northing</th>
-                                        <th>Latitude</th>
-                                        <th>Longitude</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="coord-results-body">
-                                    <!-- Results will be populated here -->
-                                </tbody>
-                            </table>
                         </div>
                     </div>
                 </div>
@@ -18588,6 +18499,35 @@
                 zIndex: 1000 // Above base maps (which have zIndex: 1)
             });
 
+            const extractorSource = new ol.source.Vector();
+            const extractorLayer = new ol.layer.Vector({
+                title: 'Extracted Polygon Points',
+                type: 'overlay',
+                source: extractorSource,
+                style: new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: 6,
+                        fill: new ol.style.Fill({
+                            color: 'rgba(255, 0, 0, 0.7)'
+                        }),
+                        stroke: new ol.style.Stroke({
+                            color: 'red',
+                            width: 2
+                        })
+                    }),
+                    text: new ol.style.Text({
+                        text: '',
+                        offsetY: -15,
+                        font: 'bold 12px sans-serif',
+                        fill: new ol.style.Fill({ color: 'red' }),
+                        stroke: new ol.style.Stroke({ color: 'white', width: 3 })
+                    })
+                })
+            });
+
+            // Add Extractor Layer to the GSPNET Layer Group
+            gspnetLayers.push(extractorLayer);
+
             // Create GSPNET Layer Group
             const gspnetLayerGroup = new ol.layer.Group({
                 title: 'GSPNET LAYERS',
@@ -20951,30 +20891,6 @@
             if (!window.currentSnapInteractions) {
                 window.currentSnapInteractions = [];
             }
-            const extractorSource = new ol.source.Vector();
-            const extractorLayer = new ol.layer.Vector({
-                source: extractorSource,
-                style: new ol.style.Style({
-                    image: new ol.style.Circle({
-                        radius: 6,
-                        fill: new ol.style.Fill({
-                            color: 'rgba(255, 0, 0, 0.7)'
-                        }),
-                        stroke: new ol.style.Stroke({
-                            color: 'red',
-                            width: 2
-                        })
-                    }),
-                    text: new ol.style.Text({
-                        text: '',
-                        offsetY: -15,
-                        font: 'bold 12px sans-serif',
-                        fill: new ol.style.Fill({ color: 'red' }),
-                        stroke: new ol.style.Stroke({ color: 'white', width: 3 })
-                    })
-                })
-            });
-            map.addLayer(extractorLayer);
 
             // ============================================
             // WFS/WFS-T CONFIGURATION - Nginx Proxy Implementation
@@ -23762,374 +23678,211 @@
                 }
             }
 
-            // PGFEATURESERV snapping toggle functionality
-            const snappingToggleBtn = document.getElementById('snapping-toggle-btn');
-            snappingToggleBtn.addEventListener('click', function () {
-                const selectedCollection = pgfLayerSelector.value;
-                if (!selectedCollection) {
-                    showToast('Please select a collection first', 'warning');
-                    return;
-                }
+            // ==========================================
+            // Coordinate Extractor - Automated Flow
+            // ==========================================
+            let polygonSelectInteraction = null;
 
-                if (snappingEnabled) {
-                    // Disable snapping
-                    disableSnapping();
-                    this.innerHTML = '<i class="fas fa-magnet"></i> Snapping: OFF';
-                    this.style.background = '';
-                } else {
-                    // Enable snapping
-                    enableSnappingForLayer(selectedCollection);
-                    this.innerHTML = '<i class="fas fa-magnet"></i> Snapping: ON';
-                    this.style.background = 'linear-gradient(to bottom, #2ecc71, #27ae60)';
-                }
-            });
-
-            // Coordinate Extractor event handlers
             document.getElementById('start-extraction-btn').addEventListener('click', function () {
                 extractionActive = !extractionActive;
 
                 if (extractionActive) {
                     // Start extraction
-                    this.innerHTML = '<i class="fas fa-stop"></i> Stop Extraction';
+                    this.innerHTML = '<i class="fas fa-stop"></i> Cancel Selection';
                     this.style.background = 'linear-gradient(to bottom, #e74c3c, #c0392b)';
                     document.getElementById('coord-extractor-status').style.display = 'block';
+                    document.getElementById('coord-status-text').textContent = 'Click a polygon on the map...';
 
-                    // Setup snapping if enabled
-                    if (snappingEnabled) {
-                        setupFlatGeobufSnapping();
-                    }
+                    // Create select interaction for polygons
+                    const selectableLayers = [];
+                    // Add GSPNET layers
+                    gspnetLayers.forEach(layer => {
+                        if (layer.getVisible()) selectableLayers.push(layer);
+                    });
+                    // Add Survey Polygon layers
+                    Object.values(polygonLayers).forEach(layer => {
+                        if (layer.getVisible()) selectableLayers.push(layer);
+                    });
 
-                    // Enable crosshair cursor
-                    enableCrosshair();
+                    polygonSelectInteraction = new ol.interaction.Select({
+                        layers: selectableLayers,
+                        style: new ol.style.Style({
+                            stroke: new ol.style.Stroke({
+                                color: '#00ffff',
+                                width: 3
+                            }),
+                            fill: new ol.style.Fill({
+                                color: 'rgba(0, 255, 255, 0.3)'
+                            })
+                        })
+                    });
 
-                    map.on('click', handleMapClickForExtraction);
-                    showToast('Coordinate extraction started. Click on the map to extract points.', 'info');
+                    map.addInteraction(polygonSelectInteraction);
+
+                    polygonSelectInteraction.on('select', function(e) {
+                        if (e.selected.length > 0) {
+                            const feature = e.selected[0];
+                            const geometry = feature.getGeometry();
+                            
+                            if (geometry && (geometry.getType() === 'Polygon' || geometry.getType() === 'MultiPolygon')) {
+                                processPolygonExtraction(feature);
+                                
+                                // Auto-cancel after selection
+                                document.getElementById('start-extraction-btn').click();
+                            } else {
+                                showToast('Please select a polygon feature.', 'warning');
+                                polygonSelectInteraction.getFeatures().clear();
+                            }
+                        }
+                    });
+
+                    showToast('Extraction mode active. Click a polygon on the map.', 'info');
                 } else {
                     // Stop extraction
-                    this.innerHTML = '<i class="fas fa-play"></i> Start Extraction';
+                    this.innerHTML = '<i class="fas fa-mouse-pointer"></i> Select Polygon on Map';
                     this.style.background = 'linear-gradient(to bottom, #3498db, #2980b9)';
-                    document.getElementById('coord-status-text').textContent = 'Extraction stopped';
+                    document.getElementById('coord-status-text').textContent = 'Ready to start';
 
-                    // Disable crosshair cursor
-                    disableCrosshair();
-
-                    // Remove snapping
-                    if (window.currentSnapInteractions) {
-                        window.currentSnapInteractions.forEach(interaction => {
-                            map.removeInteraction(interaction);
-                        });
-                        window.currentSnapInteractions = [];
-                        window.currentSnapInteraction = null; // Backward compatibility
+                    if (polygonSelectInteraction) {
+                        map.removeInteraction(polygonSelectInteraction);
+                        polygonSelectInteraction = null;
                     }
-
-                    map.un('click', handleMapClickForExtraction);
-                    showToast('Coordinate extraction stopped', 'info');
                 }
             });
 
-            // Snapping tolerance slider
-            document.getElementById('snapping-tolerance').addEventListener('input', function () {
-                const value = this.value;
-                document.getElementById('tolerance-value').textContent = value + 'm';
-                snappingTolerance = parseInt(value);
-
-                // Update snapping if active
-                if (extractionActive && snappingEnabled) {
-                    setupFlatGeobufSnapping();
-                }
-            });
-
-            // Snapping mode selector
-            document.getElementById('snapping-mode').addEventListener('change', function () {
-                snappingMode = this.value;
-
-                // Update snapping if active
-                if (extractionActive && snappingEnabled) {
-                    setupFlatGeobufSnapping();
-                }
-            });
-
-            // Layer selection for snapping
-            document.getElementById('coordExtractorLayerSelect').addEventListener('change', function () {
-                const selectedLayerId = this.value;
-                selectedSnappingLayer = selectedLayerId ? findLayerById(selectedLayerId) : null;
-
-                // Update snapping if active
-                if (extractionActive && snappingEnabled) {
-                    setupFlatGeobufSnapping();
+            function processPolygonExtraction(feature) {
+                const geometry = feature.getGeometry();
+                let coordinates = [];
+                
+                if (geometry.getType() === 'Polygon') {
+                    coordinates = geometry.getCoordinates()[0]; // Outer ring
+                } else if (geometry.getType() === 'MultiPolygon') {
+                    coordinates = geometry.getPolygon(0).getCoordinates()[0]; // Outer ring of first polygon
                 }
 
-                // Enable/disable start button based on selection
-                const startBtn = document.getElementById('start-extraction-btn');
-                if (startBtn) {
-                    startBtn.disabled = !this.value;
+                if (!coordinates || coordinates.length === 0) {
+                    showToast('Invalid polygon geometry.', 'error');
+                    return;
                 }
-            });
 
-            // Snapping toggle
-            document.getElementById('snapping-toggle-btn').addEventListener('click', function () {
-                snappingEnabled = !snappingEnabled;
-                this.innerHTML = `<i class="fas fa-magnet"></i> Snapping: ${snappingEnabled ? 'ON' : 'OFF'}`;
-                this.style.background = snappingEnabled ?
-                    'linear-gradient(to bottom, #27ae60, #229954)' :
-                    'linear-gradient(to bottom, #95a5a6, #7f8c8d)';
+                const selectedCrs = document.getElementById('crs-selector').value;
+                const viewProjection = view.getProjection();
+                const viewCode = viewProjection.getCode();
 
-                if (extractionActive) {
-                    if (snappingEnabled) {
-                        setupFlatGeobufSnapping();
-                    } else {
-                        // Remove snapping
-                        if (window.currentSnapInteractions) {
-                            window.currentSnapInteractions.forEach(interaction => {
-                                map.removeInteraction(interaction);
-                            });
-                            window.currentSnapInteractions = [];
-                            window.currentSnapInteraction = null; // Backward compatibility
+                extractedPoints = [];
+                let vertexCount = 0;
+
+                coordinates.forEach((coord, index) => {
+                    try {
+                        const transformedCoord = ol.proj.transform(coord, viewCode, selectedCrs);
+                        const lonLat = ol.proj.transform(coord, viewCode, 'EPSG:4326');
+                        
+                        // Prevent adding the last coordinate if it's identical to the first (closing vertex)
+                        if (index === coordinates.length - 1 && 
+                            extractedPoints.length > 0 && 
+                            extractedPoints[0].easting === (selectedCrs === 'EPSG:4326' ? transformedCoord[0].toFixed(6) : Number(transformedCoord[0].toFixed(3))) && 
+                            extractedPoints[0].northing === (selectedCrs === 'EPSG:4326' ? transformedCoord[1].toFixed(6) : Number(transformedCoord[1].toFixed(3)))) {
+                            return;
                         }
+
+                        const extractedPoint = {
+                            id: vertexCount + 1,
+                            easting: selectedCrs === 'EPSG:4326' ? transformedCoord[0].toFixed(6) : Number(transformedCoord[0].toFixed(3)),
+                            northing: selectedCrs === 'EPSG:4326' ? transformedCoord[1].toFixed(6) : Number(transformedCoord[1].toFixed(3)),
+                            lat: lonLat[1].toFixed(6),
+                            lon: lonLat[0].toFixed(6),
+                            crs: selectedCrs
+                        };
+
+                        extractedPoints.push(extractedPoint);
+                        vertexCount++;
+                    } catch (error) {
+                        console.error('Error transforming vertex coordinate:', error);
                     }
-                    updateSnappingStatus();
+                });
+
+                updateExtractorLayer();
+                exportPolygonData(feature, extractedPoints);
+                showToast(`Automatically extracted ${vertexCount} vertices and generated CSV.`, 'success');
+            }
+
+            function updateExtractorLayer() {
+                if (typeof extractorSource !== 'undefined') {
+                    extractorSource.clear();
+
+                    extractedPoints.forEach(point => {
+                        const viewProjection = view.getProjection();
+                        const selectedCrs = point.crs || document.getElementById('crs-selector').value;
+
+                        try {
+                            // Create point in the selected CRS and transform to map view for display
+                            const pointFeature = new ol.Feature({
+                                geometry: new ol.geom.Point(
+                                    ol.proj.transform([parseFloat(point.easting), parseFloat(point.northing)], selectedCrs, viewProjection)
+                                )
+                            });
+
+                            pointFeature.setStyle(new ol.style.Style({
+                                image: new ol.style.Circle({
+                                    radius: 6,
+                                    fill: new ol.style.Fill({
+                                        color: 'rgba(255, 0, 0, 0.7)'
+                                    }),
+                                    stroke: new ol.style.Stroke({
+                                        color: 'red',
+                                        width: 2
+                                    })
+                                }),
+                                text: new ol.style.Text({
+                                    text: point.id.toString(),
+                                    offsetY: -15,
+                                    font: 'bold 12px sans-serif',
+                                    fill: new ol.style.Fill({ color: 'red' }),
+                                    stroke: new ol.style.Stroke({ color: 'white', width: 3 })
+                                })
+                            }));
+
+                            extractorSource.addFeature(pointFeature);
+                        } catch (error) {
+                            console.error('Error updating extractor layer for point', point.id, error);
+                        }
+                    });
                 }
-            });
+            }
 
-            // Validation toggle
-            document.getElementById('validation-toggle-btn').addEventListener('click', function () {
-                validationEnabled = !validationEnabled;
-                this.innerHTML = `<i class="fas fa-check-circle"></i> Validation: ${validationEnabled ? 'ON' : 'OFF'}`;
-                this.style.background = validationEnabled ?
-                    'linear-gradient(to bottom, #3498db, #2980b9)' :
-                    'linear-gradient(to bottom, #95a5a6, #7f8c8d)';
-
-                if (extractionActive) {
-                    updateSnappingStatus();
+            function exportPolygonData(feature, points) {
+                const properties = feature.getProperties();
+                let csvContent = "POLYGON ATTRIBUTES\n";
+                csvContent += "Attribute,Value\n";
+                
+                // Add all properties except geometry
+                for (const key in properties) {
+                    if (key !== feature.getGeometryName() && typeof properties[key] !== 'object') {
+                        // Escape quotes and commas
+                        let val = properties[key] == null ? '' : String(properties[key]);
+                        if (val.includes(',') || val.includes('"')) {
+                            val = '"' + val.replace(/"/g, '""') + '"';
+                        }
+                        csvContent += `${key},${val}\n`;
+                    }
                 }
-            });
-
-            // Batch operations
-            document.getElementById('extract-polygon-vertices-btn').addEventListener('click', function () {
-                if (!selectedSnappingLayer) {
-                    showToast('Please select a layer first', 'warning');
-                    return;
-                }
-
-                extractPolygonVertices(selectedSnappingLayer);
-            });
-
-            document.getElementById('extract-along-edge-btn').addEventListener('click', function () {
-                if (!selectedSnappingLayer) {
-                    showToast('Please select a layer first', 'warning');
-                    return;
-                }
-
-                showToast('Click on a polygon edge to extract coordinates along it', 'info');
-                enableEdgeExtractionMode(selectedSnappingLayer);
-            });
-
-            document.getElementById('export-csv-btn').addEventListener('click', function () {
-                if (extractedPoints.length === 0) {
-                    alert('No points to export');
-                    return;
-                }
-
-                let csvContent = "Point ID,Easting,Northing,Latitude,Longitude,Layer,Validation\n";
-                extractedPoints.forEach(point => {
-                    csvContent += `${point.id},${point.easting},${point.northing},${point.lat},${point.lon},${point.layer || ''},${point.validated ? 'Yes' : 'No'}\n`;
+                
+                csvContent += "\nPOLYGON COORDINATES\n";
+                csvContent += "Point ID,Easting,Northing,Latitude,Longitude\n";
+                
+                points.forEach(point => {
+                    csvContent += `${point.id},${point.easting},${point.northing},${point.lat},${point.lon}\n`;
                 });
 
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const link = document.createElement("a");
                 const url = URL.createObjectURL(blob);
                 link.setAttribute("href", url);
-                link.setAttribute("download", "GSPNET-EXTRACT-CSV.csv");
+                link.setAttribute("download", "GSPNET-POLYGON-EXTRACT.csv");
                 link.style.visibility = 'hidden';
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-                showToast('CSV exported successfully!', 'success');
-            });
-
-            document.getElementById('undo-btn').addEventListener('click', function () {
-                if (extractedPoints.length > 0) {
-                    extractedPoints.pop();
-                    pointCounter--;
-                    updateExtractorLayer();
-                    updateResultsTable();
-
-                    if (extractedPoints.length === 0) {
-                        this.disabled = true;
-                        document.getElementById('clear-all-btn').disabled = true;
-                        document.getElementById('export-csv-btn').disabled = true;
-                    }
-                    showToast('Last point removed', 'info');
-                }
-            });
-
-            document.getElementById('clear-all-btn').addEventListener('click', function () {
-                extractedPoints = [];
-                pointCounter = 1;
-                extractorSource.clear();
-                updateResultsTable();
-                this.disabled = true;
-                document.getElementById('undo-btn').disabled = true;
-                document.getElementById('export-csv-btn').disabled = true;
-                showToast('All points cleared', 'info');
-            });
-
-            // Test transform button
-            document.getElementById('test-transform-btn').addEventListener('click', function () {
-                const selectedCrs = document.getElementById('crs-selector').value;
-                const testCoord = [32.5, 0.5]; // Uganda coordinates in WGS84
-
-                try {
-                    console.log('Testing coordinate transformation...');
-                    console.log('Input coordinate (WGS84):', testCoord);
-                    console.log('Selected CRS:', selectedCrs);
-
-                    const transformedCoord = ol.proj.transform(testCoord, 'EPSG:4326', selectedCrs);
-                    console.log('Transformed coordinate:', transformedCoord);
-
-                    // Test reverse transformation
-                    const backToWGS84 = ol.proj.transform(transformedCoord, selectedCrs, 'EPSG:4326');
-                    console.log('Back to WGS84:', backToWGS84);
-
-                    showToast(`Test successful! ${selectedCrs}: ${transformedCoord[0].toFixed(3)}, ${transformedCoord[1].toFixed(3)}`, 'success');
-
-                } catch (error) {
-                    console.error('Test transformation failed:', error);
-                    showToast('Test transformation failed: ' + error.message, 'error');
-                }
-            });
-
-            function handleMapClickForExtraction(evt) {
-                const coordinate = evt.coordinate;
-                const viewProjection = view.getProjection();
-                const selectedCrs = document.getElementById('crs-selector').value;
-
-                // PATCH: direct transform to selected CRS for coordinate extractor
-                const viewCode = viewProjection.getCode();
-                const clickCoord = evt.coordinate; // map coordinate in view projection
-
-                // Direct transform to selected CRS
-                let transformedCoord;
-                let lonLat;
-
-                try {
-                    // Direct transform to selected CRS
-                    transformedCoord = ol.proj.transform(clickCoord, viewCode, selectedCrs);
-
-                    // Also get WGS84 for lat/lon display
-                    lonLat = ol.proj.transform(clickCoord, viewCode, 'EPSG:4326');
-
-                    // Validate the transformation result
-                    if (!transformedCoord || isNaN(transformedCoord[0]) || isNaN(transformedCoord[1])) {
-                        throw new Error('Invalid transformation result');
-                    }
-                } catch (error) {
-                    console.error('Error transforming coordinate:', error);
-                    console.error('Error details:', error.message);
-                    showToast('Error transforming coordinate to selected CRS. Please try another CRS.', 'error');
-                    return;
-                }
-
-                // Coordinate validation (if enabled)
-                if (validationEnabled && !validateCoordinateWithinLayers(clickCoord)) {
-                    showToast('Coordinate is outside visible layer boundaries. Disable validation to place anywhere.', 'warning');
-                    return;
-                }
-
-                // Add to points array with proper coordinate formatting
-                // PATCH: ensure order: for projected CRSs result is [easting, northing]; for EPSG:4326 it's [lon,lat]
-                const easting = Number(transformedCoord[0].toFixed(3));
-                const northing = Number(transformedCoord[1].toFixed(3));
-
-                const extractedPoint = {
-                    id: pointCounter,
-                    easting: selectedCrs === 'EPSG:4326' ? transformedCoord[0].toFixed(6) : easting,
-                    northing: selectedCrs === 'EPSG:4326' ? transformedCoord[1].toFixed(6) : northing,
-                    lat: lonLat[1].toFixed(6),
-                    lon: lonLat[0].toFixed(6),
-                    crs: selectedCrs,
-                    layer: selectedSnappingLayer ? selectedSnappingLayer.get('title') : 'Free placement',
-                    validated: validationEnabled,
-                    // Add raw coordinates for debugging
-                    rawEasting: transformedCoord[0],
-                    rawNorthing: transformedCoord[1]
-                };
-
-                extractedPoints.push(extractedPoint);
-                console.log('Added point:', extractedPoint);
-
-                // Update the extractor layer
-                updateExtractorLayer();
-
-                // Update results table
-                updateResultsTable();
-
-                // Enable buttons
-                document.getElementById('undo-btn').disabled = false;
-                document.getElementById('clear-all-btn').disabled = false;
-                document.getElementById('export-csv-btn').disabled = false;
-
-                pointCounter++;
-                showToast(`Point ${pointCounter - 1} extracted in ${selectedCrs}`, 'success', 2000);
-            }
-
-            function updateExtractorLayer() {
-                extractorSource.clear();
-
-                extractedPoints.forEach(point => {
-                    const viewProjection = view.getProjection();
-                    const selectedCrs = point.crs || document.getElementById('crs-selector').value;
-
-                    try {
-                        // Create point in the selected CRS and transform to map view
-                        const pointFeature = new ol.Feature({
-                            geometry: new ol.geom.Point(
-                                ol.proj.transform([parseFloat(point.easting), parseFloat(point.northing)], selectedCrs, viewProjection)
-                            )
-                        });
-
-                        pointFeature.setStyle(new ol.style.Style({
-                            image: new ol.style.Circle({
-                                radius: 6,
-                                fill: new ol.style.Fill({
-                                    color: 'rgba(255, 0, 0, 0.7)'
-                                }),
-                                stroke: new ol.style.Stroke({
-                                    color: 'red',
-                                    width: 2
-                                })
-                            }),
-                            text: new ol.style.Text({
-                                text: point.id.toString(),
-                                offsetY: -15,
-                                font: 'bold 12px sans-serif',
-                                fill: new ol.style.Fill({ color: 'red' }),
-                                stroke: new ol.style.Stroke({ color: 'white', width: 3 })
-                            })
-                        }));
-
-                        extractorSource.addFeature(pointFeature);
-                    } catch (error) {
-                        console.error('Error updating extractor layer for point', point.id, error);
-                    }
-                });
-            }
-
-            function updateResultsTable() {
-                const tbody = document.getElementById('coord-results-body');
-                tbody.innerHTML = '';
-
-                extractedPoints.forEach(point => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                    <td>${point.id}</td>
-                    <td>${point.easting}</td>
-                    <td>${point.northing}</td>
-                    <td>${point.lat}</td>
-                    <td>${point.lon}</td>
-                `;
-                    tbody.appendChild(row);
-                });
             }
 
             // Coordinate Extractor Modal Control
@@ -24139,8 +23892,6 @@
 
             coordExtractorMainBtn.addEventListener('click', function () {
                 coordExtractorModal.style.display = 'block';
-                // Populate layer selector when modal opens
-                populateLayerSelector();
             });
 
             coordExtractorClose.addEventListener('click', function () {
@@ -24151,9 +23902,6 @@
                     document.getElementById('start-extraction-btn').click();
                 }
             });
-
-            // Initialize layer visibility monitoring
-            setupLayerVisibilityMonitoring();
 
             // ========================================
             //  GSP.NET UPDATES - NEW IMPLEMENTATION

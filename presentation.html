@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GSP.NET — Geospatial Network Uganda | Presentation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Poppins:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* ============================================
+           RESET & BASE
+           ============================================ */
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --brown-900: #1a0f07;
+            --brown-800: #2C2416;
+            --brown-700: #3D2F1F;
+            --brown-600: #5C4A3A;
+            --brown-500: #8B7355;
+            --brown-400: #A0522D;
+            --brown-300: #C19A6B;
+            --brown-200: #D2B48C;
+            --brown-100: #E6D5B8;
+            --brown-50: #F5F0E8;
+            --gold-500: #D4A017;
+            --gold-400: #E6B422;
+            --gold-300: #F0C75E;
+            --green-700: #2D5016;
+            --green-500: #4A7C59;
+            --green-400: #6BA84A;
+            --accent: #D4A574;
+            --slide-transition: 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background: var(--brown-900);
+            color: #f5f0e8;
+        }
+
+        /* ============================================
+           PRESENTATION CONTAINER
+           ============================================ */
+        .presentation {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .slide {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 60px 80px;
+            opacity: 0;
+            transform: translateX(60px);
+            transition: opacity var(--slide-transition), transform var(--slide-transition);
+            pointer-events: none;
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .slide.active {
+            opacity: 1;
+            transform: translateX(0);
+            pointer-events: all;
+            z-index: 10;
+        }
+
+        .slide.exit-left {
+            opacity: 0;
+            transform: translateX(-60px);
+        }
+
+        /* ============================================
+           SLIDE BACKGROUNDS
+           ============================================ */
+        .bg-gradient-dark {
+            background: linear-gradient(135deg, var(--brown-900) 0%, #0d0805 50%, var(--brown-900) 100%);
+        }
+
+        .bg-gradient-warm {
+            background: linear-gradient(135deg, var(--brown-800) 0%, var(--brown-700) 50%, var(--brown-800) 100%);
+        }
+
+        .bg-gradient-earth {
+            background: linear-gradient(160deg, #1a1208 0%, #2D1F0E 40%, #1a0f07 100%);
+        }
+
+        .bg-gradient-forest {
+            background: linear-gradient(160deg, #0d1a07 0%, #1a2a10 40%, #0d1a07 100%);
+        }
+
+        .bg-gradient-gold {
+            background: linear-gradient(160deg, #1a1508 0%, #2a1f0a 40%, #1a1508 100%);
+        }
+
+        /* Animated background particles */
+        .particles {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: var(--gold-400);
+            border-radius: 50%;
+            opacity: 0.15;
+            animation: particleDrift 12s infinite ease-in-out;
+        }
+
+        @keyframes particleDrift {
+
+            0%,
+            100% {
+                transform: translate(0, 0) scale(1);
+                opacity: 0.1;
+            }
+
+            50% {
+                transform: translate(30px, -50px) scale(1.5);
+                opacity: 0.3;
+            }
+        }
+
+        /* Grid overlay */
+        .grid-overlay {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(212, 165, 116, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(212, 165, 116, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            pointer-events: none;
+        }
+
+        /* ============================================
+           TYPOGRAPHY
+           ============================================ */
+        .slide-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: var(--gold-400);
+            margin-bottom: 16px;
+            opacity: 0;
+            animation: fadeInUp 0.6s 0.2s forwards;
+        }
+
+        .slide-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: clamp(2rem, 5vw, 4rem);
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #f5f0e8, var(--brown-200));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            opacity: 0;
+            animation: fadeInUp 0.6s 0.3s forwards;
+        }
+
+        .slide-title .highlight {
+            background: linear-gradient(135deg, var(--gold-400), var(--gold-300));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .slide-subtitle {
+            font-size: clamp(1rem, 2vw, 1.35rem);
+            color: var(--brown-200);
+            max-width: 700px;
+            line-height: 1.6;
+            font-weight: 300;
+            opacity: 0;
+            animation: fadeInUp 0.6s 0.4s forwards;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(24px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ============================================
+           HERO SLIDE (Slide 1)
+           ============================================ */
+        .hero-content {
+            text-align: center;
+            z-index: 2;
+            position: relative;
+        }
+
+        .hero-logo {
+            width: 100px;
+            height: 100px;
+            border-radius: 28px;
+            background: linear-gradient(135deg, var(--brown-400), var(--gold-500));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.8rem;
+            margin: 0 auto 32px;
+            box-shadow: 0 20px 60px rgba(212, 160, 23, 0.25),
+                0 0 0 1px rgba(212, 160, 23, 0.2);
+            animation: logoFloat 4s ease-in-out infinite;
+            opacity: 0;
+            animation: fadeInUp 0.6s 0.1s forwards, logoFloat 4s 0.7s ease-in-out infinite;
+        }
+
+        @keyframes logoFloat {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-8px);
+            }
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(212, 160, 23, 0.12);
+            border: 1px solid rgba(212, 160, 23, 0.25);
+            color: var(--gold-300);
+            padding: 8px 20px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            letter-spacing: 1px;
+            margin-top: 28px;
+            opacity: 0;
+            animation: fadeInUp 0.6s 0.5s forwards;
+        }
+
+        .hero-badge .dot {
+            width: 8px;
+            height: 8px;
+            background: var(--green-400);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        /* Glow ring */
+        .hero-glow {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(212, 160, 23, 0.06) 0%, transparent 70%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            animation: glowPulse 6s ease-in-out infinite;
+        }
+
+        @keyframes glowPulse {
+
+            0%,
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0.8;
+            }
+
+            50% {
+                transform: translate(-50%, -50%) scale(1.15);
+                opacity: 1;
+            }
+        }
+
+        /* ============================================
+           FEATURE SLIDES - TWO-COLUMN LAYOUT
+           ============================================ */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            width: 100%;
+            max-width: 1300px;
+            align-items: center;
+            z-index: 2;
+            position: relative;
+        }
+
+        .two-col.reverse {
+            direction: rtl;
+        }
+
+        .two-col.reverse>* {
+            direction: ltr;
+        }
+
+        .col-text {
+            opacity: 0;
+            animation: fadeInUp 0.6s 0.2s forwards;
+        }
+
+        .col-image {
+            opacity: 0;
+            animation: fadeInUp 0.6s 0.4s forwards;
+        }
+
+        .feature-image {
+            width: 100%;
+            border-radius: 16px;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(212, 165, 116, 0.1);
+            transition: transform 0.4s ease;
+        }
+
+        .feature-image:hover {
+            transform: scale(1.02) translateY(-4px);
+        }
+
+        /* Feature list */
+        .feature-list {
+            list-style: none;
+            margin-top: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .feature-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            font-size: 0.95rem;
+            color: var(--brown-100);
+            line-height: 1.5;
+        }
+
+        .feature-list li .icon {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+        }
+
+        .icon-gold {
+            background: rgba(212, 160, 23, 0.15);
+            color: var(--gold-400);
+        }
+
+        .icon-green {
+            background: rgba(74, 124, 89, 0.2);
+            color: var(--green-400);
+        }
+
+        .icon-brown {
+            background: rgba(160, 82, 45, 0.2);
+            color: var(--brown-300);
+        }
+
+        /* ============================================
+           STATS SLIDE
+           ============================================ */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 28px;
+            width: 100%;
+            max-width: 1100px;
+            margin-top: 50px;
+            z-index: 2;
+            position: relative;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(212, 165, 116, 0.1);
+            border-radius: 20px;
+            padding: 36px 28px;
+            text-align: center;
+            backdrop-filter: blur(12px);
+            transition: transform 0.3s ease, border-color 0.3s;
+            opacity: 0;
+            animation: fadeInUp 0.6s forwards;
+        }
+
+        .stat-card:nth-child(1) {
+            animation-delay: 0.2s;
+        }
+
+        .stat-card:nth-child(2) {
+            animation-delay: 0.35s;
+        }
+
+        .stat-card:nth-child(3) {
+            animation-delay: 0.5s;
+        }
+
+        .stat-card:nth-child(4) {
+            animation-delay: 0.65s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-6px);
+            border-color: rgba(212, 160, 23, 0.3);
+        }
+
+        .stat-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            margin: 0 auto 18px;
+        }
+
+        .stat-number {
+            font-family: 'Poppins', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--gold-400), var(--gold-300));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 6px;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--brown-200);
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+
+        /* ============================================
+           FEATURE GRID SLIDE
+           ============================================ */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 22px;
+            width: 100%;
+            max-width: 1200px;
+            margin-top: 40px;
+            z-index: 2;
+            position: relative;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(212, 165, 116, 0.08);
+            border-radius: 16px;
+            padding: 28px 24px;
+            transition: all 0.3s ease;
+            opacity: 0;
+            animation: fadeInUp 0.5s forwards;
+        }
+
+        .feature-card:nth-child(1) {
+            animation-delay: 0.15s;
+        }
+
+        .feature-card:nth-child(2) {
+            animation-delay: 0.25s;
+        }
+
+        .feature-card:nth-child(3) {
+            animation-delay: 0.35s;
+        }
+
+        .feature-card:nth-child(4) {
+            animation-delay: 0.45s;
+        }
+
+        .feature-card:nth-child(5) {
+            animation-delay: 0.55s;
+        }
+
+        .feature-card:nth-child(6) {
+            animation-delay: 0.65s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(212, 160, 23, 0.25);
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .feature-card .card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            margin-bottom: 16px;
+        }
+
+        .feature-card h3 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #f5f0e8;
+        }
+
+        .feature-card p {
+            font-size: 0.85rem;
+            color: var(--brown-200);
+            line-height: 1.55;
+        }
+
+        /* ============================================
+           TECH STACK SLIDE
+           ============================================ */
+        .tech-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-top: 36px;
+            justify-content: center;
+            max-width: 900px;
+        }
+
+        .tech-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(212, 165, 116, 0.12);
+            border-radius: 12px;
+            padding: 14px 22px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--brown-100);
+            transition: all 0.3s ease;
+            opacity: 0;
+            animation: fadeInUp 0.5s forwards;
+        }
+
+        .tech-badge:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .tech-badge:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .tech-badge:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        .tech-badge:nth-child(4) {
+            animation-delay: 0.4s;
+        }
+
+        .tech-badge:nth-child(5) {
+            animation-delay: 0.5s;
+        }
+
+        .tech-badge:nth-child(6) {
+            animation-delay: 0.6s;
+        }
+
+        .tech-badge:nth-child(7) {
+            animation-delay: 0.7s;
+        }
+
+        .tech-badge:nth-child(8) {
+            animation-delay: 0.8s;
+        }
+
+        .tech-badge:hover {
+            border-color: rgba(212, 160, 23, 0.35);
+            transform: translateY(-3px);
+        }
+
+        .tech-badge i {
+            font-size: 1.3rem;
+            color: var(--gold-400);
+        }
+
+        /* ============================================
+           CTA SLIDE
+           ============================================ */
+        .cta-content {
+            text-align: center;
+            z-index: 2;
+            position: relative;
+        }
+
+        .cta-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(135deg, var(--gold-500), var(--brown-400));
+            color: white;
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            padding: 18px 40px;
+            border-radius: 16px;
+            border: none;
+            cursor: pointer;
+            margin-top: 36px;
+            box-shadow: 0 16px 48px rgba(212, 160, 23, 0.3);
+            transition: all 0.3s ease;
+            text-decoration: none;
+            opacity: 0;
+            animation: fadeInUp 0.6s 0.5s forwards;
+        }
+
+        .cta-btn:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 56px rgba(212, 160, 23, 0.4);
+        }
+
+        /* ============================================
+           NAVIGATION
+           ============================================ */
+        .nav-controls {
+            position: fixed;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            z-index: 100;
+            background: rgba(26, 15, 7, 0.3);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(212, 165, 116, 0.06);
+            border-radius: 16px;
+            padding: 10px 20px;
+        }
+
+        .nav-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(212, 165, 116, 0.15);
+            color: var(--brown-200);
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.25s ease;
+        }
+
+        .nav-btn:hover {
+            background: rgba(212, 160, 23, 0.15);
+            color: var(--gold-400);
+            border-color: rgba(212, 160, 23, 0.3);
+        }
+
+        .nav-dots {
+            display: flex;
+            gap: 8px;
+        }
+
+        .nav-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(212, 165, 116, 0.2);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .nav-dot.active {
+            background: var(--gold-400);
+            box-shadow: 0 0 12px rgba(212, 160, 23, 0.5);
+            transform: scale(1.25);
+        }
+
+        .slide-counter {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--brown-300);
+            letter-spacing: 1px;
+        }
+
+        /* ============================================
+           PROGRESS BAR
+           ============================================ */
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--gold-500), var(--gold-300));
+            z-index: 200;
+            transition: width 0.5s ease;
+            box-shadow: 0 0 12px rgba(212, 160, 23, 0.4);
+        }
+
+        /* ============================================
+           TIMELINE SLIDE
+           ============================================ */
+        .timeline {
+            display: flex;
+            gap: 0;
+            width: 100%;
+            max-width: 1100px;
+            margin-top: 40px;
+            z-index: 2;
+            position: relative;
+        }
+
+        .timeline-item {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            padding: 0 16px;
+            opacity: 0;
+            animation: fadeInUp 0.5s forwards;
+        }
+
+        .timeline-item:nth-child(1) {
+            animation-delay: 0.2s;
+        }
+
+        .timeline-item:nth-child(2) {
+            animation-delay: 0.4s;
+        }
+
+        .timeline-item:nth-child(3) {
+            animation-delay: 0.6s;
+        }
+
+        .timeline-item:nth-child(4) {
+            animation-delay: 0.8s;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            top: 28px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: rgba(212, 160, 23, 0.2);
+        }
+
+        .timeline-item:first-child::before {
+            left: 50%;
+        }
+
+        .timeline-item:last-child::before {
+            right: 50%;
+        }
+
+        .timeline-dot {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--gold-500);
+            margin: 20px auto;
+            position: relative;
+            z-index: 2;
+            box-shadow: 0 0 20px rgba(212, 160, 23, 0.4);
+        }
+
+        .timeline-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--gold-400);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .timeline-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 8px 0;
+            color: #f5f0e8;
+        }
+
+        .timeline-desc {
+            font-size: 0.8rem;
+            color: var(--brown-200);
+            line-height: 1.5;
+        }
+
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+        @media (max-width: 900px) {
+            .slide {
+                padding: 40px 30px;
+            }
+
+            .two-col {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .feature-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .timeline {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .timeline-item::before {
+                display: none;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Progress Bar -->
+    <div class="progress-bar" id="progressBar"></div>
+
+    <div class="presentation" id="presentation">
+
+        <!-- ========================
+             SLIDE 1: HERO
+             ======================== -->
+        <div class="slide bg-gradient-dark active" data-slide="0">
+            <div class="hero-glow"></div>
+            <div class="grid-overlay"></div>
+            <div class="particles">
+                <div class="particle" style="top:15%; left:20%; animation-delay:0s;"></div>
+                <div class="particle" style="top:35%; left:70%; animation-delay:2s;"></div>
+                <div class="particle" style="top:65%; left:40%; animation-delay:4s;"></div>
+                <div class="particle" style="top:80%; left:80%; animation-delay:6s;"></div>
+                <div class="particle" style="top:25%; left:90%; animation-delay:1s;"></div>
+                <div class="particle" style="top:55%; left:15%; animation-delay:3s;"></div>
+                <div class="particle" style="top:45%; left:55%; animation-delay:5s;"></div>
+            </div>
+
+            <div class="hero-content">
+                <div class="hero-logo">🌍</div>
+                <div class="slide-tag">Geospatial Network Uganda</div>
+                <h1 class="slide-title">
+                    The Future of<br>
+                    <span class="highlight">Cadastral & Geospatial</span><br>
+                    Intelligence
+                </h1>
+                <p class="slide-subtitle">
+                    An all-in-one professional GIS platform powering cadastral surveys,
+                    terrain analysis, property valuation, and real-time collaboration
+                    across Uganda.
+                </p>
+                <div class="hero-badge">
+                    <span class="dot"></span>
+                    LIVE PLATFORM — BUILT FOR PROFESSIONALS
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================
+             SLIDE 2: PLATFORM OVERVIEW
+             ======================== -->
+        <div class="slide bg-gradient-warm" data-slide="1">
+            <div class="grid-overlay"></div>
+            <div style="text-align:center; z-index:2; position:relative; width:100%; max-width:1100px;">
+                <div class="slide-tag">Platform Overview</div>
+                <h2 class="slide-title" style="font-size:clamp(1.8rem,4vw,3rem);">
+                    One Platform. <span class="highlight">Unlimited Capabilities.</span>
+                </h2>
+                <p class="slide-subtitle" style="margin: 0 auto 0;">
+                    GSP.NET unifies the entire geospatial workflow — from raw survey data to
+                    professional-grade reports — in a single browser-based application.
+                </p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon icon-gold"><i class="fas fa-layer-group"></i></div>
+                    <div class="stat-number">50+</div>
+                    <div class="stat-label">Map Layer Types</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon icon-green"><i class="fas fa-tools"></i></div>
+                    <div class="stat-number">50+</div>
+                    <div class="stat-label">GIS Tools</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon icon-brown"><i class="fas fa-file-export"></i></div>
+                    <div class="stat-number">8</div>
+                    <div class="stat-label">Export Formats</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon icon-gold"><i class="fas fa-users"></i></div>
+                    <div class="stat-number">Real-time</div>
+                    <div class="stat-label">Team Collaboration</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================
+             SLIDE 3: INTERACTIVE WEBMAP
+             ======================== -->
+        <div class="slide bg-gradient-earth" data-slide="2">
+            <div class="grid-overlay"></div>
+            <div class="two-col">
+                <div class="col-text">
+                    <div class="slide-tag">Core Engine</div>
+                    <h2 class="slide-title" style="font-size:clamp(1.6rem,3.5vw,2.6rem);">
+                        Interactive <span class="highlight">WebMap</span>
+                    </h2>
+                    <p class="slide-subtitle" style="max-width:100%;">
+                        Powered by OpenLayers with seamless base map switching, real-time
+                        feature rendering, and professional cartographic output.
+                    </p>
+                    <ul class="feature-list">
+                        <li>
+                            <span class="icon icon-gold"><i class="fas fa-map"></i></span>
+                            <span><strong>Multiple Base Maps</strong> — Satellite, Topo, OSM, Terrain & custom tile
+                                layers</span>
+                        </li>
+                        <li>
+                            <span class="icon icon-green"><i class="fas fa-draw-polygon"></i></span>
+                            <span><strong>Drawing Tools</strong> — Points, lines, polygons with snap-to and
+                                measuring</span>
+                        </li>
+                        <li>
+                            <span class="icon icon-brown"><i class="fas fa-search-location"></i></span>
+                            <span><strong>Coordinate Search</strong> — Jump to UTM, Lat/Lng, or district
+                                coordinates</span>
+                        </li>
+                        <li>
+                            <span class="icon icon-gold"><i class="fas fa-print"></i></span>
+                            <span><strong>Export & Print</strong> — High-res map exports with legend & scale bar</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="col-image">
+                    <img src="assets/hero_terrain.png" alt="Interactive WebMap" class="feature-image"
+                        onerror="this.style.display='none'">
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================
+             SLIDE 4: TERRAIN ANALYSIS
+             ======================== -->
+        <div class="slide bg-gradient-forest" data-slide="3">
+            <div class="grid-overlay"></div>
+            <div class="two-col reverse">
+                <div class="col-text">
+                    <div class="slide-tag">Terrain Intelligence</div>
+                    <h2 class="slide-title" style="font-size:clamp(1.6rem,3.5vw,2.6rem);">
+                        Professional <span class="highlight">Terrain Analysis</span>
+                    </h2>
+                    <p class="slide-subtitle" style="max-width:100%;">
+                        From survey points to production-grade DTMs, contours, 3D visualization,
+                        slope maps, and hydrology — all computed in the browser.
+                    </p>
+                    <ul class="feature-list">
+                        <li>
+                            <span class="icon icon-green"><i class="fas fa-mountain"></i></span>
+                            <span><strong>DTM Generation</strong> — IDW/TIN interpolation with QGIS-quality color
+                                ramps</span>
+                        </li>
+                        <li>
+                            <span class="icon icon-gold"><i class="fas fa-wave-square"></i></span>
+                            <span><strong>Contour Lines</strong> — Smart-labeled contours with configurable
+                                intervals</span>
+                        </li>
+                        <li>
+                            <span class="icon icon-brown"><i class="fas fa-cube"></i></span>
+                            <span><strong>3D Visualization</strong> — Interactive 3D terrain with fly-through
+                                navigation</span>
+                        </li>
+                        <li>
+                            <span class="icon icon-green"><i class="fas fa-water"></i></span>
+                            <span><strong>Advanced Analysis</strong> — Slope, aspect, curvature, hydrology & earthwork
+                                volumes</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="col-image">
+                    <img src="assets/terrain_analysis.png" alt="Terrain Analysis" class="feature-image"
+                        onerror="this.style.display='none'">
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================
+             SLIDE 5: PROPERTY VALUATION
+             ======================== -->
+        <div class="slide bg-gradient-gold" data-slide="4">
+            <div class="grid-overlay"></div>
+            <div class="two-col">
+                <div class="col-text">
+                    <div class="slide-tag">Automated Valuation</div>
+                    <h2 class="slide-title" style="font-size:clamp(1.6rem,3.5vw,2.6rem);">
+                        Smart <span class="highlight">Property Valuation</span>
+                    </h2>
+                    <p class="slide-subtitle" style="max-width:100%;">
+                        Comparable-sales based auto-valuation with statistical analysis,
+                        confidence scoring, and professional PDF report generation.
+                    </p>
+                    <ul class="feature-list">
+                        <li>
+                            <span class="icon icon-gold"><i class="fas fa-calculator"></i></span>
+                            <span><strong>Auto-Valuation Engine</strong> — Land & improvements using comparable sales
+                                method</span>
+                        </li>
+                        <li>
+                            <span class="icon icon-green"><i class="fas fa-chart-bar"></i></span>
+                            <span><strong>Statistical Charts</strong> — Price distribution, distance-price correlation
+                                analysis</span>
+                        </li>
+                        <li>
+                            <span class="icon icon-brown"><i class="fas fa-shield-alt"></i></span>
+                            <span><strong>Risk Indicators</strong> — Confidence scoring, outlier detection, market
+                                alerts</span>
+                        </li>
+                        <li>
+                            <span class="icon icon-gold"><i class="fas fa-file-pdf"></i></span>
+                            <span><strong>PDF Reports</strong> — Professional valuation reports with comparables detail
+                                pages</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="col-image">
+                    <img src="assets/valuation_dashboard.png" alt="Property Valuation" class="feature-image"
+                        onerror="this.style.display='none'">
+                </div>
+            </div>
+        </div>
+
+
+
+        <!-- ========================
+             SLIDE 7: ALL FEATURES GRID
+             ======================== -->
+        <div class="slide bg-gradient-warm" data-slide="5">
+            <div class="grid-overlay"></div>
+            <div style="text-align:center; z-index:2; position:relative; width:100%;">
+                <div class="slide-tag">Complete Toolkit</div>
+                <h2 class="slide-title" style="font-size:clamp(1.6rem,3.5vw,2.6rem);">
+                    Everything You Need, <span class="highlight">In One Place</span>
+                </h2>
+            </div>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="card-icon icon-gold"><i class="fas fa-file-upload"></i></div>
+                    <h3>Data Import</h3>
+                    <p>Import CSV, DWG, DXF, and GeoJSON files. Drag-and-drop with automatic coordinate system
+                        detection.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="card-icon icon-green"><i class="fas fa-draw-polygon"></i></div>
+                    <h3>Polygon Creation</h3>
+                    <p>Create parcels from survey coordinates with edge function processing, area calculation, and
+                        unique ID generation.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="card-icon icon-brown"><i class="fas fa-ruler-combined"></i></div>
+                    <h3>Measurement Tools</h3>
+                    <p>Distance, area, and bearing measurements with profile cross-sections and earthwork volume
+                        calculations.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="card-icon icon-gold"><i class="fas fa-icons"></i></div>
+                    <h3>Symbols Library</h3>
+                    <p>240+ professional survey and cartographic symbols organized by category with custom placement.
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <div class="card-icon icon-green"><i class="fas fa-flag"></i></div>
+                    <h3>Quality Flags</h3>
+                    <p>Geo-tagged quality control flags with categories, comments, status tracking, and team
+                        notifications.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="card-icon icon-brown"><i class="fas fa-comments"></i></div>
+                    <h3>Team Chat</h3>
+                    <p>Real-time messaging with location sharing, file attachments, reactions, and online presence
+                        indicators.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================
+             SLIDE 8: TECHNOLOGY
+             ======================== -->
+        <div class="slide bg-gradient-dark" data-slide="6">
+            <div class="grid-overlay"></div>
+            <div class="particles">
+                <div class="particle" style="top:20%; left:30%; animation-delay:1s;"></div>
+                <div class="particle" style="top:50%; left:60%; animation-delay:3s;"></div>
+                <div class="particle" style="top:75%; left:25%; animation-delay:5s;"></div>
+            </div>
+            <div style="text-align:center; z-index:2; position:relative;">
+                <div class="slide-tag">Technology Stack</div>
+                <h2 class="slide-title" style="font-size:clamp(1.6rem,3.5vw,2.6rem);">
+                    Built with <span class="highlight">Modern Technology</span>
+                </h2>
+                <p class="slide-subtitle" style="margin:0 auto;">
+                    Enterprise-grade architecture leveraging cloud-native services
+                    for maximum performance and reliability.
+                </p>
+
+                <div class="tech-grid" style="margin-top:40px;">
+                    <div class="tech-badge"><i class="fas fa-map-marked-alt"></i> OpenLayers 9</div>
+                    <div class="tech-badge"><i class="fas fa-database"></i> Supabase</div>
+                    <div class="tech-badge"><i class="fas fa-server"></i> PostgreSQL</div>
+                    <div class="tech-badge"><i class="fas fa-globe-americas"></i> GeoServer</div>
+                    <div class="tech-badge"><i class="fas fa-cloud"></i> Cloudflare Workers</div>
+                    <div class="tech-badge"><i class="fas fa-cube"></i> Three.js / 3D Engine</div>
+                    <div class="tech-badge"><i class="fas fa-chart-pie"></i> Chart.js</div>
+                    <div class="tech-badge"><i class="fas fa-file-pdf"></i> jsPDF</div>
+                    <div class="tech-badge"><i class="fas fa-project-diagram"></i> Delaunator</div>
+                    <div class="tech-badge"><i class="fas fa-lock"></i> Auth & RBAC</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================
+             SLIDE 9: ROADMAP
+             ======================== -->
+        <div class="slide bg-gradient-forest" data-slide="7">
+            <div class="grid-overlay"></div>
+            <div style="text-align:center; z-index:2; position:relative; width:100%;">
+                <div class="slide-tag">Vision & Roadmap</div>
+                <h2 class="slide-title" style="font-size:clamp(1.6rem,3.5vw,2.6rem);">
+                    Where We're <span class="highlight">Headed</span>
+                </h2>
+                <p class="slide-subtitle" style="margin: 0 auto;">
+                    Continuously evolving to meet the growing needs of
+                    Uganda's geospatial professionals.
+                </p>
+            </div>
+
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-label">Phase 1</div>
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-title">Core Platform</div>
+                    <div class="timeline-desc">Interactive map, coordinate tools, data import and sharing
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-label">Phase 2</div>
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-title">Terrain & Analysis</div>
+                    <div class="timeline-desc">DTM generation, contours, 3D viewer, slope/aspect analysis, and hydrology
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-label">Phase 3</div>
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-title">Valuation Engine</div>
+                    <div class="timeline-desc">Auto-valuation, comparable analysis, PDF reports & valuation history
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-label">Phase 4</div>
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-title">AI & Scale</div>
+                    <div class="timeline-desc">AI-powered insights, mobile app, API integrations & nationwide coverage
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================
+             SLIDE 10: CLOSING / CTA
+             ======================== -->
+        <div class="slide bg-gradient-dark" data-slide="8">
+            <div class="hero-glow"></div>
+            <div class="grid-overlay"></div>
+            <div class="particles">
+                <div class="particle" style="top:10%; left:15%; animation-delay:0s;"></div>
+                <div class="particle" style="top:30%; left:75%; animation-delay:2s;"></div>
+                <div class="particle" style="top:60%; left:35%; animation-delay:4s;"></div>
+                <div class="particle" style="top:85%; left:85%; animation-delay:6s;"></div>
+            </div>
+
+            <div class="cta-content">
+                <div class="hero-logo" style="font-size:2.4rem;">🌍</div>
+                <div class="slide-tag">Get Started Today</div>
+                <h2 class="slide-title" style="font-size:clamp(1.8rem,4.5vw,3.5rem);">
+                    Ready to Transform<br>
+                    <span class="highlight">Your Geospatial Workflow?</span>
+                </h2>
+                <p class="slide-subtitle" style="margin:0 auto;">
+                    Join the growing community of surveyors, valuers, and land professionals
+                    who trust GSP.NET to power their work.
+                </p>
+                <a href="index.html" class="cta-btn">
+                    <i class="fas fa-rocket"></i> Launch GSP.NET
+                </a>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Navigation Controls -->
+    <div class="nav-controls">
+        <button class="nav-btn" id="prevBtn" aria-label="Previous slide">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        <div class="nav-dots" id="navDots"></div>
+        <button class="nav-btn" id="nextBtn" aria-label="Next slide">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+        <span class="slide-counter" id="slideCounter">01 / 09</span>
+    </div>
+
+    <script>
+        // ============================================
+        // PRESENTATION ENGINE
+        // ============================================
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        let currentSlide = 0;
+        let isTransitioning = false;
+
+        // Build navigation dots
+        const dotsContainer = document.getElementById('navDots');
+        for (let i = 0; i < totalSlides; i++) {
+            const dot = document.createElement('button');
+            dot.classList.add('nav-dot');
+            if (i === 0) dot.classList.add('active');
+            dot.setAttribute('aria-label', `Go to slide ${i + 1}`);
+            dot.addEventListener('click', () => goToSlide(i));
+            dotsContainer.appendChild(dot);
+        }
+
+        function goToSlide(index) {
+            if (isTransitioning || index === currentSlide) return;
+            isTransitioning = true;
+
+            const direction = index > currentSlide ? 'forward' : 'backward';
+            const current = slides[currentSlide];
+            const next = slides[index];
+
+            // Reset animations on the next slide
+            resetAnimations(next);
+
+            // Exit current slide
+            current.classList.remove('active');
+            if (direction === 'forward') current.classList.add('exit-left');
+            current.style.transform = direction === 'forward' ? 'translateX(-60px)' : 'translateX(60px)';
+            current.style.opacity = '0';
+
+            // Enter next slide
+            next.style.transform = direction === 'forward' ? 'translateX(60px)' : 'translateX(-60px)';
+            next.style.opacity = '0';
+            next.classList.remove('exit-left');
+
+            requestAnimationFrame(() => {
+                next.classList.add('active');
+                next.style.transform = '';
+                next.style.opacity = '';
+            });
+
+            // Update nav
+            document.querySelectorAll('.nav-dot').forEach((d, i) => {
+                d.classList.toggle('active', i === index);
+            });
+
+            document.getElementById('slideCounter').textContent =
+                `${String(index + 1).padStart(2, '0')} / ${String(totalSlides).padStart(2, '0')}`;
+
+            document.getElementById('progressBar').style.width =
+                `${((index + 1) / totalSlides) * 100}%`;
+
+            currentSlide = index;
+            setTimeout(() => { isTransitioning = false; }, 700);
+        }
+
+        function resetAnimations(slide) {
+            const animated = slide.querySelectorAll('[class*="fade"], .stat-card, .feature-card, .tech-badge, .timeline-item, .slide-tag, .slide-title, .slide-subtitle, .hero-logo, .hero-badge, .col-text, .col-image, .cta-btn');
+            animated.forEach(el => {
+                el.style.animation = 'none';
+                el.offsetHeight; // trigger reflow
+                el.style.animation = '';
+            });
+        }
+
+        function nextSlide() {
+            goToSlide((currentSlide + 1) % totalSlides);
+        }
+
+        function prevSlide() {
+            goToSlide((currentSlide - 1 + totalSlides) % totalSlides);
+        }
+
+        // Button listeners
+        document.getElementById('nextBtn').addEventListener('click', nextSlide);
+        document.getElementById('prevBtn').addEventListener('click', prevSlide);
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextSlide(); }
+            if (e.key === 'ArrowLeft') { e.preventDefault(); prevSlide(); }
+            if (e.key === 'Home') { e.preventDefault(); goToSlide(0); }
+            if (e.key === 'End') { e.preventDefault(); goToSlide(totalSlides - 1); }
+        });
+
+        // Touch / swipe support
+        let touchStartX = 0;
+        document.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; });
+        document.addEventListener('touchend', (e) => {
+            const diff = touchStartX - e.changedTouches[0].screenX;
+            if (Math.abs(diff) > 60) {
+                diff > 0 ? nextSlide() : prevSlide();
+            }
+        });
+
+        // Initialize progress bar
+        document.getElementById('progressBar').style.width = `${(1 / totalSlides) * 100}%`;
+    </script>
+</body>
+
+</html>
