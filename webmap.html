@@ -53005,17 +53005,54 @@ function smoothChaikin(points) {
             const statusDiv = document.getElementById('condoImageStatus');
             const buildingId = condoState.data.building_prefix || 'temp';
             statusDiv.innerHTML = '<p style="color:#42a5f5">⏳ Uploading...</p>';
+            let successCount = 0;
+
             for (const file of files) {
                 try {
                     const timestamp = Date.now();
-                    const filename = `${buildingId}_${timestamp}_${file.name}`;
-                    const url = await uploadToCloudflare(file, `images/Condominium/${buildingId}`, filename);
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    const filename = `${buildingId}_${timestamp}.${ext}`;
+                    const storagePath = `condominium/${buildingId}/${filename}`;
+                    let url = null;
+
+                    // Strategy 1: Upload to Supabase Storage
+                    try {
+                        const { data: uploadData, error: uploadErr } = await supabaseClient
+                            .storage
+                            .from('condo-images')
+                            .upload(storagePath, file, { contentType: file.type, upsert: true });
+
+                        if (uploadErr) throw uploadErr;
+                        const { data: publicUrlData } = supabaseClient
+                            .storage
+                            .from('condo-images')
+                            .getPublicUrl(storagePath);
+                        url = publicUrlData.publicUrl;
+                    } catch (supaErr) {
+                        console.warn('[Condo] Supabase Storage upload failed, trying Cloudflare:', supaErr.message);
+                        // Strategy 2: Fallback to Cloudflare R2
+                        try {
+                            url = await uploadToCloudflare(file, `images/Condominium/${buildingId}`, filename);
+                        } catch (cfErr) {
+                            console.warn('[Condo] Cloudflare upload also failed:', cfErr.message);
+                        }
+                    }
+
+                    // Strategy 3: Local blob URL as last resort (works for current session preview)
+                    if (!url) {
+                        url = URL.createObjectURL(file);
+                        statusDiv.innerHTML += `<div style="color:#ffb74d;font-size:11px">⚠️ ${file.name}: Saved locally (preview only — create a "condo-images" bucket in Supabase Storage for persistent uploads)</div>`;
+                    }
+
                     condoState.data.image_urls.push(url);
+                    successCount++;
                 } catch (err) {
                     statusDiv.innerHTML += `<div class="condo-error">Failed: ${file.name} — ${err.message}</div>`;
                 }
             }
-            statusDiv.innerHTML = `<div class="condo-success">✅ ${files.length} image(s) uploaded</div>`;
+            if (successCount > 0) {
+                statusDiv.innerHTML = `<div class="condo-success">✅ ${successCount} image(s) ready</div>`;
+            }
             // Re-render to show gallery
             condoState.currentStep = 4;
             renderCondoStep(document.getElementById('condoContent'));
