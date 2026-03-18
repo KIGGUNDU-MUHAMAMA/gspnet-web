@@ -13908,8 +13908,14 @@
                                 <option value="EPSG:3857">Web Mercator — EPSG:3857</option>
                             </select>
 
-                            <div class="coord-controls-row" style="margin-top: 20px;">
-                                <button type="button" class="coord-control-btn primary" id="start-extraction-btn">
+                            <div class="coord-controls-row" style="margin-top: 20px; text-align: left;">
+                                <label style="display: block; margin-bottom: 5px; cursor: pointer;">
+                                    <input type="checkbox" id="export-csv-checkbox" checked> Export CSV (Attributes & Points)
+                                </label>
+                                <label style="display: block; margin-bottom: 15px; cursor: pointer;">
+                                    <input type="checkbox" id="export-dxf-checkbox" checked> Export DXF (CAD Polyline)
+                                </label>
+                                <button type="button" class="coord-control-btn primary" id="start-extraction-btn" style="width: 100%;">
                                     <i class="fas fa-mouse-pointer"></i> Select Polygon on Map
                                 </button>
                             </div>
@@ -23802,8 +23808,23 @@
                 });
 
                 updateExtractorLayer();
-                exportPolygonData(feature, extractedPoints);
-                showToast(`Automatically extracted ${vertexCount} vertices and generated CSV.`, 'success');
+                
+                const exportCsv = document.getElementById('export-csv-checkbox').checked;
+                const exportDxf = document.getElementById('export-dxf-checkbox').checked;
+                
+                if (exportCsv) {
+                    exportPolygonData(feature, extractedPoints);
+                }
+                
+                if (exportDxf) {
+                    exportPolygonDXF(feature, extractedPoints, selectedCrs);
+                }
+                
+                if (exportCsv || exportDxf) {
+                    showToast(`Automatically extracted ${vertexCount} vertices.`, 'success');
+                } else {
+                    showToast(`Extracted ${vertexCount} vertices, but no export format was selected.`, 'info');
+                }
             }
 
             function updateExtractorLayer() {
@@ -23879,6 +23900,42 @@
                 const url = URL.createObjectURL(blob);
                 link.setAttribute("href", url);
                 link.setAttribute("download", "GSPNET-POLYGON-EXTRACT.csv");
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
+            function exportPolygonDXF(feature, points, crs) {
+                // Minimal R12 DXF structure for a standard POLYLINE (best compatibility for old AutoCAD/Civil 3D)
+                let dxf = "  0\nSECTION\n  2\nHEADER\n  0\nENDSEC\n  0\nSECTION\n  2\nENTITIES\n";
+                
+                // POLYLINE entity header
+                dxf += "  0\nPOLYLINE\n";
+                dxf += "  8\nGSPNET_BOUNDARY\n"; // Layer name
+                dxf += " 66\n1\n"; // Vertices follow flag
+                dxf += " 70\n1\n"; // 1 = Closed polyline flag
+
+                // Add each coordinate as a VERTEX entity
+                points.forEach(point => {
+                    dxf += "  0\nVERTEX\n";
+                    dxf += "  8\nGSPNET_BOUNDARY\n"; 
+                    dxf += ` 10\n${point.easting}\n`;
+                    dxf += ` 20\n${point.northing}\n`;
+                    dxf += " 30\n0.0\n"; // Z-coordinate is required for older DXF structures
+                });
+
+                // Sequence End entity designates the end of the vertices
+                dxf += "  0\nSEQEND\n";
+                dxf += "  8\nGSPNET_BOUNDARY\n";
+
+                dxf += "  0\nENDSEC\n  0\nEOF\n";
+
+                const blob = new Blob([dxf], { type: 'application/dxf' });
+                const link = document.createElement("a");
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", `GSPNET-BOUNDARY-${crs.replace(':', '_')}.dxf`);
                 link.style.visibility = 'hidden';
                 document.body.appendChild(link);
                 link.click();
