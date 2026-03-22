@@ -13912,8 +13912,11 @@
                                 <label style="display: block; margin-bottom: 5px; cursor: pointer;">
                                     <input type="checkbox" id="export-csv-checkbox" checked> Export CSV (Attributes & Points)
                                 </label>
-                                <label style="display: block; margin-bottom: 15px; cursor: pointer;">
+                                <label style="display: block; margin-bottom: 5px; cursor: pointer;">
                                     <input type="checkbox" id="export-dxf-checkbox" checked> Export DXF (CAD Polyline)
+                                </label>
+                                <label style="display: block; margin-bottom: 15px; cursor: pointer;">
+                                    <input type="checkbox" id="export-jrj-checkbox" checked> Generate JRJ PDF
                                 </label>
                                 <button type="button" class="coord-control-btn primary" id="start-extraction-btn" style="width: 100%;">
                                     <i class="fas fa-mouse-pointer"></i> Select Polygon on Map
@@ -17383,9 +17386,11 @@
                     // Profile Chart (full width on A3 - 420mm x 297mm)
                     const canvas = document.getElementById('profileChart');
                     if (canvas) {
-                        // Get actual chart dimensions
-                        const chartWidth = canvas.width || 800;
-                        const chartHeight = canvas.height || 400;
+                        // Use CSS display dimensions (clientWidth/clientHeight) instead of
+                        // internal bitmap dimensions (canvas.width/height) to avoid device
+                        // pixel ratio mismatch that causes the chart to be clipped
+                        const chartDisplayWidth = canvas.clientWidth || canvas.offsetWidth || canvas.width || 800;
+                        const chartDisplayHeight = canvas.clientHeight || canvas.offsetHeight || canvas.height || 400;
 
                         // Calculate dimensions to fit A3 page (landscape: 420mm x 297mm)
                         // Leave margins: 15mm on each side = 390mm width
@@ -17393,8 +17398,8 @@
                         const maxWidth = 390; // mm
                         const maxHeight = 232; // mm
 
-                        // Maintain aspect ratio
-                        const aspectRatio = chartWidth / chartHeight;
+                        // Maintain aspect ratio using display dimensions
+                        const aspectRatio = chartDisplayWidth / chartDisplayHeight;
                         let imgWidth = maxWidth;
                         let imgHeight = imgWidth / aspectRatio;
 
@@ -17406,56 +17411,96 @@
                         // Center the image horizontally
                         const imgX = (420 - imgWidth) / 2;
 
-                        // Export chart at higher resolution for better quality
-                        const chartImage = canvas.toDataURL('image/png', 1.0);
+                        // Re-render chart at a fixed high-res size for consistent PDF output
+                        // Create a temporary canvas to avoid DPR-related cropping
+                        let chartImage;
+                        try {
+                            const tempCanvas = document.createElement('canvas');
+                            const scaleFactor = 3; // High-res for quality
+                            tempCanvas.width = chartDisplayWidth * scaleFactor;
+                            tempCanvas.height = chartDisplayHeight * scaleFactor;
+                            const tempCtx = tempCanvas.getContext('2d');
+                            // Draw the source canvas scaled to fill the temp canvas exactly
+                            tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
+                            chartImage = tempCanvas.toDataURL('image/png', 1.0);
+                        } catch (e) {
+                            console.warn('High-res chart render failed, falling back to direct capture:', e);
+                            chartImage = canvas.toDataURL('image/png', 1.0);
+                        }
+
                         doc.addImage(chartImage, 'PNG', imgX, yPos, imgWidth, imgHeight);
                         yPos += imgHeight + 10;
 
-                        console.log('Profile chart added to PDF:', imgWidth.toFixed(1), 'x', imgHeight.toFixed(1), 'mm');
+                        console.log('Profile chart added to PDF:', imgWidth.toFixed(1), 'x', imgHeight.toFixed(1), 'mm',
+                            '(display:', chartDisplayWidth, 'x', chartDisplayHeight, ', bitmap:', canvas.width, 'x', canvas.height, ')');
                     }
 
                     // Footer will be added at the end for all pages
 
-                    // Cross-sections on new pages
+                    // Cross-sections on new pages (2x2 grid layout, all sections included)
                     if (profileState.enableCrossSections && profileState.crossSectionData.length > 0) {
-                        doc.addPage();
-                        yPos = 20;
+                        // Include ALL cross-section charts (no limit)
+                        const charts = profileState.crossSectionCharts;
+                        const totalCharts = Math.min(charts.length, profileState.crossSectionData.length);
 
-                        // Header (A3 width)
-                        doc.setFillColor(52, 152, 219);
-                        doc.rect(0, 0, 420, 30, 'F');
-                        doc.setFontSize(20);
-                        doc.setFont(undefined, 'bold');
-                        doc.setTextColor(255, 255, 255);
-                        doc.text('CROSS SECTIONS', 15, 20);
-                        doc.setTextColor(0, 0, 0);
-                        yPos = 40;
+                        // 2x2 grid layout constants for A3 landscape (420mm x 297mm)
+                        const chartImgWidth = 185;   // mm - each chart width
+                        const chartImgHeight = 95;   // mm - each chart height
+                        const colSpacing = 210;      // mm - horizontal offset between columns
+                        const rowHeight = 115;       // mm - vertical space per row (chart + label + padding)
+                        const headerHeight = 35;     // mm - page header height
+                        const startY = headerHeight + 10; // mm - content start after header
+                        const pageContentHeight = 297 - 25; // mm - usable page height (minus footer)
+                        const chartsPerRow = 2;
+                        const rowsPerPage = 2;       // 2 rows of 2 = 4 charts per page
+                        const chartsPerPage = chartsPerRow * rowsPerPage;
 
-                        // Footer will be added at the end for all pages
+                        // Helper to draw cross-section page header
+                        const drawCrossSectionHeader = (pageNum, totalPages) => {
+                            doc.setFillColor(52, 152, 219);
+                            doc.rect(0, 0, 420, headerHeight, 'F');
+                            doc.setFontSize(20);
+                            doc.setFont(undefined, 'bold');
+                            doc.setTextColor(255, 255, 255);
+                            doc.text('CROSS SECTIONS', 15, 22);
+                            if (totalPages > 1) {
+                                doc.setFontSize(11);
+                                doc.setFont(undefined, 'normal');
+                                doc.text(`(Page ${pageNum} of ${totalPages})`, 200, 22);
+                            }
+                            doc.setTextColor(0, 0, 0);
+                        };
 
-                        // Add up to 6 cross-sections per page
-                        const charts = profileState.crossSectionCharts.slice(0, 6);
-                        let chartIndex = 0;
+                        // Calculate total cross-section pages needed
+                        const totalCSPages = Math.ceil(totalCharts / chartsPerPage);
 
-                        for (let i = 0; i < charts.length; i++) {
-                            if (i > 0 && i % 2 === 0) {
-                                yPos += 70;
-                                if (yPos > 250) { // A3 height allows more space
-                                    doc.addPage();
-                                    yPos = 20;
+                        for (let i = 0; i < totalCharts; i++) {
+                            const posOnPage = i % chartsPerPage; // 0-3 position on current page
 
-                                    // Footer will be added at the end for all pages
-                                }
+                            // Start a new page when needed
+                            if (posOnPage === 0) {
+                                doc.addPage();
+                                const csPageNum = Math.floor(i / chartsPerPage) + 1;
+                                drawCrossSectionHeader(csPageNum, totalCSPages);
                             }
 
-                            const xOffset = (i % 2) * 210; // Adjusted for A3 width (420mm / 2 = 210mm)
-                            const canvas = charts[i].canvas;
-                            const imgData = canvas.toDataURL('image/png', 1.0);
+                            // Calculate grid position (row, col)
+                            const col = posOnPage % chartsPerRow;  // 0 or 1
+                            const row = Math.floor(posOnPage / chartsPerRow); // 0 or 1
+                            const xOffset = col * colSpacing;
+                            const currentY = startY + (row * rowHeight);
 
+                            const csCanvas = charts[i].canvas;
+                            const imgData = csCanvas.toDataURL('image/png', 1.0);
+
+                            // Section label
                             doc.setFontSize(10);
                             doc.setFont(undefined, 'bold');
-                            doc.text(`Section at ${profileState.crossSectionData[i].chainage.toFixed(1)}m`, 15 + xOffset, yPos);
-                            doc.addImage(imgData, 'PNG', 15 + xOffset, yPos + 5, 180, 90); // Larger images for A3
+                            doc.setTextColor(44, 62, 80);
+                            doc.text(`Section at Chainage ${profileState.crossSectionData[i].chainage.toFixed(1)}m`, 15 + xOffset, currentY);
+
+                            // Chart image
+                            doc.addImage(imgData, 'PNG', 15 + xOffset, currentY + 3, chartImgWidth, chartImgHeight);
                         }
                     }
 
@@ -23811,6 +23856,7 @@
                 
                 const exportCsv = document.getElementById('export-csv-checkbox').checked;
                 const exportDxf = document.getElementById('export-dxf-checkbox').checked;
+                const exportJrj = document.getElementById('export-jrj-checkbox').checked;
                 
                 if (exportCsv) {
                     exportPolygonData(feature, extractedPoints);
@@ -23819,8 +23865,19 @@
                 if (exportDxf) {
                     exportPolygonDXF(feature, extractedPoints, selectedCrs);
                 }
+
+                if (exportJrj) {
+                    const jrjPdf = new JRJPdfGenerator();
+                    const jrjCoords = extractedPoints.map(p => ({
+                        stn: 'CM' + p.id,
+                        n: parseFloat(p.northing),
+                        e: parseFloat(p.easting)
+                    }));
+                    const plotNumber = feature.get('plot') || feature.get('plot_number') || feature.get('PlotNumber') || 'Extracted';
+                    jrjPdf.generatePdf(jrjCoords, { plot: plotNumber });
+                }
                 
-                if (exportCsv || exportDxf) {
+                if (exportCsv || exportDxf || exportJrj) {
                     showToast(`Automatically extracted ${vertexCount} vertices.`, 'success');
                 } else {
                     showToast(`Extracted ${vertexCount} vertices, but no export format was selected.`, 'info');
@@ -52371,6 +52428,8 @@ function smoothChaikin(points) {
     </script>
 
     <!-- Condominium Viewer Module (uses Three.js r128 loaded in head) -->
+    <script src="jrj_engine.js"></script>
+    <script src="jrj_pdf.js"></script>
     <script src="condo-viewer.js"></script>
 
     <!-- ============================================ -->
