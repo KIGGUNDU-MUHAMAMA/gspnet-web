@@ -14871,7 +14871,15 @@
                                     min="0.1" max="10" step="0.1">
                             </div>
 
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
+                            <div style="margin-top: 10px;">
+                                <button type="button" class="terrain-btn" id="open3DViewerBtn"
+                                    style="width: 100%; background: linear-gradient(135deg, #1a2a6c, #2980b9); color: white; padding: 10px; font-size: 0.95rem; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 8px;"
+                                    title="Open interactive 3D terrain viewer with contours and grid">
+                                    <i class="fas fa-mountain"></i> 3D Terrain Viewer
+                                </button>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                                 <button type="button" class="terrain-btn terrain-btn-secondary" id="exportSTLBtn"
                                     title="Export as STL for 3D printing">
                                     <i class="fas fa-cube"></i> STL
@@ -17846,6 +17854,58 @@
                         }
 
                         doc.setTextColor(0, 0, 0);
+                    }
+
+                    // ===== 3D TERRAIN VIEWS PAGE =====
+                    if (terrain3DState.captured3DViews && terrain3DState.captured3DViews.length > 0) {
+                        doc.addPage();
+                        // Header
+                        doc.setFillColor(26, 42, 108);
+                        doc.rect(0, 0, 420, 30, 'F');
+                        doc.setFontSize(18);
+                        doc.setFont(undefined, 'bold');
+                        doc.setTextColor(255, 255, 255);
+                        doc.text('3D TERRAIN VIEWS', 15, 20);
+                        doc.setTextColor(0, 0, 0);
+
+                        let viewY = 38;
+                        const pageW = 420;
+                        const imgW = pageW - 40; // margins
+                        const maxImgH = 110; // max height per image
+
+                        for (let v = 0; v < terrain3DState.captured3DViews.length; v++) {
+                            const view = terrain3DState.captured3DViews[v];
+
+                            // Check if we need a new page
+                            if (viewY + maxImgH + 20 > 280) {
+                                doc.addPage();
+                                doc.setFillColor(26, 42, 108);
+                                doc.rect(0, 0, 420, 30, 'F');
+                                doc.setFontSize(18);
+                                doc.setFont(undefined, 'bold');
+                                doc.setTextColor(255, 255, 255);
+                                doc.text('3D TERRAIN VIEWS (continued)', 15, 20);
+                                doc.setTextColor(0, 0, 0);
+                                viewY = 38;
+                            }
+
+                            // Caption
+                            doc.setFontSize(11);
+                            doc.setFont(undefined, 'bold');
+                            doc.text(`View ${v + 1}  —  Vertical Exaggeration: ${view.vertExag}x  |  Captured: ${view.timestamp}`, 20, viewY);
+                            viewY += 5;
+
+                            // Image
+                            try {
+                                doc.addImage(view.image, 'PNG', 20, viewY, imgW, maxImgH);
+                                viewY += maxImgH + 12;
+                            } catch (imgErr) {
+                                console.warn('Failed to add 3D view to PDF:', imgErr);
+                                doc.setFontSize(9);
+                                doc.text('(Image could not be embedded)', 20, viewY + 10);
+                                viewY += 20;
+                            }
+                        }
                     }
 
                     // Save PDF
@@ -33702,6 +33762,629 @@ function smoothChaikin(points) {
                 }
             }
 
+            // ================================================================
+            // 3D DTM TERRAIN VIEWER
+            // ================================================================
+
+            // State for captured 3D views
+            terrain3DState.captured3DViews = [];
+
+            let viewer3D = {
+                scene: null,
+                camera: null,
+                renderer: null,
+                controls: null,
+                terrainMesh: null,
+                contourGroup: null,
+                gridGroup: null,
+                animationId: null,
+                isOpen: false,
+                showContours: true,
+                showGrid: true,
+                verticalExag: 2.0
+            };
+
+            function open3DViewer() {
+                if (!terrain3DState.gridData) {
+                    showToast('Please generate DTM first', 'error');
+                    return;
+                }
+
+                // Create modal if it doesn't exist
+                let modal = document.getElementById('terrain3DViewerModal');
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = 'terrain3DViewerModal';
+                    modal.innerHTML = `
+                        <style>
+                            #terrain3DViewerModal {
+                                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+                                background: #000; z-index: 10000; display: flex; flex-direction: column;
+                            }
+                            #terrain3DCanvas {
+                                flex: 1; width: 100%; cursor: grab;
+                            }
+                            #terrain3DCanvas:active { cursor: grabbing; }
+                            .viewer3d-controls {
+                                background: rgba(20, 25, 45, 0.92); backdrop-filter: blur(12px);
+                                padding: 10px 16px; display: flex; align-items: center; gap: 16px;
+                                border-top: 1px solid rgba(255,255,255,0.1); flex-wrap: wrap;
+                            }
+                            .viewer3d-controls label {
+                                color: #94a3b8; font-size: 0.8rem; white-space: nowrap;
+                            }
+                            .viewer3d-controls input[type="range"] {
+                                width: 100px; accent-color: #3b82f6;
+                            }
+                            .viewer3d-btn {
+                                background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+                                color: #e2e8f0; padding: 6px 14px; border-radius: 6px; cursor: pointer;
+                                font-size: 0.82rem; transition: all 0.2s; white-space: nowrap;
+                            }
+                            .viewer3d-btn:hover { background: rgba(59,130,246,0.3); border-color: #3b82f6; }
+                            .viewer3d-btn-capture {
+                                background: linear-gradient(135deg, #059669, #10b981); border: none;
+                                color: white; font-weight: 600;
+                            }
+                            .viewer3d-btn-capture:hover { background: linear-gradient(135deg, #047857, #059669); }
+                            .viewer3d-btn-close {
+                                background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.4);
+                                color: #fca5a5;
+                            }
+                            .viewer3d-btn-close:hover { background: rgba(239,68,68,0.4); }
+                            .viewer3d-toggle { display: flex; align-items: center; gap: 6px; }
+                            .viewer3d-toggle input[type="checkbox"] { accent-color: #3b82f6; }
+                            .viewer3d-info {
+                                position: absolute; top: 12px; left: 12px; background: rgba(0,0,0,0.7);
+                                color: #94a3b8; padding: 8px 12px; border-radius: 6px; font-size: 0.75rem;
+                                pointer-events: none; line-height: 1.5;
+                            }
+                            .viewer3d-captures {
+                                display: flex; gap: 6px; align-items: center; overflow-x: auto;
+                                max-width: 300px; padding: 2px;
+                            }
+                            .viewer3d-captures img {
+                                width: 60px; height: 40px; object-fit: cover; border-radius: 4px;
+                                border: 2px solid rgba(255,255,255,0.2); cursor: pointer;
+                            }
+                            .viewer3d-captures img:hover { border-color: #3b82f6; }
+                            .viewer3d-legend {
+                                position: absolute; bottom: 70px; right: 12px;
+                                background: rgba(0,0,0,0.75); border-radius: 8px;
+                                padding: 8px 10px; pointer-events: none;
+                            }
+                            .viewer3d-legend-bar {
+                                width: 16px; height: 120px; border-radius: 3px;
+                                background: linear-gradient(to top, #2d5a27, #4a8c3f, #a8c256, #e8d44d, #d4a037, #b87333, #a0522d, #8b4513, #d2b48c, #f5f5dc, #ffffff);
+                            }
+                            .viewer3d-legend label { color: #94a3b8; font-size: 0.65rem; white-space: nowrap; }
+                        </style>
+                        <canvas id="terrain3DCanvas"></canvas>
+                        <div class="viewer3d-info" id="viewer3dInfo">
+                            <b style="color:#e2e8f0;">3D Terrain Viewer</b><br>
+                            Drag to rotate · Scroll to zoom · Right-drag to pan
+                        </div>
+                        <div class="viewer3d-legend" id="viewer3dLegend">
+                            <label id="viewer3dLegendMax" style="display:block;text-align:center;margin-bottom:3px;"></label>
+                            <div class="viewer3d-legend-bar"></div>
+                            <label id="viewer3dLegendMin" style="display:block;text-align:center;margin-top:3px;"></label>
+                        </div>
+                        <div class="viewer3d-controls">
+                            <label>Vertical Exag:</label>
+                            <input type="range" id="viewer3dVertExag" min="1" max="10" step="0.5" value="2">
+                            <span id="viewer3dVertExagVal" style="color:#e2e8f0;font-size:0.8rem;min-width:25px;">2x</span>
+
+                            <div style="width:1px;height:24px;background:rgba(255,255,255,0.15);"></div>
+
+                            <div class="viewer3d-toggle">
+                                <input type="checkbox" id="viewer3dShowContours" checked>
+                                <label for="viewer3dShowContours">Contours</label>
+                            </div>
+                            <div class="viewer3d-toggle">
+                                <input type="checkbox" id="viewer3dShowGrid" checked>
+                                <label for="viewer3dShowGrid">Grid</label>
+                            </div>
+
+                            <div style="width:1px;height:24px;background:rgba(255,255,255,0.15);"></div>
+
+                            <button class="viewer3d-btn viewer3d-btn-capture" id="viewer3dCaptureBtn"
+                                title="Capture current view for PDF report">
+                                <i class="fas fa-camera"></i> Capture View
+                            </button>
+                            <div class="viewer3d-captures" id="viewer3dCaptures"></div>
+
+                            <div style="flex:1;"></div>
+
+                            <button class="viewer3d-btn" id="viewer3dResetBtn" title="Reset camera view">
+                                <i class="fas fa-sync-alt"></i> Reset
+                            </button>
+                            <button class="viewer3d-btn viewer3d-btn-close" id="viewer3dCloseBtn">
+                                <i class="fas fa-times"></i> Close
+                            </button>
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
+
+                    // Wire up controls
+                    document.getElementById('viewer3dVertExag').addEventListener('input', function () {
+                        viewer3D.verticalExag = parseFloat(this.value);
+                        document.getElementById('viewer3dVertExagVal').textContent = this.value + 'x';
+                        rebuild3DTerrain();
+                    });
+                    document.getElementById('viewer3dShowContours').addEventListener('change', function () {
+                        viewer3D.showContours = this.checked;
+                        if (viewer3D.contourGroup) viewer3D.contourGroup.visible = this.checked;
+                    });
+                    document.getElementById('viewer3dShowGrid').addEventListener('change', function () {
+                        viewer3D.showGrid = this.checked;
+                        if (viewer3D.gridGroup) viewer3D.gridGroup.visible = this.checked;
+                    });
+                    document.getElementById('viewer3dCaptureBtn').addEventListener('click', capture3DView);
+                    document.getElementById('viewer3dResetBtn').addEventListener('click', reset3DCamera);
+                    document.getElementById('viewer3dCloseBtn').addEventListener('click', close3DViewer);
+
+                    // ESC key to close
+                    modal.addEventListener('keydown', function (e) {
+                        if (e.key === 'Escape') close3DViewer();
+                    });
+                }
+
+                modal.style.display = 'flex';
+                modal.focus();
+                viewer3D.isOpen = true;
+
+                init3DScene();
+                rebuild3DTerrain();
+                animate3D();
+            }
+
+            function init3DScene() {
+                const canvas = document.getElementById('terrain3DCanvas');
+                const width = window.innerWidth;
+                const height = window.innerHeight - 60; // minus controls bar
+
+                // Renderer
+                if (viewer3D.renderer) {
+                    viewer3D.renderer.dispose();
+                }
+                viewer3D.renderer = new THREE.WebGLRenderer({
+                    canvas: canvas,
+                    antialias: true,
+                    preserveDrawingBuffer: true // needed for toDataURL capture
+                });
+                viewer3D.renderer.setSize(width, height);
+                viewer3D.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                viewer3D.renderer.setClearColor(0x0a0e1a);
+
+                // Scene
+                viewer3D.scene = new THREE.Scene();
+
+                // Fog for atmosphere
+                viewer3D.scene.fog = new THREE.FogExp2(0x0a0e1a, 0.00015);
+
+                // Camera
+                const gridData = terrain3DState.gridData;
+                const terrainWidth = gridData.width * gridData.cellSize;
+                const terrainHeight = gridData.height * gridData.cellSize;
+                const maxDim = Math.max(terrainWidth, terrainHeight);
+
+                viewer3D.camera = new THREE.PerspectiveCamera(50, width / height, 1, maxDim * 10);
+                viewer3D.camera.position.set(
+                    terrainWidth * 0.6,
+                    terrainHeight * 0.6,
+                    maxDim * 0.5
+                );
+                viewer3D.camera.up.set(0, 0, 1);
+
+                // Controls
+                if (viewer3D.controls) viewer3D.controls.dispose();
+                viewer3D.controls = new THREE.OrbitControls(viewer3D.camera, canvas);
+                viewer3D.controls.target.set(terrainWidth / 2, terrainHeight / 2, 0);
+                viewer3D.controls.enableDamping = true;
+                viewer3D.controls.dampingFactor = 0.08;
+                viewer3D.controls.maxPolarAngle = Math.PI * 0.85;
+                viewer3D.controls.update();
+
+                // Lighting
+                const ambientLight = new THREE.AmbientLight(0x404060, 0.6);
+                viewer3D.scene.add(ambientLight);
+
+                const sunLight = new THREE.DirectionalLight(0xfff4e6, 1.0);
+                sunLight.position.set(-terrainWidth * 0.5, terrainHeight * 0.5, maxDim * 0.8);
+                viewer3D.scene.add(sunLight);
+
+                const fillLight = new THREE.DirectionalLight(0xb0c4de, 0.3);
+                fillLight.position.set(terrainWidth, -terrainHeight * 0.3, maxDim * 0.4);
+                viewer3D.scene.add(fillLight);
+
+                // Handle window resize
+                window._viewer3dResize = function () {
+                    if (!viewer3D.isOpen) return;
+                    const w = window.innerWidth;
+                    const h = window.innerHeight - 60;
+                    viewer3D.camera.aspect = w / h;
+                    viewer3D.camera.updateProjectionMatrix();
+                    viewer3D.renderer.setSize(w, h);
+                };
+                window.addEventListener('resize', window._viewer3dResize);
+
+                // Update legend
+                const minElev = terrain3DState.minElevation || 0;
+                const maxElev = terrain3DState.maxElevation || 100;
+                document.getElementById('viewer3dLegendMax').textContent = maxElev.toFixed(0) + 'm';
+                document.getElementById('viewer3dLegendMin').textContent = minElev.toFixed(0) + 'm';
+            }
+
+            function rebuild3DTerrain() {
+                const gridData = terrain3DState.gridData;
+                if (!gridData || !viewer3D.scene) return;
+
+                // Remove old terrain
+                if (viewer3D.terrainMesh) {
+                    viewer3D.scene.remove(viewer3D.terrainMesh);
+                    viewer3D.terrainMesh.geometry.dispose();
+                    viewer3D.terrainMesh.material.dispose();
+                }
+                if (viewer3D.contourGroup) {
+                    viewer3D.scene.remove(viewer3D.contourGroup);
+                    viewer3D.contourGroup.traverse(c => { if (c.geometry) c.geometry.dispose(); if (c.material) c.material.dispose(); });
+                }
+                if (viewer3D.gridGroup) {
+                    viewer3D.scene.remove(viewer3D.gridGroup);
+                    viewer3D.gridGroup.traverse(c => { if (c.geometry) c.geometry.dispose(); if (c.material) c.material.dispose(); });
+                }
+
+                const vExag = viewer3D.verticalExag;
+                const { grid, width, height, cellSize, bounds } = gridData;
+                const totalWidth = (width - 1) * cellSize;
+                const totalHeight = (height - 1) * cellSize;
+
+                // Downsample large grids for performance
+                let step = 1;
+                if (width * height > 250000) step = 2;
+                if (width * height > 1000000) step = 4;
+
+                const sampledW = Math.ceil(width / step);
+                const sampledH = Math.ceil(height / step);
+
+                // Build geometry
+                const geometry = new THREE.BufferGeometry();
+                const positions = [];
+                const colors = [];
+                const indices = [];
+
+                const minElev = terrain3DState.minElevation || 0;
+                const maxElev = terrain3DState.maxElevation || 100;
+                const elevRange = maxElev - minElev || 1;
+
+                for (let row = 0; row < sampledH; row++) {
+                    for (let col = 0; col < sampledW; col++) {
+                        const srcRow = Math.min(row * step, height - 1);
+                        const srcCol = Math.min(col * step, width - 1);
+                        const x = srcCol * cellSize;
+                        const y = srcRow * cellSize;
+                        const z = (grid[srcRow][srcCol] || minElev) * vExag;
+                        positions.push(x, y, z);
+
+                        // Hypsometric color
+                        const t = Math.max(0, Math.min(1, (grid[srcRow][srcCol] - minElev) / elevRange));
+                        const rgb = elevationToColor(t);
+                        colors.push(rgb[0], rgb[1], rgb[2]);
+                    }
+                }
+
+                for (let row = 0; row < sampledH - 1; row++) {
+                    for (let col = 0; col < sampledW - 1; col++) {
+                        const i = row * sampledW + col;
+                        indices.push(i, i + 1, i + sampledW);
+                        indices.push(i + 1, i + sampledW + 1, i + sampledW);
+                    }
+                }
+
+                geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+                geometry.setIndex(indices);
+                geometry.computeVertexNormals();
+
+                const material = new THREE.MeshPhongMaterial({
+                    vertexColors: true,
+                    side: THREE.DoubleSide,
+                    shininess: 10,
+                    flatShading: false
+                });
+
+                viewer3D.terrainMesh = new THREE.Mesh(geometry, material);
+                viewer3D.scene.add(viewer3D.terrainMesh);
+
+                // Add contour lines
+                build3DContours(gridData, vExag, minElev, maxElev);
+
+                // Add coordinate grid
+                build3DGrid(gridData, vExag, minElev);
+
+                // Update orbit target to terrain center
+                const avgElev = ((minElev + maxElev) / 2) * vExag;
+                viewer3D.controls.target.set(totalWidth / 2, totalHeight / 2, avgElev);
+                viewer3D.controls.update();
+            }
+
+            // Hypsometric color ramp: green → yellow → brown → white
+            function elevationToColor(t) {
+                const stops = [
+                    [0.00, [0.18, 0.35, 0.15]],  // dark green
+                    [0.15, [0.29, 0.55, 0.25]],  // forest green
+                    [0.30, [0.66, 0.76, 0.34]],  // yellow-green
+                    [0.45, [0.91, 0.83, 0.30]],  // gold
+                    [0.55, [0.83, 0.63, 0.20]],  // tan
+                    [0.65, [0.72, 0.45, 0.20]],  // brown
+                    [0.75, [0.63, 0.32, 0.18]],  // dark brown
+                    [0.85, [0.55, 0.27, 0.16]],  // saddle brown
+                    [0.92, [0.82, 0.71, 0.55]],  // tan/beige
+                    [1.00, [0.96, 0.96, 0.93]],  // snow white
+                ];
+
+                for (let i = 0; i < stops.length - 1; i++) {
+                    if (t >= stops[i][0] && t <= stops[i + 1][0]) {
+                        const f = (t - stops[i][0]) / (stops[i + 1][0] - stops[i][0]);
+                        return [
+                            stops[i][1][0] + f * (stops[i + 1][1][0] - stops[i][1][0]),
+                            stops[i][1][1] + f * (stops[i + 1][1][1] - stops[i][1][1]),
+                            stops[i][1][2] + f * (stops[i + 1][1][2] - stops[i][1][2])
+                        ];
+                    }
+                }
+                return stops[stops.length - 1][1];
+            }
+
+            // Build 3D contour lines using marching squares
+            function build3DContours(gridData, vExag, minElev, maxElev) {
+                viewer3D.contourGroup = new THREE.Group();
+                const { grid, width, height, cellSize } = gridData;
+                const contourInterval = terrain3DState.contourInterval || 5;
+                const majorInterval = terrain3DState.majorInterval || 25;
+
+                // Generate contour levels
+                const startLevel = Math.ceil(minElev / contourInterval) * contourInterval;
+                const endLevel = Math.floor(maxElev / contourInterval) * contourInterval;
+
+                // Downsample for contours too
+                let step = 1;
+                if (width * height > 250000) step = 2;
+
+                for (let level = startLevel; level <= endLevel; level += contourInterval) {
+                    const isMajor = (level % majorInterval === 0);
+                    const segments = [];
+
+                    // Marching squares
+                    for (let row = 0; row < height - step; row += step) {
+                        for (let col = 0; col < width - step; col += step) {
+                            const z00 = grid[row][col];
+                            const z10 = grid[row][Math.min(col + step, width - 1)];
+                            const z01 = grid[Math.min(row + step, height - 1)][col];
+                            const z11 = grid[Math.min(row + step, height - 1)][Math.min(col + step, width - 1)];
+
+                            if (z00 == null || z10 == null || z01 == null || z11 == null) continue;
+
+                            const x0 = col * cellSize;
+                            const y0 = row * cellSize;
+                            const x1 = Math.min(col + step, width - 1) * cellSize;
+                            const y1 = Math.min(row + step, height - 1) * cellSize;
+
+                            // Classify corners: above(1) or below(0) the level
+                            const c = ((z00 >= level) ? 8 : 0) |
+                                      ((z10 >= level) ? 4 : 0) |
+                                      ((z11 >= level) ? 2 : 0) |
+                                      ((z01 >= level) ? 1 : 0);
+
+                            if (c === 0 || c === 15) continue;
+
+                            // Edge interpolation helper
+                            const lerp = (a, b, va, vb) => {
+                                const t = (level - va) / (vb - va || 1);
+                                return a + t * (b - a);
+                            };
+
+                            // Edge midpoints: top(0), right(1), bottom(2), left(3)
+                            const edges = [
+                                [lerp(x0, x1, z00, z10), y0],   // top edge
+                                [x1, lerp(y0, y1, z10, z11)],   // right edge
+                                [lerp(x0, x1, z01, z11), y1],   // bottom edge
+                                [x0, lerp(y0, y1, z00, z01)]    // left edge
+                            ];
+
+                            // Marching squares lookup (simplified)
+                            const addSeg = (e1, e2) => {
+                                segments.push(edges[e1][0], edges[e1][1], edges[e2][0], edges[e2][1]);
+                            };
+
+                            switch (c) {
+                                case 1: case 14: addSeg(2, 3); break;
+                                case 2: case 13: addSeg(1, 2); break;
+                                case 3: case 12: addSeg(1, 3); break;
+                                case 4: case 11: addSeg(0, 1); break;
+                                case 5: addSeg(0, 3); addSeg(1, 2); break;
+                                case 6: case 9:  addSeg(0, 2); break;
+                                case 7: case 8:  addSeg(0, 3); break;
+                                case 10: addSeg(0, 1); addSeg(2, 3); break;
+                            }
+                        }
+                    }
+
+                    if (segments.length === 0) continue;
+
+                    // Create line geometry with elevation
+                    const linePositions = [];
+                    const elevZ = level * vExag + 0.3; // slightly above surface
+                    for (let i = 0; i < segments.length; i += 4) {
+                        linePositions.push(segments[i], segments[i + 1], elevZ);
+                        linePositions.push(segments[i + 2], segments[i + 3], elevZ);
+                    }
+
+                    const lineGeom = new THREE.BufferGeometry();
+                    lineGeom.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
+
+                    const lineMat = new THREE.LineBasicMaterial({
+                        color: isMajor ? 0x8B4513 : 0x999999,
+                        linewidth: 1,
+                        transparent: true,
+                        opacity: isMajor ? 0.9 : 0.5
+                    });
+
+                    const line = new THREE.LineSegments(lineGeom, lineMat);
+                    viewer3D.contourGroup.add(line);
+                }
+
+                viewer3D.contourGroup.visible = viewer3D.showContours;
+                viewer3D.scene.add(viewer3D.contourGroup);
+            }
+
+            // Build coordinate grid
+            function build3DGrid(gridData, vExag, minElev) {
+                viewer3D.gridGroup = new THREE.Group();
+                const { width, height, cellSize, bounds } = gridData;
+                const totalWidth = (width - 1) * cellSize;
+                const totalHeight = (height - 1) * cellSize;
+                const baseZ = minElev * vExag - 5; // slightly below terrain
+
+                // Calculate grid spacing (aim for ~10 lines per axis)
+                const rawSpacing = Math.max(totalWidth, totalHeight) / 10;
+                const gridSpacing = Math.pow(10, Math.floor(Math.log10(rawSpacing)));
+                const actualSpacing = rawSpacing / gridSpacing >= 5 ? gridSpacing * 5 :
+                                      rawSpacing / gridSpacing >= 2 ? gridSpacing * 2 : gridSpacing;
+
+                const linePositions = [];
+                const gridColor = 0x4a6fa5;
+
+                // Easting lines (vertical lines in plan view)
+                const startE = Math.ceil(bounds.minX / actualSpacing) * actualSpacing;
+                for (let e = startE; e <= bounds.maxX; e += actualSpacing) {
+                    const localX = e - bounds.minX;
+                    if (localX < 0 || localX > totalWidth) continue;
+                    linePositions.push(localX, 0, baseZ, localX, totalHeight, baseZ);
+
+                    // Label
+                    const label = makeTextSprite(e.toFixed(0), 0.7);
+                    label.position.set(localX, -totalHeight * 0.03, baseZ);
+                    viewer3D.gridGroup.add(label);
+                }
+
+                // Northing lines (horizontal lines in plan view)
+                const startN = Math.ceil(bounds.minY / actualSpacing) * actualSpacing;
+                for (let n = startN; n <= bounds.maxY; n += actualSpacing) {
+                    const localY = n - bounds.minY;
+                    if (localY < 0 || localY > totalHeight) continue;
+                    linePositions.push(0, localY, baseZ, totalWidth, localY, baseZ);
+
+                    // Label
+                    const label = makeTextSprite(n.toFixed(0), 0.7);
+                    label.position.set(-totalWidth * 0.03, localY, baseZ);
+                    viewer3D.gridGroup.add(label);
+                }
+
+                // Axis labels
+                const eastingLabel = makeTextSprite('Easting (m)', 1.0);
+                eastingLabel.position.set(totalWidth / 2, -totalHeight * 0.07, baseZ);
+                viewer3D.gridGroup.add(eastingLabel);
+
+                const northingLabel = makeTextSprite('Northing (m)', 1.0);
+                northingLabel.position.set(-totalWidth * 0.07, totalHeight / 2, baseZ);
+                viewer3D.gridGroup.add(northingLabel);
+
+                if (linePositions.length > 0) {
+                    const positions = [];
+                    for (let i = 0; i < linePositions.length; i += 6) {
+                        positions.push(linePositions[i], linePositions[i+1], linePositions[i+2]);
+                        positions.push(linePositions[i+3], linePositions[i+4], linePositions[i+5]);
+                    }
+                    const geom = new THREE.BufferGeometry();
+                    geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                    const mat = new THREE.LineBasicMaterial({ color: gridColor, transparent: true, opacity: 0.4 });
+                    viewer3D.gridGroup.add(new THREE.LineSegments(geom, mat));
+                }
+
+                viewer3D.gridGroup.visible = viewer3D.showGrid;
+                viewer3D.scene.add(viewer3D.gridGroup);
+            }
+
+            // Create text sprite for grid labels
+            function makeTextSprite(text, scale) {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = 256;
+                canvas.height = 64;
+                ctx.fillStyle = 'transparent';
+                ctx.fillRect(0, 0, 256, 64);
+                ctx.font = 'bold 28px Arial';
+                ctx.fillStyle = '#8faac4';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(text, 128, 32);
+
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.minFilter = THREE.LinearFilter;
+                const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+                const sprite = new THREE.Sprite(spriteMat);
+
+                const gridData = terrain3DState.gridData;
+                const maxDim = Math.max(gridData.width, gridData.height) * gridData.cellSize;
+                const s = maxDim * 0.04 * scale;
+                sprite.scale.set(s * 4, s, 1);
+                return sprite;
+            }
+
+            function animate3D() {
+                if (!viewer3D.isOpen) return;
+                viewer3D.animationId = requestAnimationFrame(animate3D);
+                viewer3D.controls.update();
+                viewer3D.renderer.render(viewer3D.scene, viewer3D.camera);
+            }
+
+            function reset3DCamera() {
+                if (!terrain3DState.gridData || !viewer3D.camera) return;
+                const gridData = terrain3DState.gridData;
+                const tw = (gridData.width - 1) * gridData.cellSize;
+                const th = (gridData.height - 1) * gridData.cellSize;
+                const maxDim = Math.max(tw, th);
+                viewer3D.camera.position.set(tw * 0.6, th * 0.6, maxDim * 0.5);
+                const avgElev = ((terrain3DState.minElevation + terrain3DState.maxElevation) / 2) * viewer3D.verticalExag;
+                viewer3D.controls.target.set(tw / 2, th / 2, avgElev);
+                viewer3D.controls.update();
+            }
+
+            function capture3DView() {
+                if (!viewer3D.renderer) return;
+                // Force a render before capture
+                viewer3D.renderer.render(viewer3D.scene, viewer3D.camera);
+                const imgData = viewer3D.renderer.domElement.toDataURL('image/png', 1.0);
+                terrain3DState.captured3DViews.push({
+                    image: imgData,
+                    timestamp: new Date().toLocaleTimeString(),
+                    vertExag: viewer3D.verticalExag
+                });
+
+                // Add thumbnail to strip
+                const strip = document.getElementById('viewer3dCaptures');
+                const img = document.createElement('img');
+                img.src = imgData;
+                img.title = `View ${terrain3DState.captured3DViews.length} (${viewer3D.verticalExag}x exag)`;
+                img.addEventListener('click', function () {
+                    // Open captured image in new tab for preview
+                    const w = window.open();
+                    w.document.write(`<img src="${imgData}" style="max-width:100%;"/>`);
+                });
+                strip.appendChild(img);
+
+                showToast(`View captured (${terrain3DState.captured3DViews.length} total). Will be included in PDF export.`, 'success');
+            }
+
+            function close3DViewer() {
+                viewer3D.isOpen = false;
+                if (viewer3D.animationId) cancelAnimationFrame(viewer3D.animationId);
+                const modal = document.getElementById('terrain3DViewerModal');
+                if (modal) modal.style.display = 'none';
+                window.removeEventListener('resize', window._viewer3dResize);
+            }
+
             // Export DTM as GeoTIFF raster
             async function exportGeoTIFF() {
                 if (!terrain3DState.gridData) {
@@ -36024,6 +36707,7 @@ function smoothChaikin(points) {
             // 3D Export Buttons
             document.getElementById('exportSTLBtn')?.addEventListener('click', exportSTL);
             document.getElementById('exportOBJBtn')?.addEventListener('click', exportOBJ);
+            document.getElementById('open3DViewerBtn')?.addEventListener('click', open3DViewer);
 
             // Terrain Classification (from export buttons)
             document.getElementById('classifyTerrainBtn')?.addEventListener('click', async function () {
