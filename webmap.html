@@ -16975,32 +16975,21 @@
                 const container = document.getElementById('crossSectionCharts');
                 container.innerHTML = ''; // Clear existing charts
 
-                // Destroy old charts
+                // Destroy old charts and clean up hidden container
                 profileState.crossSectionCharts.forEach(chart => chart.destroy());
                 profileState.crossSectionCharts = [];
+                const oldHidden = document.getElementById('hiddenCrossSectionCharts');
+                if (oldHidden) oldHidden.remove();
 
-                // Create a chart for each cross-section (limit to first 10 for performance)
+                // Show first 10 cross-sections on screen for performance
                 const sectionsToShow = Math.min(crossSections.length, 10);
 
-                for (let i = 0; i < sectionsToShow; i++) {
-                    const section = crossSections[i];
-
-                    // Create canvas for this cross-section
-                    const chartDiv = document.createElement('div');
-                    chartDiv.style.cssText = 'background: white; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px; margin-bottom: 15px; height: 300px;';
-
-                    const canvas = document.createElement('canvas');
-                    canvas.id = `crossSectionChart${i}`;
-                    chartDiv.appendChild(canvas);
-                    container.appendChild(chartDiv);
-
-                    // Prepare data
+                // Helper to create a Chart.js cross-section chart
+                function createCrossSectionChart(section, canvasElement, index) {
                     const offsets = section.data.map(d => d.offset);
                     const elevations = section.data.map(d => d.elevation);
-
-                    // Create chart
-                    const ctx = canvas.getContext('2d');
-                    const chart = new Chart(ctx, {
+                    const ctx = canvasElement.getContext('2d');
+                    return new Chart(ctx, {
                         type: 'line',
                         data: {
                             labels: offsets,
@@ -17018,6 +17007,7 @@
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
+                            animation: false,
                             plugins: {
                                 title: {
                                     display: true,
@@ -17051,14 +17041,42 @@
                             }
                         }
                     });
-
-                    profileState.crossSectionCharts.push(chart);
                 }
 
+                // Create visible charts for the first 10 sections
+                for (let i = 0; i < sectionsToShow; i++) {
+                    const section = crossSections[i];
+                    const chartDiv = document.createElement('div');
+                    chartDiv.style.cssText = 'background: white; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px; margin-bottom: 15px; height: 300px;';
+                    const canvas = document.createElement('canvas');
+                    canvas.id = `crossSectionChart${i}`;
+                    chartDiv.appendChild(canvas);
+                    container.appendChild(chartDiv);
+                    profileState.crossSectionCharts.push(createCrossSectionChart(section, canvas, i));
+                }
+
+                // Create off-screen charts for remaining sections (for PDF export)
                 if (crossSections.length > sectionsToShow) {
+                    // Create a hidden container for off-screen charts
+                    const hiddenContainer = document.createElement('div');
+                    hiddenContainer.id = 'hiddenCrossSectionCharts';
+                    hiddenContainer.style.cssText = 'position: absolute; left: -9999px; top: -9999px; width: 800px;';
+                    document.body.appendChild(hiddenContainer);
+
+                    for (let i = sectionsToShow; i < crossSections.length; i++) {
+                        const section = crossSections[i];
+                        const chartDiv = document.createElement('div');
+                        chartDiv.style.cssText = 'width: 800px; height: 400px;';
+                        const canvas = document.createElement('canvas');
+                        canvas.id = `crossSectionChart${i}`;
+                        chartDiv.appendChild(canvas);
+                        hiddenContainer.appendChild(chartDiv);
+                        profileState.crossSectionCharts.push(createCrossSectionChart(section, canvas, i));
+                    }
+
                     const note = document.createElement('p');
                     note.style.cssText = 'text-align: center; color: #7f8c8d; font-style: italic; margin-top: 10px;';
-                    note.textContent = `Showing first ${sectionsToShow} of ${crossSections.length} cross-sections. All will be included in exports.`;
+                    note.textContent = `Showing first ${sectionsToShow} of ${crossSections.length} cross-sections. All ${crossSections.length} are included in exports.`;
                     container.appendChild(note);
                 }
             }
@@ -17622,13 +17640,17 @@
                     }
 
                     // Volume Calculations Section (if available)
-                    if (document.getElementById('volumeResultsPanel')?.style.display !== 'none') {
+                    // Check both DOM visibility AND state data to ensure volumes are included
+                    const volumePanel = document.getElementById('volumeResultsPanel');
+                    const hasVolumeData = terrain3DState.lastVolumeResults || 
+                        (volumePanel && volumePanel.style.display !== 'none');
+                    if (hasVolumeData) {
                         doc.addPage();
                         yPos = 20;
 
-                        // Header with orange gradient
+                        // Header with orange gradient (A3 landscape width: 420mm)
                         doc.setFillColor(230, 126, 34);
-                        doc.rect(0, 0, 297, 35, 'F');
+                        doc.rect(0, 0, 420, 35, 'F');
                         doc.setFontSize(20);
                         doc.setFont(undefined, 'bold');
                         doc.setTextColor(255, 255, 255);
