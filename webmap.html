@@ -33959,13 +33959,13 @@ function smoothChaikin(points) {
                 });
                 viewer3D.renderer.setSize(width, height);
                 viewer3D.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-                viewer3D.renderer.setClearColor(0x0a0e1a);
+                viewer3D.renderer.setClearColor(0xffffff);
 
                 // Scene
                 viewer3D.scene = new THREE.Scene();
 
                 // Fog for atmosphere
-                viewer3D.scene.fog = new THREE.FogExp2(0x0a0e1a, 0.00015);
+                viewer3D.scene.fog = new THREE.FogExp2(0xffffff, 0.00015);
 
                 // Camera
                 const gridData = terrain3DState.gridData;
@@ -34367,11 +34367,11 @@ function smoothChaikin(points) {
                 ctx.font = 'bold 24px Arial';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
-                ctx.lineWidth = 4;
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+                ctx.lineWidth = 5;
                 ctx.lineJoin = 'round';
                 ctx.strokeText(text, 96, 24);
-                ctx.fillStyle = '#ffffff';
+                ctx.fillStyle = '#1a1a2e';
                 ctx.fillText(text, 96, 24);
 
                 const texture = new THREE.CanvasTexture(canvas);
@@ -34381,7 +34381,7 @@ function smoothChaikin(points) {
 
                 const gridData = terrain3DState.gridData;
                 const maxDim = Math.max(gridData.width, gridData.height) * gridData.cellSize;
-                const s = maxDim * 0.025 * scale;
+                const s = maxDim * 0.07 * scale;
                 sprite.scale.set(s * 4, s, 1);
                 return sprite;
             }
