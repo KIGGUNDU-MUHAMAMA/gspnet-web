@@ -31115,16 +31115,18 @@
                 try {
                     console.log('🎨 Rendering contours with VectorImage...');
 
-                    // Default settings
+                    // Default settings — pull from UI / terrain3DState if caller didn't specify
                     const config = {
                         showLabels: settings.showLabels !== false,
                         minLabelZoom: settings.minLabelZoom || 14,
                         labelSpacing: settings.labelSpacing || 300,  // pixels
                         labelEveryNth: settings.labelEveryNth || 2,  // Label every 2nd major contour
-                        majorColor: settings.majorColor || '#8B4513',
-                        minorColor: settings.minorColor || '#D2691E',
-                        majorWidth: settings.majorWidth || 2,
-                        minorWidth: settings.minorWidth || 1,
+                        majorColor: settings.majorColor || terrain3DState.majorContourColor || document.getElementById('majorContourColor')?.value || '#8B4513',
+                        minorColor: settings.minorColor || terrain3DState.minorContourColor || document.getElementById('minorContourColor')?.value || '#D2691E',
+                        majorWidth: settings.majorWidth || terrain3DState.majorContourWidth || parseFloat(document.getElementById('majorContourWidth')?.value) || 2,
+                        minorWidth: settings.minorWidth || terrain3DState.minorContourWidth || parseFloat(document.getElementById('minorContourWidth')?.value) || 1,
+                        majorStyle: settings.majorStyle || terrain3DState.majorContourStyle || document.getElementById('majorContourStyle')?.value || 'solid',
+                        minorStyle: settings.minorStyle || terrain3DState.minorContourStyle || document.getElementById('minorContourStyle')?.value || 'solid',
                         declutter: settings.declutter !== false
                     };
 
@@ -31194,11 +31196,24 @@
 
                     const styles = [];
 
+                    // Resolve line dash pattern from style name
+                    const styleName = isMajor ? config.majorStyle : config.minorStyle;
+                    const lineWidth = isMajor ? config.majorWidth : config.minorWidth;
+                    let lineDash;
+                    if (styleName === 'dashed') {
+                        lineDash = [lineWidth * 4, lineWidth * 3];
+                    } else if (styleName === 'dotted') {
+                        lineDash = [lineWidth, lineWidth * 2];
+                    } else {
+                        lineDash = undefined; // solid
+                    }
+
                     // Line style
                     styles.push(new ol.style.Style({
                         stroke: new ol.style.Stroke({
                             color: isMajor ? config.majorColor : config.minorColor,
-                            width: isMajor ? config.majorWidth : config.minorWidth,
+                            width: lineWidth,
+                            lineDash: lineDash,
                             lineCap: 'round',
                             lineJoin: 'round'
                         })
@@ -31461,7 +31476,13 @@
                                         // Render contours using existing optimized logic
                                         await renderContoursOptimized(contourResult, {
                                             interval: terrain3DState.contourInterval || 5,
-                                            majorInterval: terrain3DState.majorContourInterval || 25
+                                            majorInterval: terrain3DState.majorContourInterval || 25,
+                                            majorColor: terrain3DState.majorContourColor,
+                                            minorColor: terrain3DState.minorContourColor,
+                                            majorWidth: terrain3DState.majorContourWidth,
+                                            minorWidth: terrain3DState.minorContourWidth,
+                                            majorStyle: terrain3DState.majorContourStyle,
+                                            minorStyle: terrain3DState.minorContourStyle
                                         });
 
                                         showToast(`Generated ${result.contours.length} contour features via Edge Function`, 'success');
@@ -34381,7 +34402,7 @@ function smoothChaikin(points) {
 
                 const gridData = terrain3DState.gridData;
                 const maxDim = Math.max(gridData.width, gridData.height) * gridData.cellSize;
-                const s = maxDim * 0.07 * scale;
+                const s = maxDim * 0.05 * scale;
                 sprite.scale.set(s * 4, s, 1);
                 return sprite;
             }
