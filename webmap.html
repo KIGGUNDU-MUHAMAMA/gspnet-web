@@ -17856,55 +17856,54 @@
                         doc.setTextColor(0, 0, 0);
                     }
 
-                    // ===== 3D TERRAIN VIEWS PAGE =====
+                    // ===== 3D TERRAIN VIEWS — ONE VIEW PER PAGE, CENTERED & FILLING =====
                     if (terrain3DState.captured3DViews && terrain3DState.captured3DViews.length > 0) {
-                        doc.addPage();
-                        // Header
-                        doc.setFillColor(26, 42, 108);
-                        doc.rect(0, 0, 420, 30, 'F');
-                        doc.setFontSize(18);
-                        doc.setFont(undefined, 'bold');
-                        doc.setTextColor(255, 255, 255);
-                        doc.text('3D TERRAIN VIEWS', 15, 20);
-                        doc.setTextColor(0, 0, 0);
-
-                        let viewY = 38;
-                        const pageW = 420;
-                        const imgW = pageW - 40; // margins
-                        const maxImgH = 110; // max height per image
+                        const pageW = doc.internal.pageSize.getWidth();
+                        const pageH = doc.internal.pageSize.getHeight();
+                        const margin = 15;
 
                         for (let v = 0; v < terrain3DState.captured3DViews.length; v++) {
                             const view = terrain3DState.captured3DViews[v];
+                            doc.addPage();
 
-                            // Check if we need a new page
-                            if (viewY + maxImgH + 20 > 280) {
-                                doc.addPage();
-                                doc.setFillColor(26, 42, 108);
-                                doc.rect(0, 0, 420, 30, 'F');
-                                doc.setFontSize(18);
-                                doc.setFont(undefined, 'bold');
-                                doc.setTextColor(255, 255, 255);
-                                doc.text('3D TERRAIN VIEWS (continued)', 15, 20);
-                                doc.setTextColor(0, 0, 0);
-                                viewY = 38;
-                            }
-
-                            // Caption
-                            doc.setFontSize(11);
+                            // Header bar
+                            doc.setFillColor(26, 42, 108);
+                            doc.rect(0, 0, pageW, 28, 'F');
+                            doc.setFontSize(16);
                             doc.setFont(undefined, 'bold');
-                            doc.text(`View ${v + 1}  —  Vertical Exaggeration: ${view.vertExag}x  |  Captured: ${view.timestamp}`, 20, viewY);
-                            viewY += 5;
+                            doc.setTextColor(255, 255, 255);
+                            doc.text(`${view.title || '3D TERRAIN VIEW ' + (v + 1)}`, margin, 19);
+                            doc.setFontSize(10);
+                            doc.setFont(undefined, 'normal');
+                            doc.text(`View ${v + 1} of ${terrain3DState.captured3DViews.length}`, pageW - margin, 19, { align: 'right' });
 
-                            // Image
+                            // Image — centered, as large as possible
+                            const imgTop = 34;
+                            const imgMaxW = pageW - margin * 2;
+                            const imgMaxH = pageH - imgTop - 40; // room for metadata & footer
                             try {
-                                doc.addImage(view.image, 'PNG', 20, viewY, imgW, maxImgH);
-                                viewY += maxImgH + 12;
+                                doc.addImage(view.image, 'PNG', margin, imgTop, imgMaxW, imgMaxH);
                             } catch (imgErr) {
                                 console.warn('Failed to add 3D view to PDF:', imgErr);
-                                doc.setFontSize(9);
-                                doc.text('(Image could not be embedded)', 20, viewY + 10);
-                                viewY += 20;
+                                doc.setFontSize(11);
+                                doc.setTextColor(127, 140, 141);
+                                doc.text('(Image could not be embedded)', pageW / 2, imgTop + 30, { align: 'center' });
                             }
+
+                            // Metadata bar below image
+                            const metaY = imgTop + imgMaxH + 3;
+                            doc.setFontSize(9);
+                            doc.setFont(undefined, 'normal');
+                            doc.setTextColor(80, 80, 100);
+                            doc.text(`Vertical Exaggeration: ${view.vertExag}x   |   Captured: ${view.timestamp}`, margin, metaY);
+
+                            if (view.description) {
+                                doc.setFont(undefined, 'italic');
+                                doc.setTextColor(100, 100, 120);
+                                doc.text(doc.splitTextToSize(view.description, imgMaxW), margin, metaY + 5);
+                            }
+
+                            doc.setTextColor(0, 0, 0);
                         }
                     }
 
@@ -34362,25 +34361,17 @@ function smoothChaikin(points) {
                 const ctx = canvas.getContext('2d');
                 canvas.width = 192;
                 canvas.height = 48;
-                // Background pill
-                ctx.fillStyle = 'rgba(60, 30, 10, 0.75)';
-                const r = 10;
-                ctx.beginPath();
-                ctx.moveTo(r, 0);
-                ctx.lineTo(canvas.width - r, 0);
-                ctx.quadraticCurveTo(canvas.width, 0, canvas.width, r);
-                ctx.lineTo(canvas.width, canvas.height - r);
-                ctx.quadraticCurveTo(canvas.width, canvas.height, canvas.width - r, canvas.height);
-                ctx.lineTo(r, canvas.height);
-                ctx.quadraticCurveTo(0, canvas.height, 0, canvas.height - r);
-                ctx.lineTo(0, r);
-                ctx.quadraticCurveTo(0, 0, r, 0);
-                ctx.fill();
-                // Text
+                // Transparent background — no pill
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                // Text with dark stroke outline for readability
                 ctx.font = 'bold 24px Arial';
-                ctx.fillStyle = '#ffffff';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.lineWidth = 4;
+                ctx.lineJoin = 'round';
+                ctx.strokeText(text, 96, 24);
+                ctx.fillStyle = '#ffffff';
                 ctx.fillText(text, 96, 24);
 
                 const texture = new THREE.CanvasTexture(canvas);
