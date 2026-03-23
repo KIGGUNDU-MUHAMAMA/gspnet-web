@@ -33892,6 +33892,11 @@ function smoothChaikin(points) {
                                 <i class="fas fa-camera"></i> Capture View
                             </button>
                             <div class="viewer3d-captures" id="viewer3dCaptures"></div>
+                            <button class="viewer3d-btn" id="export3DPdfBtn" disabled
+                                style="background:linear-gradient(135deg,#e53935,#ff7043);color:#fff;opacity:0.5;cursor:not-allowed;"
+                                title="Export captured views as PDF report">
+                                <i class="fas fa-file-pdf"></i> Export 3D PDF
+                            </button>
 
                             <div style="flex:1;"></div>
 
@@ -33920,6 +33925,7 @@ function smoothChaikin(points) {
                         if (viewer3D.gridGroup) viewer3D.gridGroup.visible = this.checked;
                     });
                     document.getElementById('viewer3dCaptureBtn').addEventListener('click', capture3DView);
+                    document.getElementById('export3DPdfBtn').addEventListener('click', export3DViewsPDF);
                     document.getElementById('viewer3dResetBtn').addEventListener('click', reset3DCamera);
                     document.getElementById('viewer3dCloseBtn').addEventListener('click', close3DViewer);
 
@@ -34232,6 +34238,25 @@ function smoothChaikin(points) {
 
                     const line = new THREE.LineSegments(lineGeom, lineMat);
                     viewer3D.contourGroup.add(line);
+
+                    // Add elevation labels on major contour lines
+                    if (isMajor && segments.length >= 4) {
+                        // Place labels at evenly spaced intervals along the contour
+                        const totalSegs = segments.length / 4;
+                        const labelCount = Math.max(1, Math.min(6, Math.floor(totalSegs / 20)));
+                        const labelInterval = Math.floor(totalSegs / (labelCount + 1));
+
+                        for (let li = 1; li <= labelCount; li++) {
+                            const segIdx = Math.min(li * labelInterval, totalSegs - 1) * 4;
+                            // Midpoint of the segment
+                            const lx = (segments[segIdx] + segments[segIdx + 2]) / 2;
+                            const ly = (segments[segIdx + 1] + segments[segIdx + 3]) / 2;
+
+                            const label = makeContourLabel(level.toFixed(0) + 'm', 0.5);
+                            label.position.set(lx, ly, elevZ + 1.5);
+                            viewer3D.contourGroup.add(label);
+                        }
+                    }
                 }
 
                 viewer3D.contourGroup.visible = viewer3D.showContours;
@@ -34332,6 +34357,44 @@ function smoothChaikin(points) {
                 return sprite;
             }
 
+            function makeContourLabel(text, scale) {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = 192;
+                canvas.height = 48;
+                // Background pill
+                ctx.fillStyle = 'rgba(60, 30, 10, 0.75)';
+                const r = 10;
+                ctx.beginPath();
+                ctx.moveTo(r, 0);
+                ctx.lineTo(canvas.width - r, 0);
+                ctx.quadraticCurveTo(canvas.width, 0, canvas.width, r);
+                ctx.lineTo(canvas.width, canvas.height - r);
+                ctx.quadraticCurveTo(canvas.width, canvas.height, canvas.width - r, canvas.height);
+                ctx.lineTo(r, canvas.height);
+                ctx.quadraticCurveTo(0, canvas.height, 0, canvas.height - r);
+                ctx.lineTo(0, r);
+                ctx.quadraticCurveTo(0, 0, r, 0);
+                ctx.fill();
+                // Text
+                ctx.font = 'bold 24px Arial';
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(text, 96, 24);
+
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.minFilter = THREE.LinearFilter;
+                const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+                const sprite = new THREE.Sprite(spriteMat);
+
+                const gridData = terrain3DState.gridData;
+                const maxDim = Math.max(gridData.width, gridData.height) * gridData.cellSize;
+                const s = maxDim * 0.025 * scale;
+                sprite.scale.set(s * 4, s, 1);
+                return sprite;
+            }
+
             function animate3D() {
                 if (!viewer3D.isOpen) return;
                 viewer3D.animationId = requestAnimationFrame(animate3D);
@@ -34356,25 +34419,91 @@ function smoothChaikin(points) {
                 // Force a render before capture
                 viewer3D.renderer.render(viewer3D.scene, viewer3D.camera);
                 const imgData = viewer3D.renderer.domElement.toDataURL('image/png', 1.0);
-                terrain3DState.captured3DViews.push({
-                    image: imgData,
-                    timestamp: new Date().toLocaleTimeString(),
-                    vertExag: viewer3D.verticalExag
-                });
 
-                // Add thumbnail to strip
-                const strip = document.getElementById('viewer3dCaptures');
-                const img = document.createElement('img');
-                img.src = imgData;
-                img.title = `View ${terrain3DState.captured3DViews.length} (${viewer3D.verticalExag}x exag)`;
-                img.addEventListener('click', function () {
-                    // Open captured image in new tab for preview
-                    const w = window.open();
-                    w.document.write(`<img src="${imgData}" style="max-width:100%;"/>`);
-                });
-                strip.appendChild(img);
+                // Show popup for user to describe the view
+                const modal = document.getElementById('terrain3DViewerModal');
+                // Remove any existing popup
+                const oldPopup = document.getElementById('captureDescPopup');
+                if (oldPopup) oldPopup.remove();
 
-                showToast(`View captured (${terrain3DState.captured3DViews.length} total). Will be included in PDF export.`, 'success');
+                const viewNum = terrain3DState.captured3DViews.length + 1;
+
+                const popup = document.createElement('div');
+                popup.id = 'captureDescPopup';
+                popup.style.cssText = `
+                    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+                    z-index:100002; background:rgba(15,20,40,0.92); backdrop-filter:blur(16px);
+                    border:1px solid rgba(255,255,255,0.15); border-radius:16px;
+                    padding:28px 32px; min-width:420px; max-width:520px;
+                    box-shadow:0 24px 60px rgba(0,0,0,0.6); font-family:Arial,sans-serif; color:#fff;
+                `;
+                popup.innerHTML = `
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+                        <span style="font-size:28px;">📸</span>
+                        <h3 style="margin:0;font-size:18px;font-weight:700;">Describe This View</h3>
+                    </div>
+                    <img src="${imgData}" style="width:100%;border-radius:8px;margin-bottom:16px;border:1px solid rgba(255,255,255,0.1);"/>
+                    <label style="font-size:12px;color:#aaa;text-transform:uppercase;letter-spacing:1px;">View Title</label>
+                    <input id="captureTitle" type="text" value="View ${viewNum}" placeholder="e.g. North Elevation View"
+                        style="width:100%;box-sizing:border-box;padding:10px 14px;margin:6px 0 14px;border-radius:8px;
+                        border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;
+                        font-size:14px;outline:none;" />
+                    <label style="font-size:12px;color:#aaa;text-transform:uppercase;letter-spacing:1px;">Description (optional)</label>
+                    <textarea id="captureDesc" rows="2" placeholder="Describe what this view shows..."
+                        style="width:100%;box-sizing:border-box;padding:10px 14px;margin:6px 0 18px;border-radius:8px;
+                        border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:#fff;
+                        font-size:13px;resize:vertical;outline:none;font-family:Arial,sans-serif;"></textarea>
+                    <div style="display:flex;gap:10px;justify-content:flex-end;">
+                        <button id="captureCancelBtn" style="padding:9px 22px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);
+                            background:transparent;color:#ccc;cursor:pointer;font-size:13px;">Cancel</button>
+                        <button id="captureSaveBtn" style="padding:9px 22px;border-radius:8px;border:none;
+                            background:linear-gradient(135deg,#00c853,#00e676);color:#000;cursor:pointer;
+                            font-size:13px;font-weight:700;">💾 Save Capture</button>
+                    </div>
+                `;
+                modal.appendChild(popup);
+
+                // Focus the title input
+                setTimeout(() => document.getElementById('captureTitle')?.focus(), 100);
+
+                // Cancel
+                document.getElementById('captureCancelBtn').addEventListener('click', () => popup.remove());
+
+                // Save
+                document.getElementById('captureSaveBtn').addEventListener('click', () => {
+                    const title = document.getElementById('captureTitle').value.trim() || `View ${viewNum}`;
+                    const description = document.getElementById('captureDesc').value.trim();
+
+                    terrain3DState.captured3DViews.push({
+                        image: imgData,
+                        title: title,
+                        description: description,
+                        timestamp: new Date().toLocaleString(),
+                        vertExag: viewer3D.verticalExag
+                    });
+
+                    // Add thumbnail to strip
+                    const strip = document.getElementById('viewer3dCaptures');
+                    const img = document.createElement('img');
+                    img.src = imgData;
+                    img.title = title;
+                    img.addEventListener('click', function () {
+                        const w = window.open();
+                        w.document.write(`<img src="${imgData}" style="max-width:100%;"/>`);
+                    });
+                    strip.appendChild(img);
+
+                    popup.remove();
+                    showToast(`"${title}" captured (${terrain3DState.captured3DViews.length} total)`, 'success');
+
+                    // Enable export button
+                    const exportBtn = document.getElementById('export3DPdfBtn');
+                    if (exportBtn) {
+                        exportBtn.disabled = false;
+                        exportBtn.style.opacity = '1';
+                        exportBtn.style.cursor = 'pointer';
+                    }
+                });
             }
 
             function close3DViewer() {
@@ -34383,6 +34512,119 @@ function smoothChaikin(points) {
                 const modal = document.getElementById('terrain3DViewerModal');
                 if (modal) modal.style.display = 'none';
                 window.removeEventListener('resize', window._viewer3dResize);
+            }
+
+            function export3DViewsPDF() {
+                if (!terrain3DState.captured3DViews || terrain3DState.captured3DViews.length === 0) {
+                    showToast('No captured views to export. Use "Capture View" first.', 'error');
+                    return;
+                }
+
+                try {
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' });
+                    const pw = 420, ph = 297;
+                    const views = terrain3DState.captured3DViews;
+
+                    // ===== COVER PAGE =====
+                    // Full dark-blue background
+                    doc.setFillColor(18, 30, 72);
+                    doc.rect(0, 0, pw, ph, 'F');
+
+                    // Accent line
+                    doc.setFillColor(0, 200, 83);
+                    doc.rect(0, 100, pw, 3, 'F');
+
+                    // Title
+                    doc.setFontSize(36);
+                    doc.setFont(undefined, 'bold');
+                    doc.setTextColor(255, 255, 255);
+                    doc.text('GSP.NET', pw / 2, 130, { align: 'center' });
+                    doc.setFontSize(28);
+                    doc.text('3D TERRAIN ANALYSIS REPORT', pw / 2, 145, { align: 'center' });
+
+                    // Subtitle info
+                    doc.setFontSize(13);
+                    doc.setFont(undefined, 'normal');
+                    doc.setTextColor(180, 200, 230);
+                    const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+                    doc.text(`${views.length} Captured View${views.length > 1 ? 's' : ''}  •  Generated: ${dateStr}`, pw / 2, 162, { align: 'center' });
+
+                    if (currentTerrainProject) {
+                        doc.setFontSize(14);
+                        doc.setTextColor(200, 215, 240);
+                        doc.text(`Project: ${currentTerrainProject.project_name || 'Untitled'}`, pw / 2, 178, { align: 'center' });
+                    }
+
+                    // Footer on cover
+                    doc.setFontSize(9);
+                    doc.setTextColor(100, 120, 160);
+                    doc.text('Generated by GSP.NET Terrain Analysis System', pw / 2, ph - 15, { align: 'center' });
+
+                    // ===== VIEW PAGES =====
+                    for (let i = 0; i < views.length; i++) {
+                        const v = views[i];
+                        doc.addPage();
+
+                        // Header bar
+                        doc.setFillColor(18, 30, 72);
+                        doc.rect(0, 0, pw, 28, 'F');
+                        doc.setFontSize(14);
+                        doc.setFont(undefined, 'bold');
+                        doc.setTextColor(255, 255, 255);
+                        doc.text(`${v.title || 'View ' + (i + 1)}`, 15, 18);
+
+                        // Page indicator
+                        doc.setFontSize(10);
+                        doc.setFont(undefined, 'normal');
+                        doc.text(`View ${i + 1} of ${views.length}`, pw - 15, 18, { align: 'right' });
+
+                        doc.setTextColor(0, 0, 0);
+
+                        // Image — centered, as large as possible
+                        const imgMargin = 15;
+                        const imgTop = 35;
+                        const imgMaxW = pw - imgMargin * 2;
+                        const imgMaxH = ph - imgTop - 55; // room for metadata & footer
+                        try {
+                            doc.addImage(v.image, 'PNG', imgMargin, imgTop, imgMaxW, imgMaxH);
+                        } catch (e) {
+                            doc.setFontSize(11);
+                            doc.text('(Image could not be embedded)', pw / 2, imgTop + 30, { align: 'center' });
+                        }
+
+                        // Metadata bar below image
+                        const metaY = imgTop + imgMaxH + 6;
+                        doc.setFillColor(240, 242, 248);
+                        doc.rect(imgMargin, metaY, imgMaxW, 22, 'F');
+                        doc.setFontSize(10);
+                        doc.setTextColor(60, 60, 80);
+                        doc.setFont(undefined, 'normal');
+                        doc.text(`Vertical Exaggeration: ${v.vertExag}x   |   Captured: ${v.timestamp}`, imgMargin + 8, metaY + 8);
+
+                        if (v.description) {
+                            doc.setFontSize(10);
+                            doc.setFont(undefined, 'italic');
+                            doc.setTextColor(80, 80, 100);
+                            const descLines = doc.splitTextToSize(v.description, imgMaxW - 16);
+                            doc.text(descLines, imgMargin + 8, metaY + 16);
+                        }
+
+                        // Footer
+                        doc.setFontSize(8);
+                        doc.setTextColor(150, 150, 170);
+                        doc.text(`Page ${i + 2} of ${views.length + 1}`, pw - 15, ph - 8, { align: 'right' });
+                        doc.text('GSP.NET 3D Terrain Analysis Report', 15, ph - 8);
+                    }
+
+                    const fileName = `GSP_3D_Terrain_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
+                    doc.save(fileName);
+                    showToast(`3D Terrain Report exported (${views.length} views)`, 'success');
+
+                } catch (error) {
+                    console.error('3D PDF export error:', error);
+                    showToast('Failed to export 3D PDF: ' + error.message, 'error');
+                }
             }
 
             // Export DTM as GeoTIFF raster
