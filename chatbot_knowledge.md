@@ -10532,3 +10532,31 @@ workflow efficiency.
 
 Last Updated: 2024
 Version: 2.0 (Detailed Edition)
+
+## 3D_Condominium_Registration_Guide.txt
+
+### Overview
+GSP.NET includes a comprehensive 3D Condominium property management system. This tool allows users to register multi-level buildings, customize floors, import CSV coordinates for both the building footprint and individual units, define amenities, and instantly visualize the entire structure in a fully interactive 3D environment. 
+
+### Step-by-Step Registration Wizard (7 Steps)
+To register a new condominium building, open the **3D Condominium Panel** by clicking the 🏢 (Building) icon in the main toolbar, then click the **New Condominium** tab. Follow these 7 steps:
+
+**1. Property Information:** Enter the building name, prefix, plot ID, block, and select the location (District, County, Sub-county, Parish, Village).
+**2. Building Footprint:** Upload a CSV containing the external boundary of the building. 
+   - CSV Format Required: `point,easting,northing`
+   - Select the correct Coordinate Reference System (e.g., Arc 1960 UTM Zone 36N).
+   - Once imported, the footprint polygon will automatically appear on the map.
+**3. Vertical Configuration:** Define the building's height and structure. Enter the number of floors above ground, number of basements (below ground), and the standard floor height in meters (e.g., 3 meters).
+**4. Images:** Upload facade photographs or architectural renders of the building.
+**5. Units Registration:** Upload a CSV containing the coordinates for each individual unit/apartment inside the building.
+   - CSV Format Required: `floor,unit,point,easting,northing,description`
+   - The tool will automatically parse the file, calculate the area/perimeter of each unit based on the shoelace formula, and organize them by floor. Click "Plot" on a unit to verify its shape on the map.
+**6. Unit Attributes:** For every registered unit, define its details: Type (Commercial, Residential, Mixed), Status (Sold, Available, Rented), Room Counts (Bedrooms, Bathrooms, En-suite, Sitting Rooms), Amenities (Kitchen, Balcony, Store Room, Servant Quarters, Garage) and Owner Information.
+**7. Review & Save:** Review all imported data. Click **Save Condominium** to store the building and all units securely into the unified cloud database.
+
+### Viewing and Searching 3D Condominiums
+- **Search Tab:** To find a registered building, open the 🏢 panel and click the **Search** tab. Type the building name, prefix, or plot ID. Results will appear instantly. Clicking "View on Map" will auto-pan and zoom to the building.
+- **Interactive 3D View:** Click on any condominium footprint directly on the 2D map, or use the Search tab, to open the **3D View**. In the 3D Viewer:
+   - Use your mouse to rotate (drag), pan (right-click drag), and zoom (scroll) around the 3D model.
+   - Use the **Floor Slider** to slice the building vertically and inspect specific floor plans.
+   - Hover and click on individual units within the 3D model to see a pop-up card detailing its attributes, owner info, and calculated area.
