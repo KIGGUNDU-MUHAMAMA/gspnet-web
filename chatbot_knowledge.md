@@ -75,6 +75,10 @@ For the Ugandan surveying community, a centralized data sharing and storing plat
   2. Once you are centered on the correct area, turn on the desired layers from the Layer Switcher.
   3. After the layer has fully loaded, you can zoom out and pan around the area as needed.
 
+### 6. Additional GSP.NET Platform Features
+- **GSP.NET Updates:** A dedicated tool that empowers registered surveyors to plot cadastral updates and surveys directly onto the system in real-time.
+- **Parcel Search:** This search engine allows users to rapidly search for and identify dedicated parcels strictly from within the loaded Survey Polygons layer.
+- **Project Library:** A robust, centralized repository that allows surveyors to organize, find, and seamlessly download essential project files including surveying CSVs, technical JRJ computation files, and CAD drawings.
 
 # ADDITIONAL SYSTEM GUIDES
 
