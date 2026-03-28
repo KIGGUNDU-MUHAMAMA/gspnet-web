@@ -69,6 +69,12 @@ For the Ugandan surveying community, a centralized data sharing and storing plat
   5. Select your desired layout (Portrait or Landscape) and paper size (A4, A3).
   6. Click "Generate". A high-resolution PDF will be created and downloaded to your device.
 
+### 5. Best Practices for Map Performance
+- **Loading Heavy Layers:** To ensure optimal performance and fast layer rendering, you should load layers only for your specific area of interest.
+  1. Navigate to your target location first using the **Place Search** or **Coordinate Search** tools (we recommend being at Zoom Level 10 or closer).
+  2. Once you are centered on the correct area, turn on the desired layers from the Layer Switcher.
+  3. After the layer has fully loaded, you can zoom out and pan around the area as needed.
+
 
 # ADDITIONAL SYSTEM GUIDES
 
