@@ -60,14 +60,6 @@ For the Ugandan surveying community, a centralized data sharing and storing plat
   4. *Note: Best used on mobile devices or tablets in the field for real-time tracking.*
 
 ### 4. Print / Export Map
-- **What it does:** Generates a high-quality, professional PDF map of your current view, complete with a title, legend, and scale bar.
-- **How to use:**
-  1. Adjust the map view to frame your area of interest perfectly.
-  2. Toggle any desired layers (e.g., cadastral parcels, contours) on or off.
-  3. Click the **Print** or **Export to PDF** button.
-  4. Enter a custom Title for your map in the prompt.
-  5. Select your desired layout (Portrait or Landscape) and paper size (A4, A3).
-  6. Click "Generate". A high-resolution PDF will be created and downloaded to your device.
 
 ### 5. Best Practices for Map Performance
 - **Loading Heavy Layers:** To ensure optimal performance and fast layer rendering, you should load layers only for your specific area of interest.
