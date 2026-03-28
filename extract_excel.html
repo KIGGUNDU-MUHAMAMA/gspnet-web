@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Excel Formula Extractor</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; text-align: center; }
+        .container { max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px; border-radius: 8px; border: 1px solid #ddd; }
+        input[type="file"] { margin: 20px 0; padding: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Formula Extractor</h2>
+        <p>1. Click the button below and select your <b>FORMULAR 233a.xls</b> file.</p>
+        <p>2. A text file containing all the formulas will be generated and downloaded automatically.</p>
+        
+        <input type="file" id="fileinput" accept=".xls,.xlsx" />
+        
+        <p id="status" style="color: green; font-weight: bold; display: none;">Extraction complete! Please copy the downloaded file into the gspnet-web folder.</p>
+    </div>
+
+    <script>
+        document.getElementById('fileinput').addEventListener('change', function(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    var data = new Uint8Array(e.target.result);
+                    var workbook = XLSX.read(data, {type: 'array', cellFormula: true, cellNF: false, cellStyles: false});
+                    
+                    var output = '=== FORMULAR 233a DUMP ===\n';
+                    workbook.SheetNames.forEach(function(sheetName) {
+                        output += '\n--- Sheet: ' + sheetName + ' ---\n';
+                        var sheet = workbook.Sheets[sheetName];
+                        if (!sheet['!ref']) {
+                            output += '(Empty sheet)\n';
+                            return;
+                        }
+                        var range = XLSX.utils.decode_range(sheet['!ref']);
+                        for(var R = range.s.r; R <= range.e.r; ++R) {
+                            var rowLine = 'Row ' + (R+1) + ':\t';
+                            var hasData = false;
+                            for(var C = range.s.c; C <= range.e.c; ++C) {
+                                var cellAddress = {c:C, r:R};
+                                var cellRef = XLSX.utils.encode_cell(cellAddress);
+                                var cell = sheet[cellRef];
+                                if(!cell) {
+                                    rowLine += '[]\t';
+                                    continue;
+                                }
+                                
+                                var val = '';
+                                if (cell.f) {
+                                    val = '=' + cell.f;
+                                } else if (cell.v !== undefined) {
+                                    val = cell.v;
+                                }
+                                if (val !== '') hasData = true;
+                                rowLine += '[' + cellRef + ': ' + val + ']\t';
+                            }
+                            if (hasData) {
+                                output += rowLine + '\n';
+                            }
+                        }
+                    });
+                    
+                    // Trigger download
+                    var blob = new Blob([output], {type: "text/plain;charset=utf-8"});
+                    var url = URL.createObjectURL(blob);
+                    var a = document.createElement("a");
+                    a.href = url;
+                    a.download = "formulas_dump.txt";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    
+                    document.getElementById('status').style.display = 'block';
+                } catch (error) {
+                    alert('Error parsing file: ' + error.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    </script>
+</body>
+</html>

@@ -50286,11 +50286,154 @@ function smoothChaikin(points) {
                 }
             }
 
+            // --- Gemini AI Assistant Integration ---
+            const GeminiBot = {
+                systemInstruction: `You are the official AI expert assistant for Geospatial Network Uganda (geospatialnetworkug.xyz). 
+CRITICAL RULES:
+1. You MUST solely rely on the "KNOWLEDGE BASE & GUIDES" provided below to answer user queries.
+2. When a user asks for instructions or a step-by-step guide, you MUST provide the EXACT steps as written in the KNOWLEDGE BASE. Do not skip steps or make up your own workflow.
+3. Keep your answers concise, helpful, and format them using clean Markdown. 
+4. Never invent features, tools, or URLs that are not in the knowledge base.`,
+                
+                // Used your deployed custom domain URL
+                workerUrl: 'https://bot.geospatialnetworkug.xyz', 
+                
+                chatHistory: [],
+
+                async init() {
+                    const sendBtn = document.getElementById('bot-message-send-btn');
+                    const inputField = document.getElementById('bot-message-input');
+                    const botTab = document.getElementById('tab-bot');
+
+                    // Fetch the knowledge base markdown to provide context to the AI
+                    try {
+                        const response = await fetch('chatbot_knowledge.md');
+                        if (response.ok) {
+                            const kbContent = await response.text();
+                            this.systemInstruction += "\n\n### KNOWLEDGE BASE & GUIDES:\n" + kbContent;
+                            console.log("Successfully loaded chatbot knowledge base.");
+                        } else {
+                            console.warn("Failed to load chatbot knowledge base: " + response.status);
+                        }
+                    } catch (error) {
+                        console.error("Error fetching chatbot_knowledge.md:", error);
+                    }
+
+                    if (botTab) {
+                        botTab.addEventListener('click', () => switchTab('bot'));
+                    }
+
+                    if (sendBtn && inputField) {
+                        sendBtn.addEventListener('click', () => this.handleSend());
+                        inputField.addEventListener('keypress', (e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                this.handleSend();
+                            }
+                        });
+                    }
+                },
+
+                async handleSend() {
+                    const inputField = document.getElementById('bot-message-input');
+                    const text = inputField.value.trim();
+                    if (!text) return;
+
+                    // 1. Render User Message
+                    this.appendMessage('You', text, 'sent');
+                    inputField.value = '';
+
+                    // 2. Add loading state
+                    const loadingId = this.appendMessage('Gemini AI Assistant', '<div class="typing-indicator" style="font-style: italic; color: #666;">Thinking...</div>', 'received');
+
+                    // 3. Prepare payload
+                    this.chatHistory.push({ role: "user", parts: [{ text }] });
+                    
+                    const payload = {
+                        contents: this.chatHistory,
+                        systemInstruction: {
+                            parts: [{ text: this.systemInstruction }]
+                        }
+                    };
+
+                    try {
+                        const response = await fetch(this.workerUrl, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(payload)
+                        });
+
+                        const data = await response.json();
+
+                        if (!response.ok) {
+                            throw new Error(data.error || 'Failed to fetch from Gemini');
+                        }
+
+                        // Parse response
+                        const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate a response.";
+                        
+                        // Replace loading with actual response
+                        this.updateMessage(loadingId, this.formatMarkdown(replyText));
+
+                        // Append to history
+                        this.chatHistory.push({ role: "model", parts: [{ text: replyText }] });
+
+                    } catch (error) {
+                        console.error("Gemini API Error:", error);
+                        this.updateMessage(loadingId, `<span style="color: red;">Error connecting to Assistant: ${error.message}</span>`);
+                        // Remove the failed user prompt so they can try again
+                        this.chatHistory.pop();
+                    }
+                },
+
+                appendMessage(sender, htmlContent, type) {
+                    const container = document.getElementById('bot-messages-container');
+                    const msgId = 'msg-' + Date.now();
+                    const bgColor = type === 'sent' ? '#dcf8c6' : '#ffffff';
+                    const alignment = type === 'sent' ? 'flex-end' : 'flex-start';
+                    const borderRadius = type === 'sent' ? '18px 18px 4px 18px' : '18px 18px 18px 4px';
+
+                    const msgHTML = `
+                        <div class="message message-${type}" style="align-items: ${alignment}; margin-bottom: 12px; display: flex; flex-direction: column;">
+                            <div class="sender-name" style="font-size: 0.75rem; color: #666; margin-bottom: 4px; padding: 0 4px;">${sender}</div>
+                            <div class="message-bubble" id="${msgId}" style="background: ${bgColor}; border: 1px solid #e5e5ea; padding: 10px 14px; border-radius: ${borderRadius}; max-width: 80%; font-size: 14px; line-height: 1.5; box-shadow: 0 1px 2px rgba(0,0,0,0.05); word-wrap: break-word;">
+                                ${htmlContent}
+                            </div>
+                        </div>
+                    `;
+                    
+                    container.insertAdjacentHTML('beforeend', msgHTML);
+                    container.scrollTop = container.scrollHeight;
+                    return msgId;
+                },
+
+                updateMessage(id, newHtml) {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.innerHTML = newHtml;
+                        const container = document.getElementById('bot-messages-container');
+                        container.scrollTop = container.scrollHeight;
+                    }
+                },
+
+                formatMarkdown(text) {
+                    // Very simple markdown to HTML parser
+                    let html = text
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') 
+                        .replace(/\*(.*?)\*/g, '<em>$1</em>') 
+                        .replace(/\n/g, '<br>')
+                        .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" style="color: #2563eb; text-decoration: underline;">$1</a>');
+                    
+                    return html;
+                }
+            };
+
             // Initialize when DOM is ready
             document.addEventListener('DOMContentLoaded', function () {
                 // Initialize after a short delay to ensure other systems are ready
                 setTimeout(() => {
                     initializeSocialChat();
+                    GeminiBot.init(); // Initialize the Gemini Bot
                 }, 1000);
             });
 
@@ -50308,6 +50451,7 @@ function smoothChaikin(points) {
                 <div class="chat-tabs">
                     <button id="tab-rooms" class="chat-tab active">Chat Rooms</button>
                     <button id="tab-inbox" class="chat-tab">Inbox</button>
+                    <button id="tab-bot" class="chat-tab">AI Assistant</button>
                 </div>
                 <div class="chat-controls">
                     <button type="button" class="icon-btn" id="propertySearchBtn" title="Property Search">
@@ -50394,6 +50538,28 @@ function smoothChaikin(points) {
                             </div>
                             <div id="message-image-preview" class="image-preview" style="display: none;"></div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Assistant View -->
+            <div id="bot-view" class="chat-view">
+                <div class="bot-layout" style="display: flex; flex-direction: column; height: 100%;">
+                    <div id="bot-messages-container" class="messages-list" style="flex: 1; overflow-y: auto; padding: 15px;">
+                        <div class="message message-received" style="align-items: flex-start; margin-bottom: 12px; display: flex; flex-direction: column;">
+                            <div class="sender-name" style="font-size: 0.75rem; color: #666; margin-bottom: 4px; padding: 0 4px;">Gemini AI Assistant</div>
+                            <div class="message-bubble" style="background: #e8f0fe; border: 1px solid #d2e3fc; padding: 10px 14px; border-radius: 18px 18px 18px 4px; max-width: 80%; font-size: 14px; line-height: 1.4; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                <p class="message-content" style="margin: 0;">Hello! I'm your Geospatial Network AI Assistant. How can I help you today?</p>
+                                <p class="message-content" style="margin: 8px 0 0 0; font-size: 12px; color: #555;"><i>Hint: Ask me about DTMs, Profiles, Coordinate Extractor, or the project.</i></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="message-input-area" style="padding: 15px; border-top: 1px solid #e0e0e0; background: #fff;">
+                        <textarea id="bot-message-input" placeholder="Ask a question..." rows="2" style="width: 100%; resize: none; border-radius: 8px; border: 1px solid #ccc; padding: 10px; font-family: inherit; margin-bottom: 10px;"></textarea>
+                        <div class="message-actions" style="display: flex; justify-content: flex-end;">
+                            <button id="bot-message-send-btn" class="message-send" style="background: #2563eb; color: white; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-weight: bold;">Send</button>
+                        </div>
+                        <div style="font-size: 10px; color: #999; text-align: center; margin-top: 5px;">AI can make mistakes. Check important info.</div>
                     </div>
                 </div>
             </div>
