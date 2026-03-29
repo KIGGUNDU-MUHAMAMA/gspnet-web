@@ -2602,14 +2602,22 @@
     <script>
         const GeminiBot = {
             chatHistory: [],
-            knowledgeBase: "",
             isTyping: false,
-            
+            systemInstruction: `You are the official AI expert assistant for Geospatial Network Uganda (geospatialnetworkug.xyz). 
+CRITICAL RULES:
+1. You MUST solely rely on the "KNOWLEDGE BASE & GUIDES" provided below to answer user queries.
+2. When a user asks for instructions or a step-by-step guide, you MUST provide the EXACT steps as written in the KNOWLEDGE BASE. Do not skip steps or make up your own workflow.
+3. Keep your answers concise, helpful, and format them using clean Markdown. 
+4. Never invent features, tools, URLs, or phone numbers that are not in the knowledge base.
+5. You are currently on the LOGIN interface. Focus proactively on helping users create accounts, verify emails, troubleshoot login issues, and contact the Admin.
+6. The ONLY authorized Admin WhatsApp number is +256753771256 (or 0753771256). NEVER provide any other phone number under any circumstances.`,
+
             init: async function() {
                 try {
                     const response = await fetch('./chatbot_knowledge.md');
                     if (response.ok) {
-                        this.knowledgeBase = await response.text();
+                        const kbContent = await response.text();
+                        this.systemInstruction += "\n\n### KNOWLEDGE BASE & GUIDES:\n" + kbContent;
                         console.log("Chatbot knowledge base loaded via index.html");
                     } else {
                         console.warn("Could not load chatbot knowledge base.");
@@ -2674,41 +2682,41 @@
                 this.isTyping = true;
                 this.showTypingIndicator();
                 
+                this.chatHistory.push({ role: "user", parts: [{ text }] });
+                
+                const payload = {
+                    contents: this.chatHistory,
+                    systemInstruction: {
+                        parts: [{ text: this.systemInstruction }]
+                    }
+                };
+
                 try {
                     const response = await fetch('https://bot.geospatialnetworkug.xyz', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({
-                            message: text,
-                            history: this.chatHistory,
-                            knowledge: this.knowledgeBase
-                        })
+                        body: JSON.stringify(payload)
                     });
                     
                     this.removeTypingIndicator();
+                    const data = await response.json();
                     
                     if(response.ok) {
-                        const data = await response.json();
-                        this.appendMessage('assistant', data.reply);
-                        
-                        this.chatHistory.push({ role: 'user', parts: [{ text: text }] });
-                        this.chatHistory.push({ role: 'model', parts: [{ text: data.reply }] });
+                        const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate a response.";
+                        this.appendMessage('assistant', replyText);
+                        this.chatHistory.push({ role: 'model', parts: [{ text: replyText }] });
                     } else {
-                        // The backend might return an object instead of a text error msg
-                        let errStr = response.statusText;
-                        try {
-                            const errObj = await response.json();
-                            errStr = typeof errObj.error === 'object' ? JSON.stringify(errObj.error) : (errObj.error || errStr);
-                        } catch(e) {
-                            // If it fails to parse json, fall back to status text
-                        }
+                        // Extract precise error message if formatted like a Google API error
+                        const errStr = data.error?.message || data.error?.details?.[0]?.description || (typeof data.error === 'object' ? JSON.stringify(data.error) : data.error) || response.statusText;
                         this.appendMessage('assistant', `*Error getting response: ${errStr}*`);
+                        this.chatHistory.pop(); // remove failed prompt
                     }
                 } catch(e) {
                     this.removeTypingIndicator();
                     this.appendMessage('assistant', `*Network error: ${e.message}. Please try again later.*`);
+                    this.chatHistory.pop(); // remove failed prompt
                 }
                 
                 this.isTyping = false;
