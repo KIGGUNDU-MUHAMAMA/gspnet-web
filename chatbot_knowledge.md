@@ -11241,6 +11241,33 @@ To register a new condominium building, open the **3D Condominium Panel** by cli
   - Use the **Floor Slider** to slice the building vertically and inspect specific floor plans.
   - Hover and click on individual units within the 3D model to see a pop-up card detailing its attributes, owner info, and calculated area.
 
+## Account Types and Authentication
+
+### Account Creation and Verification
+Users can easily create an account on the login page (index.html). Once registered, the system will send an email to verify the account.
+- **To create an account:** Fill in your email and password, then select your desired Account Type. Click "Create Professional Account".
+- **To verify email:** Check your email inbox for a confirmation link and click it. 
+- **Troubleshooting Login & Activation:** If a user fails to log in, complains about needing an active subscription, or asks how to activate their account, you MUST proactively offer to prepare a WhatsApp activation request for them.
+  1. First, tell the user: "You likely need your subscription or account activated. Would you like me to prepare an activation request for the admin? If so, please reply with your account email address."
+  2. Once the user replies with their email address, you MUST provide them with exactly this markdown link, replacing `[USER_EMAIL]` with the actual email they provided:
+     `[Click here to send your activation request to the Admin via WhatsApp](https://wa.me/256753771256?text=Hi%20Admin,%20please%20activate%20my%20GSPNET%20account.%20My%20email%20is:%20[USER_EMAIL])`
+  3. Explain that clicking the link will open their WhatsApp with the message already filled out, and they just need to hit send to reach the admin (+256753771256).
+
+### User Roles / Account Types
+The Geospatial Network Uganda platform offers three distinct account types:
+
+1. **General User (Land Surveyor):**
+   - **Primary Use:** Obtaining and sharing geospatial data.
+   - **Benefits:** Access to NLIS data, creating new subdivisions, boundary openings, and mapping un-titled land (like bibanja).
+
+2. **Valuation Surveyor:**
+   - **Primary Use:** Dedicated private valuation environment.
+   - **Benefits:** Has a secure private valuation account for storing private comparables, setting up automated valuations, and auto-generating detailed valuation reports based on system tools.
+
+3. **Land Clerk:**
+   - **Primary Use:** Monitoring and managing estates.
+   - **Benefits:** Keep track of land transactions, register buyers for untitled parcels of bibanja, and manage administrative land clerk duties natively within the platform.
+
 ## General Best Practices
 ### Map Performance and Loading Layers
 The best practice is to load only the required extents to make layers load faster. That's why we advise zooming to **level 10** before activating a layer.
