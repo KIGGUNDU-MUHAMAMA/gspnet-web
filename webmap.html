@@ -32992,8 +32992,28 @@
             }
 
             function attachContourVectorImageLayer(features, { interval, majorInterval, minZ, maxZ }) {
-                // VERSION 4.0 - SOLID BROWN CONTOURS WITH MINOR LABELS
-                console.log('[CONTOUR v4.0] SOLID brown contours - Major+Minor labels');
+                // VERSION 5.0 - USER-CONFIGURABLE CONTOUR STYLES (solid/dashed/dotted)
+                console.log('[CONTOUR v5.0] User-configurable contour styles');
+
+                // Read user style settings from terrain3DState
+                const majorColor = terrain3DState.majorContourColor || document.getElementById('majorContourColor')?.value || '#8b4513';
+                const minorColor = terrain3DState.minorContourColor || document.getElementById('minorContourColor')?.value || '#999999';
+                const majorWidth = terrain3DState.majorContourWidth || parseFloat(document.getElementById('majorContourWidth')?.value) || 2;
+                const minorWidth = terrain3DState.minorContourWidth || parseFloat(document.getElementById('minorContourWidth')?.value) || 1;
+                const majorStyle = terrain3DState.majorContourStyle || document.getElementById('majorContourStyle')?.value || 'solid';
+                const minorStyle = terrain3DState.minorContourStyle || document.getElementById('minorContourStyle')?.value || 'solid';
+
+                console.log(`[CONTOUR] Styles - Major: ${majorStyle} (${majorColor}, ${majorWidth}px), Minor: ${minorStyle} (${minorColor}, ${minorWidth}px)`);
+
+                // Helper: resolve lineDash array from style name and line width
+                function resolveLineDash(styleName, lineWidth) {
+                    if (styleName === 'dashed') {
+                        return [lineWidth * 4, lineWidth * 3];
+                    } else if (styleName === 'dotted') {
+                        return [lineWidth, lineWidth * 2];
+                    }
+                    return undefined; // solid
+                }
 
                 // Create source
                 const source = new ol.source.Vector({ features });
@@ -33022,17 +33042,19 @@
                     if (!isMajor && !showMinor) return null;
 
                     // --------------------------------------------------------
-                    // STROKE STYLE (SOLID ONLY - NO DASHES ALLOWED)
+                    // STROKE STYLE - Reads user-selected style (solid/dashed/dotted)
                     // --------------------------------------------------------
-                    const strokeColor = isMajor ? '#5A3E1B' : '#C8A46A';  // Brown tones: dark/light
-                    const strokeWidth = isMajor ? 2 : 1;
+                    const strokeColor = isMajor ? majorColor : minorColor;
+                    const strokeWidth = isMajor ? majorWidth : minorWidth;
+                    const styleName = isMajor ? majorStyle : minorStyle;
+                    const lineDash = resolveLineDash(styleName, strokeWidth);
 
                     const stroke = new ol.style.Stroke({
                         color: strokeColor,
                         width: strokeWidth,
                         lineCap: 'round',
                         lineJoin: 'round',
-                        lineDash: undefined  // EXPLICITLY undefined = SOLID (forces cache refresh)
+                        lineDash: lineDash
                     });
 
                     // --------------------------------------------------------
@@ -33097,7 +33119,7 @@
                 });
 
                 map.addLayer(terrain3DState.contourLayer);
-                console.log('[CONTOUR] Layer attached with SOLID lines and resolution-aware labels');
+                console.log(`[CONTOUR] Layer attached - Major: ${majorStyle}, Minor: ${minorStyle}, resolution-aware labels`);
             }
 
             // ========================================
@@ -34310,14 +34332,48 @@ function smoothChaikin(points) {
                     const lineGeom = new THREE.BufferGeometry();
                     lineGeom.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
 
-                    const lineMat = new THREE.LineBasicMaterial({
-                        color: isMajor ? 0x8B4513 : 0x999999,
-                        linewidth: 1,
-                        transparent: true,
-                        opacity: isMajor ? 0.9 : 0.5
-                    });
+                    // Read user style settings for 3D contours
+                    const styleName3D = isMajor
+                        ? (terrain3DState.majorContourStyle || 'solid')
+                        : (terrain3DState.minorContourStyle || 'solid');
+                    const color3D = isMajor
+                        ? (terrain3DState.majorContourColor || '#8B4513')
+                        : (terrain3DState.minorContourColor || '#999999');
+
+                    let lineMat;
+                    if (styleName3D === 'dashed') {
+                        lineMat = new THREE.LineDashedMaterial({
+                            color: color3D,
+                            linewidth: 1,
+                            transparent: true,
+                            opacity: isMajor ? 0.9 : 0.5,
+                            dashSize: cellSize * step * 3,
+                            gapSize: cellSize * step * 2
+                        });
+                    } else if (styleName3D === 'dotted') {
+                        lineMat = new THREE.LineDashedMaterial({
+                            color: color3D,
+                            linewidth: 1,
+                            transparent: true,
+                            opacity: isMajor ? 0.9 : 0.5,
+                            dashSize: cellSize * step * 0.8,
+                            gapSize: cellSize * step * 1.5
+                        });
+                    } else {
+                        lineMat = new THREE.LineBasicMaterial({
+                            color: color3D,
+                            linewidth: 1,
+                            transparent: true,
+                            opacity: isMajor ? 0.9 : 0.5
+                        });
+                    }
 
                     const line = new THREE.LineSegments(lineGeom, lineMat);
+                    // For dashed materials, compute line distances so dashes render correctly
+                    if (styleName3D !== 'solid') {
+                        lineGeom.computeBoundingSphere();
+                        line.computeLineDistances();
+                    }
                     viewer3D.contourGroup.add(line);
 
                     // Add elevation labels on major contour lines
