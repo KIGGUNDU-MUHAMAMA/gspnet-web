@@ -84,6 +84,85 @@ For the Ugandan surveying community, a centralized data sharing and storing plat
 - **Parcel Search:** This search engine allows users to rapidly search for and identify dedicated parcels strictly from within the loaded Survey Polygons layer.
 - **Project Library:** A robust, centralized repository that allows surveyors to organize, find, and seamlessly download essential project files including surveying CSVs, technical JRJ computation files, and CAD drawings.
 
+## How Distances and Areas Are Calculated for GSPNET/NLIS Layers and Survey Polygons
+
+GSP.NET uses **survey-grade geodesic formulas** for all distance and area calculations displayed on the map. These formulas match the results produced by professional surveying software such as AutoCAD and are significantly more accurate than simple spherical (Haversine) calculations.
+
+### Distance Calculations
+
+**Method Used: Vincenty Inverse Formula (WGS84 Ellipsoid)**
+
+All edge/boundary distances shown on both **GSPNET/NLIS Layers** and **Survey Polygons** are computed using the **Vincenty inverse formula**, which models the Earth as an oblate spheroid (WGS84 ellipsoid) rather than a perfect sphere.
+
+- **WGS84 Ellipsoid Parameters:**
+  - Semi-major axis (a): 6,378,137.0 meters (equatorial radius)
+  - Flattening (f): 1 / 298.257223563
+
+- **Why Vincenty instead of Haversine?**
+  - The Haversine formula assumes a perfect sphere (R = 6,371 km), which introduces 0.1–0.3% errors depending on latitude and direction.
+  - For a 100-meter boundary, this can mean 10–30 cm of error — unacceptable for cadastral surveys.
+  - The Vincenty formula accounts for the Earth's flattening and is accurate to approximately ±0.5 mm over any distance.
+
+- **Where distances are displayed:**
+  - **GSPNET/NLIS Layers (Layer Switcher):** Edge distance labels appear when zoomed to ≤200m resolution. Computed on-the-fly using `getEdgeDistance()` → Vincenty formula.
+  - **Survey Polygons (Layer Switcher):** Edge distance labels appear when the polygon is visible. Always computed on-the-fly using Vincenty — never read from pre-stored database values.
+  - **Polygon Preview (during creation via GSP.NET Updates):** Edge distances shown during the creation workflow.
+  - **Measurement Tool:** Line and polygon measurement tools also use Vincenty for all distance computations.
+
+### Area Calculations
+
+**Method Used: UTM Projection + Shoelace Formula (Geodesic Area)**
+
+All parcel/polygon areas displayed on **Survey Polygons** are computed using a **geodesic area method** that projects WGS84 coordinates into the appropriate **UTM zone** and then applies the **Shoelace (Gauss) formula** on the projected coordinates.
+
+- **How it works (step by step):**
+  1. The polygon's WGS84 (longitude, latitude) coordinates are read from the geometry.
+  2. The centroid longitude is used to determine the correct **UTM zone** (e.g., Zone 36N for most of Uganda at ~30–36°E).
+  3. All coordinates are projected from WGS84 → UTM using the standard formulas (Transverse Mercator projection with WGS84 ellipsoid parameters).
+  4. The **Shoelace formula** is applied to the projected (Easting, Northing) coordinates to compute the planar area in square meters.
+  5. The result is converted to hectares (÷ 10,000).
+
+- **Shoelace Formula:**
+  ```
+  Area = ½ × |Σ(x_i × y_{i+1} − x_{i+1} × y_i)|
+  ```
+  where (x_i, y_i) are the UTM Easting and Northing of each vertex.
+
+- **Why UTM Shoelace instead of spherical excess?**
+  - **Spherical excess** formulas (which compute area on a perfect sphere) introduce a systematic error of approximately **0.5–0.8%** near the equator. For example:
+    - AutoCAD area: **0.80939314 hectares** → Spherical formula: **0.8155 hectares** (+0.76% error)
+    - AutoCAD area: **0.30734865 hectares** → Spherical formula: **0.3097 hectares** (+0.77% error)
+  - The **UTM Shoelace** method matches how AutoCAD and professional surveying software compute areas — by working in a projected coordinate system where the Shoelace formula gives exact planar areas.
+  - Accuracy: **< 0.01% error** compared to AutoCAD, effectively matching survey-grade results.
+
+- **Where areas are displayed:**
+  - **Survey Polygons (Layer Switcher):** The area label (e.g., "0.8094 ha") shown at the center of each polygon is **always computed on-the-fly** using the UTM Shoelace method — it does NOT read the `area_hectares` value stored in the database.
+  - **Polygon Preview (during creation):** When a polygon is generated via the GSP.NET Updates tool, the area shown is computed on-the-fly using UTM Shoelace, overriding the value returned by the backend edge function.
+  - **Save to Database:** When a polygon is saved, the **accurate UTM Shoelace area** is stored in the `area_hectares` database column, ensuring consistency for future queries and reports.
+
+### Summary Table
+
+| Measurement | Formula | Earth Model | Accuracy vs AutoCAD |
+|---|---|---|---|
+| Edge distances | Vincenty inverse | WGS84 ellipsoid | ±0.5 mm |
+| Polygon areas | UTM Shoelace | WGS84 → UTM projection | < 0.01% |
+| ~~Old distances~~ | ~~Haversine~~ | ~~Sphere (R=6371km)~~ | ~~0.1–0.3% error~~ |
+| ~~Old areas~~ | ~~Spherical excess~~ | ~~Sphere (R=6371km)~~ | ~~0.5–0.8% error~~ |
+
+### Frequently Asked Questions
+
+**Q: Why don't the displayed areas match the `area_hectares` column in the database for older polygons?**
+A: Polygons saved before the accuracy upgrade have `area_hectares` values computed with the old spherical formula (~0.76% too high). However, the map **always recalculates** areas on-the-fly using the accurate UTM Shoelace method, so the displayed values are correct regardless of what's stored in the database. Newly saved polygons store the accurate value.
+
+**Q: Do GSPNET/NLIS Layers show area labels?**
+A: No. GSPNET/NLIS layers display the **NLIS ID** label at the polygon center and **edge distance labels** on each boundary. Area labels are only shown for Survey Polygons.
+
+**Q: What UTM zone does the system use for Uganda?**
+A: The UTM zone is determined automatically from each polygon's centroid longitude. Most of Uganda falls in **UTM Zone 36N** (30°E–36°E). Polygons in western Uganda near the border may fall in Zone 35N. The system handles this automatically.
+
+**Q: Are the distance and area calculations performed on the server or in the browser?**
+A: All distance and area calculations displayed on the map are computed **entirely in the browser (client-side)** using JavaScript. The Vincenty distance formula and UTM Shoelace area formula run on-the-fly each time a polygon is rendered. No server round-trip is required.
+
 # ADDITIONAL SYSTEM GUIDES
 
 ## 3D_Terrain_Workflow_Guide.txt
