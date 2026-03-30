@@ -2627,6 +2627,29 @@ CRITICAL RULES:
                 }
                 
                 this.setupUI();
+                this.loadHistory();
+            },
+            
+            loadHistory: function() {
+                try {
+                    const saved = localStorage.getItem('gspnet_chat_history_auth');
+                    if (saved) {
+                        const history = JSON.parse(saved);
+                        if (history && history.length > 0) {
+                            this.chatHistory = history;
+                            const container = document.getElementById('bot-messages-container');
+                            container.innerHTML = ''; // clear default greeting
+                            
+                            this.chatHistory.forEach(msg => {
+                                const sender = msg.role === 'user' ? 'user' : 'assistant';
+                                const text = msg.parts[0].text;
+                                this.appendMessage(sender, text);
+                            });
+                        }
+                    }
+                } catch(e) {
+                    console.error("Error loading chat history:", e);
+                }
             },
             
             setupUI: function() {
@@ -2683,6 +2706,7 @@ CRITICAL RULES:
                 this.showTypingIndicator();
                 
                 this.chatHistory.push({ role: "user", parts: [{ text }] });
+                this.saveHistory();
                 
                 const payload = {
                     contents: this.chatHistory,
@@ -2707,19 +2731,30 @@ CRITICAL RULES:
                         const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate a response.";
                         this.appendMessage('assistant', replyText);
                         this.chatHistory.push({ role: 'model', parts: [{ text: replyText }] });
+                        this.saveHistory();
                     } else {
                         // Extract precise error message if formatted like a Google API error
                         const errStr = data.error?.message || data.error?.details?.[0]?.description || (typeof data.error === 'object' ? JSON.stringify(data.error) : data.error) || response.statusText;
                         this.appendMessage('assistant', `*Error getting response: ${errStr}*`);
                         this.chatHistory.pop(); // remove failed prompt
+                        this.saveHistory();
                     }
                 } catch(e) {
                     this.removeTypingIndicator();
                     this.appendMessage('assistant', `*Network error: ${e.message}. Please try again later.*`);
                     this.chatHistory.pop(); // remove failed prompt
+                    this.saveHistory();
                 }
                 
                 this.isTyping = false;
+            },
+            
+            saveHistory: function() {
+                try {
+                    localStorage.setItem('gspnet_chat_history_auth', JSON.stringify(this.chatHistory));
+                } catch(e) {
+                    console.error("Error saving chat history:", e);
+                }
             },
             
             appendMessage: function(sender, content) {

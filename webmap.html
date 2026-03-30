@@ -50449,6 +50449,40 @@ CRITICAL RULES:
                             }
                         });
                     }
+                    
+                    this.loadHistory();
+                },
+
+                loadHistory() {
+                    try {
+                        const saved = localStorage.getItem('gspnet_chat_history_main');
+                        if (saved) {
+                            const history = JSON.parse(saved);
+                            if (history && history.length > 0) {
+                                this.chatHistory = history;
+                                const container = document.getElementById('bot-messages-container');
+                                container.innerHTML = ''; // clear default greeting
+                                
+                                this.chatHistory.forEach(msg => {
+                                    const sender = msg.role === 'user' ? 'You' : 'GSPNET AI Assistant';
+                                    const type = msg.role === 'user' ? 'sent' : 'received';
+                                    const text = msg.parts[0].text;
+                                    const formatted = msg.role === 'user' ? text : this.formatMarkdown(text);
+                                    this.appendMessage(sender, formatted, type);
+                                });
+                            }
+                        }
+                    } catch(e) {
+                        console.error("Error loading chat history:", e);
+                    }
+                },
+
+                saveHistory() {
+                    try {
+                        localStorage.setItem('gspnet_chat_history_main', JSON.stringify(this.chatHistory));
+                    } catch(e) {
+                        console.error("Error saving chat history:", e);
+                    }
                 },
 
                 async handleSend() {
@@ -50465,6 +50499,7 @@ CRITICAL RULES:
 
                     // 3. Prepare payload
                     this.chatHistory.push({ role: "user", parts: [{ text }] });
+                    this.saveHistory();
                     
                     const payload = {
                         contents: this.chatHistory,
@@ -50494,12 +50529,14 @@ CRITICAL RULES:
 
                         // Append to history
                         this.chatHistory.push({ role: "model", parts: [{ text: replyText }] });
+                        this.saveHistory();
 
                     } catch (error) {
                         console.error("Gemini API Error:", error);
                         this.updateMessage(loadingId, `<span style="color: red;">Error connecting to Assistant: ${error.message}</span>`);
                         // Remove the failed user prompt so they can try again
                         this.chatHistory.pop();
+                        this.saveHistory();
                     }
                 },
 
