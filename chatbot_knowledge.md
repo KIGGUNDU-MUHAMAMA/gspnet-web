@@ -11347,10 +11347,79 @@ The Geospatial Network Uganda platform offers three distinct account types:
    - **Primary Use:** Monitoring and managing estates.
    - **Benefits:** Keep track of land transactions, register buyers for untitled parcels of bibanja, and manage administrative land clerk duties natively within the platform.
 
+## Available Data Layers
+
+The Geospatial Network Uganda platform features two main categories of data layers:
+
+### 1. GSPNET LAYERS (Secondary Data)
+These layers represent block and parcel boundaries across various districts. **IMPORTANT:** These layers contain *secondary data* and may occasionally contain inaccuracies or overlaps. 
+
+**Best Practice for Surveyors:** If you are in the field and discover that a parcel in these layers is not accurate, you MUST flag it immediately so that other surveyors and users do not encounter the same error.
+
+**Available GSPNET Layers:**
+- Arua NLIS
+- Gulu Blocks
+- Gulu NLIS
+- Jinja Blocks
+- Jinja NLIS
+- Kabale Blocks
+- Kabale NLIS
+- Kabalore Blocks
+- Kabalore NLIS
+- Kampala Blocks
+- Kampala NLSI 1
+- Kampala NLSI 2
+- Kibaale Blocks
+- Kibaale NLIS
+- Lira Blocks
+- Lira NLIS
+- Luwero Blocks
+- Luwero NLIS
+- Masaka Blocks
+- Masaka NLIS
+- Masindi Blocks
+- Masindi NLIS
+- Mbale Blocks
+- Mbale NLIS
+- Mbarara Blocks
+- Mbarara NLIS
+- Mityana Blocks
+- Mityana NLIS
+- Moroto Block
+- Moroto NLIS
+- Mpigi Blocks
+- Mpigi NLIS
+- Mukono Blocks
+- Mukono NLIS 1
+- Mukono NLIS 2
+- Protected Areas
+- Rukungiri Blocks
+- Rukungiri NLIS
+- Soroti Blocks
+- Soroti NLIS
+- Tororo Blocks
+- Tororo NLIS
+- Wakiso Blocks
+- Wakiso NLIS 1
+- Wakiso NLIS 2
+
+### 2. Survey Polygons (Primary Data)
+These layers represent highly accurate, primary survey data.
+
+**Available Survey Polygons:**
+- BLB-UNTITLED
+- TITLE TRACTS UTM ZONE 36N
+- TITLE TRACTS UTM ZONE 36S
+- UNTITLED UTM ZONE 36N
+- UNTITLED UTM ZONE 36S
+
 ## General Best Practices
+
+### System Updates (Crucial for Surveyors)
+Always use the **GSP.NET UPDATES** tool to update the system with accurate primary data using the Survey Polygons (for both titled and untitled land). **It is extremely important to update the system BEFORE submitting your files to the respective land office.** Ensuring the system reflects accurate primary data prevents overlapping efforts and assists the broader surveying community.
+
 ### Map Performance and Loading Layers
 The best practice is to load only the required extents to make layers load faster. That's why we advise zooming to **level 10** before activating a layer.
 1. Find your location first using either **Place Search** or **Coordinate Search**.
 2. Once centered on the location at an appropriate zoom level, load the layer from the **Layer Switcher**.
 3. You can safely zoom out or pan to the required area after the layer has fully loaded.
-
