@@ -18365,6 +18365,51 @@
             // Alias for backward compatibility — all existing callers work unchanged
             const haversineDistance = vincentyDistance;
 
+            // Geodesic area calculation: projects WGS84 → UTM → Shoelace
+            // This matches how AutoCAD computes survey areas (planar area on UTM projection)
+            // and avoids the ~0.76% error of spherical area formulas
+            function geodesicAreaSqMeters(wgs84Coords) {
+                // wgs84Coords: array of [lon, lat] pairs (first == last for closed ring)
+                if (!wgs84Coords || wgs84Coords.length < 4) return 0; // need at least 3 + closing
+
+                // Determine UTM zone from centroid longitude
+                let sumLon = 0, sumLat = 0;
+                const n = wgs84Coords.length - 1; // exclude closing point
+                for (let i = 0; i < n; i++) {
+                    sumLon += wgs84Coords[i][0];
+                    sumLat += wgs84Coords[i][1];
+                }
+                const centLon = sumLon / n;
+                const centLat = sumLat / n;
+
+                // UTM zone number: 1-60
+                const zoneNumber = Math.floor((centLon + 180) / 6) + 1;
+                // Hemisphere: N or S
+                const isNorth = centLat >= 0;
+                // EPSG code: 326xx for North, 327xx for South
+                const utmEpsg = `EPSG:${isNorth ? 32600 + zoneNumber : 32700 + zoneNumber}`;
+
+                // Project all points to UTM
+                let utmCoords;
+                try {
+                    utmCoords = wgs84Coords.map(c => ol.proj.transform(c, 'EPSG:4326', utmEpsg));
+                } catch (e) {
+                    // If UTM projection not registered, fall back to Web Mercator Shoelace
+                    // (less accurate at high latitudes but better than spherical)
+                    console.warn('[Area] UTM projection failed, falling back to EPSG:3857:', e.message);
+                    utmCoords = wgs84Coords.map(c => ol.proj.transform(c, 'EPSG:4326', 'EPSG:3857'));
+                }
+
+                // Shoelace formula for planar area (same as JRJ Engine / AutoCAD)
+                let areaSum = 0;
+                for (let i = 0; i < utmCoords.length - 1; i++) {
+                    const [x1, y1] = utmCoords[i];
+                    const [x2, y2] = utmCoords[i + 1];
+                    areaSum += (x1 * y2) - (x2 * y1);
+                }
+                return Math.abs(areaSum / 2);
+            }
+
             // Robust edge distance calculation for FlatGeoBuf layers
             // Uses Vincenty on WGS84 ellipsoid for survey-grade accuracy
             let _fgbCrsLogged = false;
@@ -18973,10 +19018,14 @@
                     }
 
                     // Add area and unique_id label in center
+                    // Compute area on-the-fly using UTM Shoelace (matches AutoCAD)
+                    // instead of stored DB value (which used spherical formula, ~0.76% too high)
+                    const computedAreaSqM = geodesicAreaSqMeters(wgs84Coords);
+                    const computedAreaHa = computedAreaSqM / 10000;
                     const center = ol.extent.getCenter(geometry.getExtent());
                     const labelText = uniqueId
-                        ? `${uniqueId}\n${areaHectares.toFixed(4)} ha`
-                        : `${areaHectares.toFixed(4)} ha`;
+                        ? `${uniqueId}\n${computedAreaHa.toFixed(4)} ha`
+                        : `${computedAreaHa.toFixed(4)} ha`;
 
                     styles.push(new ol.style.Style({
                         text: new ol.style.Text({
@@ -25425,16 +25474,25 @@
                         // Polygon created successfully
                         currentPolygonData = data;
 
+                        // Recompute area on-the-fly using UTM Shoelace for AutoCAD-matching accuracy
+                        // (edge function uses spherical formula which is ~0.76% too high)
+                        if (data.geometry && data.geometry.coordinates && data.geometry.coordinates[0]) {
+                            const accurateAreaSqM = geodesicAreaSqMeters(data.geometry.coordinates[0]);
+                            const accurateAreaHa = accurateAreaSqM / 10000;
+                            console.log(`[Area] Edge function: ${data.area_hectares?.toFixed(6)} ha → UTM Shoelace: ${accurateAreaHa.toFixed(6)} ha`);
+                            currentPolygonData.area_hectares = accurateAreaHa;
+                        }
+
                         console.log('✅ Polygon created successfully:', {
                             hasGeometry: !!data.geometry,
-                            area: data.area_hectares,
+                            area: currentPolygonData.area_hectares,
                             vertices: data.num_vertices,
                             edgeDistances: data.edge_distances?.length
                         });
 
                         // Display polygon on map
                         if (data.geometry) {
-                            displayPolygonPreview(data.geometry, data.edge_distances, data.area_hectares);
+                            displayPolygonPreview(data.geometry, data.edge_distances, currentPolygonData.area_hectares);
                         } else {
                             console.error('❌ No geometry in response');
                             showToast('Error: No geometry returned from edge function', 'error');
@@ -25444,7 +25502,7 @@
                         if (previewInfo) {
                             const polygonAreaDisplay = polygonImportPanel ? polygonImportPanel.querySelector('#polygon-area-display') : document.getElementById('polygon-area-display');
                             const polygonVerticesDisplay = polygonImportPanel ? polygonImportPanel.querySelector('#polygon-vertices-display') : document.getElementById('polygon-vertices-display');
-                            if (polygonAreaDisplay) polygonAreaDisplay.textContent = data.area_hectares.toFixed(4);
+                            if (polygonAreaDisplay) polygonAreaDisplay.textContent = currentPolygonData.area_hectares.toFixed(4);
                             if (polygonVerticesDisplay) polygonVerticesDisplay.textContent = data.num_vertices;
                             previewInfo.style.display = 'block';
                         }
@@ -25478,7 +25536,7 @@
 
                         if (saveUniqueId) saveUniqueId.textContent = uniqueId;
                         if (saveLayerName) saveLayerName.textContent = layerName;
-                        if (saveArea) saveArea.textContent = data.area_hectares.toFixed(4);
+                        if (saveArea) saveArea.textContent = currentPolygonData.area_hectares.toFixed(4);
                         if (savePolygonBtn) {
                             savePolygonBtn.disabled = false;
                             console.log('✅ Save polygon button enabled');
@@ -25602,11 +25660,14 @@
                                 });
                             }
 
-                            // Add area label in center
+                            // Add area label in center — compute on-the-fly for accuracy
+                            const previewCoords = feature.getGeometry().getCoordinates()[0];
+                            const previewWgs84 = previewCoords.map(c => ol.proj.transform(c, 'EPSG:3857', 'EPSG:4326'));
+                            const previewAreaHa = geodesicAreaSqMeters(previewWgs84) / 10000;
                             const center = ol.extent.getCenter(feature.getGeometry().getExtent());
                             styles.push(new ol.style.Style({
                                 text: new ol.style.Text({
-                                    text: `${areaHectares.toFixed(4)} ha`,
+                                    text: `${previewAreaHa.toFixed(4)} ha`,
                                     font: 'bold 14px sans-serif',
                                     fill: new ol.style.Fill({ color: '#000' }),
                                     stroke: new ol.style.Stroke({ color: '#fff', width: 3 }),
