@@ -31327,8 +31327,9 @@
                         throw new Error('Need at least 3 points to generate DTM');
                     }
 
-                    // Always use edge function for best results
-                    const useEdgeFunction = true;
+                    // Skip Supabase edge function - use client-side processing
+                    // (Edge function requires paid Supabase tier; contours use Cloudflare worker separately)
+                    const useEdgeFunction = false;
 
                     if (useEdgeFunction) {
                         showLoadingIndicator('Generating DTM on server (large dataset)...');
@@ -32992,28 +32993,13 @@
             }
 
             function attachContourVectorImageLayer(features, { interval, majorInterval, minZ, maxZ }) {
-                // VERSION 5.0 - USER-CONFIGURABLE CONTOUR STYLES (solid/dashed/dotted)
-                console.log('[CONTOUR v5.0] User-configurable contour styles');
+                // VERSION 6.0 - LIVE USER-CONFIGURABLE CONTOUR STYLES (solid/dashed/dotted)
+                // Style function reads from terrain3DState DIRECTLY on every render
+                // so changes take effect immediately without regenerating contours.
+                console.log('[CONTOUR v6.0] Live user-configurable contour styles');
 
-                // Read user style settings from terrain3DState
-                const majorColor = terrain3DState.majorContourColor || document.getElementById('majorContourColor')?.value || '#8b4513';
-                const minorColor = terrain3DState.minorContourColor || document.getElementById('minorContourColor')?.value || '#999999';
-                const majorWidth = terrain3DState.majorContourWidth || parseFloat(document.getElementById('majorContourWidth')?.value) || 2;
-                const minorWidth = terrain3DState.minorContourWidth || parseFloat(document.getElementById('minorContourWidth')?.value) || 1;
-                const majorStyle = terrain3DState.majorContourStyle || document.getElementById('majorContourStyle')?.value || 'solid';
-                const minorStyle = terrain3DState.minorContourStyle || document.getElementById('minorContourStyle')?.value || 'solid';
-
-                console.log(`[CONTOUR] Styles - Major: ${majorStyle} (${majorColor}, ${majorWidth}px), Minor: ${minorStyle} (${minorColor}, ${minorWidth}px)`);
-
-                // Helper: resolve lineDash array from style name and line width
-                function resolveLineDash(styleName, lineWidth) {
-                    if (styleName === 'dashed') {
-                        return [lineWidth * 4, lineWidth * 3];
-                    } else if (styleName === 'dotted') {
-                        return [lineWidth, lineWidth * 2];
-                    }
-                    return undefined; // solid
-                }
+                // Log initial style values
+                console.log(`[CONTOUR] Initial Styles - Major: ${terrain3DState.majorContourStyle} (${terrain3DState.majorContourColor}), Minor: ${terrain3DState.minorContourStyle} (${terrain3DState.minorContourColor})`);
 
                 // Create source
                 const source = new ol.source.Vector({ features });
@@ -33030,7 +33016,9 @@
                 console.log(`[CONTOUR] Site: ${siteWidth.toFixed(1)}m × ${siteHeight.toFixed(1)}m, Label spacing: ${metersPerLabel.toFixed(1)}m`);
 
                 // ============================================================
-                // SINGLE CONTOUR STYLE FUNCTION (ONLY ONE ALLOWED)
+                // SINGLE CONTOUR STYLE FUNCTION
+                // Reads ALL style values from terrain3DState on EVERY call
+                // so user changes take effect immediately.
                 // ============================================================
                 const styleFunction = (feature, resolution) => {
                     const elev = feature.get('elevation');
@@ -33042,16 +33030,31 @@
                     if (!isMajor && !showMinor) return null;
 
                     // --------------------------------------------------------
-                    // STROKE STYLE - Reads user-selected style (solid/dashed/dotted)
+                    // READ LIVE from terrain3DState (not captured via closure)
                     // --------------------------------------------------------
-                    const strokeColor = isMajor ? majorColor : minorColor;
-                    const strokeWidth = isMajor ? majorWidth : minorWidth;
-                    const styleName = isMajor ? majorStyle : minorStyle;
-                    const lineDash = resolveLineDash(styleName, strokeWidth);
+                    const liveColor = isMajor
+                        ? (terrain3DState.majorContourColor || '#8b4513')
+                        : (terrain3DState.minorContourColor || '#999999');
+                    const liveWidth = isMajor
+                        ? (terrain3DState.majorContourWidth || 2)
+                        : (terrain3DState.minorContourWidth || 1);
+                    const liveStyle = isMajor
+                        ? (terrain3DState.majorContourStyle || 'solid')
+                        : (terrain3DState.minorContourStyle || 'solid');
+
+                    // Resolve lineDash: use EMPTY ARRAY [] for solid (explicit canvas reset)
+                    let lineDash;
+                    if (liveStyle === 'dashed') {
+                        lineDash = [liveWidth * 4, liveWidth * 3];
+                    } else if (liveStyle === 'dotted') {
+                        lineDash = [liveWidth, liveWidth * 2];
+                    } else {
+                        lineDash = [];  // SOLID: explicit empty array resets canvas dash
+                    }
 
                     const stroke = new ol.style.Stroke({
-                        color: strokeColor,
-                        width: strokeWidth,
+                        color: liveColor,
+                        width: liveWidth,
                         lineCap: 'round',
                         lineJoin: 'round',
                         lineDash: lineDash
@@ -33119,7 +33122,7 @@
                 });
 
                 map.addLayer(terrain3DState.contourLayer);
-                console.log(`[CONTOUR] Layer attached - Major: ${majorStyle}, Minor: ${minorStyle}, resolution-aware labels`);
+                console.log(`[CONTOUR v6.0] Layer attached with LIVE style reading from terrain3DState`);
             }
 
             // ========================================
@@ -36660,26 +36663,40 @@ function smoothChaikin(points) {
 
             document.getElementById('minorContourColor')?.addEventListener('change', function () {
                 terrain3DState.minorContourColor = this.value;
+                if (terrain3DState.contourLayer) terrain3DState.contourLayer.changed();
             });
 
             document.getElementById('minorContourWidth')?.addEventListener('change', function () {
                 terrain3DState.minorContourWidth = parseFloat(this.value);
+                if (terrain3DState.contourLayer) terrain3DState.contourLayer.changed();
             });
 
             document.getElementById('minorContourStyle')?.addEventListener('change', function () {
                 terrain3DState.minorContourStyle = this.value;
+                console.log('[CONTOUR] Minor style changed to:', this.value);
+                // Force layer re-render so new style takes effect immediately
+                if (terrain3DState.contourLayer) {
+                    terrain3DState.contourLayer.changed();
+                }
             });
 
             document.getElementById('majorContourColor')?.addEventListener('change', function () {
                 terrain3DState.majorContourColor = this.value;
+                if (terrain3DState.contourLayer) terrain3DState.contourLayer.changed();
             });
 
             document.getElementById('majorContourWidth')?.addEventListener('change', function () {
                 terrain3DState.majorContourWidth = parseFloat(this.value);
+                if (terrain3DState.contourLayer) terrain3DState.contourLayer.changed();
             });
 
             document.getElementById('majorContourStyle')?.addEventListener('change', function () {
                 terrain3DState.majorContourStyle = this.value;
+                console.log('[CONTOUR] Major style changed to:', this.value);
+                // Force layer re-render so new style takes effect immediately
+                if (terrain3DState.contourLayer) {
+                    terrain3DState.contourLayer.changed();
+                }
             });
 
             document.getElementById('showContourLabels')?.addEventListener('change', function () {
