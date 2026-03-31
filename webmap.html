@@ -50543,14 +50543,16 @@ CRITICAL RULES:
                 appendMessage(sender, htmlContent, type) {
                     const container = document.getElementById('bot-messages-container');
                     const msgId = 'msg-' + Date.now();
-                    const bgColor = type === 'sent' ? '#dcf8c6' : '#ffffff';
-                    const alignment = type === 'sent' ? 'flex-end' : 'flex-start';
+                    const bgColor = type === 'sent' ? '#dcf8c6' : '#f0f4ff';
+                    const alignSelf = type === 'sent' ? 'flex-end' : 'flex-start';
+                    const alignItems = type === 'sent' ? 'flex-end' : 'flex-start';
                     const borderRadius = type === 'sent' ? '18px 18px 4px 18px' : '18px 18px 18px 4px';
+                    const textAlign = type === 'sent' ? 'right' : 'left';
 
                     const msgHTML = `
-                        <div class="message message-${type}" style="align-items: ${alignment}; margin-bottom: 12px; display: flex; flex-direction: column;">
+                        <div class="message message-${type}" style="align-self: ${alignSelf}; align-items: ${alignItems}; margin-bottom: 12px; display: flex; flex-direction: column; max-width: 80%; text-align: ${textAlign};">
                             <div class="sender-name" style="font-size: 0.75rem; color: #666; margin-bottom: 4px; padding: 0 4px;">${sender}</div>
-                            <div class="message-bubble" id="${msgId}" style="background: ${bgColor}; border: 1px solid #e5e5ea; padding: 10px 14px; border-radius: ${borderRadius}; max-width: 80%; font-size: 14px; line-height: 1.5; box-shadow: 0 1px 2px rgba(0,0,0,0.05); word-wrap: break-word;">
+                            <div class="message-bubble" id="${msgId}" style="background: ${bgColor}; border: 1px solid #e5e5ea; padding: 10px 14px; border-radius: ${borderRadius}; font-size: 14px; line-height: 1.5; box-shadow: 0 1px 2px rgba(0,0,0,0.05); word-wrap: break-word;">
                                 ${htmlContent}
                             </div>
                         </div>
@@ -50699,10 +50701,10 @@ CRITICAL RULES:
             <!-- AI Assistant View -->
             <div id="bot-view" class="chat-view">
                 <div class="bot-layout" style="display: flex; flex-direction: column; height: 100%;">
-                    <div id="bot-messages-container" class="messages-list" style="flex: 1; overflow-y: auto; padding: 15px;">
-                        <div class="message message-received" style="align-items: flex-start; margin-bottom: 12px; display: flex; flex-direction: column;">
+                    <div id="bot-messages-container" class="messages-list" style="flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column;">
+                        <div class="message message-received" style="align-self: flex-start; align-items: flex-start; margin-bottom: 12px; display: flex; flex-direction: column; max-width: 80%;">
                             <div class="sender-name" style="font-size: 0.75rem; color: #666; margin-bottom: 4px; padding: 0 4px;">GSPNET AI Assistant</div>
-                            <div class="message-bubble" style="background: #e8f0fe; border: 1px solid #d2e3fc; padding: 10px 14px; border-radius: 18px 18px 18px 4px; max-width: 80%; font-size: 14px; line-height: 1.4; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                            <div class="message-bubble" style="background: #f0f4ff; border: 1px solid #d2e3fc; padding: 10px 14px; border-radius: 18px 18px 18px 4px; font-size: 14px; line-height: 1.4; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                                 <p class="message-content" style="margin: 0;">Hello! I'm your Geospatial Network AI Assistant. How can I help you today?</p>
                                 <p class="message-content" style="margin: 8px 0 0 0; font-size: 12px; color: #555;"><i>Hint: Ask me about DTMs, Profiles, Coordinate Extractor, or the project.</i></p>
                             </div>
