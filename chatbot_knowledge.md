@@ -8999,7 +8999,7 @@ STEP 1: OPEN THE PANEL
 2. Click `QUALITY FLAGS` in the main toolbar
 3. The panel opens with two tabs:
    - `Flag Parcel`
-   - `Check Flags`
+   - `Find Parcel Case`
 
 STEP 2: SELECT THE SURVEY POLYGON LAYER
 
@@ -9057,7 +9057,55 @@ STEP 7: SUBMIT THE FLAG
 5. The system attempts to open a parcel-linked corroboration case immediately after the flag is saved
 6. The form resets after a successful submission
 
-3A. CORROBORATION CASE WORKFLOW AFTER FLAGGING
+3A. HOW TO FIND A FLAGGED PARCEL CASE
+
+The case lookup workflow is now parcel-centered.
+Users no longer need to search by district, county, flag type, or date range in
+the main retrieval flow.
+
+STEP 1: OPEN THE CASE LOOKUP
+
+1. Open `QUALITY FLAGS`
+2. Click `Find Parcel Case`
+
+STEP 2: ENTER THE PARCEL REFERENCE
+
+1. Select the Survey Polygon layer
+2. Enter the parcel unique ID
+3. Example: `TT36N-069`
+
+STEP 3: RUN THE LOOKUP
+
+1. Click `Find Parcel Case`
+2. The system first searches `polygon_features`
+3. If the parcel exists:
+   - the map zooms to the parcel
+   - the parcel is highlighted
+   - the parcel summary becomes available
+4. The system then searches for a linked flag in `parcel_flags`
+
+STEP 4: REVIEW THE RESULT
+
+If a flag exists, the platform opens a parcel case detail view with this order:
+
+1. `Parcel Summary`
+2. `Flag Information`
+3. `Corroboration Case`
+4. supporting sections such as history, comments, and flag-change controls
+
+If the parcel exists but no flag exists yet:
+
+1. the parcel summary is still shown
+2. the user is informed that no quality flag has been recorded yet
+3. the user can return to `Flag Parcel` to create one
+
+WHY THIS DESIGN IS IMPORTANT:
+
+- it matches the way surveyors identify parcels in practice
+- it keeps flag retrieval tied directly to the official Survey Polygon record
+- it makes the corroboration case easier to reach from a known parcel ID
+
+3B. CORROBORATION CASE WORKFLOW AFTER FLAGGING
 
 Once a flag is submitted, the platform can open a dedicated corroboration case
 for that parcel.
@@ -9346,21 +9394,20 @@ The Quality Flags feature enables users to report and track data quality
 issues for parcels. It enables users to:
 
 - Flag parcels with quality issues (red/yellow/green)
-- Search and view existing flags
+- Find parcel-linked flags and corroboration cases by layer and unique ID
 - Update flag status
 - Add comments to flags
 - Track flag history
-- View statistics by flag type
-- Export flag data
+- Review corroboration case evidence and participants
 
 Key Features:
 
-- Flag creation with location selection
+- Parcel-linked flag creation using Survey Polygon layer + unique ID
 - Flag type classification (red/yellow/green)
-- District-based filtering
+- Direct parcel case lookup
+- Parcel summary + flag detail + corroboration case workflow
 - Flag history tracking
 - Comment system
-- Statistics dashboard
 - Map visualization
 - Supabase database integration
 
@@ -9386,105 +9433,111 @@ STEP 1: OPEN QUALITY FLAGS PANEL
 1.4. Quality Flags dock/panel slides in from right side
 1.5. Panel has two tabs:
     - "Flag Parcel" tab: Create new flags
-    - "Check Flags" tab: Search and view existing flags
+    - "Find Parcel Case" tab: Open an existing parcel-linked flag and corroboration case
 
 STEP 2: CREATE NEW FLAG (FLAG PARCEL TAB)
 -------------------------------------------
 
 2.1. Ensure "Flag Parcel" tab is active (default)
-2.2. Select Parcel Type:
-    - Titled: Has block/plot numbers
-    - Untitled: No block/plot numbers
-2.3. Fill Location Information:
-    - District: Select from dropdown (required)
-    - County: Enter county name (optional)
-    - Block: Enter block number (if titled)
-    - Plot: Enter plot number (if titled)
-2.4. Select Location on Map:
-    - Click "Select Location on Map" button
-    - Map enters selection mode
-    - Click on map at parcel location
-    - Temporary pin appears at selected location
-    - Coordinates displayed: "Lat: X, Lng: Y"
-    - Click "Cancel Selection" to cancel
-2.5. Select Flag Type:
+2.2. Select the Survey Polygon layer
+2.3. Enter the parcel unique ID
+    - Example: `TT36N-001`
+2.4. Click "Verify on map"
+    - System checks `polygon_features`
+    - Map zooms to parcel
+    - Parcel is highlighted
+    - Verification summary appears
+2.5. Tick confirmation checkbox to confirm the highlighted parcel
+2.6. Select Flag Type:
     - Red: Bad/Untrusted Data
     - Yellow: Needs Review
     - Green: Verified/Trusted Data
-2.6. Fill Reporter Information:
+2.7. Fill Reporter Information:
     - Reporter Name: Enter your name (required)
     - Reporter Contact: Enter phone or email (required)
     - Validates: Phone (+256XXXXXXXXX) or email format
-2.7. Enter Reason:
+2.8. Enter Reason:
     - Reason: Describe the quality issue (required)
     - Minimum 10 characters
     - Maximum 1000 characters
-    - Character counter shows remaining
-2.8. Submit Flag:
+    - Character counter shows current length
+2.9. Submit Flag:
     - Click "Submit Flag" button
     - System validates all fields
-    - Checks for duplicate flags (same coordinates)
+    - Checks for duplicate parcel-linked flags
     - Creates flag in database
-    - Adds flag marker to map
-    - Shows success message
+    - Updates parcel tint on map
+    - Attempts to open corroboration case
+    - Switches to the parcel case detail view
     - Resets form
 
-STEP 3: SEARCH FLAGS (CHECK FLAGS TAB)
-----------------------------------------
+STEP 3: FIND AN EXISTING CASE (FIND PARCEL CASE TAB)
+----------------------------------------------------
 
-3.1. Click "Check Flags" tab
-3.2. Set Search Filters:
-    - District: Select district (optional)
-    - County: Enter county name (optional, partial match)
-    - Flag Type: Select type (optional: All, Red, Yellow, Green)
-    - Date From: Select start date (optional)
-    - Date To: Select end date (optional)
-3.3. Click "Search Flags" button
+3.1. Click "Find Parcel Case" tab
+3.2. Enter the parcel reference:
+    - Survey polygon layer
+    - Parcel unique ID
+3.3. Click "Find Parcel Case"
 3.4. System Processing:
-    a. Validates filters
-    b. Queries Supabase:
-       - Table: parcel_flags
-       - Applies filters
-       - Orders by created_at (newest first)
-       - Pagination: 20 flags per page
-    c. Displays results:
-       - Flags list with details
-       - Statistics (red/yellow/green counts)
-       - Flags plotted on map
-3.5. Results Display:
-    - Flag items show:
-      *Flag type indicator (colored circle)
-      * Location (district, county, block, plot)
-      *Reason (truncated to 100 chars)
-      * Date created
-    - Statistics show:
-      *Red flags count
-      * Yellow flags count
-      *Green flags count
-    - Map shows:
-      * Flag markers at locations
-      * Color-coded by type (red/yellow/green)
+    a. Validates layer and unique ID
+    b. Queries `polygon_features`
+    c. Zooms to and highlights the parcel if found
+    d. Queries `parcel_flags` for the linked parcel flag
+3.5. If a flag exists:
+    - opens parcel case details directly
+    - shows parcel summary first
+    - shows flag information next
+    - shows corroboration case below the flag information
+3.6. If no flag exists:
+    - still shows parcel summary
+    - informs the user no flag has been recorded for that parcel yet
 
-STEP 4: VIEW FLAG DETAILS
----------------------------
+STEP 4: VIEW PARCEL CASE DETAILS
+---------------------------------
 
-4.1. Click on flag item in list
-4.2. Flag detail view opens
-4.3. Shows Flag Information:
+4.1. After successful lookup, parcel case detail view opens
+4.2. The top of the page shows Parcel Summary:
+    - Unique ID
+    - Survey layer
+    - District
+    - County
+    - Area
+    - Survey author / record owner where available
+4.3. Next, the page shows Flag Information:
     - Flag type (with indicator)
-    - Location (district, county, block, plot)
-    - Coordinates (lat, lng)
+    - Parcel / location
+    - Coordinates (centroid / marker)
     - Reporter name and contact
     - Reason (full text)
     - Created date
     - Status (active/resolved)
-4.4. Shows Flag History:
-    - List of all status changes
-    - Who changed it
-    - When changed
-    - Reason for change
-    - Old type → New type
-4.5. Shows Comments:
+4.4. Immediately below Flag Information, the corroboration case section is shown
+4.5. Additional supporting sections may include:
+    - Flag History
+    - Comments
+    - Change Flag Type controls
+
+STEP 5: REVIEW CORROBORATION CASE CONTENT
+-----------------------------------------
+
+5.1. The corroboration case section can show:
+    - case title
+    - case status
+    - participants
+    - discussion thread
+    - evidence uploads
+    - RSU reviewer nominations and recommendations
+    - admin resolution controls
+
+5.2. This section is the main professional workflow area for resolving the parcel issue
+
+STEP 6: COMMENTS AND FLAG UPDATES
+---------------------------------
+
+6.1. Users can still add comments
+6.2. Authorized users can update flag type where the workflow allows it
+6.3. Changes are captured in history for audit purposes
     - List of all comments
     - Commenter name and date
     - Comment text
@@ -9553,33 +9606,13 @@ STEP 7: LOAD MORE FLAGS
     d. Plots new flags on map
 7.5. More flags appear in list
 
-STEP 8: EXPORT FLAGS
----------------------
-
-8.1. In "Check Flags" tab, after search
-8.2. Click "Export" button (if available)
-8.3. System Processing:
-    a. Collects all filtered flags
-    b. Formats as CSV
-    c. Downloads file
-8.4. CSV file contains:
-    - Flag ID
-    - Type
-    - Location (district, county, block, plot)
-    - Coordinates
-    - Reporter info
-    - Reason
-    - Created date
-    - Status
-
-STEP 9: CLOSE PANEL
+STEP 7: CLOSE PANEL
 --------------------
 
-9.1. Click "×" (close) button in panel header
-9.2. Or click "QUALITY FLAGS" button again
-9.3. Panel slides out
-9.4. Map markers remain visible
-9.5. Panel state saved to localStorage
+7.1. Click "×" (close) button in panel header
+7.2. Or click "QUALITY FLAGS" button again
+7.3. Panel slides out
+7.4. Parcel lookup state is saved to localStorage
 
 ================================================================================
 3. BUTTON FUNCTIONS & CALCULATIONS
