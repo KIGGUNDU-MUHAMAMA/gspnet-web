@@ -9054,7 +9054,83 @@ STEP 7: SUBMIT THE FLAG
    - valid name, contact, and reason
 3. The system stores the flag in `parcel_flags`
 4. The parcel tint updates on the map
-5. The form resets after a successful submission
+5. The system attempts to open a parcel-linked corroboration case immediately after the flag is saved
+6. The form resets after a successful submission
+
+3A. CORROBORATION CASE WORKFLOW AFTER FLAGGING
+
+Once a flag is submitted, the platform can open a dedicated corroboration case
+for that parcel.
+
+PURPOSE:
+The corroboration case is the structured collaboration workflow used to review
+the flagged parcel, share evidence, involve independent reviewers, and prepare
+an auditable final decision.
+
+PARTICIPANTS:
+
+- Surveyor A: the creator/publisher of the polygon, identified from `polygon_features.created_by` where available
+- Surveyor B: the surveyor who visited site, detected the issue, and submitted the flag
+- RSU reviewer selected by Surveyor A
+- RSU reviewer selected by Surveyor B
+- System Admin: `kiggundumuhamad@gmail.com`
+
+RSU ROLE:
+`RSU` means `Registered Surveyor of Uganda`.
+This role is intended for registered land surveyors only and represents an
+independent professional reviewer for parcel corroboration, survey quality
+assurance, and technical dispute resolution.
+
+WHAT THE SYSTEM DOES AFTER FLAGGING:
+
+1. creates a `corroboration_case`
+2. links it to the flag and parcel
+3. adds Surveyor B to the case
+4. attempts to identify and add Surveyor A
+5. adds the system admin
+6. opens a dedicated case discussion thread inside the flag detail view
+7. allows each side to nominate one RSU reviewer
+
+CASE STATUSES:
+
+- `case_opened`
+- `awaiting_creator_response`
+- `awaiting_rsu_selection`
+- `under_corroboration`
+- `evidence_under_review`
+- `admin_review`
+- `resolved_flag_changed`
+- `resolved_parcel_archived`
+- `resolved_no_change`
+- `closed`
+
+4A. EVIDENCE UPLOADS AND DOWNLOADS
+
+Corroboration evidence is grouped into three upload categories:
+
+- abstract of coordinates:
+  `https://data.geospatialnetworkug.xyz/flags/abstract/`
+- drawings:
+  `https://data.geospatialnetworkug.xyz/flags/drawings/`
+- images:
+  `https://data.geospatialnetworkug.xyz/flags/images/`
+
+Each uploaded file should be treated as case evidence and can be:
+
+- opened in the browser
+- downloaded
+- linked to the parcel and case
+- reviewed by all case participants
+
+WHAT USERS CAN UPLOAD:
+
+- corrected or original coordinate abstracts
+- field sketches and survey drawings
+- site photographs and supporting imagery
+
+BEST PRACTICE:
+All significant technical claims made in the corroboration process should be
+supported with uploaded evidence where possible.
 
 4. MEANING OF THE FLAG TYPES
 
@@ -9115,6 +9191,8 @@ STEP-BY-STEP:
 4. Click the parcel on the map
 5. The panel first loads parcel attributes
 6. The panel then loads Quality Flag records linked to that parcel
+7. If a corroboration case exists, the parcel can also be understood in the
+   context of its broader review process
 
 PARCEL DETAILS THAT MAY BE RETURNED:
 
@@ -9147,6 +9225,17 @@ FLAG DETAILS THAT MAY BE RETURNED:
 - updated date
 - status
 
+CORROBORATION CONTEXT NOW AVAILABLE IN THE FLAG DETAIL VIEW:
+
+- corroboration case title
+- corroboration status
+- case participants
+- RSU reviewer assignments
+- case discussion thread
+- uploaded evidence
+- RSU recommendations
+- admin action history
+
 IF NO FLAGS EXIST:
 The Info panel states that no Quality Flag has yet been submitted for that
 parcel.
@@ -9156,6 +9245,17 @@ Where a user identifies a quality issue, the preferred first step is
 corroboration. Users should use the Chat function to contact the surveyor or
 firm responsible for the work, share evidence, and seek clarification or
 corrective action within 14 calendar days where possible before escalation.
+
+FINAL ADMIN STAGE:
+The system admin is the final authority for formal resolution actions such as:
+
+- changing the final parcel flag
+- archiving the parcel
+- executing the delete-parcel workflow
+- closing the corroboration case
+
+For governance and audit purposes, parcel deletion should generally be treated
+as an admin-controlled workflow step rather than an informal user action.
 
 7. BEST PRACTICES
 
@@ -9167,6 +9267,11 @@ corrective action within 14 calendar days where possible before escalation.
 - write reasons that are clear, factual, and evidence-based
 - use the Info button before flagging if you want to inspect parcel details
 - use Chat to support professional corroboration and resolution
+- use the corroboration case thread instead of informal side conversations when
+  parcel review is already active
+- ask each side to nominate one RSU where an issue requires independent review
+- upload evidence in the correct category so other reviewers can open and
+  download it easily
 
 8. TROUBLESHOOTING
 
@@ -9190,6 +9295,29 @@ SOLUTION:
 - no Quality Flag may have been submitted yet
 - verify the flag was saved successfully
 - verify the parcel ID on the flag matches the selected parcel
+
+ISSUE: Corroboration case exists but Surveyor A was not attached automatically
+SOLUTION:
+
+- verify that the polygon record has `created_by`
+- verify the creator has a matching user profile
+- if automatic creator matching is unavailable, admin may need to identify the
+  responsible surveyor manually
+
+ISSUE: RSU reviewer list is empty
+SOLUTION:
+
+- verify the relevant users are registered with role `RSU`
+- confirm the user profiles table contains the role and email information
+- ensure the intended RSU users have signed in so their profiles are created or updated
+
+ISSUE: Evidence uploaded successfully but cannot be downloaded
+SOLUTION:
+
+- verify the Cloudflare Worker upload succeeded
+- confirm the saved public URL points to the correct `/flags/.../` folder
+- test the public file URL directly in the browser
+- confirm the file record was saved in the corroboration files table
 
 ISSUE: Flag tint is too light on imagery
 SOLUTION:
@@ -11612,7 +11740,7 @@ Users can easily create an account on the login page (index.html). Once register
   3. Explain that clicking the link will open their WhatsApp with the message already filled out, and they just need to hit send to reach the admin (+256753771256).
 
 ### User Roles / Account Types
-The Geospatial Network Uganda platform offers three distinct account types:
+The Geospatial Network Uganda platform offers four active account types:
 
 1. **General User (Land Surveyor):**
    - **Primary Use:** Obtaining and sharing geospatial data.
@@ -11625,6 +11753,11 @@ The Geospatial Network Uganda platform offers three distinct account types:
 3. **Land Clerk:**
    - **Primary Use:** Monitoring and managing estates.
    - **Benefits:** Keep track of land transactions, register buyers for untitled parcels of bibanja, and manage administrative land clerk duties natively within the platform.
+
+4. **Registered Surveyor of Uganda (RSU):**
+   - **Primary Use:** Independent professional review in parcel corroboration workflows.
+   - **Benefits:** Participate as an independent reviewer in survey quality assurance, technical dispute resolution, and parcel corroboration cases.
+   - **Restriction:** This role is intended for registered land surveyors only and should be treated as a controlled reviewer role, not a generic public account type.
 
 ## Available Data Layers
 
