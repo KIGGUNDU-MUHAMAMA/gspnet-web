@@ -1721,11 +1721,14 @@
                             <option value="general">General user (shared data features)</option>
                             <option value="valuer">Valuer (private valuation workspace)</option>
                             <option value="LAND_CLERK">Land Clerk (untitled land registration)</option>
+                            <option value="RSU">Registered Surveyor of Uganda (registered land surveyors only)</option>
                         </select>
                     </div>
                     <div class="form-helper">
                         Valuers receive a private environment for comparables and valuation tools. Land Clerks can
-                        register and manage untitled land parcels. Other users access shared mapping features.
+                        register and manage untitled land parcels. Registered Surveyors of Uganda are registered land
+                        surveyors who act as independent professional reviewers for parcel corroboration, survey quality
+                        assurance, and technical dispute resolution. Other users access shared mapping features.
                     </div>
                 </div>
 
@@ -2048,7 +2051,9 @@
 
                 const successCopy = selectedRole === 'valuer'
                     ? 'Valuer account created! Check your email to confirm, then contact the admin at +256753771256 to activate your private workspace.'
-                    : 'Account created successfully! Please check your email to confirm your account, then contact the admin at +256753771256 to activate your subscription.';
+                    : selectedRole === 'RSU'
+                        ? 'RSU account request created! Check your email to confirm, then contact the admin at +256753771256 so your Registered Surveyor of Uganda reviewer role can be verified and activated.'
+                        : 'Account created successfully! Please check your email to confirm your account, then contact the admin at +256753771256 to activate your subscription.';
 
                 showMessage(signupMessage, successCopy, 'success');
 

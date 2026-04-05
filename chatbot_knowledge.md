@@ -8950,6 +8950,253 @@ SOLUTION:
 
 QUALITY FLAGS - Complete Workflow Guide
 
+UPDATED IMPLEMENTATION NOTE:
+Use the section below as the current reference for the live Quality Flags workflow.
+It supersedes older notes in this guide that refer to coordinate-based flagging.
+
+================================================================================
+CURRENT QUALITY FLAGS WORKFLOW (LIVE IMPLEMENTATION)
+================================================================================
+
+1. WHAT QUALITY FLAGS ARE
+Quality Flags are a parcel-level quality assurance feature for the primary
+Survey Polygon layers. They allow users to identify unreliable parcels, request
+review, confirm trusted parcels, and preserve an auditable quality record.
+
+Quality Flags currently apply to these Survey Polygon layers only:
+
+- BLB-UNTITLED
+- UNTITLED UTM ZONE 36S
+- UNTITLED UTM ZONE 36N
+- TITLE TRACTS UTM ZONE 36S
+- TITLE TRACTS UTM ZONE 36N
+
+These layers are important because they are primary operational datasets that
+users depend on for land administration, planning, due diligence, valuation,
+survey review, and technical decision-making.
+
+2. WHY QUALITY FLAGS MATTER ON AN ONLINE PRIMARY DATA SHARING PLATFORM
+Quality Flags are important because an online primary data platform is not only
+a viewer; it is a working environment where many users may rely on the same
+parcel records. If bad primary data is shared without warning, the error can be
+reused by many people very quickly.
+
+Quality Flags improve:
+
+- transparency: users can immediately see whether a parcel is under concern
+- accountability: quality issues are linked to a specific parcel
+- traceability: review history can be followed over time
+- collaboration: users and surveyors can exchange evidence and resolve issues
+- trust: verified parcels can be distinguished from parcels under concern
+
+In simple terms, Quality Flags help stop bad survey data from spreading silently.
+
+3. STEP-BY-STEP: HOW TO CREATE A FLAG
+
+STEP 1: OPEN THE PANEL
+
+1. Open `webmap.html`
+2. Click `QUALITY FLAGS` in the main toolbar
+3. The panel opens with two tabs:
+   - `Flag Parcel`
+   - `Check Flags`
+
+STEP 2: SELECT THE SURVEY POLYGON LAYER
+
+1. Stay on `Flag Parcel`
+2. Choose the Survey Polygon layer that contains the parcel
+3. Only the five approved Survey Polygon layers are supported
+
+STEP 3: ENTER THE PARCEL UNIQUE ID
+
+1. Type the parcel unique ID
+2. Example: `TT36N-001`
+3. The ID must match the parcel stored in the selected layer
+
+STEP 4: VERIFY THE PARCEL ON THE MAP
+
+1. Click `Verify on map`
+2. The system checks whether the parcel exists in `polygon_features`
+3. If found:
+   - the map zooms to the parcel
+   - the parcel is highlighted
+   - district and county are pulled from the parcel record
+   - a verification summary is shown
+4. Tick the confirmation checkbox to confirm that the highlighted parcel is the
+   parcel you intend to flag
+
+STEP 5: CHOOSE THE FLAG TYPE
+
+1. Select one of the available flag types:
+   - `Red`
+   - `Yellow`
+   - `Green`
+
+STEP 6: ENTER REPORTER DETAILS
+
+1. Enter your full name
+2. Enter your contact
+   - phone number or email
+3. Enter the reason for flagging the parcel
+   - minimum 10 characters
+   - maximum 1000 characters
+4. The reason should be factual, specific, and evidence-based
+
+STEP 7: SUBMIT THE FLAG
+
+1. Click `Submit Flag`
+2. The system validates:
+   - layer selected
+   - unique ID entered
+   - parcel verified
+   - confirmation checkbox ticked
+   - flag type selected
+   - valid name, contact, and reason
+3. The system stores the flag in `parcel_flags`
+4. The parcel tint updates on the map
+5. The form resets after a successful submission
+
+4. MEANING OF THE FLAG TYPES
+
+RED = BAD / UNTRUSTED DATA
+Use Red when the parcel has a confirmed serious problem and should not be relied
+upon until corrected or re-verified.
+
+Examples:
+
+- clearly wrong geometry
+- serious boundary displacement
+- incorrect identity linkage
+- major mismatch between field evidence and published data
+
+Map appearance:
+- transparent red fill
+
+YELLOW = NEEDS REVIEW
+Use Yellow when the parcel needs professional review, but the issue is still
+under assessment or not yet fully confirmed.
+
+Examples:
+
+- suspected geometry issue
+- unclear metadata
+- unresolved discrepancy requiring corroboration
+
+Map appearance:
+- transparent blue fill
+
+Note:
+The stored flag type remains `yellow`, but the map uses a blue transparent fill
+to visually distinguish review parcels from red and green parcels.
+
+GREEN = VERIFIED / TRUSTED DATA
+Use Green when the parcel has been reviewed and is considered reliable for use.
+
+Examples:
+
+- review completed successfully
+- correction completed and verified
+- corroboration confirms the published parcel is accurate
+
+Map appearance:
+- transparent green fill
+
+5. HOW TO USE THE INFO BUTTON TO SEE PARCEL + FLAG INFORMATION
+
+PURPOSE:
+The Info button lets users inspect a Survey Polygon and see both parcel
+attributes and any linked Quality Flags.
+
+STEP-BY-STEP:
+
+1. Turn on the Survey Polygon layer you want to inspect
+2. Click the `INFO` button in the toolbar
+3. The Feature Information panel opens
+4. Click the parcel on the map
+5. The panel first loads parcel attributes
+6. The panel then loads Quality Flag records linked to that parcel
+
+PARCEL DETAILS THAT MAY BE RETURNED:
+
+- unique ID
+- layer name
+- district
+- county
+- client
+- project name
+- block number
+- plot number
+- surveyor
+- supervisor
+- company
+- coordinate system
+- area in hectares
+- number of vertices
+- additional information
+- recorded date
+
+FLAG DETAILS THAT MAY BE RETURNED:
+
+- active quality status / tint
+- current flag type
+- reporter name
+- reporter contact
+- reason for flagging
+- district and county saved on the flag
+- submitted date
+- updated date
+- status
+
+IF NO FLAGS EXIST:
+The Info panel states that no Quality Flag has yet been submitted for that
+parcel.
+
+6. PROFESSIONAL USE OF THE FEATURE
+Where a user identifies a quality issue, the preferred first step is
+corroboration. Users should use the Chat function to contact the surveyor or
+firm responsible for the work, share evidence, and seek clarification or
+corrective action within 14 calendar days where possible before escalation.
+
+7. BEST PRACTICES
+
+- always verify the parcel on the map before submitting
+- always use the exact unique ID from the Survey Polygon layer
+- use Red only for confirmed serious defects
+- use Yellow when review is still needed
+- use Green after verification or correction
+- write reasons that are clear, factual, and evidence-based
+- use the Info button before flagging if you want to inspect parcel details
+- use Chat to support professional corroboration and resolution
+
+8. TROUBLESHOOTING
+
+ISSUE: Parcel not found
+SOLUTION:
+
+- check that the correct Survey Polygon layer is selected
+- confirm the unique ID format is correct
+- verify the parcel exists in `polygon_features`
+
+ISSUE: The parcel is verified but submission is blocked
+SOLUTION:
+
+- ensure the confirmation checkbox is ticked
+- ensure the flag type is selected
+- ensure reporter name, contact, and reason are complete
+
+ISSUE: Info shows parcel attributes but no flag information
+SOLUTION:
+
+- no Quality Flag may have been submitted yet
+- verify the flag was saved successfully
+- verify the parcel ID on the flag matches the selected parcel
+
+ISSUE: Flag tint is too light on imagery
+SOLUTION:
+
+- this is intentional so satellite imagery remains visible
+- if no basemap is selected, the tint appears more strongly
+
 ================================================================================
 TABLE OF CONTENTS
 ================================================================================

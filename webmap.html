@@ -6021,6 +6021,37 @@
             transform: translateX(0);
         }
 
+        .quality-flag-notice {
+            font-size: 12px;
+            line-height: 1.45;
+            color: #34495e;
+            background: #f4f8fb;
+            border: 1px solid #d6e4ef;
+            border-radius: 6px;
+            padding: 12px 14px;
+            margin-bottom: 16px;
+        }
+
+        .quality-flag-notice strong {
+            color: #2c3e50;
+        }
+
+        .flag-verify-summary {
+            font-size: 12px;
+            background: #ecf9f1;
+            border: 1px solid #a8e6cf;
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            color: #1e4620;
+        }
+
+        .flag-verify-summary.error {
+            background: #fdecea;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
         /* Quality Tabs */
         .quality-tabs {
             display: flex;
@@ -6527,6 +6558,122 @@
             border-radius: 6px;
             border: 2px dashed #f39c12;
             margin-top: 20px;
+        }
+
+        .corroboration-section {
+            background: #f4f8fb;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #d6e4ef;
+        }
+
+        .corroboration-status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: #e8f1f8;
+            color: #1f4e79;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .corroboration-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .corroboration-card {
+            background: white;
+            border: 1px solid #dfe6ec;
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .corroboration-card h6 {
+            margin: 0 0 8px 0;
+            font-size: 13px;
+            color: #2c3e50;
+        }
+
+        .corroboration-card p,
+        .corroboration-file-item p,
+        .corroboration-message-item p,
+        .corroboration-rec-item p {
+            margin: 4px 0;
+            font-size: 12px;
+            color: #4a5560;
+        }
+
+        .corroboration-file-item,
+        .corroboration-message-item,
+        .corroboration-rec-item {
+            background: white;
+            border: 1px solid #dfe6ec;
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+        }
+
+        .corroboration-message-list,
+        .corroboration-file-list,
+        .corroboration-rec-list {
+            margin-top: 10px;
+        }
+
+        .corroboration-actions-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .corroboration-actions-row .btn {
+            width: auto;
+            margin-bottom: 0;
+        }
+
+        .corroboration-upload-group {
+            background: white;
+            border: 1px dashed #c6d5e1;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .corroboration-upload-group .btn {
+            width: auto;
+        }
+
+        .corroboration-file-links {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .corroboration-file-links a {
+            color: #1565c0;
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .corroboration-file-links a:hover {
+            text-decoration: underline;
+        }
+
+        .corroboration-meta {
+            font-size: 11px;
+            color: #6c7a89;
+        }
+
+        .corroboration-divider {
+            margin: 14px 0;
+            border: 0;
+            border-top: 1px solid #d9e2ea;
         }
 
         /* Map Selection Cursor */
@@ -18207,6 +18354,8 @@
             // ========================================
             const polygonLayerSources = {};
             const polygonLayers = {};
+            /** Uppercase survey parcel unique_id -> current_flag_type (red | yellow | green) for map tint */
+            const parcelQualityFlagByUniqueId = {};
 
             // Create vector sources for each polygon layer with bbox loading strategy
             const polygonLayerNames = [
@@ -18984,6 +19133,32 @@
                 return styles;
             }
 
+            function getSurveyParcelQualityFlagFillAlpha() {
+                let bm = 'esri';
+                try {
+                    if (typeof terrain3DState !== 'undefined' && terrain3DState.activeBasemap) {
+                        bm = terrain3DState.activeBasemap;
+                    } else if (window.terrain3DState && window.terrain3DState.activeBasemap) {
+                        bm = window.terrain3DState.activeBasemap;
+                    }
+                } catch (e) { /* ignore */ }
+                if (bm === 'none') return 0.34;
+                if (bm === 'osm') return 0.2;
+                if (bm === 'google' || bm === 'esri') return 0.11;
+                return 0.14;
+            }
+
+            function getSurveyParcelQualityFillRgba(uniqueId) {
+                if (!uniqueId) return null;
+                const key = String(uniqueId).trim().toUpperCase();
+                const qf = parcelQualityFlagByUniqueId[key];
+                const a = getSurveyParcelQualityFlagFillAlpha();
+                if (qf === 'red') return `rgba(231, 76, 60, ${a})`;
+                if (qf === 'yellow') return `rgba(52, 152, 219, ${a})`;
+                if (qf === 'green') return `rgba(39, 174, 96, ${a})`;
+                return null;
+            }
+
             function getPolygonStyle(feature) {
                 const layerName = feature.get('layer_name');
                 const uniqueId = feature.get('unique_id');
@@ -18999,15 +19174,19 @@
                 const color = layerColors[layerName] || '#3498db';
                 const geometry = feature.getGeometry();
                 const coordinates = geometry.getCoordinates()[0];
-                const styles = [
-                    new ol.style.Style({
-                        stroke: new ol.style.Stroke({
-                            color: color,
-                            width: 2
-                        })
-                        // No fill as specified
+                const qualityFill = getSurveyParcelQualityFillRgba(uniqueId);
+                const styles = [];
+                if (qualityFill) {
+                    styles.push(new ol.style.Style({
+                        fill: new ol.style.Fill({ color: qualityFill })
+                    }));
+                }
+                styles.push(new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: color,
+                        width: 2
                     })
-                ];
+                }));
 
                 // Get map resolution to convert 1 meter to pixels for corner circles
                 const view = map.getView();
@@ -19450,22 +19629,207 @@
                 ].sort();
             })();
 
+            function normalizeSurveyUniqueIdKey(uid) {
+                return String(uid || '').trim().toUpperCase();
+            }
+
+            const CORROBORATION_ADMIN_EMAIL = 'kiggundumuhamad@gmail.com';
+            const CORROBORATION_RSU_ROLE = 'RSU';
+            const CORROBORATION_STATUS_LABELS = {
+                flag_submitted: 'Flag submitted',
+                case_opened: 'Case opened',
+                awaiting_creator_response: 'Awaiting creator response',
+                awaiting_rsu_selection: 'Awaiting RSU selection',
+                under_corroboration: 'Under corroboration',
+                evidence_under_review: 'Evidence under review',
+                rsu_recommendations_pending: 'Awaiting RSU recommendations',
+                admin_review: 'Admin review',
+                resolved_flag_changed: 'Resolved - flag changed',
+                resolved_parcel_archived: 'Resolved - parcel archived',
+                resolved_no_change: 'Resolved - no change',
+                closed: 'Closed'
+            };
+            const CORROBORATION_EVIDENCE_ENDPOINTS = {
+                abstract: {
+                    uploadBase: 'https://nlis-image-upload.kiggundumuhamad.workers.dev/flags/abstract/',
+                    publicBase: 'https://data.geospatialnetworkug.xyz/flags/abstract/'
+                },
+                drawing: {
+                    uploadBase: 'https://nlis-image-upload.kiggundumuhamad.workers.dev/flags/drawings/',
+                    publicBase: 'https://data.geospatialnetworkug.xyz/flags/drawings/'
+                },
+                image: {
+                    uploadBase: 'https://nlis-image-upload.kiggundumuhamad.workers.dev/flags/images/',
+                    publicBase: 'https://data.geospatialnetworkug.xyz/flags/images/'
+                }
+            };
+
             // Quality Flags State
             const qualityFlagsState = {
                 isPanelOpen: false,
                 currentTab: 'flag',
                 selectedLocation: null,
                 mapSelectionMode: false,
+                resolvedSurveyParcel: null,
                 flags: [],
                 selectedFlagId: null,
                 unreadCount: 0,
                 currentPage: 1,
                 hasMoreFlags: true,
                 selectedFlags: new Set(),
+                currentUserContext: null,
                 mapSelectionListener: null,
                 tempPinFeature: null,
                 autoRefreshInterval: null
             };
+
+            function getCorroborationStatusLabel(status) {
+                return CORROBORATION_STATUS_LABELS[status] || status || 'Case opened';
+            }
+
+            function isCorroborationAdmin(userCtx) {
+                return !!(userCtx && userCtx.email && String(userCtx.email).toLowerCase() === CORROBORATION_ADMIN_EMAIL);
+            }
+
+            function safeCorroborationName(value) {
+                return String(value || '')
+                    .trim()
+                    .replace(/[^A-Za-z0-9._-]+/g, '_')
+                    .replace(/^_+|_+$/g, '') || 'file';
+            }
+
+            async function getCurrentAuthenticatedUserContext(forceRefresh = false) {
+                if (!forceRefresh && qualityFlagsState.currentUserContext) {
+                    return qualityFlagsState.currentUserContext;
+                }
+                const { data: { user }, error } = await supabase.auth.getUser();
+                if (error) throw error;
+                if (!user) throw new Error('Please sign in to open a corroboration case');
+
+                let profile = null;
+                try {
+                    const { data, error: profileError } = await supabase
+                        .from('user_profiles')
+                        .select('*')
+                        .eq('id', user.id)
+                        .maybeSingle();
+                    if (!profileError) {
+                        profile = data;
+                    }
+                } catch (profileLookupError) {
+                    console.warn('[Corroboration] Could not load user profile:', profileLookupError);
+                }
+
+                const roleHint = user.user_metadata?.role || localStorage.getItem('supabase.profile.role') || 'general';
+                const ctx = {
+                    id: user.id,
+                    email: user.email || profile?.email || '',
+                    username: profile?.username || user.email?.split('@')[0] || 'user',
+                    displayName: profile?.full_name || profile?.display_name || profile?.username || user.email?.split('@')[0] || 'User',
+                    role: profile?.role || roleHint
+                };
+                qualityFlagsState.currentUserContext = ctx;
+                return ctx;
+            }
+
+            async function getUserProfileByEmail(email) {
+                if (!email) return null;
+                try {
+                    const { data, error } = await supabase
+                        .from('user_profiles')
+                        .select('*')
+                        .ilike('email', email)
+                        .maybeSingle();
+                    if (error) throw error;
+                    return data || null;
+                } catch (error) {
+                    console.warn('[Corroboration] Could not load user profile by email:', error);
+                    return null;
+                }
+            }
+
+            function getSurveyParcelKeyFromFlag(flag) {
+                if (flag.survey_unique_id) return normalizeSurveyUniqueIdKey(flag.survey_unique_id);
+                if (flag.is_untitled && flag.block) return normalizeSurveyUniqueIdKey(flag.block);
+                return null;
+            }
+
+            function polygonGeometryToCentroidLonLat(geom) {
+                const format = new ol.format.GeoJSON();
+                const feature = format.readFeature({
+                    type: 'Feature',
+                    geometry: geom
+                }, {
+                    dataProjection: 'EPSG:4326',
+                    featureProjection: 'EPSG:3857'
+                });
+                const g = feature.getGeometry();
+                const gt = g.getType();
+                let c;
+                if (gt === 'Polygon') {
+                    c = g.getInteriorPoint().getCoordinates();
+                } else if (gt === 'MultiPolygon') {
+                    const polys = g.getPolygons();
+                    c = polys.length ? polys[0].getInteriorPoint().getCoordinates() : ol.extent.getCenter(g.getExtent());
+                } else {
+                    c = ol.extent.getCenter(g.getExtent());
+                }
+                const ll = ol.proj.toLonLat(c, 'EPSG:3857');
+                return { lat: ll[1], lng: ll[0], coordinate: c };
+            }
+
+            function refreshSurveyPolygonFeatureStyles() {
+                polygonLayerNames.forEach(name => {
+                    const src = polygonLayerSources[name];
+                    if (!src) return;
+                    src.getFeatures().forEach(f => f.changed());
+                });
+            }
+
+            async function rebuildParcelQualityFlagCache() {
+                if (!supabase) return;
+                try {
+                    let all = [];
+                    let page = 0;
+                    const pageSize = 500;
+                    let useSurveyCol = true;
+                    while (true) {
+                        const sel = useSurveyCol
+                            ? 'survey_unique_id, current_flag_type, block, is_untitled, updated_at'
+                            : 'current_flag_type, block, is_untitled, updated_at';
+                        const { data, error } = await supabase
+                            .from('parcel_flags')
+                            .select(sel)
+                            .order('updated_at', { ascending: false })
+                            .range(page * pageSize, (page + 1) * pageSize - 1);
+
+                        if (error && useSurveyCol && (String(error.message || '').includes('survey_unique_id') || error.code === '42703')) {
+                            useSurveyCol = false;
+                            page = 0;
+                            all = [];
+                            continue;
+                        }
+                        if (error) throw error;
+                        if (!data || data.length === 0) break;
+                        all.push(...data);
+                        if (data.length < pageSize) break;
+                        page++;
+                    }
+
+                    Object.keys(parcelQualityFlagByUniqueId).forEach(k => delete parcelQualityFlagByUniqueId[k]);
+                    all.forEach(f => {
+                        const uid = (f.survey_unique_id && String(f.survey_unique_id).trim())
+                            || (f.is_untitled && f.block ? String(f.block).trim() : '');
+                        if (!uid) return;
+                        const k = normalizeSurveyUniqueIdKey(uid);
+                        if (parcelQualityFlagByUniqueId[k] !== undefined) return;
+                        parcelQualityFlagByUniqueId[k] = f.current_flag_type;
+                    });
+                    refreshSurveyPolygonFeatureStyles();
+                } catch (e) {
+                    console.warn('[QualityFlags] Could not rebuild parcel flag cache:', e);
+                }
+            }
 
             // Create quality flags vector layer
             const qualityFlagsSource = new ol.source.Vector();
@@ -19529,19 +19893,9 @@
                 }
             }
 
-            // Populate district dropdowns
+            // Populate district dropdowns (Check Flags tab)
             function populateDistrictDropdowns() {
-                const flagDistrict = document.getElementById('flagDistrict');
                 const checkDistrict = document.getElementById('checkDistrict');
-
-                if (flagDistrict) {
-                    QUALITY_FLAGS_DISTRICTS.forEach(district => {
-                        const option = document.createElement('option');
-                        option.value = district;
-                        option.textContent = district;
-                        flagDistrict.appendChild(option);
-                    });
-                }
 
                 if (checkDistrict) {
                     QUALITY_FLAGS_DISTRICTS.forEach(district => {
@@ -19605,13 +19959,12 @@
                     let data, error;
 
                     try {
-                        // Try direct insert with POINT string format
                         const insertData = {
                             coordinates: pointString,
                             district: flagData.district,
                             block: flagData.block || null,
                             plot: flagData.plot || null,
-                            is_untitled: flagData.is_untitled || false,
+                            is_untitled: flagData.is_untitled !== undefined ? flagData.is_untitled : false,
                             flag_type: flagData.flag_type,
                             current_flag_type: flagData.flag_type,
                             reporter_name: flagData.reporter_name,
@@ -19619,23 +19972,36 @@
                             reason: flagData.reason
                         };
 
-                        // Only add county if it exists in the table
                         if (flagData.county) {
                             insertData.county = flagData.county;
                         }
 
-                        // Only add created_by if user is authenticated
                         if (window.__currentValuationUserId) {
                             insertData.created_by = window.__currentValuationUserId;
                         }
 
-                        console.log('Insert data:', insertData);
+                        if (flagData.survey_unique_id) {
+                            insertData.survey_unique_id = flagData.survey_unique_id;
+                            insertData.polygon_feature_id = flagData.polygon_feature_id || null;
+                            insertData.survey_layer_name = flagData.survey_layer_name || null;
+                        }
 
-                        const result = await supabase
-                            .from('parcel_flags')
-                            .insert([insertData])
-                            .select()
-                            .single();
+                        async function tryInsert(payload) {
+                            return supabase.from('parcel_flags').insert([payload]).select().single();
+                        }
+
+                        let result = await tryInsert(insertData);
+                        if (result.error && flagData.survey_unique_id) {
+                            const msg = String(result.error.message || result.error.details || '');
+                            const code = result.error.code;
+                            if (code === 'PGRST204' || /survey_unique_id|polygon_feature_id|survey_layer_name|schema cache/i.test(msg)) {
+                                const fallback = Object.assign({}, insertData);
+                                delete fallback.survey_unique_id;
+                                delete fallback.polygon_feature_id;
+                                delete fallback.survey_layer_name;
+                                result = await tryInsert(fallback);
+                            }
+                        }
 
                         data = result.data;
                         error = result.error;
@@ -19693,6 +20059,757 @@
                 } catch (error) {
                     console.error('Error creating flag:', error);
                     throw error;
+                }
+            }
+
+            async function notifyPrivateCorroborationInvite(receiverId, receiverUsername, message) {
+                if (!receiverId || !ChatSystem?.currentUser?.id) return;
+                try {
+                    await supabase
+                        .from('private_messages')
+                        .insert([{
+                            sender_id: ChatSystem.currentUser.id,
+                            receiver_id: receiverId,
+                            sender_username: ChatSystem.currentUser.username || 'System',
+                            receiver_username: receiverUsername || 'User',
+                            content: message
+                        }]);
+                } catch (error) {
+                    console.warn('[Corroboration] Could not send private invite:', error);
+                }
+            }
+
+            async function createCorroborationCaseForFlag(flagRecord, parcelRecord, reporterCtx) {
+                const caseStatus = parcelRecord.created_by && String(parcelRecord.created_by) !== String(reporterCtx.id)
+                    ? 'awaiting_creator_response'
+                    : 'awaiting_rsu_selection';
+
+                const insertCase = {
+                    flag_id: flagRecord.id,
+                    polygon_feature_id: parcelRecord.id || null,
+                    parcel_unique_id: parcelRecord.unique_id,
+                    layer_name: parcelRecord.layer_name || null,
+                    surveyor_a_user_id: parcelRecord.created_by || null,
+                    surveyor_b_user_id: reporterCtx.id,
+                    admin_user_email: CORROBORATION_ADMIN_EMAIL,
+                    status: caseStatus,
+                    title: `Corroboration - ${parcelRecord.unique_id}`
+                };
+
+                const { data: createdCase, error: caseError } = await supabase
+                    .from('corroboration_cases')
+                    .insert([insertCase])
+                    .select()
+                    .single();
+
+                if (caseError) throw caseError;
+
+                const adminProfile = await getUserProfileByEmail(CORROBORATION_ADMIN_EMAIL);
+                const members = [];
+
+                members.push({
+                    case_id: createdCase.id,
+                    user_id: reporterCtx.id,
+                    email: reporterCtx.email,
+                    display_name: reporterCtx.displayName,
+                    role_in_case: 'reporter'
+                });
+
+                if (parcelRecord.created_by && String(parcelRecord.created_by) !== String(reporterCtx.id)) {
+                    members.push({
+                        case_id: createdCase.id,
+                        user_id: parcelRecord.created_by,
+                        email: null,
+                        display_name: parcelRecord.surveyor || 'Surveyor A',
+                        role_in_case: 'creator'
+                    });
+                }
+
+                members.push({
+                    case_id: createdCase.id,
+                    user_id: adminProfile?.id || null,
+                    email: CORROBORATION_ADMIN_EMAIL,
+                    display_name: adminProfile?.display_name || adminProfile?.username || 'System Admin',
+                    role_in_case: 'admin'
+                });
+
+                const uniqueMembers = [];
+                const seenMemberKeys = new Set();
+                members.forEach(member => {
+                    const key = `${member.role_in_case}:${member.user_id || member.email || 'unknown'}`;
+                    if (seenMemberKeys.has(key)) return;
+                    seenMemberKeys.add(key);
+                    uniqueMembers.push(member);
+                });
+
+                await supabase.from('corroboration_case_members').insert(uniqueMembers);
+
+                await supabase.from('corroboration_messages').insert([{
+                    case_id: createdCase.id,
+                    sender_email: reporterCtx.email,
+                    sender_name: reporterCtx.displayName,
+                    message: `Corroboration case opened for parcel ${parcelRecord.unique_id}. The reporting surveyor requests review of this flagged parcel.`
+                }]);
+
+                const inviteMessage = `A corroboration case has been opened for parcel ${parcelRecord.unique_id}. Please open Quality Flags and review the case details, evidence, and next actions.`;
+                if (parcelRecord.created_by && String(parcelRecord.created_by) !== String(reporterCtx.id)) {
+                    await notifyPrivateCorroborationInvite(parcelRecord.created_by, parcelRecord.surveyor || 'Surveyor A', inviteMessage);
+                }
+                if (adminProfile?.id) {
+                    await notifyPrivateCorroborationInvite(adminProfile.id, adminProfile.username || 'Admin', `Admin review notification: ${inviteMessage}`);
+                }
+
+                return createdCase;
+            }
+
+            async function getCorroborationCaseBundle(flagId) {
+                try {
+                    const { data: caseRow, error: caseError } = await supabase
+                        .from('corroboration_cases')
+                        .select('*')
+                        .eq('flag_id', flagId)
+                        .maybeSingle();
+                    if (caseError) throw caseError;
+                    if (!caseRow) return null;
+
+                    const [
+                        membersRes,
+                        messagesRes,
+                        filesRes,
+                        recsRes,
+                        actionsRes
+                    ] = await Promise.all([
+                        supabase.from('corroboration_case_members').select('*').eq('case_id', caseRow.id).order('created_at', { ascending: true }),
+                        supabase.from('corroboration_messages').select('*').eq('case_id', caseRow.id).order('created_at', { ascending: true }),
+                        supabase.from('corroboration_files').select('*').eq('case_id', caseRow.id).order('created_at', { ascending: false }),
+                        supabase.from('corroboration_recommendations').select('*').eq('case_id', caseRow.id).order('created_at', { ascending: false }),
+                        supabase.from('corroboration_admin_actions').select('*').eq('case_id', caseRow.id).order('created_at', { ascending: false })
+                    ]);
+
+                    if (membersRes.error) throw membersRes.error;
+                    if (messagesRes.error) throw messagesRes.error;
+                    if (filesRes.error) throw filesRes.error;
+                    if (recsRes.error) throw recsRes.error;
+                    if (actionsRes.error) throw actionsRes.error;
+
+                    return {
+                        caseRow,
+                        members: membersRes.data || [],
+                        messages: messagesRes.data || [],
+                        files: filesRes.data || [],
+                        recommendations: recsRes.data || [],
+                        adminActions: actionsRes.data || []
+                    };
+                } catch (error) {
+                    console.warn('[Corroboration] Could not load case bundle:', error);
+                    return null;
+                }
+            }
+
+            async function loadRsuCandidates() {
+                try {
+                    const { data, error } = await supabase
+                        .from('user_profiles')
+                        .select('*')
+                        .eq('role', CORROBORATION_RSU_ROLE)
+                        .order('username', { ascending: true });
+                    if (error) throw error;
+                    return data || [];
+                } catch (error) {
+                    console.warn('[Corroboration] Could not load RSU candidates:', error);
+                    return [];
+                }
+            }
+
+            function getCaseMemberLabel(roleInCase) {
+                return {
+                    creator: 'Surveyor A (creator)',
+                    reporter: 'Surveyor B (reporter)',
+                    rsu_creator_side: 'RSU selected by Surveyor A',
+                    rsu_reporter_side: 'RSU selected by Surveyor B',
+                    admin: 'System Admin'
+                }[roleInCase] || roleInCase;
+            }
+
+            function canManageCreatorRsu(caseRow, userCtx) {
+                return !!(userCtx && (String(caseRow.surveyor_a_user_id || '') === String(userCtx.id) || isCorroborationAdmin(userCtx)));
+            }
+
+            function canManageReporterRsu(caseRow, userCtx) {
+                return !!(userCtx && (String(caseRow.surveyor_b_user_id || '') === String(userCtx.id) || isCorroborationAdmin(userCtx)));
+            }
+
+            async function assignRsuToCase(caseRow, side, rsuUserId, userCtx) {
+                if (!rsuUserId) throw new Error('Please select an RSU');
+                const willHaveCreatorRsu = side === 'creator' ? !!rsuUserId : !!caseRow.rsu_a_user_id;
+                const willHaveReporterRsu = side === 'reporter' ? !!rsuUserId : !!caseRow.rsu_b_user_id;
+                const updatePatch = side === 'creator'
+                    ? { rsu_a_user_id: rsuUserId }
+                    : { rsu_b_user_id: rsuUserId };
+
+                const { error: updateError } = await supabase
+                    .from('corroboration_cases')
+                    .update(Object.assign({}, updatePatch, {
+                        status: (willHaveCreatorRsu && willHaveReporterRsu) ? 'under_corroboration' : 'awaiting_rsu_selection',
+                        updated_at: new Date().toISOString()
+                    }))
+                    .eq('id', caseRow.id);
+                if (updateError) throw updateError;
+
+                const rsuProfile = ChatSystem.users.get(rsuUserId) || await (async () => {
+                    const { data, error } = await supabase.from('user_profiles').select('*').eq('id', rsuUserId).maybeSingle();
+                    if (error) throw error;
+                    return data;
+                })();
+
+                const roleInCase = side === 'creator' ? 'rsu_creator_side' : 'rsu_reporter_side';
+                await supabase
+                    .from('corroboration_case_members')
+                    .delete()
+                    .eq('case_id', caseRow.id)
+                    .eq('role_in_case', roleInCase);
+
+                await supabase.from('corroboration_case_members').insert([{
+                    case_id: caseRow.id,
+                    user_id: rsuUserId,
+                    email: rsuProfile?.email || null,
+                    display_name: rsuProfile?.display_name || rsuProfile?.username || 'RSU Reviewer',
+                    role_in_case: roleInCase
+                }]);
+
+                await supabase.from('corroboration_messages').insert([{
+                    case_id: caseRow.id,
+                    sender_id: userCtx.id,
+                    sender_email: userCtx.email,
+                    sender_name: userCtx.displayName,
+                    message: `${userCtx.displayName} selected ${(rsuProfile?.display_name || rsuProfile?.username || 'an RSU reviewer')} as ${getCaseMemberLabel(roleInCase)}.`
+                }]);
+
+                if (rsuProfile?.id) {
+                    await notifyPrivateCorroborationInvite(
+                        rsuProfile.id,
+                        rsuProfile.username || 'RSU Reviewer',
+                        `You have been added as an RSU reviewer to corroboration case ${caseRow.title || caseRow.parcel_unique_id}.`
+                    );
+                }
+            }
+
+            async function addCorroborationMessage(caseId, userCtx, message) {
+                if (!message.trim()) throw new Error('Please enter a message');
+                const { error } = await supabase
+                    .from('corroboration_messages')
+                    .insert([{
+                        case_id: caseId,
+                        sender_id: userCtx.id,
+                        sender_email: userCtx.email,
+                        sender_name: userCtx.displayName,
+                        message: message.trim()
+                    }]);
+                if (error) throw error;
+            }
+
+            async function uploadCorroborationEvidence(caseRow, flag, evidenceType, file, description, userCtx) {
+                if (!file) throw new Error('Please select a file first');
+                const config = CORROBORATION_EVIDENCE_ENDPOINTS[evidenceType];
+                if (!config) throw new Error('Unknown evidence type');
+
+                const timestamp = Date.now();
+                const extension = file.name.includes('.') ? file.name.split('.').pop() : 'bin';
+                const sanitizedBase = safeCorroborationName(file.name.replace(/\.[^.]+$/, ''));
+                const fileName = `${safeCorroborationName(caseRow.parcel_unique_id)}_${evidenceType}_${timestamp}_${sanitizedBase}.${extension}`;
+
+                const response = await fetch(config.uploadBase + fileName, {
+                    method: 'PUT',
+                    body: file,
+                    headers: {
+                        'Content-Type': file.type || 'application/octet-stream'
+                    }
+                });
+                if (!response.ok) {
+                    throw new Error(`Upload failed (${response.status})`);
+                }
+
+                const publicUrl = config.publicBase + fileName;
+                const { error } = await supabase
+                    .from('corroboration_files')
+                    .insert([{
+                        case_id: caseRow.id,
+                        flag_id: flag.id,
+                        parcel_unique_id: caseRow.parcel_unique_id,
+                        evidence_type: evidenceType,
+                        file_name: fileName,
+                        original_file_name: file.name,
+                        file_url: publicUrl,
+                        description: description || null,
+                        uploaded_by: userCtx.id,
+                        uploader_email: userCtx.email,
+                        uploader_name: userCtx.displayName
+                    }]);
+                if (error) throw error;
+
+                await supabase.from('corroboration_cases')
+                    .update({ status: 'evidence_under_review', updated_at: new Date().toISOString() })
+                    .eq('id', caseRow.id);
+
+                await addCorroborationMessage(caseRow.id, userCtx, `${userCtx.displayName} uploaded ${evidenceType} evidence: ${file.name}${description ? ` — ${description}` : ''}`);
+            }
+
+            async function submitCorroborationRecommendation(caseRow, userCtx, payload) {
+                if (!payload.recommended_flag_type && !payload.recommended_action && !payload.notes) {
+                    throw new Error('Please provide a recommendation before submitting');
+                }
+                const { error } = await supabase
+                    .from('corroboration_recommendations')
+                    .insert([{
+                        case_id: caseRow.id,
+                        submitted_by: userCtx.id,
+                        submitter_email: userCtx.email,
+                        submitter_name: userCtx.displayName,
+                        recommended_flag_type: payload.recommended_flag_type,
+                        recommended_action: payload.recommended_action,
+                        severity: payload.severity,
+                        issue_confirmed: payload.issue_confirmed,
+                        notes: payload.notes
+                    }]);
+                if (error) throw error;
+
+                await supabase.from('corroboration_cases')
+                    .update({
+                        status: 'admin_review',
+                        recommended_flag_type: payload.recommended_flag_type,
+                        recommended_action: payload.recommended_action,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', caseRow.id);
+
+                await addCorroborationMessage(caseRow.id, userCtx, `${userCtx.displayName} submitted an RSU recommendation: ${payload.recommended_action || 'review outcome recorded'}.`);
+            }
+
+            async function submitCorroborationAdminAction(caseRow, flag, userCtx, payload) {
+                if (!isCorroborationAdmin(userCtx)) {
+                    throw new Error('Only the system admin can finalize a corroboration case');
+                }
+                if (!payload.parcelAction && !payload.newFlagType) {
+                    throw new Error('Choose a final action or a new flag type');
+                }
+
+                const oldFlagType = flag.current_flag_type || flag.flag_type || null;
+                let newCaseStatus = 'resolved_no_change';
+
+                if (payload.newFlagType && payload.newFlagType !== oldFlagType) {
+                    await updateFlagType(flag.id, payload.newFlagType, { name: 'System Admin', contact: userCtx.email }, payload.reason || 'Admin resolution');
+                    newCaseStatus = 'resolved_flag_changed';
+                }
+
+                if (payload.parcelAction === 'archive_parcel' || payload.parcelAction === 'delete_parcel') {
+                    const { error: archiveError } = await supabase
+                        .from('polygon_features')
+                        .update({ is_archived: true })
+                        .eq('id', caseRow.polygon_feature_id);
+                    if (archiveError) throw archiveError;
+                    newCaseStatus = 'resolved_parcel_archived';
+                }
+
+                const { error: actionError } = await supabase
+                    .from('corroboration_admin_actions')
+                    .insert([{
+                        case_id: caseRow.id,
+                        admin_email: userCtx.email,
+                        action_type: payload.parcelAction || 'change_flag',
+                        old_flag_type: oldFlagType,
+                        new_flag_type: payload.newFlagType || oldFlagType,
+                        parcel_action: payload.parcelAction || 'change_flag',
+                        reason: payload.reason || null
+                    }]);
+                if (actionError) throw actionError;
+
+                const { error: caseUpdateError } = await supabase
+                    .from('corroboration_cases')
+                    .update({
+                        status: newCaseStatus,
+                        resolution_summary: payload.reason || null,
+                        recommended_flag_type: payload.newFlagType || oldFlagType,
+                        recommended_action: payload.parcelAction || 'change_flag',
+                        updated_at: new Date().toISOString(),
+                        closed_at: new Date().toISOString()
+                    })
+                    .eq('id', caseRow.id);
+                if (caseUpdateError) throw caseUpdateError;
+
+                await addCorroborationMessage(caseRow.id, userCtx, `Admin resolution recorded: ${payload.parcelAction || 'change_flag'}${payload.newFlagType ? ` / flag ${payload.newFlagType}` : ''}.`);
+                await rebuildParcelQualityFlagCache();
+            }
+
+            function getCorroborationMemberName(member) {
+                return member?.display_name || member?.email || 'Participant';
+            }
+
+            function renderCorroborationSection(flag, bundle, userCtx, rsuCandidates) {
+                if (!bundle) {
+                    return `
+                    <div class="corroboration-section">
+                        <h5>Corroboration Case</h5>
+                        <p>No corroboration case was found for this flag.</p>
+                    </div>
+                    `;
+                }
+
+                const caseRow = bundle.caseRow;
+                const membersHtml = (bundle.members || []).map(member => `
+                    <div class="corroboration-card">
+                        <h6>${getCaseMemberLabel(member.role_in_case)}</h6>
+                        <p><strong>${escapeHtml(getCorroborationMemberName(member))}</strong></p>
+                        <p class="corroboration-meta">${escapeHtml(member.email || '')}</p>
+                    </div>
+                `).join('');
+
+                const creatorRsuSelected = caseRow.rsu_a_user_id ? String(caseRow.rsu_a_user_id) : '';
+                const reporterRsuSelected = caseRow.rsu_b_user_id ? String(caseRow.rsu_b_user_id) : '';
+                const rsuOptions = ['<option value="">Select RSU reviewer</option>']
+                    .concat((rsuCandidates || []).map(user => {
+                        const label = user.display_name || user.username || user.email || 'RSU Reviewer';
+                        return `<option value="${escapeHtml(user.id)}">${escapeHtml(label)}</option>`;
+                    }))
+                    .join('');
+
+                const filesHtml = bundle.files.length > 0
+                    ? bundle.files.map(file => `
+                        <div class="corroboration-file-item">
+                            <p><strong>${escapeHtml(file.original_file_name || file.file_name)}</strong></p>
+                            <p>${escapeHtml(file.description || 'No description')}</p>
+                            <p class="corroboration-meta">${escapeHtml(file.evidence_type)} · ${escapeHtml(file.uploader_name || file.uploader_email || 'Unknown')} · ${escapeHtml(formatDate(file.created_at))}</p>
+                            <div class="corroboration-file-links">
+                                <a href="${escapeHtml(file.file_url)}" target="_blank" rel="noopener noreferrer">Open</a>
+                                <a href="${escapeHtml(file.file_url)}" target="_blank" download>Download</a>
+                            </div>
+                        </div>
+                    `).join('')
+                    : '<p>No corroboration evidence uploaded yet.</p>';
+
+                const messagesHtml = bundle.messages.length > 0
+                    ? bundle.messages.map(msg => `
+                        <div class="corroboration-message-item">
+                            <p><strong>${escapeHtml(msg.sender_name || msg.sender_email || 'System')}</strong></p>
+                            <p>${escapeHtml(msg.message || '')}</p>
+                            <p class="corroboration-meta">${escapeHtml(formatDate(msg.created_at))}</p>
+                        </div>
+                    `).join('')
+                    : '<p>No corroboration messages yet.</p>';
+
+                const recommendationsHtml = bundle.recommendations.length > 0
+                    ? bundle.recommendations.map(rec => `
+                        <div class="corroboration-rec-item">
+                            <p><strong>${escapeHtml(rec.submitter_name || rec.submitter_email || 'Reviewer')}</strong></p>
+                            <p>Recommended flag: ${escapeHtml(qualityFlagTypeLabel(rec.recommended_flag_type || ''))}</p>
+                            <p>Recommended action: ${escapeHtml(rec.recommended_action || 'Not specified')}</p>
+                            <p>Severity: ${escapeHtml(rec.severity || 'Not specified')}</p>
+                            <p>Issue confirmed: ${escapeHtml(rec.issue_confirmed || 'Not specified')}</p>
+                            <p>${escapeHtml(rec.notes || '')}</p>
+                            <p class="corroboration-meta">${escapeHtml(formatDate(rec.created_at))}</p>
+                        </div>
+                    `).join('')
+                    : '<p>No RSU recommendations submitted yet.</p>';
+
+                const adminActionsHtml = bundle.adminActions.length > 0
+                    ? bundle.adminActions.map(action => `
+                        <div class="corroboration-rec-item">
+                            <p><strong>Admin action:</strong> ${escapeHtml(action.parcel_action || action.action_type || '')}</p>
+                            <p>Flag: ${escapeHtml(action.old_flag_type || '')} → ${escapeHtml(action.new_flag_type || '')}</p>
+                            <p>${escapeHtml(action.reason || '')}</p>
+                            <p class="corroboration-meta">${escapeHtml(formatDate(action.created_at))}</p>
+                        </div>
+                    `).join('')
+                    : '<p>No admin action recorded yet.</p>';
+
+                return `
+                <div class="corroboration-section">
+                    <h5>Corroboration Case</h5>
+                    <p><strong>${escapeHtml(caseRow.title || caseRow.parcel_unique_id)}</strong></p>
+                    <p><span class="corroboration-status-badge">${escapeHtml(getCorroborationStatusLabel(caseRow.status))}</span></p>
+                    <p class="corroboration-meta">Parcel: ${escapeHtml(caseRow.parcel_unique_id)} · Admin: ${escapeHtml(caseRow.admin_user_email || CORROBORATION_ADMIN_EMAIL)}</p>
+
+                    <div class="corroboration-grid">
+                        ${membersHtml || '<div class="corroboration-card"><p>No participants loaded.</p></div>'}
+                    </div>
+
+                    <hr class="corroboration-divider">
+
+                    <div class="corroboration-card">
+                        <h6>RSU reviewer selection</h6>
+                        <p class="corroboration-meta">Each side may nominate one Registered Surveyor of Uganda as an independent reviewer.</p>
+                        <div class="form-group">
+                            <label for="creatorRsuSelect">RSU selected by Surveyor A</label>
+                            <select id="creatorRsuSelect" class="form-select" ${canManageCreatorRsu(caseRow, userCtx) ? '' : 'disabled'}>
+                                ${rsuOptions}
+                            </select>
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-sm" id="assignCreatorRsuBtn" ${canManageCreatorRsu(caseRow, userCtx) ? '' : 'disabled'}>Assign creator-side RSU</button>
+                        <div class="form-group" style="margin-top:12px;">
+                            <label for="reporterRsuSelect">RSU selected by Surveyor B</label>
+                            <select id="reporterRsuSelect" class="form-select" ${canManageReporterRsu(caseRow, userCtx) ? '' : 'disabled'}>
+                                ${rsuOptions}
+                            </select>
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-sm" id="assignReporterRsuBtn" ${canManageReporterRsu(caseRow, userCtx) ? '' : 'disabled'}>Assign reporter-side RSU</button>
+                    </div>
+
+                    <hr class="corroboration-divider">
+
+                    <div class="corroboration-card">
+                        <h6>Case discussion</h6>
+                        <div class="corroboration-message-list">${messagesHtml}</div>
+                        <div class="form-group">
+                            <label for="corroborationMessageText">Add case message</label>
+                            <textarea id="corroborationMessageText" class="form-textarea" rows="3" placeholder="Share evidence notes, field observations, or response updates..."></textarea>
+                        </div>
+                        <button type="button" class="btn btn-primary btn-sm" id="sendCorroborationMessageBtn">Post to corroboration case</button>
+                    </div>
+
+                    <hr class="corroboration-divider">
+
+                    <div class="corroboration-card">
+                        <h6>Evidence uploads</h6>
+                        <p class="corroboration-meta">Uploads are stored in dedicated corroboration folders and every item can be opened or downloaded.</p>
+
+                        <div class="corroboration-upload-group">
+                            <label for="corroborationAbstractFile">Abstract of coordinates</label>
+                            <input type="file" id="corroborationAbstractFile" class="form-input">
+                            <input type="text" id="corroborationAbstractDesc" class="form-input" placeholder="Optional note about this abstract" style="margin-top:8px;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="uploadAbstractBtn" style="margin-top:8px;">Upload abstract</button>
+                        </div>
+
+                        <div class="corroboration-upload-group">
+                            <label for="corroborationDrawingFile">Drawings</label>
+                            <input type="file" id="corroborationDrawingFile" class="form-input">
+                            <input type="text" id="corroborationDrawingDesc" class="form-input" placeholder="Optional note about this drawing" style="margin-top:8px;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="uploadDrawingBtn" style="margin-top:8px;">Upload drawing</button>
+                        </div>
+
+                        <div class="corroboration-upload-group">
+                            <label for="corroborationImageFile">Images</label>
+                            <input type="file" id="corroborationImageFile" class="form-input" accept="image/*">
+                            <input type="text" id="corroborationImageDesc" class="form-input" placeholder="Optional note about this image" style="margin-top:8px;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="uploadImageBtn" style="margin-top:8px;">Upload image</button>
+                        </div>
+
+                        <div class="corroboration-file-list">${filesHtml}</div>
+                    </div>
+
+                    <hr class="corroboration-divider">
+
+                    <div class="corroboration-card">
+                        <h6>RSU recommendations</h6>
+                        <div class="corroboration-rec-list">${recommendationsHtml}</div>
+                        ${(userCtx?.role === CORROBORATION_RSU_ROLE || isCorroborationAdmin(userCtx)) ? `
+                        <div class="form-group">
+                            <label for="recommendFlagType">Recommended flag</label>
+                            <select id="recommendFlagType" class="form-select">
+                                <option value="">Select type</option>
+                                <option value="red">Bad / untrusted data</option>
+                                <option value="yellow">Needs review</option>
+                                <option value="green">Verified / trusted data</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="recommendAction">Recommended action</label>
+                            <select id="recommendAction" class="form-select">
+                                <option value="">Select action</option>
+                                <option value="correct_geometry">Correct geometry</option>
+                                <option value="update_metadata">Update metadata</option>
+                                <option value="archive_parcel">Archive / delete parcel workflow</option>
+                                <option value="no_change">No change</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-col">
+                                <label for="recommendSeverity">Severity</label>
+                                <select id="recommendSeverity" class="form-select">
+                                    <option value="">Select severity</option>
+                                    <option value="high">High</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="low">Low</option>
+                                </select>
+                            </div>
+                            <div class="form-col">
+                                <label for="recommendIssueConfirmed">Issue confirmed</label>
+                                <select id="recommendIssueConfirmed" class="form-select">
+                                    <option value="">Select</option>
+                                    <option value="yes">Yes</option>
+                                    <option value="partly">Partly</option>
+                                    <option value="no">No</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="recommendNotes">Recommendation notes</label>
+                            <textarea id="recommendNotes" class="form-textarea" rows="3" placeholder="Summarize the technical recommendation and evidence basis..."></textarea>
+                        </div>
+                        <button type="button" class="btn btn-primary btn-sm" id="submitRecommendationBtn">Submit recommendation</button>
+                        ` : '<p class="corroboration-meta">RSU reviewers can submit independent recommendations here.</p>'}
+                    </div>
+
+                    <hr class="corroboration-divider">
+
+                    <div class="corroboration-card">
+                        <h6>Admin resolution</h6>
+                        <div class="corroboration-rec-list">${adminActionsHtml}</div>
+                        ${isCorroborationAdmin(userCtx) ? `
+                        <div class="form-group">
+                            <label for="adminCaseAction">Final action</label>
+                            <select id="adminCaseAction" class="form-select">
+                                <option value="">Select final action</option>
+                                <option value="change_flag">Change flag only</option>
+                                <option value="archive_parcel">Archive parcel</option>
+                                <option value="delete_parcel">Delete parcel workflow (archives parcel record)</option>
+                                <option value="close_no_change">Close with no change</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="adminNewFlagType">New flag type (optional)</label>
+                            <select id="adminNewFlagType" class="form-select">
+                                <option value="">Keep current flag</option>
+                                <option value="red">Bad / untrusted data</option>
+                                <option value="yellow">Needs review</option>
+                                <option value="green">Verified / trusted data</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="adminResolutionReason">Resolution summary</label>
+                            <textarea id="adminResolutionReason" class="form-textarea" rows="3" placeholder="Record the basis for the final decision..."></textarea>
+                        </div>
+                        <button type="button" class="btn btn-danger btn-sm" id="submitAdminResolutionBtn">Record admin resolution</button>
+                        ` : '<p class="corroboration-meta">Final parcel deletion / archiving and final flag resolution are reserved for the system admin.</p>'}
+                    </div>
+                </div>
+                `;
+            }
+
+            function applyCorroborationDefaultSelections(caseRow) {
+                const creatorSelect = document.getElementById('creatorRsuSelect');
+                const reporterSelect = document.getElementById('reporterRsuSelect');
+                if (creatorSelect && caseRow.rsu_a_user_id) creatorSelect.value = String(caseRow.rsu_a_user_id);
+                if (reporterSelect && caseRow.rsu_b_user_id) reporterSelect.value = String(caseRow.rsu_b_user_id);
+            }
+
+            function attachCorroborationEventListeners(flag, bundle, userCtx) {
+                if (!bundle) return;
+                const caseRow = bundle.caseRow;
+
+                const sendMsgBtn = document.getElementById('sendCorroborationMessageBtn');
+                if (sendMsgBtn) {
+                    sendMsgBtn.addEventListener('click', async () => {
+                        const input = document.getElementById('corroborationMessageText');
+                        try {
+                            sendMsgBtn.disabled = true;
+                            await addCorroborationMessage(caseRow.id, userCtx, input.value);
+                            showToast('Case message posted', 'success');
+                            showFlagDetail(flag.id);
+                        } catch (error) {
+                            showToast(error.message || 'Could not post case message', 'error');
+                        } finally {
+                            sendMsgBtn.disabled = false;
+                        }
+                    });
+                }
+
+                const assignCreatorBtn = document.getElementById('assignCreatorRsuBtn');
+                if (assignCreatorBtn) {
+                    assignCreatorBtn.addEventListener('click', async () => {
+                        const select = document.getElementById('creatorRsuSelect');
+                        try {
+                            assignCreatorBtn.disabled = true;
+                            await assignRsuToCase(caseRow, 'creator', select.value, userCtx);
+                            showToast('Creator-side RSU assigned', 'success');
+                            showFlagDetail(flag.id);
+                        } catch (error) {
+                            showToast(error.message || 'Could not assign RSU', 'error');
+                        } finally {
+                            assignCreatorBtn.disabled = false;
+                        }
+                    });
+                }
+
+                const assignReporterBtn = document.getElementById('assignReporterRsuBtn');
+                if (assignReporterBtn) {
+                    assignReporterBtn.addEventListener('click', async () => {
+                        const select = document.getElementById('reporterRsuSelect');
+                        try {
+                            assignReporterBtn.disabled = true;
+                            await assignRsuToCase(caseRow, 'reporter', select.value, userCtx);
+                            showToast('Reporter-side RSU assigned', 'success');
+                            showFlagDetail(flag.id);
+                        } catch (error) {
+                            showToast(error.message || 'Could not assign RSU', 'error');
+                        } finally {
+                            assignReporterBtn.disabled = false;
+                        }
+                    });
+                }
+
+                [
+                    { btnId: 'uploadAbstractBtn', fileId: 'corroborationAbstractFile', descId: 'corroborationAbstractDesc', type: 'abstract' },
+                    { btnId: 'uploadDrawingBtn', fileId: 'corroborationDrawingFile', descId: 'corroborationDrawingDesc', type: 'drawing' },
+                    { btnId: 'uploadImageBtn', fileId: 'corroborationImageFile', descId: 'corroborationImageDesc', type: 'image' }
+                ].forEach(cfg => {
+                    const btn = document.getElementById(cfg.btnId);
+                    if (!btn) return;
+                    btn.addEventListener('click', async () => {
+                        const fileInput = document.getElementById(cfg.fileId);
+                        const descInput = document.getElementById(cfg.descId);
+                        const file = fileInput?.files?.[0] || null;
+                        try {
+                            btn.disabled = true;
+                            await uploadCorroborationEvidence(caseRow, flag, cfg.type, file, descInput?.value || '', userCtx);
+                            showToast(`${cfg.type} uploaded successfully`, 'success');
+                            showFlagDetail(flag.id);
+                        } catch (error) {
+                            showToast(error.message || `Could not upload ${cfg.type}`, 'error');
+                        } finally {
+                            btn.disabled = false;
+                        }
+                    });
+                });
+
+                const recBtn = document.getElementById('submitRecommendationBtn');
+                if (recBtn) {
+                    recBtn.addEventListener('click', async () => {
+                        try {
+                            recBtn.disabled = true;
+                            await submitCorroborationRecommendation(caseRow, userCtx, {
+                                recommended_flag_type: document.getElementById('recommendFlagType').value,
+                                recommended_action: document.getElementById('recommendAction').value,
+                                severity: document.getElementById('recommendSeverity').value,
+                                issue_confirmed: document.getElementById('recommendIssueConfirmed').value,
+                                notes: document.getElementById('recommendNotes').value.trim()
+                            });
+                            showToast('Recommendation submitted', 'success');
+                            showFlagDetail(flag.id);
+                        } catch (error) {
+                            showToast(error.message || 'Could not submit recommendation', 'error');
+                        } finally {
+                            recBtn.disabled = false;
+                        }
+                    });
+                }
+
+                const adminBtn = document.getElementById('submitAdminResolutionBtn');
+                if (adminBtn) {
+                    adminBtn.addEventListener('click', async () => {
+                        try {
+                            adminBtn.disabled = true;
+                            await submitCorroborationAdminAction(caseRow, flag, userCtx, {
+                                parcelAction: document.getElementById('adminCaseAction').value,
+                                newFlagType: document.getElementById('adminNewFlagType').value,
+                                reason: document.getElementById('adminResolutionReason').value.trim()
+                            });
+                            showToast('Admin resolution recorded', 'success');
+                            showFlagDetail(flag.id);
+                        } catch (error) {
+                            showToast(error.message || 'Could not record admin resolution', 'error');
+                        } finally {
+                            adminBtn.disabled = false;
+                        }
+                    });
                 }
             }
 
@@ -19960,8 +21077,10 @@
                     qualityFlagsSource.addFeature(qualityFlagsState.tempPinFeature);
 
                     // Update UI
-                    document.getElementById('selectedLocationInfo').style.display = 'block';
-                    document.getElementById('selectedCoordinates').textContent = formatCoordinates(lonLat[1], lonLat[0]);
+                    const selectedLocationInfo = document.getElementById('selectedLocationInfo');
+                    const selectedCoordinates = document.getElementById('selectedCoordinates');
+                    if (selectedLocationInfo) selectedLocationInfo.style.display = 'block';
+                    if (selectedCoordinates) selectedCoordinates.textContent = formatCoordinates(lonLat[1], lonLat[0]);
 
                     disableMapSelectionMode();
                 };
@@ -19973,7 +21092,8 @@
             function disableMapSelectionMode() {
                 qualityFlagsState.mapSelectionMode = false;
                 document.getElementById('map').classList.remove('map-selection-mode');
-                document.getElementById('cancelSelectionBtn').style.display = 'none';
+                const cancelSelectionBtn = document.getElementById('cancelSelectionBtn');
+                if (cancelSelectionBtn) cancelSelectionBtn.style.display = 'none';
 
                 if (qualityFlagsState.mapSelectionListener) {
                     map.un('singleclick', qualityFlagsState.mapSelectionListener);
@@ -19987,26 +21107,55 @@
                     qualityFlagsState.tempPinFeature = null;
                 }
                 qualityFlagsState.selectedLocation = null;
-                document.getElementById('selectedLocationInfo').style.display = 'none';
+                const selectedLocationInfo = document.getElementById('selectedLocationInfo');
+                if (selectedLocationInfo) selectedLocationInfo.style.display = 'none';
                 disableMapSelectionMode();
             }
 
             // Form Validation
             function validateFlagForm() {
-                const district = document.getElementById('flagDistrict').value;
+                const surveyLayer = document.getElementById('flagSurveyLayer').value;
+                const uidInput = document.getElementById('flagSurveyUniqueId').value.trim();
                 const flagType = document.getElementById('flagType').value;
                 const reporterName = document.getElementById('reporterName').value.trim();
                 const reporterContact = document.getElementById('reporterContact').value.trim();
                 const reason = document.getElementById('flagReason').value.trim();
-                const parcelType = document.querySelector('input[name="parcelType"]:checked').value;
+                const districtHidden = document.getElementById('flagDistrictValue').value;
+                const confirmChk = document.getElementById('flagParcelConfirmCheck');
 
-                if (!district) {
-                    showToast('Please select a district', 'error');
+                if (!surveyLayer) {
+                    showToast('Please select a survey polygon layer', 'error');
                     return false;
                 }
 
-                if (!qualityFlagsState.selectedLocation) {
-                    showToast('Please select a location on the map', 'error');
+                if (!uidInput) {
+                    showToast('Please enter the parcel unique ID', 'error');
+                    return false;
+                }
+
+                if (!qualityFlagsState.resolvedSurveyParcel) {
+                    showToast('Use “Verify on map” to load the parcel before submitting', 'error');
+                    return false;
+                }
+
+                const resolved = qualityFlagsState.resolvedSurveyParcel;
+                if (normalizeSurveyUniqueIdKey(uidInput) !== normalizeSurveyUniqueIdKey(resolved.unique_id)) {
+                    showToast('The ID in the field does not match the verified parcel. Verify again.', 'error');
+                    return false;
+                }
+
+                if (resolved.layer_name !== surveyLayer) {
+                    showToast('Selected layer does not match the verified parcel’s layer.', 'error');
+                    return false;
+                }
+
+                if (!confirmChk || !confirmChk.checked) {
+                    showToast('Please confirm the highlighted parcel is the one you are flagging', 'error');
+                    return false;
+                }
+
+                if (!districtHidden) {
+                    showToast('District is missing from the parcel record; contact support.', 'error');
                     return false;
                 }
 
@@ -20040,16 +21189,90 @@
                     return false;
                 }
 
-                if (parcelType === 'titled') {
-                    const block = document.getElementById('flagBlock').value.trim();
-                    const plot = document.getElementById('flagPlot').value.trim();
-                    if (!block && !plot) {
-                        showToast('Please enter Block or Plot number for titled parcels', 'error');
-                        return false;
-                    }
+                return true;
+            }
+
+            async function verifySurveyParcelForFlagging() {
+                const surveyLayer = document.getElementById('flagSurveyLayer').value;
+                const uidRaw = document.getElementById('flagSurveyUniqueId').value.trim();
+                const summary = document.getElementById('flagSurveyVerifySummary');
+
+                if (!surveyLayer || !uidRaw) {
+                    showToast('Select a layer and enter a unique ID first', 'error');
+                    return;
                 }
 
-                return true;
+                try {
+                    const { data, error } = await supabase
+                        .from('polygon_features')
+                        .select('*')
+                        .eq('layer_name', surveyLayer)
+                        .eq('is_archived', false)
+                        .ilike('unique_id', uidRaw);
+
+                    if (error) throw error;
+
+                    const want = normalizeSurveyUniqueIdKey(uidRaw);
+                    const row = (data || []).find(r => normalizeSurveyUniqueIdKey(r.unique_id) === want);
+
+                    if (!row) {
+                        qualityFlagsState.resolvedSurveyParcel = null;
+                        clearQualityFlagParcelHighlight();
+                        if (summary) {
+                            summary.className = 'flag-verify-summary error';
+                            summary.style.display = 'block';
+                            summary.innerHTML = 'No parcel found for this ID in the selected layer. Check the ID and layer, then try again.';
+                        }
+                        showToast('Parcel not found', 'warning');
+                        return;
+                    }
+
+                    document.getElementById('flagDistrictValue').value = row.district || '';
+                    document.getElementById('flagCountyValue').value = row.county || '';
+                    qualityFlagsState.resolvedSurveyParcel = row;
+
+                    if (summary) {
+                        summary.className = 'flag-verify-summary';
+                        summary.style.display = 'block';
+                        summary.innerHTML =
+                            '<strong>Parcel located.</strong><br>' +
+                            `ID: <strong>${row.unique_id}</strong> · District: ${row.district || '—'}<br>` +
+                            `Area: ${row.area_hectares != null ? row.area_hectares.toFixed(4) + ' ha' : '—'} · Layer: ${row.layer_name}<br>` +
+                            '<span style="color:#2c3e50;">Review the highlighted geometry on the map, then tick the confirmation box below.</span>';
+                    }
+
+                    const format = new ol.format.GeoJSON();
+                    const feature = format.readFeature({
+                        type: 'Feature',
+                        geometry: row.geometry,
+                        properties: {
+                            unique_id: row.unique_id,
+                            layer_name: row.layer_name
+                        }
+                    }, {
+                        dataProjection: 'EPSG:4326',
+                        featureProjection: 'EPSG:3857'
+                    });
+
+                    const extent = feature.getGeometry().getExtent();
+                    if (extent && extent[0] !== Infinity) {
+                        map.getView().fit(extent, { padding: [100, 100, 100, 100], maxZoom: 18 });
+                    }
+
+                    if (typeof surveyPolygonsGroup !== 'undefined' && surveyPolygonsGroup) {
+                        surveyPolygonsGroup.getLayers().forEach(l => {
+                            if (l.get('title') === surveyLayer) {
+                                l.setVisible(true);
+                            }
+                        });
+                    }
+
+                    showQualityFlagParcelHighlight(feature, surveyLayer);
+                    showToast('Parcel found — confirm on the map', 'success');
+                } catch (err) {
+                    console.error('verifySurveyParcelForFlagging:', err);
+                    showToast('Could not verify parcel: ' + (err.message || 'Unknown error'), 'error');
+                }
             }
 
             // Flag Creation
@@ -20062,68 +21285,84 @@
                 submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
 
                 try {
-                    const parcelType = document.querySelector('input[name="parcelType"]:checked').value;
+                    const p = qualityFlagsState.resolvedSurveyParcel;
+                    const userCtx = await getCurrentAuthenticatedUserContext();
+                    let centroid;
+                    try {
+                        centroid = polygonGeometryToCentroidLonLat(p.geometry);
+                    } catch (ce) {
+                        console.error(ce);
+                        showToast('Could not derive parcel centroid from geometry', 'error');
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="fas fa-flag"></i> Submit Flag';
+                        return;
+                    }
+
                     const flagData = {
-                        district: document.getElementById('flagDistrict').value,
-                        county: document.getElementById('flagCounty') ? document.getElementById('flagCounty').value.trim() : null,
-                        block: parcelType === 'titled' ? document.getElementById('flagBlock').value.trim() : null,
-                        plot: parcelType === 'titled' ? document.getElementById('flagPlot').value.trim() : null,
-                        is_untitled: parcelType === 'untitled',
+                        district: p.district || document.getElementById('flagDistrictValue').value,
+                        county: (p.county || document.getElementById('flagCountyValue').value || '').trim() || null,
+                        block: p.unique_id,
+                        plot: null,
+                        is_untitled: true,
+                        survey_unique_id: p.unique_id,
+                        polygon_feature_id: p.id,
+                        survey_layer_name: p.layer_name,
                         flag_type: document.getElementById('flagType').value,
                         reporter_name: document.getElementById('reporterName').value.trim(),
                         reporter_contact: document.getElementById('reporterContact').value.trim(),
                         reason: document.getElementById('flagReason').value.trim(),
-                        lat: qualityFlagsState.selectedLocation.lat,
-                        lng: qualityFlagsState.selectedLocation.lng
+                        lat: centroid.lat,
+                        lng: centroid.lng
                     };
 
-                    // Check for duplicate (same coordinates)
-                    const existingFlags = await getFlags({ district: flagData.district }, 1, 100);
-                    const isDuplicate = existingFlags.data.some(f => {
-                        const coords = f.coordinates.match(/\(([^,]+),([^)]+)\)/);
-                        if (!coords) return false;
-                        const lat = parseFloat(coords[2]);
-                        const lng = parseFloat(coords[1]);
-                        const distance = Math.sqrt(Math.pow(lat - flagData.lat, 2) + Math.pow(lng - flagData.lng, 2));
-                        return distance < 0.0001; // Very close coordinates
-                    });
-
-                    if (isDuplicate) {
-                        showToast('A flag already exists at this location. Please check existing flags.', 'warning');
+                    let dupQuery = supabase.from('parcel_flags').select('id').eq('survey_unique_id', p.unique_id).limit(1);
+                    let dupRes = await dupQuery;
+                    if (dupRes.error && String(dupRes.error.message || '').includes('survey_unique_id')) {
+                        dupRes = await supabase.from('parcel_flags').select('id')
+                            .eq('is_untitled', true)
+                            .eq('block', p.unique_id)
+                            .limit(1);
+                    }
+                    if (dupRes.error) throw dupRes.error;
+                    if (dupRes.data && dupRes.data.length > 0) {
+                        showToast('A quality flag already exists for this parcel ID. Use Check Flags to review it.', 'warning');
                         submitBtn.disabled = false;
                         submitBtn.innerHTML = '<i class="fas fa-flag"></i> Submit Flag';
                         return;
                     }
 
                     const newFlag = await createFlag(flagData);
-
-                    // Remove temporary pin
-                    if (qualityFlagsState.tempPinFeature) {
-                        qualityFlagsSource.removeFeature(qualityFlagsState.tempPinFeature);
-                        qualityFlagsState.tempPinFeature = null;
+                    let newCase = null;
+                    try {
+                        newCase = await createCorroborationCaseForFlag(newFlag, p, userCtx);
+                    } catch (caseError) {
+                        console.warn('[Corroboration] Case creation failed after flag insert:', caseError);
+                        showToast('Flag saved, but corroboration case could not be opened automatically.', 'warning', 7000);
                     }
 
-                    // Create permanent pin
-                    const coordinate = qualityFlagsState.selectedLocation.coordinate;
-                    const feature = new ol.Feature({
-                        geometry: new ol.geom.Point(coordinate),
-                        flag_type: flagData.flag_type,
-                        current_flag_type: flagData.flag_type,
-                        id: newFlag.id,
-                        district: flagData.district,
-                        block: flagData.block,
-                        plot: flagData.plot
-                    });
-                    qualityFlagsSource.addFeature(feature);
+                    clearQualityFlagParcelHighlight();
+                    qualityFlagsState.resolvedSurveyParcel = null;
 
-                    // Reset form
                     form.reset();
-                    qualityFlagsState.selectedLocation = null;
-                    document.getElementById('selectedLocationInfo').style.display = 'none';
-                    document.getElementById('reasonCharCount').textContent = '0';
+                    const summary = document.getElementById('flagSurveyVerifySummary');
+                    if (summary) {
+                        summary.style.display = 'none';
+                        summary.innerHTML = '';
+                        summary.className = 'flag-verify-summary';
+                    }
+                    document.getElementById('flagDistrictValue').value = '';
+                    document.getElementById('flagCountyValue').value = '';
+                    const reasonCharCount = document.getElementById('reasonCharCount');
+                    if (reasonCharCount) reasonCharCount.textContent = '0';
 
-                    showToast('Flag submitted successfully!', 'success');
+                    await rebuildParcelQualityFlagCache();
+
+                    showToast(newCase
+                        ? `Flag submitted and corroboration case opened for ${p.unique_id}`
+                        : 'Flag submitted successfully!', 'success', 7000);
                     updateNotificationBadge();
+                    switchQualityFlagsTab('check');
+                    showFlagDetail(newFlag.id);
                 } catch (error) {
                     console.error('Error submitting flag:', error);
                     let errorMessage = 'Error submitting flag: ';
@@ -20174,9 +21413,10 @@
                     // Clear existing pins
                     qualityFlagsSource.clear();
 
-                    // Plot flags on map
+                    // Plot legacy coordinate-only flags (survey parcels use polygon tint)
                     result.data.forEach(flag => {
-                        const coords = flag.coordinates.match(/\(([^,]+),([^)]+)\)/);
+                        if (getSurveyParcelKeyFromFlag(flag)) return;
+                        const coords = flag.coordinates && flag.coordinates.match(/\(([^,]+),([^)]+)\)/);
                         if (coords) {
                             const lng = parseFloat(coords[1]);
                             const lat = parseFloat(coords[2]);
@@ -20194,6 +21434,8 @@
                             qualityFlagsSource.addFeature(feature);
                         }
                     });
+
+                    await rebuildParcelQualityFlagCache();
 
                     // Calculate statistics
                     const stats = {
@@ -20234,10 +21476,14 @@
                     item.className = `flag-item ${flag.current_flag_type || flag.flag_type}`;
                     item.dataset.flagId = flag.id;
 
-                    const coords = flag.coordinates.match(/\(([^,]+),([^)]+)\)/);
-                    const locationText = coords ?
-                        `${flag.district}${flag.county ? `, ${flag.county}` : ''}${flag.block ? `, Block ${flag.block}` : ''}${flag.plot ? `, Plot ${flag.plot}` : ''}` :
-                        `${flag.district}${flag.county ? `, ${flag.county}` : ''}`;
+                    const coords = flag.coordinates && flag.coordinates.match(/\(([^,]+),([^)]+)\)/);
+                    const surveyKey = getSurveyParcelKeyFromFlag(flag);
+                    const parcelLabel = flag.survey_unique_id || (flag.is_untitled && flag.block ? flag.block : null);
+                    const locationText = surveyKey ?
+                        `${parcelLabel || surveyKey}${flag.survey_layer_name ? ' · ' + flag.survey_layer_name : ''}` :
+                        (coords ?
+                            `${flag.district}${flag.county ? `, ${flag.county}` : ''}${flag.block ? `, Block ${flag.block}` : ''}${flag.plot ? `, Plot ${flag.plot}` : ''}` :
+                            `${flag.district}${flag.county ? `, ${flag.county}` : ''}`);
 
                     item.innerHTML = `
                     <div class="flag-item-header">
@@ -20248,7 +21494,7 @@
                         <div class="flag-item-date">${formatDate(flag.created_at)}</div>
                     </div>
                     <div class="flag-item-location">${locationText}</div>
-                    <div class="flag-item-reason">${flag.reason.substring(0, 100)}${flag.reason.length > 100 ? '...' : ''}</div>
+                    <div class="flag-item-reason">${(flag.reason || '').substring(0, 100)}${(flag.reason || '').length > 100 ? '...' : ''}</div>
                 `;
 
                     item.addEventListener('click', () => {
@@ -20279,9 +21525,10 @@
                         qualityFlagsState.hasMoreFlags = result.hasMore;
                         qualityFlagsState.currentPage++;
 
-                        // Add to map
+                        // Add to map (legacy pins only)
                         result.data.forEach(flag => {
-                            const coords = flag.coordinates.match(/\(([^,]+),([^)]+)\)/);
+                            if (getSurveyParcelKeyFromFlag(flag)) return;
+                            const coords = flag.coordinates && flag.coordinates.match(/\(([^,]+),([^)]+)\)/);
                             if (coords) {
                                 const lng = parseFloat(coords[1]);
                                 const lat = parseFloat(coords[2]);
@@ -20327,13 +21574,47 @@
                     const flagData = await getFlagById(flagId);
                     const flag = flagData.flag;
 
-                    const coords = flag.coordinates.match(/\(([^,]+),([^)]+)\)/);
-                    const locationText = coords ?
-                        `${flag.district}${flag.county ? `, ${flag.county}` : ''}${flag.block ? `, Block ${flag.block}` : ''}${flag.plot ? `, Plot ${flag.plot}` : ''}` :
-                        `${flag.district}${flag.county ? `, ${flag.county}` : ''}`;
+                    const coords = flag.coordinates && flag.coordinates.match(/\(([^,]+),([^)]+)\)/);
+                    const surveyUid = flag.survey_unique_id || (flag.is_untitled && flag.block ? flag.block : null);
+                    const locationText = surveyUid ?
+                        `${surveyUid}${flag.survey_layer_name ? ' · ' + flag.survey_layer_name : ''} (${flag.district || '—'})` :
+                        (coords ?
+                            `${flag.district}${flag.county ? `, ${flag.county}` : ''}${flag.block ? `, Block ${flag.block}` : ''}${flag.plot ? `, Plot ${flag.plot}` : ''}` :
+                            `${flag.district}${flag.county ? `, ${flag.county}` : ''}`);
 
-                    // Zoom to flag
-                    if (coords) {
+                    const ftype = flag.current_flag_type || flag.flag_type || 'red';
+                    let userCtx = null;
+                    let corroborationBundle = null;
+                    let rsuCandidates = [];
+                    try {
+                        userCtx = await getCurrentAuthenticatedUserContext();
+                    } catch (userCtxError) {
+                        console.warn('[Corroboration] User context unavailable in flag detail:', userCtxError);
+                    }
+                    corroborationBundle = await getCorroborationCaseBundle(flag.id);
+                    rsuCandidates = await loadRsuCandidates();
+
+                    if (flag.polygon_feature_id) {
+                        try {
+                            await zoomToParcel(flag.polygon_feature_id, surveyUid || '');
+                        } catch (ze) {
+                            console.warn('zoomToParcel from flag:', ze);
+                        }
+                    } else if (surveyUid) {
+                        try {
+                            const { data: rows, error: qe } = await supabase
+                                .from('polygon_features')
+                                .select('id, unique_id')
+                                .eq('is_archived', false)
+                                .ilike('unique_id', surveyUid);
+                            if (!qe && rows && rows.length) {
+                                const match = rows.find(r => normalizeSurveyUniqueIdKey(r.unique_id) === normalizeSurveyUniqueIdKey(surveyUid));
+                                if (match) await zoomToParcel(match.id, surveyUid);
+                            }
+                        } catch (ze) {
+                            console.warn('Flag detail parcel lookup:', ze);
+                        }
+                    } else if (coords) {
                         const lng = parseFloat(coords[1]);
                         const lat = parseFloat(coords[2]);
                         const coordinate = ol.proj.fromLonLat([lng, lat]);
@@ -20344,9 +21625,9 @@
                     let html = `
                     <div class="flag-detail-section">
                         <h5>Flag Information</h5>
-                        <p><strong>Type:</strong> <span class="flag-indicator ${flag.current_flag_type}"></span> ${flag.current_flag_type.toUpperCase()}</p>
-                        <p><strong>Location:</strong> ${locationText}</p>
-                        <p><strong>Coordinates:</strong> ${coords ? formatCoordinates(parseFloat(coords[2]), parseFloat(coords[1])) : 'N/A'}</p>
+                        <p><strong>Type:</strong> <span class="flag-indicator ${ftype}"></span> ${String(ftype).toUpperCase()}</p>
+                        <p><strong>Parcel / location:</strong> ${locationText}</p>
+                        <p><strong>Coordinates (centroid / marker):</strong> ${coords ? formatCoordinates(parseFloat(coords[2]), parseFloat(coords[1])) : 'N/A'}</p>
                         <p><strong>Reporter:</strong> ${flag.reporter_name}</p>
                         <p><strong>Contact:</strong> ${flag.reporter_contact}</p>
                         <p><strong>Reason:</strong> ${flag.reason}</p>
@@ -20443,11 +21724,19 @@
                     </div>
                 `;
 
+                    html += renderCorroborationSection(flag, corroborationBundle, userCtx, rsuCandidates);
+
                     contentDiv.innerHTML = html;
+                    if (corroborationBundle) {
+                        applyCorroborationDefaultSelections(corroborationBundle.caseRow);
+                    }
 
                     // Attach event listeners
                     document.getElementById('submitCommentBtn').addEventListener('click', () => submitComment(flagId));
                     document.getElementById('submitChangeBtn').addEventListener('click', () => submitFlagTypeChange(flagId));
+                    if (userCtx) {
+                        attachCorroborationEventListeners(flag, corroborationBundle, userCtx);
+                    }
                 } catch (error) {
                     console.error('Error loading flag detail:', error);
                     contentDiv.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Error loading flag details</p></div>';
@@ -20519,14 +21808,13 @@
                 try {
                     await updateFlagType(flagId, newType, { name, contact }, reason);
                     showToast('Flag type updated successfully', 'success');
-                    // Update pin on map
                     const features = qualityFlagsSource.getFeatures();
                     const feature = features.find(f => f.get('id') === flagId);
                     if (feature) {
                         feature.set('current_flag_type', newType);
                         feature.set('flag_type', newType);
                     }
-                    // Reload flag detail
+                    await rebuildParcelQualityFlagCache();
                     showFlagDetail(flagId);
                 } catch (error) {
                     console.error('Error updating flag type:', error);
@@ -20581,11 +21869,13 @@
                     return;
                 }
 
-                const headers = ['ID', 'District', 'Block', 'Plot', 'Flag Type', 'Reporter Name', 'Reporter Contact', 'Reason', 'Created At', 'Status'];
+                const headers = ['ID', 'Survey Parcel ID', 'Survey Layer', 'District', 'Block', 'Plot', 'Flag Type', 'Reporter Name', 'Reporter Contact', 'Reason', 'Created At', 'Status'];
                 const rows = qualityFlagsState.flags.map(flag => {
-                    const coords = flag.coordinates.match(/\(([^,]+),([^)]+)\)/);
+                    const surveyId = flag.survey_unique_id || (flag.is_untitled && flag.block ? flag.block : '');
                     return [
                         flag.id,
+                        surveyId || '',
+                        flag.survey_layer_name || '',
                         flag.district || '',
                         flag.block || '',
                         flag.plot || '',
@@ -20634,8 +21924,10 @@
                         y = 20;
                     }
 
-                    const coords = flag.coordinates.match(/\(([^,]+),([^)]+)\)/);
-                    const locationText = `${flag.district}${flag.block ? `, Block ${flag.block}` : ''}${flag.plot ? `, Plot ${flag.plot}` : ''}`;
+                    const surveyUid = flag.survey_unique_id || (flag.is_untitled && flag.block ? flag.block : null);
+                    const locationText = surveyUid ?
+                        `${surveyUid}${flag.survey_layer_name ? ' · ' + flag.survey_layer_name : ''}` :
+                        `${flag.district}${flag.block ? `, Block ${flag.block}` : ''}${flag.plot ? `, Plot ${flag.plot}` : ''}`;
 
                     doc.setFontSize(12);
                     doc.text(`Flag ${index + 1}`, 14, y);
@@ -20650,7 +21942,7 @@
                     y += 6;
                     doc.text(`Contact: ${flag.reporter_contact}`, 14, y);
                     y += 6;
-                    doc.text(`Reason: ${flag.reason.substring(0, 80)}${flag.reason.length > 80 ? '...' : ''}`, 14, y);
+                    doc.text(`Reason: ${(flag.reason || '').substring(0, 80)}${(flag.reason || '').length > 80 ? '...' : ''}`, 14, y);
                     y += 6;
                     doc.text(`Created: ${formatDate(flag.created_at)}`, 14, y);
                     y += 10;
@@ -20719,18 +22011,37 @@
                     console.error('Quality Flags: checkTabBtn not found');
                 }
 
-                // Parcel type radio toggle
-                document.querySelectorAll('input[name="parcelType"]').forEach(radio => {
-                    radio.addEventListener('change', function () {
-                        const isUntitled = this.value === 'untitled';
-                        const blockPlotGroup = document.getElementById('blockPlotGroup');
-                        const otherParcelGroup = document.getElementById('otherParcelGroup');
-                        if (blockPlotGroup) blockPlotGroup.style.display = isUntitled ? 'none' : 'block';
-                        if (otherParcelGroup) otherParcelGroup.style.display = isUntitled ? 'block' : 'none';
+                const verifySurveyParcelBtn = document.getElementById('verifySurveyParcelBtn');
+                if (verifySurveyParcelBtn) {
+                    verifySurveyParcelBtn.addEventListener('click', function () {
+                        verifySurveyParcelForFlagging();
                     });
-                });
+                }
 
-                // Map selection
+                function resetFlagParcelVerification() {
+                    qualityFlagsState.resolvedSurveyParcel = null;
+                    clearQualityFlagParcelHighlight();
+                    const summary = document.getElementById('flagSurveyVerifySummary');
+                    if (summary) {
+                        summary.style.display = 'none';
+                        summary.innerHTML = '';
+                        summary.className = 'flag-verify-summary';
+                    }
+                    document.getElementById('flagDistrictValue').value = '';
+                    document.getElementById('flagCountyValue').value = '';
+                    const confirmChk = document.getElementById('flagParcelConfirmCheck');
+                    if (confirmChk) confirmChk.checked = false;
+                }
+
+                const flagSurveyLayer = document.getElementById('flagSurveyLayer');
+                if (flagSurveyLayer) {
+                    flagSurveyLayer.addEventListener('change', resetFlagParcelVerification);
+                }
+                const flagSurveyUniqueId = document.getElementById('flagSurveyUniqueId');
+                if (flagSurveyUniqueId) {
+                    flagSurveyUniqueId.addEventListener('input', resetFlagParcelVerification);
+                }
+
                 const selectOnMapBtn = document.getElementById('selectOnMapBtn');
                 const cancelSelectionBtn = document.getElementById('cancelSelectionBtn');
                 if (selectOnMapBtn) selectOnMapBtn.addEventListener('click', enableMapSelectionMode);
@@ -20832,6 +22143,7 @@
                     setupQualityFlagsEventListeners();
                     updateNotificationBadge();
                     startAutoRefresh();
+                    rebuildParcelQualityFlagCache();
                     console.log('Quality Flags: Initialization complete');
                 } catch (error) {
                     console.error('Quality Flags: Initialization error:', error);
@@ -25678,15 +26990,19 @@
                         source: polygonPreviewSource,
                         zIndex: 1001,
                         style: function (feature) {
-                            const styles = [
-                                new ol.style.Style({
-                                    stroke: new ol.style.Stroke({
-                                        color: '#3498db',
-                                        width: 3
-                                    })
-                                    // No fill as specified
+                            const qFill = getSurveyParcelQualityFillRgba(feature.get('unique_id'));
+                            const styles = [];
+                            if (qFill) {
+                                styles.push(new ol.style.Style({
+                                    fill: new ol.style.Fill({ color: qFill })
+                                }));
+                            }
+                            styles.push(new ol.style.Style({
+                                stroke: new ol.style.Stroke({
+                                    color: '#3498db',
+                                    width: 3
                                 })
-                            ];
+                            }));
 
                             // Add distance labels on edges with rotation
                             if (edgeDistances && edgeDistances.length > 0) {
@@ -28722,6 +30038,38 @@
 
             // Zoom to parcel
             let parcelHighlightLayer = null;
+            /** Persistent highlight while user confirms parcel in Quality Flags flow */
+            let qualityFlagParcelHighlightLayer = null;
+
+            function clearQualityFlagParcelHighlight() {
+                if (qualityFlagParcelHighlightLayer) {
+                    map.removeLayer(qualityFlagParcelHighlightLayer);
+                    qualityFlagParcelHighlightLayer = null;
+                }
+            }
+
+            function showQualityFlagParcelHighlight(feature, layerName) {
+                clearQualityFlagParcelHighlight();
+                const layerColors = {
+                    'TITLE TRACTS UTM ZONE 36N': '#e74c3c',
+                    'TITLE TRACTS UTM ZONE 36S': '#c0392b',
+                    'UNTITLED UTM ZONE 36N': '#3498db',
+                    'UNTITLED UTM ZONE 36S': '#2980b9',
+                    'BLB-UNTITLED': '#9b59b6'
+                };
+                const strokeColor = layerColors[layerName] || '#f39c12';
+                const source = new ol.source.Vector({ features: [feature] });
+                qualityFlagParcelHighlightLayer = new ol.layer.Vector({
+                    source: source,
+                    zIndex: 2100,
+                    style: new ol.style.Style({
+                        stroke: new ol.style.Stroke({ color: strokeColor, width: 4 }),
+                        fill: new ol.style.Fill({ color: 'rgba(243, 156, 18, 0.15)' })
+                    })
+                });
+                map.addLayer(qualityFlagParcelHighlightLayer);
+            }
+
             async function zoomToParcel(parcelId, uniqueId) {
                 try {
                     const { data, error } = await supabase
@@ -29411,7 +30759,7 @@
                 } else {
                     featureInfo.style.display = 'block';
                     this.classList.add('active');
-                    featureInfoContent.innerHTML = '<p>Click on a feature to get information about it.<br><small>Supports: Survey Polygons and GSPNET LAYERS (FlatGeobuf)</small></p>';
+                    featureInfoContent.innerHTML = '<p>Click on a feature to get information about it.<br><small>Supports: <strong>Survey polygons</strong> (attributes + quality flags), GSPNET layers (FlatGeobuf), and other vector layers.</small></p>';
                 }
             });
 
@@ -36932,6 +38280,10 @@ function smoothChaikin(points) {
                     if (opacityWrapper) {
                         opacityWrapper.style.opacity = this.value === 'none' ? '0.5' : '1';
                     }
+
+                    if (typeof refreshSurveyPolygonFeatureStyles === 'function') {
+                        refreshSurveyPolygonFeatureStyles();
+                    }
                 });
             });
 
@@ -38327,6 +39679,136 @@ function smoothChaikin(points) {
                 });
             }
 
+            const surveyPolygonLayerTitleSet = new Set(polygonLayerNames);
+
+            function escapeFeatureInfoHtml(s) {
+                if (s === null || s === undefined) return '';
+                return String(s)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+            }
+
+            function qualityFlagTypeLabel(t) {
+                if (t === 'red') return 'Bad / untrusted data';
+                if (t === 'yellow') return 'Needs review';
+                if (t === 'green') return 'Verified / trusted data';
+                return t ? String(t) : 'Unknown';
+            }
+
+            async function displayPolygonInfo(polygonFeature) {
+                const uid = polygonFeature.get('unique_id');
+                const layerName = polygonFeature.get('layer_name') || 'Survey polygon';
+                const areaHa = polygonFeature.get('area_hectares');
+
+                const rows = [
+                    ['Unique ID', uid],
+                    ['Layer', layerName],
+                    ['District', polygonFeature.get('district')],
+                    ['County', polygonFeature.get('county')],
+                    ['Client', polygonFeature.get('client')],
+                    ['Project', polygonFeature.get('project_name')],
+                    ['Block (registry)', polygonFeature.get('block_number')],
+                    ['Plot (registry)', polygonFeature.get('plot_number')],
+                    ['Surveyor', polygonFeature.get('surveyor')],
+                    ['Supervisor', polygonFeature.get('supervisor')],
+                    ['Company', polygonFeature.get('company')],
+                    ['Coordinate system', polygonFeature.get('coordinate_system')],
+                    ['Area (ha)', areaHa != null && areaHa !== '' ? Number(areaHa).toFixed(4) : null],
+                    ['Vertices', polygonFeature.get('num_vertices')],
+                    ['Additional info', polygonFeature.get('additional_info')],
+                    ['Recorded', polygonFeature.get('created_at')]
+                ];
+
+                let content = '<h3>Survey polygon</h3>';
+                content += `<h4 style="margin:10px 0 8px;color:#2c3e50;">${escapeFeatureInfoHtml(layerName)}</h4>`;
+                content += '<table border="1" style="border-collapse:collapse;font-size:12px;width:100%;margin-bottom:12px;">';
+                rows.forEach(([label, val]) => {
+                    if (val === null || val === undefined || val === '') return;
+                    content += '<tr><td style="padding:6px;background:#f5f5f5;font-weight:bold;width:40%;">' +
+                        escapeFeatureInfoHtml(label) + '</td><td style="padding:6px;">' +
+                        escapeFeatureInfoHtml(val) + '</td></tr>';
+                });
+                content += '</table>';
+
+                const cacheKey = uid ? normalizeSurveyUniqueIdKey(uid) : '';
+                const tint = cacheKey ? parcelQualityFlagByUniqueId[cacheKey] : null;
+                if (tint) {
+                    content += '<div style="margin:0 0 12px;padding:10px;background:#f4f8fb;border:1px solid #d6e4ef;border-radius:6px;font-size:12px;">';
+                    content += '<strong>Active map tint</strong> (quality flag): ' + escapeFeatureInfoHtml(qualityFlagTypeLabel(tint));
+                    content += '</div>';
+                }
+
+                content += '<div id="featureInfoFlagsSection"><p style="font-size:12px;color:#666;"><i class="fas fa-spinner fa-spin"></i> Loading quality flag records…</p></div>';
+                featureInfoContent.innerHTML = content;
+
+                const flagsSection = document.getElementById('featureInfoFlagsSection');
+                if (!uid || !supabase) {
+                    if (flagsSection) {
+                        flagsSection.innerHTML = !uid
+                            ? '<p style="font-size:12px;color:#888;">No unique ID on this feature.</p>'
+                            : '<p style="font-size:12px;color:#888;">Quality flags require a connected database.</p>';
+                    }
+                    return;
+                }
+
+                let flagRows = [];
+                try {
+                    let res = await supabase.from('parcel_flags').select('*').ilike('survey_unique_id', uid.trim());
+                    if (res.error && String(res.error.message || '').includes('survey_unique_id')) {
+                        res = await supabase.from('parcel_flags').select('*').eq('is_untitled', true).eq('block', uid.trim());
+                    }
+                    if (res.error) throw res.error;
+                    const want = normalizeSurveyUniqueIdKey(uid);
+                    flagRows = (res.data || []).filter(f => {
+                        const fk = f.survey_unique_id || (f.is_untitled && f.block ? f.block : '');
+                        return fk && normalizeSurveyUniqueIdKey(fk) === want;
+                    });
+                    flagRows.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+                } catch (err) {
+                    console.warn('displayPolygonInfo flags fetch:', err);
+                    if (flagsSection) {
+                        flagsSection.innerHTML = '<p style="font-size:12px;color:#c0392b;">Could not load quality flags: ' +
+                            escapeFeatureInfoHtml(err.message || 'error') + '</p>';
+                    }
+                    return;
+                }
+
+                if (!flagsSection) return;
+
+                if (flagRows.length === 0) {
+                    flagsSection.innerHTML = '<h4 style="margin:12px 0 6px;color:#2c3e50;">Quality flags</h4>' +
+                        '<p style="font-size:12px;color:#666;">No quality flag has been submitted for this parcel.</p>';
+                    return;
+                }
+
+                let fh = '<h4 style="margin:12px 0 6px;color:#2c3e50;">Quality flags</h4>';
+                fh += '<p style="font-size:11px;color:#666;margin:0 0 8px;">Newest first. Each entry shows the latest status for that submission.</p>';
+
+                flagRows.forEach((flag, idx) => {
+                    const cur = flag.current_flag_type || flag.flag_type;
+                    fh += `<div style="margin-bottom:14px;padding:10px;border:1px solid #e0e0e0;border-radius:6px;background:#fafafa;">`;
+                    fh += `<div style="font-weight:700;margin-bottom:6px;">Flag #${idx + 1} · <span class="flag-indicator ${cur}"></span>${escapeFeatureInfoHtml(qualityFlagTypeLabel(cur))}</div>`;
+                    fh += '<table border="0" style="font-size:12px;width:100%;">';
+                    const add = (k, v) => {
+                        if (v === null || v === undefined || v === '') return;
+                        fh += '<tr><td style="padding:3px 6px 3px 0;color:#555;width:40%;vertical-align:top;">' + escapeFeatureInfoHtml(k) + '</td><td style="padding:3px 0;vertical-align:top;">' + escapeFeatureInfoHtml(v) + '</td></tr>';
+                    };
+                    add('Reporter', flag.reporter_name);
+                    add('Contact', flag.reporter_contact);
+                    add('Reason', flag.reason);
+                    add('District (flag)', flag.district);
+                    add('County (flag)', flag.county);
+                    add('Submitted', typeof formatDate === 'function' ? formatDate(flag.created_at) : flag.created_at);
+                    add('Updated', typeof formatDate === 'function' ? formatDate(flag.updated_at) : flag.updated_at);
+                    add('Status', flag.status);
+                    fh += '</table></div>';
+                });
+
+                flagsSection.innerHTML = fh;
+            }
+
             // Feature info panel functionality for the info button only
             map.on('click', function (evt) {
                 if (featureInfo.style.display === 'block') {
@@ -38335,12 +39817,16 @@ function smoothChaikin(points) {
                     // Show loading message
                     featureInfoContent.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Loading feature information...</p>';
 
-                    // First check for polygon features (Survey Polygons)
-                    const polygonFeature = map.forEachFeatureAtPixel(pixel, function (feature) {
-                        if (feature.get('unique_id')) {
-                            return feature;
-                        }
-                    });
+                    // Survey polygons: unique_id + known survey layer (title or feature property)
+                    const polygonFeature = map.forEachFeatureAtPixel(pixel, function (feature, layer) {
+                        const fid = feature.get('unique_id');
+                        if (!fid) return undefined;
+                        const layerTitle = layer && typeof layer.get === 'function' ? layer.get('title') : null;
+                        const propLayer = feature.get('layer_name');
+                        if (layerTitle && surveyPolygonLayerTitleSet.has(layerTitle)) return feature;
+                        if (propLayer && surveyPolygonLayerTitleSet.has(propLayer)) return feature;
+                        return undefined;
+                    }, { hitTolerance: 6 });
 
                     if (polygonFeature) {
                         displayPolygonInfo(polygonFeature);
@@ -49175,7 +50661,8 @@ function smoothChaikin(points) {
                         ChatSystem.currentUser = {
                             id: user.id,
                             email: user.email,
-                            username: user.email.split('@')[0] || 'User'
+                            username: user.email.split('@')[0] || 'User',
+                            role: user.user_metadata?.role || localStorage.getItem('supabase.profile.role') || 'general'
                         };
 
                         console.log('✅ User authenticated:', ChatSystem.currentUser);
@@ -49192,7 +50679,8 @@ function smoothChaikin(points) {
                         ChatSystem.currentUser = {
                             id: 'demo-user',
                             email: 'demo@example.com',
-                            username: 'Demo User'
+                            username: 'Demo User',
+                            role: 'general'
                         };
                         console.log('⚠️ Demo mode - user not authenticated');
                     }
@@ -50111,6 +51599,9 @@ function smoothChaikin(points) {
                             id: user.id,
                             username: user.username,
                             display_name: user.username,
+                            full_name: user.displayName || user.username,
+                            email: user.email || null,
+                            role: user.role || localStorage.getItem('supabase.profile.role') || 'general',
                             is_online: true,
                             last_seen: new Date().toISOString()
                         }], { onConflict: 'id' })
@@ -53508,80 +54999,63 @@ CRITICAL RULES:
                 <!-- Flag Parcel Section -->
                 <div class="quality-section active" id="flagSection">
                     <div class="section-header">
-                        <h4>Flag a Parcel</h4>
-                        <p class="section-description">Report data quality issues or verify data accuracy</p>
+                        <h4>Flag a survey polygon</h4>
+                        <p class="section-description">Link a quality flag to a published survey parcel by unique ID (BLB-UNTITLED and UTM title/untitled layers).</p>
                     </div>
 
                     <form id="flagParcelForm">
+                        <div class="quality-flag-notice" role="note">
+                            <strong>Survey polygon quality assurance</strong>
+                            <p style="margin:8px 0 0 0;">Flags apply only to published survey polygons in the layers below (primary deliverables that are updated regularly). Where you identify a defect or ambiguity, <strong>corroboration</strong> with the licensed surveyor or firm that produced the work is the preferred first step. Within <strong>14 calendar days</strong>, please use <strong>Chat</strong> to share evidence, request clarification, and align on corrective action before any formal escalation.</p>
+                        </div>
+
                         <div class="form-group">
-                            <label for="flagDistrict">District <span class="required">*</span></label>
-                            <select id="flagDistrict" class="form-select" required>
-                                <option value="">Select District</option>
-                                <!-- Populated dynamically -->
+                            <label for="flagSurveyLayer">Survey polygon layer <span class="required">*</span></label>
+                            <select id="flagSurveyLayer" class="form-select" required>
+                                <option value="">Select layer</option>
+                                <option value="BLB-UNTITLED">BLB-UNTITLED</option>
+                                <option value="UNTITLED UTM ZONE 36S">UNTITLED UTM ZONE 36S</option>
+                                <option value="UNTITLED UTM ZONE 36N">UNTITLED UTM ZONE 36N</option>
+                                <option value="TITLE TRACTS UTM ZONE 36S">TITLE TRACTS UTM ZONE 36S</option>
+                                <option value="TITLE TRACTS UTM ZONE 36N">TITLE TRACTS UTM ZONE 36N</option>
                             </select>
+                            <small class="form-help">Choose the layer that matches the parcel ID you are flagging.</small>
                         </div>
 
                         <div class="form-group">
-                            <label for="flagCounty">County</label>
-                            <input type="text" id="flagCounty" class="form-input" placeholder="Enter county name">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="parcelType">Parcel Type</label>
-                            <div class="radio-group">
-                                <label class="radio-label">
-                                    <input type="radio" name="parcelType" value="titled" checked>
-                                    <span>Titled (Block & Plot)</span>
-                                </label>
-                                <label class="radio-label">
-                                    <input type="radio" name="parcelType" value="untitled">
-                                    <span>Untitled (Other)</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="form-group" id="blockPlotGroup">
-                            <div class="form-row">
-                                <div class="form-col">
-                                    <label for="flagBlock">Block</label>
-                                    <input type="text" id="flagBlock" class="form-input" placeholder="e.g., 123">
+                            <label for="flagSurveyUniqueId">Parcel unique ID <span class="required">*</span></label>
+                            <div class="form-row" style="gap:8px;align-items:flex-end;flex-wrap:wrap;">
+                                <div class="form-col" style="flex:1;min-width:140px;">
+                                    <input type="text" id="flagSurveyUniqueId" class="form-input" required
+                                        placeholder="e.g. TT36N-001" autocomplete="off">
                                 </div>
-                                <div class="form-col">
-                                    <label for="flagPlot">Plot</label>
-                                    <input type="text" id="flagPlot" class="form-input" placeholder="e.g., 456">
-                                </div>
+                                <button type="button" class="btn btn-secondary" id="verifySurveyParcelBtn">
+                                    <i class="fas fa-search-location"></i> Verify on map
+                                </button>
                             </div>
+                            <small class="form-help">Must match the ID stored for that polygon (case-insensitive lookup).</small>
                         </div>
 
-                        <div class="form-group" id="otherParcelGroup" style="display: none;">
-                            <label for="otherParcelInfo">Other Parcel Information</label>
-                            <input type="text" id="otherParcelInfo" class="form-input"
-                                placeholder="Describe the parcel location">
+                        <div id="flagSurveyVerifySummary" class="flag-verify-summary" style="display: none;"></div>
+                        <input type="hidden" id="flagDistrictValue" value="">
+                        <input type="hidden" id="flagCountyValue" value="">
+
+                        <div class="form-group">
+                            <label class="radio-label" style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
+                                <input type="checkbox" id="flagParcelConfirmCheck" style="margin-top:3px;">
+                                <span>I confirm the highlighted parcel on the map is the one I am flagging.</span>
+                            </label>
                         </div>
 
                         <div class="form-group">
-                            <label>Select Location on Map <span class="required">*</span></label>
-                            <button type="button" class="btn btn-secondary" id="selectOnMapBtn">
-                                <i class="fas fa-map-marker-alt"></i> Select on Map
-                            </button>
-                            <div id="selectedLocationInfo" class="location-info" style="display: none;">
-                                <i class="fas fa-check-circle"></i> Location selected
-                                <span id="selectedCoordinates"></span>
-                            </div>
-                            <button type="button" class="btn btn-danger btn-sm" id="cancelSelectionBtn"
-                                style="display: none;">
-                                <i class="fas fa-times"></i> Cancel Selection
-                            </button>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="flagType">Flag Type <span class="required">*</span></label>
+                            <label for="flagType">Flag type <span class="required">*</span></label>
                             <select id="flagType" class="form-select" required>
-                                <option value="">Select Flag Type</option>
-                                <option value="red">Bad/Untrusted Data</option>
-                                <option value="yellow">Needs Review</option>
-                                <option value="green">Verified/Trusted Data</option>
+                                <option value="">Select flag type</option>
+                                <option value="red">Bad / untrusted data</option>
+                                <option value="yellow">Needs review</option>
+                                <option value="green">Verified / trusted data</option>
                             </select>
+                            <small class="form-help">Map tint: red = disputed or unreliable; blue = under review; green = verified.</small>
                         </div>
 
                         <div class="form-group">
