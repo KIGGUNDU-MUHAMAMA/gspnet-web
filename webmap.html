@@ -18075,7 +18075,8 @@
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson2/tororoblocks.fgb', title: 'Tororo Blocks' },
                 { url: 'https://data.geospatialnetworkug.xyz/WAKISO/wakiso.nlis1.fgb', title: 'Wakiso NLIS 1' },
                 { url: 'https://data.geospatialnetworkug.xyz/WAKISO/wakiso.nlis2.fgb', title: 'Wakiso NLIS 2' },
-                { url: 'https://data.geospatialnetworkug.xyz/WAKISO/wakisoblocks.fgb', title: 'Wakiso Blocks' }
+                { url: 'https://data.geospatialnetworkug.xyz/WAKISO/wakisoblocks.fgb', title: 'Wakiso Blocks' },
+                { url: 'https://data.geospatialnetworkug.xyz/WAKISO/uganda-forests-reserve.fgb', title: 'Uganda Forests Reserve' }
             ];
 
             // Create buffered extent function for FlatGeobuf loading strategy
@@ -18118,6 +18119,14 @@
                 }),
                 nlisBlackStroke: new ol.style.Style({
                     stroke: new ol.style.Stroke({ color: '#000000', width: 2, lineCap: 'round', lineJoin: 'round' })
+                }),
+                // Forest Reserve styles
+                forestFillWhiteBuffer: new ol.style.Style({
+                    fill: new ol.style.Fill({ color: 'rgba(34, 139, 34, 0.2)' }), // Forest Green with opacity
+                    stroke: new ol.style.Stroke({ color: '#ffffff', width: 4, lineCap: 'round', lineJoin: 'round' })
+                }),
+                forestDarkStroke: new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#006400', width: 2, lineCap: 'round', lineJoin: 'round' }) // Dark Green
                 })
             };
 
@@ -18141,12 +18150,15 @@
                 const source = new ol.source.Vector();
                 const isBlock = config.name.toLowerCase().includes('blocks') || config.name.toLowerCase().includes('block');
                 const isProtected = config.name === 'Protected Areas';
+                const isForest = config.name === 'Uganda Forests Reserve';
 
                 const layer = new ol.layer.Vector({
                     title: config.name,
                     source: source,
-                    maxResolution: isBlock || isProtected ? 10 : 5.0,
-                    style: isProtected ?
+                    maxResolution: isBlock || isProtected || isForest ? 10 : 5.0,
+                    style: isForest ?
+                        function (feature) { return getForestReservesStyle(feature); } :
+                        isProtected ?
                         function (feature) { return getProtectedAreasStyle(feature); } :
                         config.name === 'Mukono Blocks' ?
                             function (feature) { return getMukonoBlocksStyle(feature); } :
@@ -18599,6 +18611,43 @@
                                 text: nlisId.toString(),
                                 font: 'bold 12px sans-serif',
                                 fill: new ol.style.Fill({ color: '#000000' }),
+                                stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                                textAlign: 'center',
+                                textBaseline: 'middle',
+                                offsetY: 0
+                            })
+                        }));
+                    }
+                }
+
+                return styles;
+            }
+
+            // Forest Reserves style — RESOLUTION-AWARE (uses shared cached styles)
+            function getForestReservesStyle(feature) {
+                const geometry = feature.getGeometry();
+                const geomType = geometry ? geometry.getType() : null;
+                if (!geometry || (geomType !== 'Polygon' && geomType !== 'MultiPolygon')) {
+                    return [];
+                }
+
+                const view = map.getView();
+                const resolution = view.getResolution();
+
+                // Always show base fill + stroke (reuse shared cached styles)
+                const styles = [SHARED_STYLES.forestFillWhiteBuffer, SHARED_STYLES.forestDarkStroke];
+
+                // Only add label when zoomed in enough (res <= 5.0, ~500m)
+                if (resolution <= RES_THRESHOLD.LABELS) {
+                    const name = feature.get('Name') || feature.get('name');
+                    if (name) {
+                        const centroid = ol.extent.getCenter(geometry.getExtent());
+                        styles.push(new ol.style.Style({
+                            geometry: new ol.geom.Point(centroid), // centroid is safe for multipoly via getExtent
+                            text: new ol.style.Text({
+                                text: name.toString(),
+                                font: 'bold 12px sans-serif',
+                                fill: new ol.style.Fill({ color: '#004d00' }), // Dark Green
                                 stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
                                 textAlign: 'center',
                                 textBaseline: 'middle',

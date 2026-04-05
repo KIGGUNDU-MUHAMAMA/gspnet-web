@@ -465,14 +465,12 @@
             top: 0;
             left: 0;
             width: 100%;
-            background: rgba(44, 36, 22, 0.85);
-            backdrop-filter: blur(10px);
-            padding: 12px 20px;
+            background: transparent;
+            padding: 20px 20px;
             display: flex;
             justify-content: center;
             z-index: 1000;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-            border-bottom: 2px solid rgba(210, 180, 140, 0.2);
+            border: none;
         }
 
         .nav-container {
@@ -744,8 +742,7 @@
 
         @media (max-width: 768px) {
             .dark-mode-toggle {
-                margin-left: 0;
-                width: 100%;
+                margin-left: auto;
                 justify-content: center;
             }
         }
@@ -1520,7 +1517,8 @@
             }
 
             body {
-                padding-top: 140px;
+                padding: 15px;
+                padding-top: 70px;
             }
 
             input,
@@ -1541,171 +1539,7 @@
     <!-- Navigation Bar -->
     <nav class="top-nav">
         <div class="nav-container">
-            <div class="dropdown">
-                <button class="nav-btn">
-                    <i class="fas fa-info-circle"></i> About
-                </button>
-                <div class="dropdown-content">
-                    <a href="https://kwssgfanbntfjdclchfi.supabase.co/storage/v1/object/public/uploads/ABOUT%20GEOSPATIALNETWORK%20UGANDA%20V1.pdf"
-                        target="_blank">
-                        <i class="fas fa-file-pdf"></i> About GeospatialNetwork Uganda V1
-                    </a>
-                    <a href="https://kwssgfanbntfjdclchfi.supabase.co/storage/v1/object/public/uploads/ABOUT%20GEOSPATIALNETWORK%20UGANDA%20V2.pdf"
-                        target="_blank">
-                        <i class="fas fa-file-pdf"></i> About GeospatialNetwork Uganda V2
-                    </a>
-                </div>
-            </div>
-
-            <div class="dropdown">
-                <button class="nav-btn">
-                    <i class="fas fa-graduation-cap"></i> Tutorials
-                </button>
-                <div class="dropdown-content">
-                    <a href="https://youtu.be/_7B5egSq5SI?si=gHunNyxDdOvcbe70" target="_blank">
-                        <i class="fab fa-youtube"></i> HOW TO USE GEOSPATIALNETWORKUG WEB MAP
-                    </a>
-                    <a href="https://youtu.be/IIyyize3cYc?si=Rn-s9xb743GJCjmk" target="_blank">
-                        <i class="fab fa-youtube"></i> GEOSPATIALNETWORKUG IN QGIS
-                    </a>
-                    <a href="https://youtu.be/QuYz_tSEZ7U?si=y6u3AI7GxUj_Rmvj" target="_blank">
-                        <i class="fab fa-youtube"></i> HOW TO OBTAIN DXF FROM GEOSPATIALNETWORKUG
-                    </a>
-                    <a href="https://youtu.be/ot8XXvF2GOI?si=pkrub6zAW3frapA1" target="_blank">
-                        <i class="fab fa-youtube"></i> HOW TO UPDATE GEOSPATIALNETWORKUG USING QGIS
-                    </a>
-                    <a href="https://youtu.be/_I-aCQDxFXo?si=TA-rrZqED_SvPwkv" target="_blank">
-                        <i class="fab fa-youtube"></i> HOW TO CONNECT TO GEOSPATIAL NETWORK WITH LAND STAR
-                    </a>
-                    <a href="https://youtube.com/shorts/j47jZeNGgmA?si=BoPnxOKjM9rSf9i9" target="_blank">
-                        <i class="fab fa-youtube"></i> HOW TO CONNECT TO GEOSPARTIALNETWORKUS WITH FIELD GENIUS
-                    </a>
-                    <a href="https://youtube.com/shorts/X2Xmyvrw7Ms?si=S7hyFlxZmZsWgnQ-" target="_blank">
-                        <i class="fab fa-youtube"></i> HOW TO CONNECT TO GEOSPATIALNETWORKUG WITH SIGULAR PAD
-                    </a>
-                    <a href="https://youtube.com/shorts/MG4vCSJxxyM?si=tnritGxFeWwczJzI" target="_blank">
-                        <i class="fab fa-youtube"></i> HOW TO CONNECT TO GEOSPARTIALNETWORKUG WITH SURV STAR
-                    </a>
-                </div>
-            </div>
-
-            <!-- Additional buttons from Excel -->
-            <div class="dropdown">
-                <button class="nav-btn">
-                    <i class="fas fa-truck-moving"></i> J.R.J MOVERS
-                </button>
-                <div class="dropdown-content">
-                    <a href="https://wa.me/256773079054" target="_blank">
-                        <i class="fab fa-whatsapp"></i> AMODING SUSAN - MBALE MZO
-                    </a>
-                    <a href="https://wa.me/256788122482" target="_blank">
-                        <i class="fab fa-whatsapp"></i> OKIA NICHOLAS - MBALE MZO
-                    </a>
-                    <a href="https://wa.me/256781349475" target="_blank">
-                        <i class="fab fa-whatsapp"></i> KABALIISA EDITH - WAKISO MZO
-                    </a>
-                    <a href="https://wa.me/256742029180" target="_blank">
-                        <i class="fab fa-whatsapp"></i> MUSA SSEGUJJA - LUWEERO
-                    </a>
-                    <a href="https://wa.me/256779005444" target="_blank">
-                        <i class="fab fa-whatsapp"></i> ORENA BRIAN - SOROTI MZO
-                    </a>
-                    <a href="https://wa.me/256756435959" target="_blank">
-                        <i class="fab fa-whatsapp"></i> LUYIKI ISAAC - LUWEERO
-                    </a>
-                    <a href="https://wa.me/256773639903" target="_blank">
-                        <i class="fab fa-whatsapp"></i> SAVANA - MUKONO
-                    </a>
-                    <a href="https://wa.me/256753771256" target="_blank">
-                        <i class="fab fa-whatsapp"></i> KIGGUNDU - MUKONO
-                    </a>
-                    <a href="https://wa.me/256753808985" target="_blank">
-                        <i class="fab fa-whatsapp"></i> APIO ESTHER - WAKISO MZO
-                    </a>
-                    <a href="https://wa.me/256783404444" target="_blank">
-                        <i class="fab fa-whatsapp"></i> ISABIRYE SIMON - MASINDI
-                    </a>
-                </div>
-            </div>
-
-            <div class="dropdown">
-                <button class="nav-btn">
-                    <i class="fas fa-truck-pickup"></i> HIRE ROVER
-                </button>
-                <div class="dropdown-content">
-                    <a href="https://wa.me/256705743067" target="_blank">
-                        <i class="fab fa-whatsapp"></i> KARIM - MUKONO (CHC)
-                    </a>
-                    <a href="https://wa.me/256777138028" target="_blank">
-                        <i class="fab fa-whatsapp"></i> NAMAJJA SHARIF - JINJA (CHC)
-                    </a>
-                    <a href="https://wa.me/256742202575" target="_blank">
-                        <i class="fab fa-whatsapp"></i> CONTACT - KAMPALA (CHC)
-                    </a>
-                    <a href="https://wa.me/256781989621" target="_blank">
-                        <i class="fab fa-whatsapp"></i> ISMAIL - KAMPALA (CHC)
-                    </a>
-                    <a href="https://wa.me/256753771256" target="_blank">
-                        <i class="fab fa-whatsapp"></i> KIGGUNDU MUHAMAD - MUKONO (CHC)
-                    </a>
-                    <a href="https://wa.me/256773864660" target="_blank">
-                        <i class="fab fa-whatsapp"></i> KYABAGU PAUL - WAKISO (CHC)
-                    </a>
-                    <a href="https://wa.me/256702764735" target="_blank">
-                        <i class="fab fa-whatsapp"></i> LYDIA - MUKONO (CHC)
-                    </a>
-                    <a href="https://wa.me/256706297897" target="_blank">
-                        <i class="fab fa-whatsapp"></i> SAIMAN BUWEMBO - MPIGI (CHC)
-                    </a>
-                    <a href="https://wa.me/256701653716" target="_blank">
-                        <i class="fab fa-whatsapp"></i> TWAHA WASWA - MPIGI (CHC)
-                    </a>
-                    <a href="https://wa.me/256779005444" target="_blank">
-                        <i class="fab fa-whatsapp"></i> ORENA BRIAN - BUKEDEA (sino GNSS)
-                    </a>
-                </div>
-            </div>
-
-            <div class="dropdown">
-                <button class="nav-btn">
-                    <i class="fas fa-user-tie"></i> MZO INFO
-                </button>
-                <div class="dropdown-content">
-                    <a href="https://wa.me/256773079054" target="_blank">
-                        <i class="fab fa-whatsapp"></i> AMODING SUSAN - MBALE MZO
-                    </a>
-                    <a href="https://wa.me/256788122482" target="_blank">
-                        <i class="fab fa-whatsapp"></i> OKIA NICHOLAS - MBALE MZO
-                    </a>
-                    <a href="https://wa.me/256781349475" target="_blank">
-                        <i class="fab fa-whatsapp"></i> KABALIISA EDITH - WAKISO MZO
-                    </a>
-                    <a href="https://wa.me/256742029180" target="_blank">
-                        <i class="fab fa-whatsapp"></i> MUSA SSEGUJJA - LUWEERO
-                    </a>
-                    <a href="https://wa.me/256779005444" target="_blank">
-                        <i class="fab fa-whatsapp"></i> ORENA BRIAN - SOROTI MZO
-                    </a>
-                    <a href="https://wa.me/256756435959" target="_blank">
-                        <i class="fab fa-whatsapp"></i> LUYIKI ISAAC - LUWEERO
-                    </a>
-                    <a href="https://wa.me/256773639903" target="_blank">
-                        <i class="fab fa-whatsapp"></i> SAVANA - MUKONO
-                    </a>
-                    <a href="https://wa.me/256753771256" target="_blank">
-                        <i class="fab fa-whatsapp"></i> KIGGUNDU - MUKONO
-                    </a>
-                    <a href="https://wa.me/256782693527" target="_blank">
-                        <i class="fab fa-whatsapp"></i> WYCLIFFE - ENTEBE
-                    </a>
-                    <a href="https://wa.me/257777103118" target="_blank">
-                        <i class="fab fa-whatsapp"></i> KIBENGE - WAKISO MZO
-                    </a>
-                    <a href="https://wa.me/256783404444" target="_blank">
-                        <i class="fab fa-whatsapp"></i> ISABIRYE SIMON - MASINDI
-                    </a>
-                </div>
-            </div>
+            <!-- Removed dropdown menus for About, Tutorials, Movers, Hire Rover, and MZO Info -->
 
             <!-- Dark Mode Toggle -->
             <button class="dark-mode-toggle" id="darkModeToggle" aria-label="Toggle dark mode">
