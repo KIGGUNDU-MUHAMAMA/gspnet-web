@@ -19882,7 +19882,8 @@
             // Initialize panel state from localStorage
             function loadPanelState() {
                 const savedTab = localStorage.getItem('qualityFlags_lastTab');
-                const savedDistrict = localStorage.getItem('qualityFlags_lastDistrict');
+                const savedLookupLayer = localStorage.getItem('qualityFlags_lastLookupLayer');
+                const savedLookupId = localStorage.getItem('qualityFlags_lastLookupId');
                 if (savedTab && (savedTab === 'flag' || savedTab === 'check')) {
                     qualityFlagsState.currentTab = savedTab;
                     // Switch to saved tab after a small delay to ensure DOM is ready
@@ -19890,17 +19891,28 @@
                         switchQualityFlagsTab(savedTab);
                     }, 50);
                 }
-                if (savedDistrict && document.getElementById('checkDistrict')) {
-                    document.getElementById('checkDistrict').value = savedDistrict;
+                if (savedLookupLayer && document.getElementById('checkSurveyLayer')) {
+                    document.getElementById('checkSurveyLayer').value = savedLookupLayer;
+                }
+                if (savedLookupId && document.getElementById('checkSurveyUniqueId')) {
+                    document.getElementById('checkSurveyUniqueId').value = savedLookupId;
                 }
             }
 
             // Save panel state to localStorage
             function savePanelState() {
                 localStorage.setItem('qualityFlags_lastTab', qualityFlagsState.currentTab);
-                const checkDistrict = document.getElementById('checkDistrict');
-                if (checkDistrict && checkDistrict.value) {
-                    localStorage.setItem('qualityFlags_lastDistrict', checkDistrict.value);
+                const checkSurveyLayer = document.getElementById('checkSurveyLayer');
+                const checkSurveyUniqueId = document.getElementById('checkSurveyUniqueId');
+                if (checkSurveyLayer && checkSurveyLayer.value) {
+                    localStorage.setItem('qualityFlags_lastLookupLayer', checkSurveyLayer.value);
+                } else {
+                    localStorage.removeItem('qualityFlags_lastLookupLayer');
+                }
+                if (checkSurveyUniqueId && checkSurveyUniqueId.value.trim()) {
+                    localStorage.setItem('qualityFlags_lastLookupId', checkSurveyUniqueId.value.trim());
+                } else {
+                    localStorage.removeItem('qualityFlags_lastLookupId');
                 }
             }
 
@@ -19948,6 +19960,104 @@
                 if (!dateString) return 'N/A';
                 const date = new Date(dateString);
                 return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            }
+
+            async function findSurveyParcelByLayerAndUniqueId(surveyLayer, uidRaw) {
+                if (!surveyLayer || !uidRaw) return null;
+                const { data, error } = await supabase
+                    .from('polygon_features')
+                    .select('*')
+                    .eq('layer_name', surveyLayer)
+                    .eq('is_archived', false)
+                    .ilike('unique_id', uidRaw);
+
+                if (error) throw error;
+                const want = normalizeSurveyUniqueIdKey(uidRaw);
+                return (data || []).find(r => normalizeSurveyUniqueIdKey(r.unique_id) === want) || null;
+            }
+
+            async function findFlagBySurveyParcel(surveyLayer, uidRaw) {
+                if (!surveyLayer || !uidRaw) return null;
+                let rows = [];
+                let primaryError = null;
+                try {
+                    const res = await supabase
+                        .from('parcel_flags')
+                        .select('*')
+                        .eq('survey_layer_name', surveyLayer)
+                        .ilike('survey_unique_id', uidRaw)
+                        .order('created_at', { ascending: false });
+                    primaryError = res.error || null;
+                    rows = res.data || [];
+                } catch (error) {
+                    primaryError = error;
+                }
+
+                if (primaryError && /survey_unique_id|survey_layer_name|schema cache/i.test(String(primaryError.message || primaryError.details || ''))) {
+                    const fallback = await supabase
+                        .from('parcel_flags')
+                        .select('*')
+                        .eq('is_untitled', true)
+                        .eq('block', uidRaw)
+                        .order('created_at', { ascending: false });
+                    if (fallback.error) throw fallback.error;
+                    rows = fallback.data || [];
+                } else if (primaryError) {
+                    throw primaryError;
+                }
+
+                const want = normalizeSurveyUniqueIdKey(uidRaw);
+                return rows.find(r => normalizeSurveyUniqueIdKey(r.survey_unique_id || r.block) === want) || rows[0] || null;
+            }
+
+            function zoomToResolvedSurveyParcel(row) {
+                if (!row || !row.geometry) return;
+                const format = new ol.format.GeoJSON();
+                const feature = format.readFeature({
+                    type: 'Feature',
+                    geometry: row.geometry,
+                    properties: {
+                        unique_id: row.unique_id,
+                        layer_name: row.layer_name
+                    }
+                }, {
+                    dataProjection: 'EPSG:4326',
+                    featureProjection: 'EPSG:3857'
+                });
+
+                const extent = feature.getGeometry().getExtent();
+                if (extent && extent[0] !== Infinity) {
+                    map.getView().fit(extent, { padding: [100, 100, 100, 100], maxZoom: 18 });
+                }
+
+                if (typeof surveyPolygonsGroup !== 'undefined' && surveyPolygonsGroup) {
+                    surveyPolygonsGroup.getLayers().forEach(l => {
+                        if (l.get('title') === row.layer_name) {
+                            l.setVisible(true);
+                        }
+                    });
+                }
+
+                showQualityFlagParcelHighlight(feature, row.layer_name);
+            }
+
+            function renderParcelLookupSummary(parcelRecord, flagRecord = null) {
+                if (!parcelRecord) return '';
+                const district = getSurveyParcelLocationValue(parcelRecord, ['district', 'district_name', 'district_n', 'District']) || flagRecord?.district || '—';
+                const county = getSurveyParcelLocationValue(parcelRecord, ['county', 'county_name', 'county_n', 'County']) || flagRecord?.county || '—';
+                const areaText = parcelRecord.area_hectares != null ? `${Number(parcelRecord.area_hectares).toFixed(4)} ha` : '—';
+                const creator = parcelRecord.created_by || parcelRecord.surveyor || parcelRecord.surveyed_by || '—';
+                return `
+                    <div class="flag-detail-section">
+                        <h5>Parcel Summary</h5>
+                        <p><strong>Unique ID:</strong> ${parcelRecord.unique_id || '—'}</p>
+                        <p><strong>Layer:</strong> ${parcelRecord.layer_name || flagRecord?.survey_layer_name || '—'}</p>
+                        <p><strong>District:</strong> ${district}</p>
+                        <p><strong>County:</strong> ${county}</p>
+                        <p><strong>Area:</strong> ${areaText}</p>
+                        <p><strong>Survey author / record owner:</strong> ${creator}</p>
+                    </div>
+                `;
             }
 
             function formatCoordinates(lat, lng) {
@@ -20897,8 +21007,31 @@
 
                     if (commentsError) console.error('Error fetching comments:', commentsError);
 
+                    let parcelRecord = null;
+                    if (flag.polygon_feature_id) {
+                        const { data: parcelById, error: parcelByIdError } = await supabase
+                            .from('polygon_features')
+                            .select('*')
+                            .eq('id', flag.polygon_feature_id)
+                            .maybeSingle();
+                        if (parcelByIdError) {
+                            console.warn('Error fetching linked parcel by ID:', parcelByIdError);
+                        } else {
+                            parcelRecord = parcelById;
+                        }
+                    }
+
+                    if (!parcelRecord && flag.survey_layer_name && (flag.survey_unique_id || flag.block)) {
+                        try {
+                            parcelRecord = await findSurveyParcelByLayerAndUniqueId(flag.survey_layer_name, flag.survey_unique_id || flag.block);
+                        } catch (parcelLookupError) {
+                            console.warn('Error fetching linked parcel by unique ID:', parcelLookupError);
+                        }
+                    }
+
                     return {
                         flag: flag,
+                        parcelRecord: parcelRecord,
                         history: history || [],
                         comments: comments || []
                     };
@@ -21229,17 +21362,7 @@
                 }
 
                 try {
-                    const { data, error } = await supabase
-                        .from('polygon_features')
-                        .select('*')
-                        .eq('layer_name', surveyLayer)
-                        .eq('is_archived', false)
-                        .ilike('unique_id', uidRaw);
-
-                    if (error) throw error;
-
-                    const want = normalizeSurveyUniqueIdKey(uidRaw);
-                    const row = (data || []).find(r => normalizeSurveyUniqueIdKey(r.unique_id) === want);
+                    const row = await findSurveyParcelByLayerAndUniqueId(surveyLayer, uidRaw);
 
                     if (!row) {
                         qualityFlagsState.resolvedSurveyParcel = null;
@@ -21277,33 +21400,7 @@
                             '<span style="color:#2c3e50;">Review the highlighted geometry on the map, then tick the confirmation box below.</span>';
                     }
 
-                    const format = new ol.format.GeoJSON();
-                    const feature = format.readFeature({
-                        type: 'Feature',
-                        geometry: row.geometry,
-                        properties: {
-                            unique_id: row.unique_id,
-                            layer_name: row.layer_name
-                        }
-                    }, {
-                        dataProjection: 'EPSG:4326',
-                        featureProjection: 'EPSG:3857'
-                    });
-
-                    const extent = feature.getGeometry().getExtent();
-                    if (extent && extent[0] !== Infinity) {
-                        map.getView().fit(extent, { padding: [100, 100, 100, 100], maxZoom: 18 });
-                    }
-
-                    if (typeof surveyPolygonsGroup !== 'undefined' && surveyPolygonsGroup) {
-                        surveyPolygonsGroup.getLayers().forEach(l => {
-                            if (l.get('title') === surveyLayer) {
-                                l.setVisible(true);
-                            }
-                        });
-                    }
-
-                    showQualityFlagParcelHighlight(feature, surveyLayer);
+                    zoomToResolvedSurveyParcel(row);
                     showToast('Parcel found — confirm on the map', 'success');
                 } catch (err) {
                     console.error('verifySurveyParcelForFlagging:', err);
@@ -21397,6 +21494,11 @@
 
                     await rebuildParcelQualityFlagCache();
 
+                    const checkSurveyLayer = document.getElementById('checkSurveyLayer');
+                    const checkSurveyUniqueId = document.getElementById('checkSurveyUniqueId');
+                    if (checkSurveyLayer) checkSurveyLayer.value = p.layer_name || '';
+                    if (checkSurveyUniqueId) checkSurveyUniqueId.value = p.unique_id || '';
+
                     showToast(newCase
                         ? `Flag submitted and corroboration case opened for ${p.unique_id}`
                         : 'Flag submitted successfully!', 'success', 7000);
@@ -21428,6 +21530,8 @@
                 const listDiv = document.getElementById('flagsList');
                 const statsDiv = document.getElementById('statisticsSection');
                 const exportDiv = document.getElementById('exportSection');
+                const surveyLayer = document.getElementById('checkSurveyLayer')?.value || '';
+                const uidRaw = document.getElementById('checkSurveyUniqueId')?.value.trim() || '';
 
                 loadingDiv.style.display = 'block';
                 listDiv.innerHTML = '';
@@ -21438,70 +21542,56 @@
                 qualityFlagsState.selectedFlags.clear();
 
                 try {
-                    const filters = {
-                        district: document.getElementById('checkDistrict').value || null,
-                        county: document.getElementById('checkCounty') ? document.getElementById('checkCounty').value.trim() || null : null,
-                        flag_type: document.getElementById('checkFlagType').value || null,
-                        dateFrom: document.getElementById('dateFrom').value || null,
-                        dateTo: document.getElementById('dateTo').value || null
-                    };
+                    if (!surveyLayer) {
+                        throw new Error('Select the survey layer first');
+                    }
+                    if (!uidRaw) {
+                        throw new Error('Enter the parcel unique ID first');
+                    }
 
-                    const result = await getFlags(filters, 1, 20);
-                    qualityFlagsState.flags = result.data;
-                    qualityFlagsState.hasMoreFlags = result.hasMore;
+                    const parcel = await findSurveyParcelByLayerAndUniqueId(surveyLayer, uidRaw);
+                    if (!parcel) {
+                        clearQualityFlagParcelHighlight();
+                        qualityFlagsSource.clear();
+                        qualityFlagsState.flags = [];
+                        listDiv.innerHTML = '<div class="empty-state"><i class="fas fa-map-marked-alt"></i><p>No parcel was found for that layer and unique ID.</p></div>';
+                        savePanelState();
+                        showToast('Parcel not found', 'warning');
+                        return;
+                    }
 
-                    // Clear existing pins
+                    zoomToResolvedSurveyParcel(parcel);
+                    const flag = await findFlagBySurveyParcel(surveyLayer, uidRaw);
+                    qualityFlagsState.flags = flag ? [flag] : [];
+                    qualityFlagsState.hasMoreFlags = false;
                     qualityFlagsSource.clear();
-
-                    // Plot legacy coordinate-only flags (survey parcels use polygon tint)
-                    result.data.forEach(flag => {
-                        if (getSurveyParcelKeyFromFlag(flag)) return;
-                        const coords = flag.coordinates && flag.coordinates.match(/\(([^,]+),([^)]+)\)/);
-                        if (coords) {
-                            const lng = parseFloat(coords[1]);
-                            const lat = parseFloat(coords[2]);
-                            const coordinate = ol.proj.fromLonLat([lng, lat]);
-
-                            const feature = new ol.Feature({
-                                geometry: new ol.geom.Point(coordinate),
-                                flag_type: flag.flag_type,
-                                current_flag_type: flag.current_flag_type,
-                                id: flag.id,
-                                district: flag.district,
-                                block: flag.block,
-                                plot: flag.plot
-                            });
-                            qualityFlagsSource.addFeature(feature);
-                        }
-                    });
-
                     await rebuildParcelQualityFlagCache();
 
-                    // Calculate statistics
-                    const stats = {
-                        red: result.data.filter(f => f.current_flag_type === 'red').length,
-                        yellow: result.data.filter(f => f.current_flag_type === 'yellow').length,
-                        green: result.data.filter(f => f.current_flag_type === 'green').length
-                    };
-
-                    document.getElementById('statRed').textContent = stats.red;
-                    document.getElementById('statYellow').textContent = stats.yellow;
-                    document.getElementById('statGreen').textContent = stats.green;
-                    statsDiv.style.display = 'block';
-
-                    // Display flags list
-                    if (result.data.length === 0) {
-                        listDiv.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><p>No flags found matching your criteria</p></div>';
-                    } else {
-                        renderFlagsList(result.data);
-                        exportDiv.style.display = 'flex';
+                    if (!flag) {
+                        document.getElementById('checkSection').classList.remove('active');
+                        document.getElementById('flagDetailSection').style.display = 'block';
+                        document.getElementById('flagDetailSection').classList.add('active');
+                        document.getElementById('flagDetailTitle').textContent = `Parcel Case: ${parcel.unique_id}`;
+                        document.getElementById('flagDetailContent').innerHTML = `
+                            ${renderParcelLookupSummary(parcel)}
+                            <div class="flag-detail-section">
+                                <h5>Flag Information</h5>
+                                <p>No quality flag has been recorded for this parcel yet.</p>
+                                <p>You can return to the Flag Parcel tab to open a new quality flag and corroboration case.</p>
+                            </div>
+                        `;
+                        savePanelState();
+                        showToast('Parcel found, but no flag case is open for it yet', 'info');
+                        return;
                     }
+
+                    await showFlagDetail(flag.id, { parcelRecord: parcel });
 
                     savePanelState();
                 } catch (error) {
                     console.error('Error searching flags:', error);
-                    showToast('Error searching flags: ' + (error.message || 'Unknown error'), 'error');
-                    listDiv.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Error loading flags</p></div>';
+                    showToast('Lookup error: ' + (error.message || 'Unknown error'), 'error');
+                    listDiv.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>${error.message || 'Error loading parcel case'}</p></div>`;
                 } finally {
                     loadingDiv.style.display = 'none';
                 }
@@ -21546,60 +21636,11 @@
             }
 
             function loadMoreFlags() {
-                if (!qualityFlagsState.hasMoreFlags) return;
-
-                const loadingDiv = document.getElementById('flagsLoading');
-                loadingDiv.style.display = 'block';
-
-                const filters = {
-                    district: document.getElementById('checkDistrict').value || null,
-                    county: document.getElementById('checkCounty') ? document.getElementById('checkCounty').value.trim() || null : null,
-                    flag_type: document.getElementById('checkFlagType').value || null,
-                    dateFrom: document.getElementById('dateFrom').value || null,
-                    dateTo: document.getElementById('dateTo').value || null
-                };
-
-                getFlags(filters, qualityFlagsState.currentPage + 1, 20)
-                    .then(result => {
-                        qualityFlagsState.flags.push(...result.data);
-                        qualityFlagsState.hasMoreFlags = result.hasMore;
-                        qualityFlagsState.currentPage++;
-
-                        // Add to map (legacy pins only)
-                        result.data.forEach(flag => {
-                            if (getSurveyParcelKeyFromFlag(flag)) return;
-                            const coords = flag.coordinates && flag.coordinates.match(/\(([^,]+),([^)]+)\)/);
-                            if (coords) {
-                                const lng = parseFloat(coords[1]);
-                                const lat = parseFloat(coords[2]);
-                                const coordinate = ol.proj.fromLonLat([lng, lat]);
-
-                                const feature = new ol.Feature({
-                                    geometry: new ol.geom.Point(coordinate),
-                                    flag_type: flag.flag_type,
-                                    current_flag_type: flag.current_flag_type,
-                                    id: flag.id,
-                                    district: flag.district,
-                                    block: flag.block,
-                                    plot: flag.plot
-                                });
-                                qualityFlagsSource.addFeature(feature);
-                            }
-                        });
-
-                        renderFlagsList(qualityFlagsState.flags);
-                    })
-                    .catch(error => {
-                        console.error('Error loading more flags:', error);
-                        showToast('Error loading more flags', 'error');
-                    })
-                    .finally(() => {
-                        loadingDiv.style.display = 'none';
-                    });
+                return;
             }
 
             // Flag Detail View
-            async function showFlagDetail(flagId) {
+            async function showFlagDetail(flagId, options = {}) {
                 qualityFlagsState.selectedFlagId = flagId;
 
                 // Hide list section, show detail section
@@ -21613,6 +21654,8 @@
                 try {
                     const flagData = await getFlagById(flagId);
                     const flag = flagData.flag;
+                    const parcelRecord = options.parcelRecord || flagData.parcelRecord || null;
+                    const flagDetailTitle = document.getElementById('flagDetailTitle');
 
                     const coords = flag.coordinates && flag.coordinates.match(/\(([^,]+),([^)]+)\)/);
                     const surveyUid = flag.survey_unique_id || (flag.is_untitled && flag.block ? flag.block : null);
@@ -21621,6 +21664,9 @@
                         (coords ?
                             `${flag.district}${flag.county ? `, ${flag.county}` : ''}${flag.block ? `, Block ${flag.block}` : ''}${flag.plot ? `, Plot ${flag.plot}` : ''}` :
                             `${flag.district}${flag.county ? `, ${flag.county}` : ''}`);
+                    if (flagDetailTitle) {
+                        flagDetailTitle.textContent = surveyUid ? `Parcel Case: ${surveyUid}` : 'Parcel Case Details';
+                    }
 
                     const ftype = flag.current_flag_type || flag.flag_type || 'red';
                     let userCtx = null;
@@ -21634,7 +21680,13 @@
                     corroborationBundle = await getCorroborationCaseBundle(flag.id);
                     rsuCandidates = await loadRsuCandidates();
 
-                    if (flag.polygon_feature_id) {
+                    if (parcelRecord) {
+                        try {
+                            zoomToResolvedSurveyParcel(parcelRecord);
+                        } catch (ze) {
+                            console.warn('zoomToResolvedSurveyParcel from flag detail:', ze);
+                        }
+                    } else if (flag.polygon_feature_id) {
                         try {
                             await zoomToParcel(flag.polygon_feature_id, surveyUid || '');
                         } catch (ze) {
@@ -21663,6 +21715,7 @@
                     }
 
                     let html = `
+                    ${renderParcelLookupSummary(parcelRecord, flag)}
                     <div class="flag-detail-section">
                         <h5>Flag Information</h5>
                         <p><strong>Type:</strong> <span class="flag-indicator ${ftype}"></span> ${String(ftype).toUpperCase()}</p>
@@ -21675,6 +21728,8 @@
                         <p><strong>Status:</strong> ${flag.status || 'active'}</p>
                     </div>
                 `;
+
+                    html += renderCorroborationSection(flag, corroborationBundle, userCtx, rsuCandidates);
 
                     // Flag History
                     if (flagData.history && flagData.history.length > 0) {
@@ -21763,8 +21818,6 @@
                         </button>
                     </div>
                 `;
-
-                    html += renderCorroborationSection(flag, corroborationBundle, userCtx, rsuCandidates);
 
                     contentDiv.innerHTML = html;
                     if (corroborationBundle) {
@@ -22112,26 +22165,38 @@
                 // Search
                 const searchFlagsBtn = document.getElementById('searchFlagsBtn');
                 const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+                const checkSurveyUniqueId = document.getElementById('checkSurveyUniqueId');
                 if (searchFlagsBtn) searchFlagsBtn.addEventListener('click', searchFlags);
+                if (checkSurveyUniqueId) {
+                    checkSurveyUniqueId.addEventListener('keydown', function (e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            searchFlags();
+                        }
+                    });
+                }
                 if (clearFiltersBtn) {
                     clearFiltersBtn.addEventListener('click', function () {
-                        const checkDistrict = document.getElementById('checkDistrict');
-                        const checkCounty = document.getElementById('checkCounty');
-                        const checkFlagType = document.getElementById('checkFlagType');
-                        const dateFrom = document.getElementById('dateFrom');
-                        const dateTo = document.getElementById('dateTo');
+                        const checkSurveyLayer = document.getElementById('checkSurveyLayer');
+                        const checkSurveyUniqueId = document.getElementById('checkSurveyUniqueId');
                         const flagsList = document.getElementById('flagsList');
                         const statisticsSection = document.getElementById('statisticsSection');
                         const exportSection = document.getElementById('exportSection');
-                        if (checkDistrict) checkDistrict.value = '';
-                        if (checkCounty) checkCounty.value = '';
-                        if (checkFlagType) checkFlagType.value = '';
-                        if (dateFrom) dateFrom.value = '';
-                        if (dateTo) dateTo.value = '';
-                        if (flagsList) flagsList.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><p>Use filters above to search for flags</p></div>';
+                        const flagDetailSection = document.getElementById('flagDetailSection');
+                        const checkSection = document.getElementById('checkSection');
+                        if (checkSurveyLayer) checkSurveyLayer.value = '';
+                        if (checkSurveyUniqueId) checkSurveyUniqueId.value = '';
+                        if (flagsList) flagsList.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><p>Select a survey layer and enter a parcel unique ID to open its flag and corroboration case.</p></div>';
                         if (statisticsSection) statisticsSection.style.display = 'none';
                         if (exportSection) exportSection.style.display = 'none';
+                        if (flagDetailSection) flagDetailSection.style.display = 'none';
+                        if (checkSection) checkSection.classList.add('active');
+                        clearQualityFlagParcelHighlight();
                         if (qualityFlagsSource) qualityFlagsSource.clear();
+                        qualityFlagsState.flags = [];
+                        qualityFlagsState.hasMoreFlags = false;
+                        localStorage.removeItem('qualityFlags_lastLookupLayer');
+                        localStorage.removeItem('qualityFlags_lastLookupId');
                     });
                 }
 
@@ -55036,7 +55101,7 @@ CRITICAL RULES:
                         <i class="fas fa-flag"></i> Flag Parcel
                     </button>
                     <button class="quality-tab" data-tab="check" id="checkTabBtn">
-                        <i class="fas fa-search"></i> Check Flags
+                        <i class="fas fa-search"></i> Find Parcel Case
                     </button>
                 </div>
 
@@ -55140,48 +55205,38 @@ CRITICAL RULES:
                 <!-- Check Flags Section -->
                 <div class="quality-section" id="checkSection">
                     <div class="section-header">
-                        <h4>Check Flags</h4>
-                        <p class="section-description">Search and view flagged parcels</p>
+                        <h4>Find Parcel Case</h4>
+                        <p class="section-description">Look up a survey parcel by layer and unique ID, then open its flag information and corroboration case.</p>
                     </div>
 
                     <!-- Filters -->
                     <div class="filters-section">
                         <div class="form-group">
-                            <label for="checkDistrict">District</label>
-                            <select id="checkDistrict" class="form-select">
-                                <option value="">All Districts</option>
-                                <!-- Populated dynamically -->
+                            <label for="checkSurveyLayer">Survey polygon layer</label>
+                            <select id="checkSurveyLayer" class="form-select">
+                                <option value="">Select layer</option>
+                                <option value="BLB-UNTITLED">BLB-UNTITLED</option>
+                                <option value="UNTITLED UTM ZONE 36S">UNTITLED UTM ZONE 36S</option>
+                                <option value="UNTITLED UTM ZONE 36N">UNTITLED UTM ZONE 36N</option>
+                                <option value="TITLE TRACTS UTM ZONE 36S">TITLE TRACTS UTM ZONE 36S</option>
+                                <option value="TITLE TRACTS UTM ZONE 36N">TITLE TRACTS UTM ZONE 36N</option>
                             </select>
                         </div>
 
                         <div class="form-group">
-                            <label for="checkCounty">County</label>
-                            <input type="text" id="checkCounty" class="form-input" placeholder="Filter by county name">
+                            <label for="checkSurveyUniqueId">Parcel unique ID</label>
+                            <input type="text" id="checkSurveyUniqueId" class="form-input" placeholder="e.g. TT36N-069">
                         </div>
 
-                        <div class="form-group">
-                            <label for="checkFlagType">Flag Type</label>
-                            <select id="checkFlagType" class="form-select">
-                                <option value="">All Types</option>
-                                <option value="red">Bad/Untrusted</option>
-                                <option value="yellow">Needs Review</option>
-                                <option value="green">Verified/Trusted</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="dateRange">Date Range</label>
-                            <div class="form-row">
-                                <input type="date" id="dateFrom" class="form-input">
-                                <input type="date" id="dateTo" class="form-input">
-                            </div>
+                        <div class="form-group" style="grid-column:1/-1;">
+                            <small class="form-help">Use the exact parcel layer and unique ID. If a quality flag exists, the system will open the parcel summary, flag information, and corroboration case directly.</small>
                         </div>
 
                         <button type="button" class="btn btn-primary" id="searchFlagsBtn">
-                            <i class="fas fa-search"></i> Search Flags
+                            <i class="fas fa-search"></i> Find Parcel Case
                         </button>
                         <button type="button" class="btn btn-secondary" id="clearFiltersBtn">
-                            <i class="fas fa-times"></i> Clear Filters
+                            <i class="fas fa-times"></i> Clear
                         </button>
                     </div>
 
@@ -55209,11 +55264,11 @@ CRITICAL RULES:
                         <div id="flagsList" class="flags-list">
                             <div class="empty-state">
                                 <i class="fas fa-search"></i>
-                                <p>Use filters above to search for flags</p>
+                                <p>Select a survey layer and enter a parcel unique ID to open its flag and corroboration case.</p>
                             </div>
                         </div>
                         <div id="flagsLoading" class="loading-state" style="display: none;">
-                            <i class="fas fa-spinner fa-spin"></i> Loading flags...
+                            <i class="fas fa-spinner fa-spin"></i> Looking up parcel case...
                         </div>
                     </div>
 
@@ -55232,9 +55287,9 @@ CRITICAL RULES:
                 <div class="quality-section" id="flagDetailSection" style="display: none;">
                     <div class="flag-detail-header">
                         <button type="button" class="btn-back" id="backToListBtn">
-                            <i class="fas fa-arrow-left"></i> Back to List
+                            <i class="fas fa-arrow-left"></i> Back to Search
                         </button>
-                        <h4 id="flagDetailTitle">Flag Details</h4>
+                        <h4 id="flagDetailTitle">Parcel Case Details</h4>
                     </div>
                     <div id="flagDetailContent" class="flag-detail-content">
                         <!-- Populated dynamically -->
