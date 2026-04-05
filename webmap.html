@@ -19633,6 +19633,17 @@
                 return String(uid || '').trim().toUpperCase();
             }
 
+            function getSurveyParcelLocationValue(row, keys) {
+                if (!row || typeof row !== 'object' || !Array.isArray(keys)) return '';
+                for (const key of keys) {
+                    const value = row[key];
+                    if (value != null && String(value).trim()) {
+                        return String(value).trim();
+                    }
+                }
+                return '';
+            }
+
             const CORROBORATION_ADMIN_EMAIL = 'kiggundumuhamad@gmail.com';
             const CORROBORATION_RSU_ROLE = 'RSU';
             const CORROBORATION_STATUS_LABELS = {
@@ -19896,6 +19907,7 @@
             // Populate district dropdowns (Check Flags tab)
             function populateDistrictDropdowns() {
                 const checkDistrict = document.getElementById('checkDistrict');
+                const flagDistrictFallback = document.getElementById('flagDistrictFallback');
 
                 if (checkDistrict) {
                     QUALITY_FLAGS_DISTRICTS.forEach(district => {
@@ -19903,6 +19915,15 @@
                         option.value = district;
                         option.textContent = district;
                         checkDistrict.appendChild(option);
+                    });
+                }
+
+                if (flagDistrictFallback) {
+                    QUALITY_FLAGS_DISTRICTS.forEach(district => {
+                        const option = document.createElement('option');
+                        option.value = district;
+                        option.textContent = district;
+                        flagDistrictFallback.appendChild(option);
                     });
                 }
             }
@@ -21113,6 +21134,22 @@
             }
 
             // Form Validation
+            function showFlagValidationError(message, fieldId = null) {
+                showToast(message, 'error');
+                if (!fieldId) return false;
+                const field = document.getElementById(fieldId);
+                if (!field) return false;
+                try {
+                    field.focus({ preventScroll: false });
+                } catch (_) {
+                    try { field.focus(); } catch (__) { /* ignore */ }
+                }
+                try {
+                    field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } catch (_) { /* ignore */ }
+                return false;
+            }
+
             function validateFlagForm() {
                 const surveyLayer = document.getElementById('flagSurveyLayer').value;
                 const uidInput = document.getElementById('flagSurveyUniqueId').value.trim();
@@ -21121,72 +21158,61 @@
                 const reporterContact = document.getElementById('reporterContact').value.trim();
                 const reason = document.getElementById('flagReason').value.trim();
                 const districtHidden = document.getElementById('flagDistrictValue').value;
+                const districtFallback = document.getElementById('flagDistrictFallback')?.value || '';
+                const districtValue = districtHidden || districtFallback;
                 const confirmChk = document.getElementById('flagParcelConfirmCheck');
 
                 if (!surveyLayer) {
-                    showToast('Please select a survey polygon layer', 'error');
-                    return false;
+                    return showFlagValidationError('Please select a survey polygon layer', 'flagSurveyLayer');
                 }
 
                 if (!uidInput) {
-                    showToast('Please enter the parcel unique ID', 'error');
-                    return false;
+                    return showFlagValidationError('Please enter the parcel unique ID', 'flagSurveyUniqueId');
                 }
 
                 if (!qualityFlagsState.resolvedSurveyParcel) {
-                    showToast('Use “Verify on map” to load the parcel before submitting', 'error');
-                    return false;
+                    return showFlagValidationError('Use "Verify on map" to load the parcel before submitting', 'verifySurveyParcelBtn');
                 }
 
                 const resolved = qualityFlagsState.resolvedSurveyParcel;
                 if (normalizeSurveyUniqueIdKey(uidInput) !== normalizeSurveyUniqueIdKey(resolved.unique_id)) {
-                    showToast('The ID in the field does not match the verified parcel. Verify again.', 'error');
-                    return false;
+                    return showFlagValidationError('The ID in the field does not match the verified parcel. Verify again.', 'flagSurveyUniqueId');
                 }
 
                 if (resolved.layer_name !== surveyLayer) {
-                    showToast('Selected layer does not match the verified parcel’s layer.', 'error');
-                    return false;
+                    return showFlagValidationError('Selected layer does not match the verified parcel layer.', 'flagSurveyLayer');
                 }
 
                 if (!confirmChk || !confirmChk.checked) {
-                    showToast('Please confirm the highlighted parcel is the one you are flagging', 'error');
-                    return false;
+                    return showFlagValidationError('Please confirm the highlighted parcel is the one you are flagging', 'flagParcelConfirmCheck');
                 }
 
-                if (!districtHidden) {
-                    showToast('District is missing from the parcel record; contact support.', 'error');
-                    return false;
+                if (!districtValue) {
+                    return showFlagValidationError('Please select the parcel district to continue.', 'flagDistrictFallback');
                 }
 
                 if (!flagType) {
-                    showToast('Please select a flag type', 'error');
-                    return false;
+                    return showFlagValidationError('Please select a flag type', 'flagType');
                 }
 
                 if (!reporterName) {
-                    showToast('Please enter your name', 'error');
-                    return false;
+                    return showFlagValidationError('Please enter your name', 'reporterName');
                 }
 
                 if (!reporterContact) {
-                    showToast('Please enter your contact information', 'error');
-                    return false;
+                    return showFlagValidationError('Please enter your contact information', 'reporterContact');
                 }
 
                 if (!validateContact(reporterContact)) {
-                    showToast('Please enter a valid phone number (+256XXXXXXXXX) or email address', 'error');
-                    return false;
+                    return showFlagValidationError('Please enter a valid phone number (+256XXXXXXXXX) or email address', 'reporterContact');
                 }
 
                 if (!reason || reason.length < 10) {
-                    showToast('Please provide a reason (at least 10 characters)', 'error');
-                    return false;
+                    return showFlagValidationError('Please provide a reason (at least 10 characters)', 'flagReason');
                 }
 
                 if (reason.length > 1000) {
-                    showToast('Reason must be 1000 characters or less', 'error');
-                    return false;
+                    return showFlagValidationError('Reason must be 1000 characters or less', 'flagReason');
                 }
 
                 return true;
@@ -21227,8 +21253,18 @@
                         return;
                     }
 
-                    document.getElementById('flagDistrictValue').value = row.district || '';
-                    document.getElementById('flagCountyValue').value = row.county || '';
+                    const resolvedDistrict = getSurveyParcelLocationValue(row, ['district', 'district_name', 'district_n', 'District']);
+                    const resolvedCounty = getSurveyParcelLocationValue(row, ['county', 'county_name', 'county_n', 'County']);
+                    const districtFallbackGroup = document.getElementById('flagDistrictFallbackGroup');
+                    const districtFallback = document.getElementById('flagDistrictFallback');
+                    document.getElementById('flagDistrictValue').value = resolvedDistrict || '';
+                    document.getElementById('flagCountyValue').value = resolvedCounty || '';
+                    if (districtFallbackGroup) {
+                        districtFallbackGroup.style.display = resolvedDistrict ? 'none' : 'block';
+                    }
+                    if (districtFallback) {
+                        districtFallback.value = '';
+                    }
                     qualityFlagsState.resolvedSurveyParcel = row;
 
                     if (summary) {
@@ -21236,7 +21272,7 @@
                         summary.style.display = 'block';
                         summary.innerHTML =
                             '<strong>Parcel located.</strong><br>' +
-                            `ID: <strong>${row.unique_id}</strong> · District: ${row.district || '—'}<br>` +
+                            `ID: <strong>${row.unique_id}</strong> · District: ${resolvedDistrict || 'Select manually below'}<br>` +
                             `Area: ${row.area_hectares != null ? row.area_hectares.toFixed(4) + ' ha' : '—'} · Layer: ${row.layer_name}<br>` +
                             '<span style="color:#2c3e50;">Review the highlighted geometry on the map, then tick the confirmation box below.</span>';
                     }
@@ -21299,7 +21335,7 @@
                     }
 
                     const flagData = {
-                        district: p.district || document.getElementById('flagDistrictValue').value,
+                        district: p.district || document.getElementById('flagDistrictValue').value || document.getElementById('flagDistrictFallback')?.value || null,
                         county: (p.county || document.getElementById('flagCountyValue').value || '').trim() || null,
                         block: p.unique_id,
                         plot: null,
@@ -21352,6 +21388,10 @@
                     }
                     document.getElementById('flagDistrictValue').value = '';
                     document.getElementById('flagCountyValue').value = '';
+                    const districtFallbackGroup = document.getElementById('flagDistrictFallbackGroup');
+                    const districtFallback = document.getElementById('flagDistrictFallback');
+                    if (districtFallbackGroup) districtFallbackGroup.style.display = 'none';
+                    if (districtFallback) districtFallback.value = '';
                     const reasonCharCount = document.getElementById('reasonCharCount');
                     if (reasonCharCount) reasonCharCount.textContent = '0';
 
@@ -22029,6 +22069,10 @@
                     }
                     document.getElementById('flagDistrictValue').value = '';
                     document.getElementById('flagCountyValue').value = '';
+                    const districtFallbackGroup = document.getElementById('flagDistrictFallbackGroup');
+                    const districtFallback = document.getElementById('flagDistrictFallback');
+                    if (districtFallbackGroup) districtFallbackGroup.style.display = 'none';
+                    if (districtFallback) districtFallback.value = '';
                     const confirmChk = document.getElementById('flagParcelConfirmCheck');
                     if (confirmChk) confirmChk.checked = false;
                 }
@@ -55003,7 +55047,7 @@ CRITICAL RULES:
                         <p class="section-description">Link a quality flag to a published survey parcel by unique ID (BLB-UNTITLED and UTM title/untitled layers).</p>
                     </div>
 
-                    <form id="flagParcelForm">
+                    <form id="flagParcelForm" novalidate>
                         <div class="quality-flag-notice" role="note">
                             <strong>Survey polygon quality assurance</strong>
                             <p style="margin:8px 0 0 0;">Flags apply only to published survey polygons in the layers below (primary deliverables that are updated regularly). Where you identify a defect or ambiguity, <strong>corroboration</strong> with the licensed surveyor or firm that produced the work is the preferred first step. Within <strong>14 calendar days</strong>, please use <strong>Chat</strong> to share evidence, request clarification, and align on corrective action before any formal escalation.</p>
@@ -55039,6 +55083,13 @@ CRITICAL RULES:
                         <div id="flagSurveyVerifySummary" class="flag-verify-summary" style="display: none;"></div>
                         <input type="hidden" id="flagDistrictValue" value="">
                         <input type="hidden" id="flagCountyValue" value="">
+                        <div class="form-group" id="flagDistrictFallbackGroup" style="display:none;">
+                            <label for="flagDistrictFallback">District for this parcel <span class="required">*</span></label>
+                            <select id="flagDistrictFallback" class="form-select">
+                                <option value="">Select district</option>
+                            </select>
+                            <small class="form-help">This parcel record does not include a district value, so select the district manually to complete the flag.</small>
+                        </div>
 
                         <div class="form-group">
                             <label class="radio-label" style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
