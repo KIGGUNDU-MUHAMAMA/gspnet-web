@@ -335,14 +335,14 @@ var CondoViewer = class CondoViewer {
 
         // Scene
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x1a1a2e);
+        this.scene.background = new THREE.Color(0xf4f6f8); // Light architectural background
 
         // Camera
         this.camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 1000);
         this.camera.position.set(30, 25, 30);
 
         // Renderer
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
         this.renderer.setSize(w, h);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.shadowMap.enabled = true;
@@ -363,7 +363,7 @@ var CondoViewer = class CondoViewer {
         // Ground plane
         const groundGeo = new THREE.PlaneGeometry(200, 200);
         const groundMat = new THREE.MeshStandardMaterial({
-            color: 0x2d5a3d,
+            color: 0xe9ecef,
             roughness: 0.9
         });
         const ground = new THREE.Mesh(groundGeo, groundMat);
@@ -373,7 +373,7 @@ var CondoViewer = class CondoViewer {
         this.scene.add(ground);
 
         // Grid helper
-        const grid = new THREE.GridHelper(100, 50, 0x3a3a5c, 0x2a2a4c);
+        const grid = new THREE.GridHelper(100, 50, 0xcbd5e1, 0xe2e8f0);
         grid.position.y = -0.02;
         this.scene.add(grid);
 

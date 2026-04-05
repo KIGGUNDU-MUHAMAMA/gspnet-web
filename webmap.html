@@ -11,6 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <!-- Three.js for 3D Condominium Viewer -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -13002,8 +13003,9 @@
             <!-- 3D CONDOMINIUM PANEL -->
             <!-- ============================================ -->
             <style>
-                .condo-panel{position:fixed;top:0;right:0;width:420px;height:100vh;background:#1a1a2e;color:#e0e0e0;z-index:1100;transform:translateX(100%);transition:transform .3s ease;display:flex;flex-direction:column;box-shadow:-4px 0 20px rgba(0,0,0,.4);overflow:hidden}
+                .condo-panel{position:fixed;top:0;right:0;width:420px;height:100vh;background:#1a1a2e;color:#e0e0e0;z-index:1100;transform:translateX(100%);transition:transform .3s ease, width .3s ease;display:flex;flex-direction:column;box-shadow:-4px 0 20px rgba(0,0,0,.4);overflow:hidden}
                 .condo-panel.open{transform:translateX(0)}
+                .condo-panel.expanded{width:60vw}
                 .condo-panel-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:linear-gradient(135deg,#0d47a1,#1565c0);flex-shrink:0}
                 .condo-panel-header h3{margin:0;font-size:15px;font-weight:600;color:#fff}
                 .condo-panel-close{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:0 4px;line-height:1}
@@ -13043,7 +13045,7 @@
                 .condo-summary-box .label{font-size:11px;color:#90caf9;text-transform:uppercase}
                 .condo-error{background:rgba(239,83,80,.1);border:1px solid #ef5350;border-radius:6px;padding:8px 12px;margin:8px 0;font-size:12px;color:#ef9a9a}
                 .condo-success{background:rgba(102,187,106,.1);border:1px solid #66bb6a;border-radius:6px;padding:8px 12px;margin:8px 0;font-size:12px;color:#a5d6a7}
-                .condo-3d-canvas{width:100%;height:300px;background:#0d1117;border-radius:8px;overflow:hidden;margin-bottom:12px;position:relative}
+                .condo-3d-canvas{flex:1;min-height:0;background:#0d1117;border-radius:8px;overflow:hidden;margin-bottom:12px;position:relative}
                 .condo-floor-slider{width:100%;margin:8px 0}
                 .condo-unit-card{background:#16213e;border:1px solid #2a3a5c;border-radius:8px;padding:12px;margin-top:12px}
                 .condo-unit-card h4{margin:0 0 8px;color:#42a5f5;font-size:14px}
@@ -13074,11 +13076,20 @@
                 .condo-tree-units{padding-left:16px;margin-top:4px;display:none}
                 .condo-tree-units.show{display:block}
                 .condo-tree-unit{font-size:11px;color:#90caf9;padding:2px 0}
+                
+                /* Layout Classes for 3D View */
+                .condo-3d-layout { display: flex; gap: 16px; height: calc(100vh - 140px); overflow: hidden; }
+                .condo-3d-main { flex: 2; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+                .condo-3d-sidebar { flex: 1; overflow-y: auto; background: #16213e; border-radius: 8px; padding: 12px; }
+                .condo-snapshot-btn { position: absolute; top: 10px; right: 10px; z-index: 10; background: rgba(0,0,0,0.6); color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; transition: background 0.2s; font-size: 13px; }
+                .condo-snapshot-btn:hover { background: rgba(0,0,0,0.8); color: #42a5f5; }
+                #condoSnapshotsTray { display: flex; gap: 8px; overflow-x: auto; margin-top: 8px; padding-bottom: 8px; }
+                .condo-snapshot-thumb { width: 60px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid #42a5f5; }
             </style>
 
             <div id="condoPanel" class="condo-panel">
                 <div class="condo-panel-header">
-                    <h3><i class="fas fa-building"></i> CONDOMINIUM PROPERTIES</h3>
+                    <h3><i class="fas fa-building"></i> CONDOMINIUM PROPERTIES BY OKOU GEORGE</h3>
                     <button class="condo-panel-close" onclick="closeCondoPanel()">&times;</button>
                 </div>
                 <div class="condo-tabs">
@@ -53842,12 +53853,25 @@ CRITICAL RULES:
             document.querySelectorAll('.condo-tab').forEach(t => t.classList.remove('active'));
             document.querySelector(`.condo-tab[data-tab="${tabName}"]`).classList.add('active');
 
+            const panel = document.getElementById('condoPanel');
+            if (tabName === 'condo-3d') {
+                panel.classList.add('expanded');
+            } else {
+                panel.classList.remove('expanded');
+            }
+
             const content = document.getElementById('condoContent');
             switch (tabName) {
                 case 'condo-new': renderCondoNewTab(content); break;
                 case 'condo-search': renderCondoSearchTab(content); break;
                 case 'condo-3d': renderCondo3DTab(content); break;
             }
+
+            // Trigger window resize event so Three.js canvas adjusts to the new panel width
+            // after the CSS transition (0.3s) finishes.
+            setTimeout(() => {
+                window.dispatchEvent(new Event('resize'));
+            }, 350);
         }
 
         // ============================================
@@ -54565,18 +54589,29 @@ CRITICAL RULES:
                 ? `<div class="condo-image-gallery">${b.image_urls.map((url, i) => `<img src="${url}" alt="Facade ${i+1}" onclick="window.open('${url}','_blank')">`).join('')}</div>`
                 : '';
 
+            condoState.snapshots = []; // Reset snapshots on load
+            
             content.innerHTML = `
-                <div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:8px">${b.building_name}</div>
-                <p style="font-size:11px;color:#90caf9;margin:0 0 8px">${b.plot_id || ''} | ${b.district} | ${b.floors_above}F + ${b.floors_below}B</p>
-                <div class="condo-3d-canvas" id="condo3DCanvas"></div>
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-                    <label style="font-size:11px;color:#90caf9;white-space:nowrap">Floor:</label>
-                    <input type="range" class="condo-floor-slider" id="condoFloorSlider" min="${-b.floors_below || 0}" max="${maxF}" value="${maxF}">
-                    <span id="condoFloorSliderLabel" style="font-size:12px;color:#42a5f5;min-width:30px">All</span>
-                </div>
-                ${imgHTML}
-                <div id="condoUnitInfoCard">
-                    <p style="font-size:11px;color:#90caf9;text-align:center;margin-top:8px">Click a unit in the 3D view to see details</p>
+                <div class="condo-3d-layout">
+                    <div class="condo-3d-main">
+                        <div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:4px">${b.building_name}</div>
+                        <p style="font-size:11px;color:#90caf9;margin:0 0 8px">${b.plot_id || ''} | ${b.district} | ${b.floors_above}F + ${b.floors_below}B</p>
+                        <div class="condo-3d-canvas" id="condo3DCanvas">
+                            <button class="condo-snapshot-btn" onclick="captureCondoSnapshot()"><i class="fas fa-camera"></i> Capture View</button>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                            <label style="font-size:11px;color:#90caf9;white-space:nowrap">Floor:</label>
+                            <input type="range" class="condo-floor-slider" id="condoFloorSlider" min="${-b.floors_below || 0}" max="${maxF}" value="${maxF}">
+                            <span id="condoFloorSliderLabel" style="font-size:12px;color:#42a5f5;min-width:30px">All</span>
+                        </div>
+                        <div id="condoSnapshotsTray"></div>
+                    </div>
+                    <div class="condo-3d-sidebar">
+                        ${imgHTML}
+                        <div id="condoUnitInfoCard">
+                            <p style="font-size:11px;color:#90caf9;text-align:center;margin-top:8px">Click a unit in the 3D view to see details</p>
+                        </div>
+                    </div>
                 </div>
             `;
 
@@ -54633,8 +54668,344 @@ CRITICAL RULES:
                         ${u.owner_name ? `<div class="attr" style="grid-column:1/-1"><span class="attr-label">Owner: </span><span class="attr-value">${u.owner_name}</span></div>` : ''}
                         ${u.owner_contact ? `<div class="attr" style="grid-column:1/-1"><span class="attr-label">Contact: </span><span class="attr-value">${u.owner_contact}</span></div>` : ''}
                     </div>
+                    <button class="condo-btn condo-btn-primary" style="width:100%;margin-top:12px;justify-content:center" onclick="exportCondoPDF('${u.id}')">
+                        <i class="fas fa-file-pdf"></i> Generate PDF Report
+                    </button>
                 </div>
             `;
+        }
+
+        function captureCondoSnapshot() {
+            if (!condoState.viewer || !condoState.viewer.renderer) return;
+
+            if (condoState.snapshots && condoState.snapshots.length >= 4) {
+                return; // Disabled after 4 captures
+            }
+            
+            // Push pixel ratio up temporarily for 4K-esque High-Resolution snapshot
+            const originalRatio = condoState.viewer.renderer.getPixelRatio();
+            condoState.viewer.renderer.setPixelRatio(originalRatio * 3); 
+            condoState.viewer.renderer.render(condoState.viewer.scene, condoState.viewer.camera);
+            const dataUrl = condoState.viewer.renderer.domElement.toDataURL('image/png', 1.0);
+            
+            // Restore normal ratio immediately
+            condoState.viewer.renderer.setPixelRatio(originalRatio);
+            condoState.viewer.renderer.render(condoState.viewer.scene, condoState.viewer.camera);
+            
+            const viewNum = (condoState.snapshots ? condoState.snapshots.length : 0) + 1;
+            
+            // Pop up capture save dialog
+            const modal = document.createElement('div');
+            modal.style.position = 'fixed';
+            modal.style.top = '0'; modal.style.left = '0'; modal.style.width = '100vw'; modal.style.height = '100vh';
+            modal.style.backgroundColor = 'rgba(0,0,0,0.85)'; modal.style.zIndex = '999999';
+            modal.style.display = 'flex'; modal.style.alignItems = 'center'; modal.style.justifyContent = 'center';
+
+            modal.innerHTML = `
+                <div style="background:#1e293b;width:400px;border-radius:12px;padding:24px;border:1px solid #334155;color:#e2e8f0;box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+                    <h3 style="margin:0 0 16px;color:#cbd5e1;">Save Condo View</h3>
+                    <div style="margin-bottom:12px;">
+                        <img src="${dataUrl}" style="width:100%;height:180px;object-fit:cover;border-radius:4px;border:1px solid #475569;">
+                    </div>
+                    <input type="text" id="condoCaptureTitle" placeholder="Enter view title (e.g., Front View)" value="View ${viewNum}" style="width:100%;background:#0f172a;border:1px solid #334155;color:#f8fafc;padding:10px;border-radius:6px;margin-bottom:12px;box-sizing:border-box;">
+                    <textarea id="condoCaptureDesc" placeholder="Optional notes about this angle..." rows="3" style="width:100%;background:#0f172a;border:1px solid #334155;color:#f8fafc;padding:10px;border-radius:6px;margin-bottom:16px;box-sizing:border-box;resize:vertical;"></textarea>
+                    
+                    <div style="display:flex;justify-content:flex-end;gap:12px;">
+                        <button id="condoCaptureCancelBtn" style="padding:9px 16px;border-radius:8px;border:none;background:transparent;color:#ccc;cursor:pointer;font-size:13px;">Cancel</button>
+                        <button id="condoCaptureSaveBtn" style="padding:9px 22px;border-radius:8px;border:none;background:linear-gradient(135deg,#00c853,#00e676);color:#000;cursor:pointer;font-size:13px;font-weight:700;">💾 Save Capture</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            setTimeout(() => document.getElementById('condoCaptureTitle').focus(), 100);
+
+            document.getElementById('condoCaptureCancelBtn').addEventListener('click', () => modal.remove());
+            document.getElementById('condoCaptureSaveBtn').addEventListener('click', () => {
+                const title = document.getElementById('condoCaptureTitle').value.trim() || `View ${viewNum}`;
+                const desc = document.getElementById('condoCaptureDesc').value.trim();
+                
+                condoState.snapshots = condoState.snapshots || [];
+                condoState.snapshots.push({
+                    image: dataUrl,
+                    title: title,
+                    description: desc
+                });
+                
+                // Update tray
+                const tray = document.getElementById('condoSnapshotsTray');
+                if (tray) {
+                    const img = document.createElement('img');
+                    img.src = dataUrl;
+                    img.className = 'condo-snapshot-thumb';
+                    img.title = title;
+                    tray.appendChild(img);
+                }
+
+                // Completely disable the capture button if limit of 4 is reached limits
+                if (condoState.snapshots.length >= 4) {
+                    const btn = document.querySelector('.condo-snapshot-btn');
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.innerHTML = '<i class="fas fa-ban"></i> Max Captures Reached';
+                        btn.style.opacity = '0.5';
+                        btn.style.cursor = 'not-allowed';
+                    }
+                }
+
+                modal.remove();
+            });
+        }
+
+        async function exportCondoPDF(unitId) {
+            const b = condoState.currentBuilding;
+            const u = condoState.currentUnits.find(unit => unit.id === unitId);
+            if (!b || !u) return;
+
+            // Notify user immediately that processing has started
+            const btn = document.querySelector('#condoUnitInfoCard .condo-btn-primary');
+            const oldText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating PDF...';
+            btn.disabled = true;
+
+            // Helper to pre-fetch external images securely to Base64
+            async function getBase64Image(url) {
+                try {
+                    const res = await fetch(url, { mode: 'cors' });
+                    if (!res.ok) return null;
+                    const blob = await res.blob();
+                    return await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.onerror = () => resolve(null);
+                        reader.readAsDataURL(blob);
+                    });
+                } catch (e) {
+                    console.warn("Failed fetching image for PDF bypass:", url, e);
+                    return null;
+                }
+            }
+
+            // Process external facade images safely into Base64
+            let validFacadeBase64s = [];
+            if (b.image_urls) {
+                for (const url of b.image_urls) {
+                    const b64 = await getBase64Image(url);
+                    if (b64) validFacadeBase64s.push(b64);
+                }
+            }
+
+            // Direct QR Server Base64 string payload
+            const qrUrl = "https://webmap.geospatialnetworkug.xyz";
+            const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrUrl)}`;
+            const qrBase64 = await getBase64Image(qrApiUrl);
+
+            const d = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+            const check = (val) => val ? '<span style="color:#2e7d32">✅ Yes</span>' : '<span style="color:#c62828">❌ No</span>';
+
+            // Collect explicit user snapshots up to 4 limit
+            const snapsToExport = (condoState.snapshots || []).slice(0, 4);
+
+            let htmlString = `
+                <div style="font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #334155; background: #fff; width: 800px; height: 1100px; position: relative; box-sizing: border-box; overflow: hidden;">
+                    
+                    <!-- PREMIUM MASTHEAD -->
+                    <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #fff; padding: 40px; display: flex; flex-direction: column; justify-content: center; border-bottom: 5px solid #4f46e5;">
+                        <h1 style="margin: 0 0 10px; font-size: 26px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; color: #f8fafc;">GEOSPATIAL NETWORK UGANDA</h1>
+                        <h2 style="margin: 0; font-size: 16px; font-weight: 400; color: #94a3b8; letter-spacing: 1px; text-transform: uppercase;">Official Condominium Report</h2>
+                    </div>
+
+                    <div style="padding: 40px; padding-top: 30px;">
+                        <!-- DATE & META -->
+                        <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 35px;">
+                            <span style="font-size: 13px; font-weight: 600; color: #64748b; text-transform: uppercase;">REPORT GENERATED: <span style="color:#0f172a">${d}</span></span>
+                            <span style="font-size: 13px; font-weight: 600; color: #64748b; text-transform: uppercase;">MODULE: <span style="color:#0f172a">GSP.NET</span></span>
+                        </div>
+
+                        <!-- BUILDING DETAILS -->
+                        <div style="margin-bottom: 35px;">
+                            <div style="display:flex; align-items:center; margin-bottom: 15px;">
+                                <div style="width: 8px; height: 18px; background: #4f46e5; border-radius: 4px; margin-right: 10px;"></div>
+                                <h3 style="margin: 0; color: #0f172a; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">Building Context</h3>
+                            </div>
+                            <table style="width: 100%; border-collapse: collapse; font-size: 14px; background: #f8fafc; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 12px 15px; color: #64748b; font-weight: 600; width: 40%; font-size: 12px; text-transform: uppercase;">Building Name</td><td style="padding: 12px 15px; font-weight: 600; color: #0f172a;">${b.building_name}</td></tr>
+                                <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 12px 15px; color: #64748b; font-weight: 600; font-size: 12px; text-transform: uppercase;">Plot ID</td><td style="padding: 12px 15px; color: #334155;">${b.plot_id || 'N/A'}</td></tr>
+                                <tr style="border-bottom: 1px solid #e2e8f0;"><td style="padding: 12px 15px; color: #64748b; font-weight: 600; font-size: 12px; text-transform: uppercase;">District Location</td><td style="padding: 12px 15px; color: #334155;">${b.district}</td></tr>
+                                <tr><td style="padding: 12px 15px; color: #64748b; font-weight: 600; font-size: 12px; text-transform: uppercase;">Floor Distribution</td><td style="padding: 12px 15px; color: #334155;">${b.floors_above} Above Ground, ${b.floors_below} Below Ground</td></tr>
+                            </table>
+                        </div>
+
+                        <!-- OWNERSHIP SPECIFICATIONS -->
+                        <div style="margin-bottom: 35px;">
+                            <div style="display:flex; align-items:center; margin-bottom: 15px;">
+                                <div style="width: 8px; height: 18px; background: #ea580c; border-radius: 4px; margin-right: 10px;"></div>
+                                <h3 style="margin: 0; color: #0f172a; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">Ownership Record</h3>
+                            </div>
+                            <table style="width: 100%; border-collapse: collapse; font-size: 14px; background: #fff7ed; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #ffedd5;">
+                                <tr style="border-bottom: 1px solid #ffedd5;"><td style="padding: 12px 15px; color: #c2410c; font-weight: 600; width: 40%; font-size: 12px; text-transform: uppercase;">Registered Owner</td><td style="padding: 12px 15px; font-weight: 600; color: #9a3412;">${u.owner_name || 'Unregistered Title'}</td></tr>
+                                <tr><td style="padding: 12px 15px; color: #c2410c; font-weight: 600; font-size: 12px; text-transform: uppercase;">Contact Details</td><td style="padding: 12px 15px; color: #9a3412;">${u.owner_contact || 'N/A'}</td></tr>
+                            </table>
+                        </div>
+
+                        <!-- UNIT SPECIFICATIONS -->
+                        <div style="margin-bottom: 40px;">
+                            <div style="display:flex; align-items:center; margin-bottom: 15px;">
+                                <div style="width: 8px; height: 18px; background: #059669; border-radius: 4px; margin-right: 10px;"></div>
+                                <h3 style="margin: 0; color: #0f172a; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">Unit Specifications <span style="color:#059669; font-weight:700;">(ID: ${u.unit_id || 'N/A'})</span></h3>
+                            </div>
+                            
+                            <div style="display: flex; gap: 20px;">
+                                <div style="flex: 1; background: #f0fdf4; border: 1px solid #dcfce7; border-radius: 8px; padding: 15px;">
+                                    <h4 style="margin: 0 0 12px; color: #047857; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #dcfce7; padding-bottom: 8px;">Core Metrics</h4>
+                                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                        <tr style="border-bottom: 1px dashed #dcfce7;"><td style="padding: 8px 0; color: #065f46; font-weight: 600; width: 55%; font-size: 11px; text-transform: uppercase;">Floor Number</td><td style="padding: 8px 0; color: #0f172a; font-weight: 600;">${u.floor_number}</td></tr>
+                                        <tr style="border-bottom: 1px dashed #dcfce7;"><td style="padding: 8px 0; color: #065f46; font-weight: 600; font-size: 11px; text-transform: uppercase;">Unit Type</td><td style="padding: 8px 0; color: #0f172a;">${u.unit_type || '—'}</td></tr>
+                                        <tr style="border-bottom: 1px dashed #dcfce7;"><td style="padding: 8px 0; color: #065f46; font-weight: 600; font-size: 11px; text-transform: uppercase;">Area (m²)</td><td style="padding: 8px 0; color: #0f172a;">${u.area_sqm ? u.area_sqm.toFixed(2) : '—'}</td></tr>
+                                        <tr style="border-bottom: 1px dashed #dcfce7;"><td style="padding: 8px 0; color: #065f46; font-weight: 600; font-size: 11px; text-transform: uppercase;">Perimeter (m)</td><td style="padding: 8px 0; color: #0f172a;">${u.perimeter_m ? u.perimeter_m.toFixed(2) : '—'}</td></tr>
+                                        <tr><td style="padding: 8px 0; color: #065f46; font-weight: 600; font-size: 11px; text-transform: uppercase;">Current Status</td><td style="padding: 8px 0; color: #047857; font-weight: 700;">${(u.status || 'VACANT').toUpperCase()}</td></tr>
+                                    </table>
+                                </div>
+                                <div style="flex: 1; background: #f0fdf4; border: 1px solid #dcfce7; border-radius: 8px; padding: 15px;">
+                                    <h4 style="margin: 0 0 12px; color: #047857; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #dcfce7; padding-bottom: 8px;">Rooms & Loadout</h4>
+                                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                                        <tr style="border-bottom: 1px dashed #dcfce7;"><td style="padding: 8px 0; color: #065f46; font-weight: 600; width: 60%; font-size: 11px; text-transform: uppercase;">Bedrooms</td><td style="padding: 8px 0; color: #0f172a; font-weight: 600;">${u.bedrooms || 0}</td></tr>
+                                        <tr style="border-bottom: 1px dashed #dcfce7;"><td style="padding: 8px 0; color: #065f46; font-weight: 600; font-size: 11px; text-transform: uppercase;">Bathrooms (En-Suite)</td><td style="padding: 8px 0; color: #0f172a;">${u.bathrooms || 0} (${u.en_suite || 0})</td></tr>
+                                        <tr style="border-bottom: 1px dashed #dcfce7;"><td style="padding: 8px 0; color: #065f46; font-weight: 600; font-size: 11px; text-transform: uppercase;">Kitchen</td><td style="padding: 8px 0;">${check(u.kitchen)}</td></tr>
+                                        <tr style="border-bottom: 1px dashed #dcfce7;"><td style="padding: 8px 0; color: #065f46; font-weight: 600; font-size: 11px; text-transform: uppercase;">Balcony</td><td style="padding: 8px 0;">${check(u.balcony)}</td></tr>
+                                        <tr><td style="padding: 8px 0; color: #065f46; font-weight: 600; font-size: 11px; text-transform: uppercase;">Garage/Parking</td><td style="padding: 8px 0;">${check(u.garage)}</td></tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PREMIUM FOOTER RIBBON -->
+                    <div style="position: absolute; bottom: 0; left: 0; width: 800px; height: 110px; background: #0f172a; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; box-sizing: border-box; border-top: 4px solid #4f46e5;">
+                        <div>
+                            <p style="margin: 0; font-size: 16px; font-weight: 700; color: #f8fafc; letter-spacing: 1px;">GSP.NET CONDOMINIUM PROPERTIES</p>
+                            <p style="margin: 4px 0 0; font-size: 11px; color: #94a3b8; letter-spacing: 0.5px;">SECURE AUTOMATED GENERATION VIA GEOSPATIAL NETWORK UGANDA</p>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 15px; background: rgba(255,255,255,0.1); padding: 8px 12px; border-radius: 8px;">
+                            <div style="text-align: right;">
+                                <strong style="display: block; font-size: 11px; color: #f8fafc; text-transform: uppercase; letter-spacing: 1px;">Scan to Verify</strong>
+                                <span style="font-size: 9px; color: #94a3b8; text-transform: uppercase;">Authenticity Seal</span>
+                            </div>
+                            ${qrBase64 ? `<div style="background:#fff; padding:3px; border-radius:4px;"><img src="${qrBase64}" style="width: 50px; height: 50px; display: block;"></div>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Append additional snapshot pages if they exist
+            if (snapsToExport.length > 0) {
+                for (let i = 0; i < snapsToExport.length; i++) {
+                    const snap = snapsToExport[i];
+                    htmlString += `<div style="page-break-before: always; font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #334155; background: #fff; width: 800px; height: 1100px; position: relative; box-sizing: border-box; overflow: hidden;">`;
+                    
+                    // Standard Premium Header
+                    htmlString += `
+                        <div style="background: #0f172a; color: #fff; padding: 25px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 4px solid #4f46e5;">
+                            <h2 style="margin: 0; font-size: 18px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; color: #f8fafc;">GEOSPATIAL NETWORK UGANDA</h2>
+                            <span style="background: rgba(255,255,255,0.15); padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; color: #e2e8f0; letter-spacing: 1px; text-transform: uppercase;">Visual Appendix &mdash; ${i + 1} of ${snapsToExport.length}</span>
+                        </div>
+                    `;
+
+                    // View Title & Architectural Image
+                    htmlString += `
+                        <div style="padding: 40px; padding-top: 30px;">
+                            <div style="margin-bottom: 20px; display:flex; align-items:center;">
+                                <div style="width: 6px; height: 16px; background: #3b82f6; border-radius: 3px; margin-right: 12px;"></div>
+                                <h3 style="margin: 0; color: #0f172a; font-size: 18px; letter-spacing: 0.5px;">${snap.title || `Captured View ${i+1}`}</h3>
+                            </div>
+                            
+                            <div style="width: 100%; height: 600px; background: #f8fafc; border-radius: 12px; overflow: hidden; margin-bottom: 25px; border: 1px solid #cbd5e1; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.1), 0 4px 6px rgba(15, 23, 42, 0.05); padding: 10px; box-sizing: border-box;">
+                                <div style="width: 100%; height: 100%; border-radius: 6px; overflow: hidden; border: 1px solid #e2e8f0;">
+                                    <img src="${snap.image}" style="width: 100%; height: 100%; object-fit: cover; background: #fff;">
+                                </div>
+                            </div>
+                    `;
+
+                    // Description Overlay
+                    if (snap.description) {
+                        htmlString += `
+                            <div style="background: #f1f5f9; border: 1px solid #e2e8f0; border-left: 4px solid #3b82f6; padding: 20px; border-radius: 8px;">
+                                <span style="display: block; font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; margin-bottom: 8px;">Architectural Notes</span>
+                                <p style="margin: 0; font-size: 14px; color: #334155; line-height: 1.6;">${snap.description}</p>
+                            </div>
+                        `;
+                    }
+
+                    // Close Padding Div
+                    htmlString += `</div>`;
+
+                    // Standard Premium Footer
+                    htmlString += `
+                        <div style="position: absolute; bottom: 0; left: 0; width: 800px; height: 90px; background: #0f172a; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; box-sizing: border-box; border-top: 3px solid #4f46e5;">
+                            <div>
+                                <p style="margin: 0; font-size: 14px; font-weight: 700; color: #f8fafc; letter-spacing: 1px;">GSP.NET CONDOMINIUM PROPERTIES</p>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                ${qrBase64 ? `<div style="background:#fff; padding:2px; border-radius:3px;"><img src="${qrBase64}" style="width: 40px; height: 40px; display: block;"></div>` : ''}
+                            </div>
+                        </div>
+                    </div>`;
+                }
+            }
+
+            if (validFacadeBase64s.length > 0) {
+                htmlString += `<div style="page-break-before: always; font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #334155; background: #fff; width: 800px; height: 1100px; position: relative; box-sizing: border-box; overflow: hidden;">
+                    
+                    <div style="background: #0f172a; color: #fff; padding: 25px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 4px solid #4f46e5;">
+                        <h2 style="margin: 0; font-size: 18px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; color: #f8fafc;">GEOSPATIAL NETWORK UGANDA</h2>
+                        <span style="background: rgba(255,255,255,0.15); padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; color: #e2e8f0; letter-spacing: 1px; text-transform: uppercase;">Facade Reference File</span>
+                    </div>
+
+                    <div style="padding: 40px; padding-top: 30px;">
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 25px;">`;
+                
+                validFacadeBase64s.forEach((b64, idx) => {
+                    htmlString += `
+                        <div style="background: #f8fafc; padding: 8px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 15px rgba(15, 23, 42, 0.05);">
+                            <div style="width: 100%; height: 350px; border-radius: 6px; overflow: hidden; border: 1px solid #cbd5e1;">
+                                <img src="${b64}" style="width:100%; height:100%; object-fit:cover;">
+                            </div>
+                            <p style="text-align: center; font-size: 11px; font-weight: 700; color: #64748b; margin: 12px 0 4px; text-transform: uppercase; letter-spacing: 1px;">Facade Photograph ${idx+1}</p>
+                        </div>`;
+                });
+                
+                htmlString += `</div>
+                    </div>
+                    
+                    <div style="position: absolute; bottom: 0; left: 0; width: 800px; height: 90px; background: #0f172a; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; box-sizing: border-box; border-top: 3px solid #4f46e5;">
+                        <div>
+                            <p style="margin: 0; font-size: 14px; font-weight: 700; color: #f8fafc; letter-spacing: 1px;">GSP.NET CONDOMINIUM PROPERTIES</p>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            ${qrBase64 ? `<div style="background:#fff; padding:2px; border-radius:3px;"><img src="${qrBase64}" style="width: 40px; height: 40px; display: block;"></div>` : ''}
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            // Generate PDF
+            const opt = {
+                margin:       [0, 0, 0, 0], // Enforces literal strict A4 sizing to bypass margins cutting bounds
+                filename:     `CondoReport_${b.building_prefix || 'BLD'}_${u.unit_id || 'Unit'}.pdf`,
+                image:        { type: 'jpeg', quality: 1.0 }, // Maximum JPEG clarity
+                html2canvas:  { scale: 3, useCORS: true, allowTaint: true, letterRendering: true }, // Triple upscale rendering 
+                jsPDF:        { unit: 'px', format: [800, 1120], orientation: 'portrait', hotfixes: ["px_scaling"] } // Enforce exactly fitting our pixel bounding box 
+            };
+
+            html2pdf().set(opt).from(htmlString).save().then(() => {
+                btn.innerHTML = oldText;
+                btn.disabled = false;
+            }).catch(err => {
+                console.error("PDF Export Error: ", err);
+                alert("Failed to generate PDF. See console for details.");
+                btn.innerHTML = oldText;
+                btn.disabled = false;
+            });
         }
 
         // ============================================

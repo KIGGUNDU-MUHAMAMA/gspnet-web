@@ -107,6 +107,15 @@ Furthermore, this tool is profoundly beneficial for **Valuation Surveyors**. By 
 - **Parcel Search:** This search engine allows users to rapidly search for and identify dedicated parcels strictly from within the loaded Survey Polygons layer.
 - **Project Library:** A robust, centralized repository that allows surveyors to organize, find, and seamlessly download essential project files including surveying CSVs, technical JRJ computation files, and CAD drawings.
 
+### 7. Condominium Reporting & 3D High-Resolution Export
+
+- **What it does:** Allows users to view registered condominiums in an interactive architectural 3D viewer, capture structural snapshots, and generate a professional, multi-page corporate PDF report.
+- **Key Features:**
+  - **High-Resolution Engine:** When capturing snapshots, the system temporarily triggers a 3x pixel-ratio upscale against the Three.js WebGL buffer, generating stunning 4K-density images explicitly formatted for professional A4 architectural printing.
+  - **Capture Limits:** The system actively tracks snapshot instances and securely locks the camera controls after capturing a maximum of 4 dynamic environmental views.
+  - **Premium PDF Layout Aesthetics:** The export module operates on a headless, pixel-perfect renderer. Traditional grids are replaced with softly muted corporate "Data Cards", overlaid with `Slate Blue / Indigo` mastheads, modern clean typography (`Segoe UI`), and high-end geometric dropshadow framing for image appendices.
+  - **Authenticity Ribbon:** Every page of the generated PDF perfectly anchors an absolute-positioned corporate tracking ribbon containing automated, API-generated QR codes linking securely back to GSP.NET's core database.
+
 ## How Distances and Areas Are Calculated for GSPNET/NLIS Layers and Survey Polygons
 
 GSP.NET uses **survey-grade geodesic formulas** for all distance and area calculations displayed on the map. These formulas match the results produced by professional surveying software such as AutoCAD and are significantly more accurate than simple spherical (Haversine) calculations.
