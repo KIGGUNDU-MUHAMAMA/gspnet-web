@@ -10565,7 +10565,7 @@ STEP 1: ACCOUNT SETUP & AUTHENTICATION
 1.3. Use your professional email address
 1.4. Select "Valuer" role (critical - general users cannot access valuation tools)
 1.5. Activate subscription if prompted (valuation tools require active subscription)
-1.6. Check email for Supabase verification link
+1.6. Check email for the GSP.NET Uganda verification email (check Spam/Junk too)
 1.7. Click verification link to confirm account
 1.8. Sign in with your credentials
 1.9. System stores secure session token and unlocks valuation features
@@ -11763,9 +11763,10 @@ To register a new condominium building, open the **3D Condominium Panel** by cli
 ## Account Types and Authentication
 
 ### Account Creation and Verification
-Users can easily create an account on the login page (index.html). Once registered, the system will send an email to verify the account.
+Users can easily create an account on the login page (index.html). Once registered, the system sends a verification email from GSP.NET Uganda.
 - **To create an account:** Fill in your email and password, then select your desired Account Type. Click "Create Professional Account".
-- **To verify email:** Check your email inbox for a confirmation link and click it. 
+- **To verify email:** Check your inbox for the GSP.NET Uganda verification email and click the confirmation link. Check Spam/Junk, because it may arrive there first.
+- **Important:** Users cannot log in until email verification is completed.
 - **Troubleshooting Login & Activation:** If a user fails to log in, complains about needing an active subscription, or asks how to activate their account, you MUST proactively offer to prepare a WhatsApp activation request for them.
   1. First, tell the user: "You likely need your subscription or account activated. Would you like me to prepare an activation request for the admin? If so, please reply with your account email address."
   2. Once the user replies with their email address, you MUST provide them with exactly this markdown link, replacing `[USER_EMAIL]` with the actual email they provided:

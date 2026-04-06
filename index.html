@@ -1954,7 +1954,7 @@
                     if (error.message.includes('Invalid login credentials')) {
                         throw new Error('Invalid email or password. Please try again.');
                     } else if (error.message.includes('Email not confirmed')) {
-                        throw new Error('Please confirm your email address before logging in.');
+                        throw new Error('Please verify your email first. Check for a verification email from GSP.NET Uganda (also check Spam/Junk). You cannot log in until verification is complete.');
                     } else {
                         throw error;
                     }
@@ -2073,10 +2073,10 @@
                 }
 
                 const successCopy = selectedRole === 'valuer'
-                    ? 'Valuer account created! Check your email to confirm, then contact the admin at +256753771256 to activate your private workspace.'
+                    ? 'Valuer account created! Check your email for a verification message from GSP.NET Uganda (look in Spam/Junk too), then contact the admin at +256753771256 to activate your private workspace. You cannot log in until your email is verified.'
                     : selectedRole === 'RSU'
-                        ? 'RSU account request created! Check your email to confirm, then contact the admin at +256753771256 so your Registered Surveyor of Uganda reviewer role can be verified and activated.'
-                        : 'Account created successfully! Please check your email to confirm your account, then contact the admin at +256753771256 to activate your subscription.';
+                        ? 'RSU account request created! Check your email for a verification message from GSP.NET Uganda (look in Spam/Junk too), then contact the admin at +256753771256 so your Registered Surveyor of Uganda reviewer role can be verified and activated. You cannot log in until your email is verified.'
+                        : 'Account created successfully! Please check your email for a verification message from GSP.NET Uganda (look in Spam/Junk too), then contact the admin at +256753771256 to activate your subscription. You cannot log in until your email is verified.';
 
                 showMessage(signupMessage, successCopy, 'success');
 
