@@ -1808,6 +1808,23 @@
         const backToLogin = document.getElementById('back-to-login');
         const signupRoleSelect = document.getElementById('signup-role');
 
+        // Email quality guardrails to reduce bounce rates.
+        const BLOCKED_SIGNUP_DOMAINS = new Set([
+            'example.com',
+            'example.org',
+            'example.net',
+            'test.com',
+            'test.org',
+            'mailinator.com',
+            'guerrillamail.com',
+            '10minutemail.com',
+            'tempmail.com',
+            'yopmail.com',
+            'trashmail.com',
+            'fakeinbox.com'
+        ]);
+        const BLOCKED_SIGNUP_DOMAIN_SUFFIXES = ['.invalid', '.local', '.localhost', '.test'];
+
         // Password toggle functionality
         function setupPasswordToggle(toggleId, inputId) {
             const toggle = document.getElementById(toggleId);
@@ -2007,13 +2024,19 @@
 
         // Sign Up Function
         signupBtn.addEventListener('click', async () => {
-            const email = document.getElementById('signup-email').value;
+            const emailInput = document.getElementById('signup-email').value;
+            const emailValidation = validateSignupEmailForDeliverability(emailInput);
+            const email = emailValidation.normalizedEmail;
             const password = document.getElementById('signup-password').value;
             const confirmPassword = document.getElementById('confirm-password').value;
             const selectedRole = signupRoleSelect ? signupRoleSelect.value : 'general';
 
-            if (!email) {
+            if (!emailInput) {
                 showMessage(signupMessage, 'Please enter your email', 'error');
+                return;
+            }
+            if (!emailValidation.ok) {
+                showMessage(signupMessage, emailValidation.reason, 'error');
                 return;
             }
 
@@ -2139,6 +2162,27 @@
         function showMessage(element, text, type) {
             element.textContent = text;
             element.className = `message ${type}`;
+        }
+
+        function validateSignupEmailForDeliverability(emailRaw) {
+            const normalizedEmail = String(emailRaw || '').trim().toLowerCase();
+            const basicEmailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+            if (!basicEmailPattern.test(normalizedEmail)) {
+                return { ok: false, reason: 'Please enter a valid email address.', normalizedEmail };
+            }
+
+            const domain = normalizedEmail.split('@')[1] || '';
+            if (!domain) {
+                return { ok: false, reason: 'Please enter a valid email domain.', normalizedEmail };
+            }
+            if (BLOCKED_SIGNUP_DOMAINS.has(domain)) {
+                return { ok: false, reason: 'Please use a real inbox email address.', normalizedEmail };
+            }
+            if (BLOCKED_SIGNUP_DOMAIN_SUFFIXES.some((suffix) => domain.endsWith(suffix))) {
+                return { ok: false, reason: 'Please use an email on a valid public domain.', normalizedEmail };
+            }
+
+            return { ok: true, normalizedEmail };
         }
 
         // Dark Mode Toggle Functionality
