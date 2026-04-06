@@ -11028,6 +11028,12 @@
             background: #f8f9fa;
         }
 
+        .room-selector-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
         .room-dropdown {
             width: 100%;
             padding: 10px 15px;
@@ -11036,6 +11042,27 @@
             background: white;
             font-size: 14px;
             cursor: pointer;
+        }
+
+        .room-mark-read-btn {
+            border: 1px solid #d0d7de;
+            background: #fff;
+            color: #334155;
+            border-radius: 8px;
+            padding: 9px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .room-mark-read-btn:hover {
+            background: #f1f5f9;
+        }
+
+        .room-unread-hint {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #64748b;
         }
 
         /* Posts List */
@@ -11392,6 +11419,37 @@
             background: white;
         }
 
+        .inbox-toolbar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            padding: 8px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #fff;
+        }
+
+        .inbox-toolbar .user-search-input {
+            border-bottom: none;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+
+        .inbox-mark-read-btn {
+            border: 1px solid #d0d7de;
+            background: #fff;
+            color: #334155;
+            border-radius: 8px;
+            padding: 9px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .inbox-mark-read-btn:hover {
+            background: #f1f5f9;
+        }
+
         .user-search-input::placeholder {
             color: #999;
         }
@@ -11519,6 +11577,26 @@
             display: flex;
             flex-direction: column;
             /* Start with column to stack messages vertically */
+        }
+
+        .unread-divider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0 16px;
+            color: #dc2626;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .unread-divider::before,
+        .unread-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #fecaca;
         }
 
         /* Messages container within inbox */
@@ -11661,6 +11739,27 @@
             border-color: #4a4a4a;
         }
 
+        .chat-panel.dark-theme .room-mark-read-btn,
+        .chat-panel.dark-theme .inbox-mark-read-btn {
+            background: #3a3a3a;
+            color: #e2e8f0;
+            border-color: #4a4a4a;
+        }
+
+        .chat-panel.dark-theme .room-mark-read-btn:hover,
+        .chat-panel.dark-theme .inbox-mark-read-btn:hover {
+            background: #475569;
+        }
+
+        .chat-panel.dark-theme .room-unread-hint {
+            color: #b0bec5;
+        }
+
+        .chat-panel.dark-theme .inbox-toolbar {
+            background: #2f2f2f;
+            border-bottom-color: #3a3a3a;
+        }
+
         .chat-panel.dark-theme .posts-list {
             background: #2a2a2a;
         }
@@ -11773,6 +11872,15 @@
 
         .chat-panel.dark-theme .messages-list {
             background: #2a2a2a;
+        }
+
+        .chat-panel.dark-theme .unread-divider {
+            color: #fca5a5;
+        }
+
+        .chat-panel.dark-theme .unread-divider::before,
+        .chat-panel.dark-theme .unread-divider::after {
+            background: #7f1d1d;
         }
 
         .chat-panel.dark-theme .messages-list .message-item.sent .message-bubble {
@@ -50858,13 +50966,19 @@ function smoothChaikin(points) {
                 inboxUnreadTotal: 0,
                 roomsUnreadTotal: 0,
                 roomsUnreadByRoom: {},
-                inboxThreads: new Map()
+                inboxThreads: new Map(),
+                threadReadMap: new Map(),
+                roomReadMap: new Map()
             };
             window.ChatSystem = ChatSystem;
 
             function socialChatStorageKey(suffix) {
                 const id = ChatSystem.currentUser?.id || 'anon';
                 return `gspnet_social_${suffix}_${id}`;
+            }
+
+            function isUuid(value) {
+                return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
             }
 
             function loadRoomLastReads() {
@@ -50899,6 +51013,132 @@ function smoothChaikin(points) {
                 }
             }
 
+            async function hydrateThreadReadMap(partnerIds = null) {
+                const uid = ChatSystem.currentUser?.id;
+                if (!uid || uid === 'demo-user' || !supabase) return;
+                try {
+                    let query = supabase
+                        .from('chat_thread_reads')
+                        .select('partner_id, last_read_at')
+                        .eq('user_id', uid);
+                    if (Array.isArray(partnerIds) && partnerIds.length > 0) {
+                        query = query.in('partner_id', partnerIds);
+                    }
+                    const { data, error } = await query;
+                    if (error) throw error;
+                    (data || []).forEach((row) => {
+                        ChatSystem.threadReadMap.set(String(row.partner_id), row.last_read_at);
+                    });
+                } catch (e) {
+                    console.warn('hydrateThreadReadMap:', e);
+                }
+            }
+
+            async function hydrateRoomReadMap(roomIds = null) {
+                const uid = ChatSystem.currentUser?.id;
+                if (!uid || uid === 'demo-user' || !supabase) return;
+                try {
+                    let query = supabase
+                        .from('room_read_cursors')
+                        .select('room_id, last_read_at')
+                        .eq('user_id', uid);
+                    if (Array.isArray(roomIds) && roomIds.length > 0) {
+                        query = query.in('room_id', roomIds);
+                    }
+                    const { data, error } = await query;
+                    if (error) throw error;
+                    (data || []).forEach((row) => {
+                        ChatSystem.roomReadMap.set(String(row.room_id), row.last_read_at);
+                    });
+                } catch (e) {
+                    console.warn('hydrateRoomReadMap:', e);
+                }
+            }
+
+            async function upsertThreadReadCursor(partnerId, lastReadAt) {
+                const uid = ChatSystem.currentUser?.id;
+                const pid = String(partnerId);
+                if (!uid || uid === 'demo-user' || !pid || !supabase) return;
+                const iso = lastReadAt || new Date().toISOString();
+
+                const local = loadInboxLastSeenMap();
+                local[pid] = iso;
+                saveInboxLastSeenMap(local);
+                ChatSystem.threadReadMap.set(pid, iso);
+                if (!isUuid(uid) || !isUuid(pid)) return;
+
+                try {
+                    const { error } = await supabase
+                        .from('chat_thread_reads')
+                        .upsert([{
+                            user_id: uid,
+                            partner_id: pid,
+                            last_read_at: iso,
+                            updated_at: new Date().toISOString()
+                        }], { onConflict: 'user_id,partner_id' });
+                    if (error) throw error;
+                } catch (e) {
+                    console.warn('upsertThreadReadCursor:', e);
+                }
+            }
+
+            async function upsertRoomReadCursor(roomId, lastReadAt) {
+                const uid = ChatSystem.currentUser?.id;
+                const rid = String(roomId || '');
+                if (!uid || uid === 'demo-user' || !rid || !supabase) return;
+                const iso = lastReadAt || new Date().toISOString();
+
+                const local = loadRoomLastReads();
+                local[rid] = iso;
+                saveRoomLastReads(local);
+                ChatSystem.roomReadMap.set(rid, iso);
+                if (!isUuid(uid) || !isUuid(rid)) return;
+
+                try {
+                    const { error } = await supabase
+                        .from('room_read_cursors')
+                        .upsert([{
+                            user_id: uid,
+                            room_id: rid,
+                            last_read_at: iso,
+                            updated_at: new Date().toISOString()
+                        }], { onConflict: 'user_id,room_id' });
+                    if (error) throw error;
+                } catch (e) {
+                    console.warn('upsertRoomReadCursor:', e);
+                }
+            }
+
+            async function getThreadLastReadAt(partnerId) {
+                const pid = String(partnerId || '');
+                if (!pid) return null;
+                if (ChatSystem.threadReadMap.has(pid)) return ChatSystem.threadReadMap.get(pid);
+                await hydrateThreadReadMap([pid]);
+                if (ChatSystem.threadReadMap.has(pid)) return ChatSystem.threadReadMap.get(pid);
+                const local = loadInboxLastSeenMap();
+                return local[pid] || null;
+            }
+
+            async function syncLocalReadStateToServer() {
+                const uid = ChatSystem.currentUser?.id;
+                if (!uid || uid === 'demo-user' || !supabase) return;
+
+                const localThreadReads = loadInboxLastSeenMap();
+                const localRoomReads = loadRoomLastReads();
+
+                const threadEntries = Object.entries(localThreadReads);
+                for (const [partnerId, lastReadAt] of threadEntries) {
+                    if (!partnerId || !lastReadAt) continue;
+                    await upsertThreadReadCursor(partnerId, lastReadAt);
+                }
+
+                const roomEntries = Object.entries(localRoomReads);
+                for (const [roomId, lastReadAt] of roomEntries) {
+                    if (!roomId || !lastReadAt) continue;
+                    await upsertRoomReadCursor(roomId, lastReadAt);
+                }
+            }
+
             function formatShortThreadTime(iso) {
                 if (!iso) return '';
                 const d = new Date(iso);
@@ -50914,22 +51154,19 @@ function smoothChaikin(points) {
                 return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
             }
 
-            function markCurrentRoomPostsRead(posts) {
+            async function markCurrentRoomPostsRead(posts) {
                 const rid = ChatSystem.currentRoom;
                 if (!rid || ChatSystem.currentMode !== 'rooms') return;
-                const reads = loadRoomLastReads();
                 const list = posts || [];
+                let latest = new Date().toISOString();
                 if (!list.length) {
-                    reads[rid] = new Date().toISOString();
-                    saveRoomLastReads(reads);
+                    await upsertRoomReadCursor(rid, latest);
                     return;
                 }
-                let maxT = reads[rid] || '1970-01-01T00:00:00.000Z';
                 list.forEach((p) => {
-                    if (p.created_at && p.created_at > maxT) maxT = p.created_at;
+                    if (p.created_at && p.created_at > latest) latest = p.created_at;
                 });
-                reads[rid] = maxT;
-                saveRoomLastReads(reads);
+                await upsertRoomReadCursor(rid, latest);
             }
 
             let socialBadgeRefreshTimer = null;
@@ -50960,6 +51197,7 @@ function smoothChaikin(points) {
                         updateSocialChatBadges();
                         return;
                     }
+                    await hydrateRoomReadMap(roomIds);
                     const lastReads = loadRoomLastReads();
                     const { data: posts, error: postsErr } = await supabase
                         .from('room_posts')
@@ -50969,9 +51207,10 @@ function smoothChaikin(points) {
                     if (postsErr) throw postsErr;
                     const byRoom = {};
                     (posts || []).forEach((p) => {
-                        const lr = lastReads[p.room_id];
+                        const rid = String(p.room_id);
+                        const lr = ChatSystem.roomReadMap.get(rid) || lastReads[rid];
                         if (!lr || new Date(p.created_at) > new Date(lr)) {
-                            byRoom[p.room_id] = (byRoom[p.room_id] || 0) + 1;
+                            byRoom[rid] = (byRoom[rid] || 0) + 1;
                         }
                     });
                     ChatSystem.roomsUnreadByRoom = byRoom;
@@ -50992,17 +51231,22 @@ function smoothChaikin(points) {
                     return;
                 }
                 const lastSeenMap = loadInboxLastSeenMap();
+                await hydrateThreadReadMap();
                 let unreadBySender = {};
                 try {
-                    const { data: unreadRows, error } = await supabase
+                    const { data: inboxRows, error } = await supabase
                         .from('private_messages')
-                        .select('sender_id')
+                        .select('sender_id, created_at')
                         .eq('receiver_id', uid)
-                        .eq('is_read', false);
+                        .order('created_at', { ascending: false })
+                        .limit(2000);
                     if (error) throw error;
-                    (unreadRows || []).forEach((r) => {
-                        const sid = String(r.sender_id);
-                        unreadBySender[sid] = (unreadBySender[sid] || 0) + 1;
+                    (inboxRows || []).forEach((row) => {
+                        const sid = String(row.sender_id);
+                        const readAt = ChatSystem.threadReadMap.get(sid) || lastSeenMap[sid];
+                        if (!readAt || new Date(row.created_at) > new Date(readAt)) {
+                            unreadBySender[sid] = (unreadBySender[sid] || 0) + 1;
+                        }
                     });
                 } catch {
                     const { data: inboxMsgs } = await supabase
@@ -51010,10 +51254,10 @@ function smoothChaikin(points) {
                         .select('sender_id, created_at')
                         .eq('receiver_id', uid)
                         .order('created_at', { ascending: false })
-                        .limit(800);
+                        .limit(2000);
                     (inboxMsgs || []).forEach((row) => {
                         const sid = String(row.sender_id);
-                        const ls = lastSeenMap[sid];
+                        const ls = ChatSystem.threadReadMap.get(sid) || lastSeenMap[sid];
                         if (!ls || new Date(row.created_at) > new Date(ls)) {
                             unreadBySender[sid] = (unreadBySender[sid] || 0) + 1;
                         }
@@ -51105,6 +51349,14 @@ function smoothChaikin(points) {
                         roomsTabB.classList.remove('visible');
                     }
                 }
+
+                const roomHint = document.getElementById('roomUnreadHint');
+                if (roomHint) {
+                    const currentRoomUnread = ChatSystem.roomsUnreadByRoom?.[ChatSystem.currentRoom] || 0;
+                    roomHint.textContent = currentRoomUnread > 0
+                        ? `${currentRoomUnread} unread in this room`
+                        : 'No unread in this room';
+                }
             }
 
             async function markPartnerMessagesRead(partnerId) {
@@ -51116,9 +51368,7 @@ function smoothChaikin(points) {
                 if (msgs.length) {
                     latest = msgs[msgs.length - 1].created_at || latest;
                 }
-                const lsMap = loadInboxLastSeenMap();
-                lsMap[pid] = latest;
-                saveInboxLastSeenMap(lsMap);
+                await upsertThreadReadCursor(pid, latest);
 
                 try {
                     await supabase
@@ -51132,8 +51382,48 @@ function smoothChaikin(points) {
                 }
 
                 const t = ChatSystem.inboxThreads.get(pid);
-                if (t) t.unread = 0;
+                if (t) {
+                    ChatSystem.inboxUnreadTotal = Math.max(0, ChatSystem.inboxUnreadTotal - (t.unread || 0));
+                    t.unread = 0;
+                }
+                updateSocialChatBadges();
                 await refreshInboxSummaries();
+            }
+
+            async function markAllInboxMessagesRead() {
+                const uid = ChatSystem.currentUser?.id;
+                if (!uid || uid === 'demo-user') return;
+                const nowIso = new Date().toISOString();
+                const seen = loadInboxLastSeenMap();
+                const upserts = [];
+                ChatSystem.inboxThreads.forEach((thread, partnerId) => {
+                    const lastAt = thread.lastAt || nowIso;
+                    seen[String(partnerId)] = lastAt;
+                    upserts.push(upsertThreadReadCursor(partnerId, lastAt));
+                });
+                saveInboxLastSeenMap(seen);
+                await Promise.all(upserts);
+
+                try {
+                    await supabase
+                        .from('private_messages')
+                        .update({ is_read: true })
+                        .eq('receiver_id', uid)
+                        .or('is_read.eq.false,is_read.is.null');
+                } catch (e) {
+                    console.warn('markAllInboxMessagesRead db:', e);
+                }
+
+                await refreshInboxSummaries();
+                showUserMessage('Inbox marked as read', 'success');
+            }
+
+            async function markCurrentRoomReadNow() {
+                const rid = ChatSystem.currentRoom;
+                if (!rid) return;
+                await upsertRoomReadCursor(rid, new Date().toISOString());
+                await refreshRoomUnreadCounts();
+                showUserMessage('Current room marked as read', 'success');
             }
 
             // Initialize Social Chat System
@@ -51195,6 +51485,7 @@ function smoothChaikin(points) {
                     setupRealtimeSubscriptions();
 
                     ChatSystem.initialized = true;
+                    await syncLocalReadStateToServer();
                     await refreshRoomUnreadCounts();
                     await refreshInboxSummaries();
 
@@ -51286,7 +51577,7 @@ function smoothChaikin(points) {
 
                     ChatSystem.currentRoom = roomId;
                     await renderPosts(posts || []);
-                    markCurrentRoomPostsRead(posts || []);
+                    await markCurrentRoomPostsRead(posts || []);
                     scheduleSocialChatBadgeRefresh();
 
                 } catch (error) {
@@ -51991,12 +52282,13 @@ function smoothChaikin(points) {
                 if (noUserMessage) noUserMessage.style.display = 'none';
 
                 // Load conversation
-                await loadConversation(userId);
+                await loadConversation(userId, { showUnreadDivider: true });
             }
 
             // Load conversation
-            async function loadConversation(partnerId) {
+            async function loadConversation(partnerId, options = {}) {
                 try {
+                    const showUnreadDivider = options.showUnreadDivider !== false;
                     const { data: messages, error } = await supabase
                         .from('private_messages')
                         .select('*')
@@ -52006,8 +52298,9 @@ function smoothChaikin(points) {
                     if (error) throw error;
 
                     const pid = String(partnerId);
+                    const lastReadAt = await getThreadLastReadAt(pid);
                     ChatSystem.messages.set(pid, messages || []);
-                    renderMessages(messages || []);
+                    renderMessages(messages || [], pid, showUnreadDivider ? lastReadAt : null);
 
                     // Ensure input area is visible
                     const messageInputArea = document.querySelector('.message-input-area');
@@ -52064,7 +52357,7 @@ function smoothChaikin(points) {
                     removeImage('message-image-input', 'message-image-preview', 'message-image-btn');
 
                     // Reload conversation
-                    await loadConversation(receiverId);
+                    await loadConversation(receiverId, { showUnreadDivider: false });
 
                 } catch (error) {
                     console.error('❌ Error sending message:', error);
@@ -52075,13 +52368,27 @@ function smoothChaikin(points) {
             }
 
             // Render messages
-            function renderMessages(messages) {
+            function renderMessages(messages, partnerId = null, lastReadAt = null) {
                 const container = document.getElementById('messages-container');
                 if (!container) return;
 
                 container.innerHTML = '';
 
-                messages.forEach(message => {
+                const unreadIndex = (partnerId && lastReadAt)
+                    ? messages.findIndex((message) => {
+                        const fromPartner = String(message.sender_id) === String(partnerId);
+                        return fromPartner && new Date(message.created_at) > new Date(lastReadAt);
+                    })
+                    : -1;
+
+                messages.forEach((message, index) => {
+                    if (index === unreadIndex) {
+                        const divider = document.createElement('div');
+                        divider.className = 'unread-divider';
+                        divider.innerHTML = '<span>Unread messages</span>';
+                        container.appendChild(divider);
+                    }
+
                     // Robust check for sender ID (handle string vs number)
                     const isSent = String(message.sender_id) === String(ChatSystem.currentUser.id);
                     console.log(`Msg ${message.id}: Sender=${message.sender_id}, Me=${ChatSystem.currentUser.id}, isSent=${isSent}`);
@@ -52212,7 +52519,7 @@ function smoothChaikin(points) {
                             const openInbox = ChatSystem.currentMode === 'inbox';
                             if (partner && openInbox &&
                                 String(payload.new.sender_id) === String(partner.id)) {
-                                await loadConversation(partner.id);
+                                await loadConversation(partner.id, { showUnreadDivider: false });
                             } else {
                                 await refreshInboxSummaries();
                             }
@@ -52331,6 +52638,9 @@ function smoothChaikin(points) {
                 document.getElementById('room-select')?.addEventListener('change', async (e) => {
                     await loadRoomPosts(e.target.value);
                 });
+                document.getElementById('room-mark-read-btn')?.addEventListener('click', async () => {
+                    await markCurrentRoomReadNow();
+                });
 
                 // Post submission
                 document.getElementById('post-submit-btn')?.addEventListener('click', async () => {
@@ -52361,6 +52671,9 @@ function smoothChaikin(points) {
                 // User search
                 document.getElementById('user-search')?.addEventListener('input', (e) => {
                     filterUsers(e.target.value);
+                });
+                document.getElementById('mark-all-inbox-read-btn')?.addEventListener('click', async () => {
+                    await markAllInboxMessagesRead();
                 });
 
                 // Message sending
@@ -52744,9 +53057,13 @@ CRITICAL RULES:
             <!-- Chat Rooms View -->
             <div id="rooms-view" class="chat-view active">
                 <div class="room-selector">
-                    <select id="room-select" class="room-dropdown">
-                        <option value="general">General Chat</option>
-                    </select>
+                    <div class="room-selector-row">
+                        <select id="room-select" class="room-dropdown">
+                            <option value="general">General Chat</option>
+                        </select>
+                        <button type="button" id="room-mark-read-btn" class="room-mark-read-btn" title="Mark current room as read">Mark read</button>
+                    </div>
+                    <div class="room-unread-hint" id="roomUnreadHint">No unread in this room</div>
                 </div>
                 <div id="posts-container" class="posts-list">
                     <!-- Posts will appear here -->
@@ -52771,7 +53088,10 @@ CRITICAL RULES:
             <div id="inbox-view" class="chat-view">
                 <div class="inbox-layout">
                     <div class="users-list">
-                        <input type="text" id="user-search" placeholder="Search users..." class="user-search-input">
+                        <div class="inbox-toolbar">
+                            <input type="text" id="user-search" placeholder="Search users..." class="user-search-input">
+                            <button type="button" id="mark-all-inbox-read-btn" class="inbox-mark-read-btn" title="Mark all inbox threads as read">Mark all read</button>
+                        </div>
                         <div id="users-container" class="users-container">
                             <!-- Users will appear here -->
                         </div>
