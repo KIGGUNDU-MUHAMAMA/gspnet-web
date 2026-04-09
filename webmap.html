@@ -15943,35 +15943,31 @@
                         <div id="polygon-csv-status" class="status-message"></div>
                     </section>
 
-                    <!-- 3. Plot Points Section -->
+                    <!-- 3. Batch Preview Section -->
                     <section id="gsp-plot-section" class="dock-section" style="display: none; margin-bottom: 20px;">
-                        <h4><i class="fas fa-map-marked-alt"></i> Plot Points</h4>
-                        <div id="parcel-selector-container" style="margin-bottom: 10px;">
-                            <label for="parcel-selector"
-                                style="display: block; margin-bottom: 5px; font-weight: 600;">Select Parcel:</label>
-                            <select id="parcel-selector" class="form-select">
-                                <option value="">-- Select Parcel --</option>
-                            </select>
-                        </div>
-                        <div id="point-count-display"
-                            style="margin-bottom: 10px; padding: 8px; background: #e8f5e9; border-radius: 4px; font-size: 0.9rem;">
-                            <strong>Points:</strong> <span id="point-count-value">0</span>
+                        <h4><i class="fas fa-map-marked-alt"></i> Batch Preview</h4>
+                        <div id="batch-count-display"
+                            style="margin-bottom: 10px; padding: 8px; background: #e8f5e9; border-radius: 4px; font-size: 0.9rem; line-height: 1.6;">
+                            <div><strong>Parcels in CSV:</strong> <span id="batch-parcel-count-value">0</span></div>
+                            <div><strong>Total points:</strong> <span id="batch-point-count-value">0</span></div>
+                            <div><strong>Ready to save:</strong> <span id="batch-ready-count-value">0</span></div>
+                            <div><strong>With errors:</strong> <span id="batch-error-count-value">0</span></div>
                         </div>
                         <button id="plot-points-btn" class="btn btn-primary" disabled>
-                            <i class="fas fa-map-marked-alt"></i> Plot Points on Map
+                            <i class="fas fa-map-marked-alt"></i> Plot Points & Polygons
                         </button>
                         <button id="clear-points-btn" class="btn btn-secondary" style="margin-top: 8px; width: 100%;"
                             disabled>
-                            <i class="fas fa-eraser"></i> Clear Points
+                            <i class="fas fa-eraser"></i> Cancel Preview
                         </button>
                     </section>
 
-                    <!-- 4. Polygon Creation Section -->
+                    <!-- 4. Polygon Batch Validation Section -->
                     <section id="gsp-polygon-section" class="dock-section" style="display: none; margin-bottom: 20px;">
-                        <h4><i class="fas fa-draw-polygon"></i> Create Polygon</h4>
+                        <h4><i class="fas fa-draw-polygon"></i> Batch Polygon Validation</h4>
                         <div id="selected-parcel-info"
                             style="margin-bottom: 10px; padding: 10px; background: #fff3cd; border-radius: 4px; font-size: 0.9rem;">
-                            <strong>Selected Parcel:</strong> <span id="selected-parcel-id">None</span>
+                            <strong>Mode:</strong> Batch processing for all CSV parcels
                         </div>
                         <div style="margin-bottom: 10px;">
                             <label
@@ -15981,31 +15977,31 @@
                             </label>
                         </div>
                         <button id="create-polygon-btn" class="btn btn-success" disabled>
-                            <i class="fas fa-magic"></i> Generate Polygon
+                            <i class="fas fa-magic"></i> Generate All Polygons
                         </button>
                         <div id="polygon-validation-results" style="margin-top: 10px;"></div>
                         <div id="polygon-preview-info"
                             style="margin-top: 10px; padding: 10px; background: #e8f5e9; border-radius: 4px; display: none;">
-                            <div><strong>Area:</strong> <span id="polygon-area-display">--</span> hectares</div>
-                            <div><strong>Vertices:</strong> <span id="polygon-vertices-display">--</span></div>
+                            <div><strong>Total Area:</strong> <span id="polygon-area-display">--</span> hectares</div>
+                            <div><strong>Valid Parcels:</strong> <span id="polygon-vertices-display">--</span></div>
                         </div>
                     </section>
 
-                    <!-- 5. Save Section -->
+                    <!-- 5. Save Batch Section -->
                     <section id="gsp-save-polygon-section" class="dock-section" style="display: none;">
-                        <h4><i class="fas fa-save"></i> Save Polygon</h4>
+                        <h4><i class="fas fa-save"></i> Save Batch</h4>
                         <div id="save-summary"
                             style="margin-bottom: 10px; padding: 10px; background: #e3f2fd; border-radius: 4px; font-size: 0.9rem;">
-                            <div><strong>Unique ID:</strong> <span id="save-unique-id">--</span></div>
                             <div><strong>Layer:</strong> <span id="save-layer-name">--</span></div>
-                            <div><strong>Area:</strong> <span id="save-area">--</span> ha</div>
+                            <div><strong>Valid Parcels:</strong> <span id="save-unique-id">0</span></div>
+                            <div><strong>Failed Parcels:</strong> <span id="save-area">0</span></div>
                         </div>
                         <button id="save-polygon-btn" class="btn btn-primary" disabled>
-                            <i class="fas fa-cloud-upload-alt"></i> Save to Database
+                            <i class="fas fa-cloud-upload-alt"></i> Save All Parcels
                         </button>
                         <button id="create-another-btn" class="btn btn-secondary" style="margin-top: 8px; width: 100%;"
                             disabled>
-                            <i class="fas fa-plus"></i> Create Another Polygon
+                            <i class="fas fa-times"></i> Cancel Batch
                         </button>
                         <div id="save-status" class="status-message" style="margin-top: 10px;"></div>
                     </section>
@@ -26125,6 +26121,9 @@
                                 polygonImportState.selectedParcel = null;
                                 polygonImportState.createdPolygons = [];
                                 polygonImportState.validationErrors = [];
+                                polygonImportState.batchPreviewResults = [];
+                                polygonImportState.batchFailedResults = [];
+                                polygonImportState.totalBatchArea = 0;
                             }
                             // Hide all workflow sections
                             const plotSection = panel.querySelector('#gsp-plot-section');
@@ -26209,7 +26208,10 @@
                     csvFileId: null,
                     selectedParcel: null,
                     createdPolygons: [],
-                    validationErrors: []
+                    validationErrors: [],
+                    batchPreviewResults: [],
+                    batchFailedResults: [],
+                    totalBatchArea: 0
                 };
 
                 // Handle form submission
@@ -26350,6 +26352,9 @@
                     polygonImportState.selectedParcel = null;
                     polygonImportState.createdPolygons = [];
                     polygonImportState.validationErrors = [];
+                    polygonImportState.batchPreviewResults = [];
+                    polygonImportState.batchFailedResults = [];
+                    polygonImportState.totalBatchArea = 0;
 
                     // Hide all workflow sections initially - find within panel
                     const plotSection = polygonImportPanel.querySelector('#gsp-plot-section');
@@ -26358,6 +26363,7 @@
                     if (plotSection) plotSection.style.display = 'none';
                     if (polygonSection) polygonSection.style.display = 'none';
                     if (saveSection) saveSection.style.display = 'none';
+                    updateBatchCountDisplay(0, 0, 0, 0);
 
                     // Initialize button handlers when panel opens
                     initializePolygonWorkflowHandlers();
@@ -26370,62 +26376,48 @@
                     const polygonImportPanel = document.getElementById('polygonImportPanel');
                     if (!polygonImportPanel) return;
 
-                    // Plot Points button
+                    // Plot/Preview button
                     const plotPointsBtn = polygonImportPanel.querySelector('#plot-points-btn');
                     if (plotPointsBtn && !plotPointsBtn.hasAttribute('data-handler-attached')) {
                         plotPointsBtn.setAttribute('data-handler-attached', 'true');
-                        plotPointsBtn.addEventListener('click', function () {
-                            if (!polygonImportState.selectedParcel) {
-                                showToast('Please select a parcel first', 'warning');
-                                return;
-                            }
-                            plotPolygonPointsOnMap(polygonImportState.selectedParcel);
+                        plotPointsBtn.addEventListener('click', async function () {
+                            await previewAndPlotAllParcels();
                         });
                     }
 
-                    // Clear Points button
+                    // Cancel preview button
                     const clearPointsBtn = polygonImportPanel.querySelector('#clear-points-btn');
                     if (clearPointsBtn && !clearPointsBtn.hasAttribute('data-handler-attached')) {
                         clearPointsBtn.setAttribute('data-handler-attached', 'true');
                         clearPointsBtn.addEventListener('click', function () {
-                            clearPolygonPoints();
+                            cancelBatchWorkflow();
                         });
                     }
 
-                    // Create Polygon button
+                    // Generate all polygons button
                     const createPolygonBtn = polygonImportPanel.querySelector('#create-polygon-btn');
                     if (createPolygonBtn && !createPolygonBtn.hasAttribute('data-handler-attached')) {
                         createPolygonBtn.setAttribute('data-handler-attached', 'true');
                         createPolygonBtn.addEventListener('click', async function () {
-                            await createPolygonFromPoints();
+                            await previewAndPlotAllParcels();
                         });
                     }
 
-                    // Save Polygon button
+                    // Save all button
                     const savePolygonBtn = polygonImportPanel.querySelector('#save-polygon-btn');
                     if (savePolygonBtn && !savePolygonBtn.hasAttribute('data-handler-attached')) {
                         savePolygonBtn.setAttribute('data-handler-attached', 'true');
                         savePolygonBtn.addEventListener('click', async function () {
-                            await savePolygonToDatabase();
+                            await savePolygonBatchToDatabase();
                         });
                     }
 
-                    // Create Another button
+                    // Cancel batch button
                     const createAnotherBtn = polygonImportPanel.querySelector('#create-another-btn');
                     if (createAnotherBtn && !createAnotherBtn.hasAttribute('data-handler-attached')) {
                         createAnotherBtn.setAttribute('data-handler-attached', 'true');
                         createAnotherBtn.addEventListener('click', function () {
-                            // Reset for next polygon
-                            clearPolygonPoints();
-                            const polygonSection = polygonImportPanel.querySelector('#gsp-polygon-section');
-                            const saveSection = polygonImportPanel.querySelector('#gsp-save-polygon-section');
-                            const plotSection = polygonImportPanel.querySelector('#gsp-plot-section');
-                            if (polygonSection) polygonSection.style.display = 'none';
-                            if (saveSection) saveSection.style.display = 'none';
-                            if (plotSection) plotSection.style.display = 'block';
-                            polygonImportState.selectedParcel = null;
-                            const parcelSelector = polygonImportPanel.querySelector('#parcel-selector');
-                            if (parcelSelector) parcelSelector.value = '';
+                            cancelBatchWorkflow();
                         });
                     }
 
@@ -26593,21 +26585,30 @@
 
                         // Update UI
                         if (polygonCsvStatus) {
-                            polygonCsvStatus.textContent = `Loaded ${parsedData.parcels.length} parcel(s) with ${parsedData.totalPoints} total points`;
+                            polygonCsvStatus.textContent = `Loaded ${parsedData.parcels.length} parcel(s) with ${parsedData.totalPoints} total points. Click "Plot Points & Polygons".`;
                             polygonCsvStatus.className = 'status-message success';
                         }
 
-                        // Show plot section and populate parcel selector
+                        // Reset previous preview and show batch workflow sections
+                        cancelBatchWorkflow(false);
                         const polygonImportPanel = document.getElementById('polygonImportPanel');
                         const plotSection = polygonImportPanel ? polygonImportPanel.querySelector('#gsp-plot-section') : document.getElementById('gsp-plot-section');
+                        const polygonSection = polygonImportPanel ? polygonImportPanel.querySelector('#gsp-polygon-section') : document.getElementById('gsp-polygon-section');
                         if (plotSection) {
                             plotSection.style.display = 'block';
                             console.log('✅ Plot section shown');
                         } else {
                             console.error('❌ Plot section not found');
                         }
+                        if (polygonSection) {
+                            polygonSection.style.display = 'block';
+                        }
 
-                        populateParcelSelector(parsedData.parcels);
+                        updateBatchCountDisplay(parsedData.parcels.length, parsedData.totalPoints, 0, 0);
+                        const createPolygonBtn = polygonImportPanel ? polygonImportPanel.querySelector('#create-polygon-btn') : document.getElementById('create-polygon-btn');
+                        const plotBtn = polygonImportPanel ? polygonImportPanel.querySelector('#plot-points-btn') : document.getElementById('plot-points-btn');
+                        if (createPolygonBtn) createPolygonBtn.disabled = false;
+                        if (plotBtn) plotBtn.disabled = false;
 
                     } catch (error) {
                         console.error('Error handling CSV file:', error);
@@ -26739,19 +26740,14 @@
                     const clearPointsBtn = document.getElementById('clear-points-btn');
 
                     if (plotPointsBtn) {
-                        plotPointsBtn.addEventListener('click', function () {
-                            if (!polygonImportState.selectedParcel) {
-                                showToast('Please select a parcel first', 'warning');
-                                return;
-                            }
-
-                            plotPolygonPointsOnMap(polygonImportState.selectedParcel);
+                        plotPointsBtn.addEventListener('click', async function () {
+                            await previewAndPlotAllParcels();
                         });
                     }
 
                     if (clearPointsBtn) {
                         clearPointsBtn.addEventListener('click', function () {
-                            clearPolygonPoints();
+                            cancelBatchWorkflow();
                         });
                     }
                 });
@@ -26884,6 +26880,358 @@
                 let polygonPreviewLayer = null;
                 let polygonPreviewSource = null;
                 let currentPolygonData = null;
+                const ALLOWED_SURVEY_POLYGON_LAYERS = [
+                    'BLB-UNTITLED',
+                    'UNTITLED UTM ZONE 36S',
+                    'UNTITLED UTM ZONE 36N',
+                    'TITLE TRACTS UTM ZONE 36S',
+                    'TITLE TRACTS UTM ZONE 36N'
+                ];
+
+                function updateBatchCountDisplay(totalParcels, totalPoints, readyCount, errorCount) {
+                    const panel = document.getElementById('polygonImportPanel');
+                    const parcelCount = panel ? panel.querySelector('#batch-parcel-count-value') : document.getElementById('batch-parcel-count-value');
+                    const pointCount = panel ? panel.querySelector('#batch-point-count-value') : document.getElementById('batch-point-count-value');
+                    const ready = panel ? panel.querySelector('#batch-ready-count-value') : document.getElementById('batch-ready-count-value');
+                    const errors = panel ? panel.querySelector('#batch-error-count-value') : document.getElementById('batch-error-count-value');
+                    if (parcelCount) parcelCount.textContent = String(totalParcels || 0);
+                    if (pointCount) pointCount.textContent = String(totalPoints || 0);
+                    if (ready) ready.textContent = String(readyCount || 0);
+                    if (errors) errors.textContent = String(errorCount || 0);
+                }
+
+                function cancelBatchWorkflow(showMessage = true) {
+                    clearPolygonPoints();
+                    polygonImportState.batchPreviewResults = [];
+                    polygonImportState.batchFailedResults = [];
+                    polygonImportState.totalBatchArea = 0;
+                    currentPolygonData = null;
+
+                    const panel = document.getElementById('polygonImportPanel');
+                    const saveSection = panel ? panel.querySelector('#gsp-save-polygon-section') : document.getElementById('gsp-save-polygon-section');
+                    const validationResults = panel ? panel.querySelector('#polygon-validation-results') : document.getElementById('polygon-validation-results');
+                    const previewInfo = panel ? panel.querySelector('#polygon-preview-info') : document.getElementById('polygon-preview-info');
+                    const saveStatus = panel ? panel.querySelector('#save-status') : document.getElementById('save-status');
+                    const saveBtn = panel ? panel.querySelector('#save-polygon-btn') : document.getElementById('save-polygon-btn');
+                    const clearBtn = panel ? panel.querySelector('#clear-points-btn') : document.getElementById('clear-points-btn');
+                    const createAnotherBtn = panel ? panel.querySelector('#create-another-btn') : document.getElementById('create-another-btn');
+
+                    if (saveSection) saveSection.style.display = 'none';
+                    if (validationResults) validationResults.innerHTML = '';
+                    if (previewInfo) previewInfo.style.display = 'none';
+                    if (saveStatus) saveStatus.innerHTML = '';
+                    if (saveBtn) {
+                        saveBtn.disabled = true;
+                        saveBtn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Save All Parcels';
+                    }
+                    if (clearBtn) clearBtn.disabled = true;
+                    if (createAnotherBtn) createAnotherBtn.disabled = true;
+
+                    const parcels = polygonImportState.csvData?.parcels || [];
+                    const totalPoints = polygonImportState.csvData?.totalPoints || 0;
+                    updateBatchCountDisplay(parcels.length, totalPoints, 0, 0);
+
+                    if (showMessage) showToast('Batch preview cancelled', 'info');
+                }
+
+                function buildBatchRequestParcels(crs) {
+                    const parcels = polygonImportState.csvData?.parcels || [];
+                    return parcels.map(parcel => ({
+                        parcelId: parcel.id,
+                        points: parcel.points.map((p) => {
+                            const x = parseFloat(p.eastings);
+                            const y = parseFloat(p.northings);
+                            if (isNaN(x) || isNaN(y)) {
+                                throw new Error(`Invalid coordinates for parcel ${parcel.id}`);
+                            }
+                            const wgs84 = ol.proj.transform([x, y], crs, 'EPSG:4326');
+                            return {
+                                x: wgs84[0],
+                                y: wgs84[1],
+                                point_number: p.point_number,
+                                description: p.description || ''
+                            };
+                        })
+                    }));
+                }
+
+                async function callPolygonCreatorEdge(payload) {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    const key = window.supabaseKey || supabaseKey;
+                    const token = session?.access_token || key;
+                    const url = (typeof supabaseUrl !== 'undefined' ? supabaseUrl : window.supabaseUrl) || 'https://kwssgfanbntfjdclchfi.supabase.co';
+
+                    const response = await fetch(`${url}/functions/v1/polygon-creator`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`,
+                            'apikey': key
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const text = await response.text();
+                    let parsed;
+                    try {
+                        parsed = JSON.parse(text);
+                    } catch (_e) {
+                        throw new Error(`Invalid edge response: ${text.substring(0, 200)}`);
+                    }
+                    if (!response.ok || parsed?.success === false) {
+                        const message = parsed?.error || parsed?.message || `Edge function failed (${response.status})`;
+                        throw new Error(message);
+                    }
+                    return parsed;
+                }
+
+                function displayBatchPolygonPreview(validResults, batchRequestParcels) {
+                    clearPolygonPoints();
+
+                    const pointSource = new ol.source.Vector();
+                    const polygonSource = new ol.source.Vector();
+
+                    batchRequestParcels.forEach(parcel => {
+                        parcel.points.forEach(pt => {
+                            const coord3857 = ol.proj.transform([pt.x, pt.y], 'EPSG:4326', 'EPSG:3857');
+                            pointSource.addFeature(new ol.Feature({
+                                geometry: new ol.geom.Point(coord3857),
+                                point_number: pt.point_number || '',
+                                parcel_id: parcel.parcelId
+                            }));
+                        });
+                    });
+
+                    const format = new ol.format.GeoJSON();
+                    validResults.forEach(item => {
+                        const features = format.readFeatures({
+                            type: 'FeatureCollection',
+                            features: [{ type: 'Feature', geometry: item.geometry, properties: { parcel_id: item.parcelId, area_hectares: item.area_hectares } }]
+                        }, {
+                            dataProjection: 'EPSG:4326',
+                            featureProjection: 'EPSG:3857'
+                        });
+                        features.forEach(f => polygonSource.addFeature(f));
+                    });
+
+                    polygonPointsSource = pointSource;
+                    polygonPreviewSource = polygonSource;
+
+                    polygonPointsLayer = new ol.layer.Vector({
+                        source: pointSource,
+                        zIndex: 1000,
+                        style: (feature) => new ol.style.Style({
+                            image: new ol.style.Circle({
+                                radius: 4,
+                                fill: new ol.style.Fill({ color: '#f39c12' }),
+                                stroke: new ol.style.Stroke({ color: '#fff', width: 1.5 })
+                            }),
+                            text: new ol.style.Text({
+                                text: feature.get('point_number') || '',
+                                font: '11px sans-serif',
+                                fill: new ol.style.Fill({ color: '#111' }),
+                                stroke: new ol.style.Stroke({ color: '#fff', width: 2 }),
+                                offsetY: -12
+                            })
+                        })
+                    });
+
+                    polygonPreviewLayer = new ol.layer.Vector({
+                        source: polygonSource,
+                        zIndex: 1001,
+                        style: (feature) => new ol.style.Style({
+                            fill: new ol.style.Fill({ color: 'rgba(52, 152, 219, 0.15)' }),
+                            stroke: new ol.style.Stroke({ color: '#2980b9', width: 2.5 }),
+                            text: new ol.style.Text({
+                                text: `${feature.get('parcel_id') || ''}`,
+                                font: 'bold 12px sans-serif',
+                                fill: new ol.style.Fill({ color: '#0f172a' }),
+                                stroke: new ol.style.Stroke({ color: '#fff', width: 3 })
+                            })
+                        })
+                    });
+
+                    map.addLayer(polygonPointsLayer);
+                    map.addLayer(polygonPreviewLayer);
+
+                    const extent = polygonSource.getExtent();
+                    if (extent && isFinite(extent[0])) {
+                        map.getView().fit(extent, { padding: [50, 50, 50, 50], maxZoom: 18 });
+                    }
+                }
+
+                async function previewAndPlotAllParcels() {
+                    const panel = document.getElementById('polygonImportPanel');
+                    const createBtn = panel ? panel.querySelector('#create-polygon-btn') : document.getElementById('create-polygon-btn');
+                    const plotBtn = panel ? panel.querySelector('#plot-points-btn') : document.getElementById('plot-points-btn');
+                    const clearBtn = panel ? panel.querySelector('#clear-points-btn') : document.getElementById('clear-points-btn');
+                    const createAnotherBtn = panel ? panel.querySelector('#create-another-btn') : document.getElementById('create-another-btn');
+                    const saveBtn = panel ? panel.querySelector('#save-polygon-btn') : document.getElementById('save-polygon-btn');
+                    const saveSection = panel ? panel.querySelector('#gsp-save-polygon-section') : document.getElementById('gsp-save-polygon-section');
+                    const previewInfo = panel ? panel.querySelector('#polygon-preview-info') : document.getElementById('polygon-preview-info');
+                    const validationResults = panel ? panel.querySelector('#polygon-validation-results') : document.getElementById('polygon-validation-results');
+                    const polygonAreaDisplay = panel ? panel.querySelector('#polygon-area-display') : document.getElementById('polygon-area-display');
+                    const polygonVerticesDisplay = panel ? panel.querySelector('#polygon-vertices-display') : document.getElementById('polygon-vertices-display');
+                    const saveLayerName = panel ? panel.querySelector('#save-layer-name') : document.getElementById('save-layer-name');
+                    const saveValid = panel ? panel.querySelector('#save-unique-id') : document.getElementById('save-unique-id');
+                    const saveFailed = panel ? panel.querySelector('#save-area') : document.getElementById('save-area');
+                    const crsSelect = panel ? panel.querySelector('#polygon-crs-confirm') : document.getElementById('polygon-crs-confirm');
+                    const skipSelfIntersectionCheckbox = panel ? panel.querySelector('#skip-self-intersection-check') : document.getElementById('skip-self-intersection-check');
+
+                    if (!polygonImportState.csvData?.parcels?.length) {
+                        showToast('Please import a CSV with parcels first', 'error');
+                        return;
+                    }
+                    if (!ALLOWED_SURVEY_POLYGON_LAYERS.includes(polygonImportState.selectedLayer)) {
+                        showToast('Please select a valid Survey Polygon layer', 'error');
+                        return;
+                    }
+                    const crs = crsSelect ? crsSelect.value : polygonImportState.formData?.coordinateSystem;
+                    if (!crs) {
+                        showToast('Please select a coordinate system', 'error');
+                        return;
+                    }
+
+                    if (createBtn) {
+                        createBtn.disabled = true;
+                        createBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                    }
+                    if (plotBtn) {
+                        plotBtn.disabled = true;
+                        plotBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                    }
+                    if (validationResults) {
+                        validationResults.innerHTML = '<div class="status-message"><i class="fas fa-spinner fa-spin"></i> Validating all parcels and generating polygons...</div>';
+                    }
+
+                    try {
+                        const batchRequestParcels = buildBatchRequestParcels(crs);
+                        const response = await callPolygonCreatorEdge({
+                            action: 'preview_batch',
+                            layerName: polygonImportState.selectedLayer,
+                            crs: 'EPSG:4326',
+                            skipSelfIntersectionCheck: !!(skipSelfIntersectionCheckbox && skipSelfIntersectionCheckbox.checked),
+                            parcels: batchRequestParcels
+                        });
+
+                        const results = Array.isArray(response.results) ? response.results : [];
+                        const validResults = results.filter(r => r.success && r.geometry);
+                        const failedResults = results.filter(r => !r.success);
+                        const totalArea = validResults.reduce((sum, r) => sum + (Number(r.area_hectares) || 0), 0);
+
+                        polygonImportState.batchPreviewResults = validResults;
+                        polygonImportState.batchFailedResults = failedResults;
+                        polygonImportState.totalBatchArea = totalArea;
+
+                        displayBatchPolygonPreview(validResults, batchRequestParcels);
+                        updateBatchCountDisplay(batchRequestParcels.length, polygonImportState.csvData.totalPoints || 0, validResults.length, failedResults.length);
+
+                        if (previewInfo) previewInfo.style.display = 'block';
+                        if (polygonAreaDisplay) polygonAreaDisplay.textContent = totalArea.toFixed(4);
+                        if (polygonVerticesDisplay) polygonVerticesDisplay.textContent = String(validResults.length);
+
+                        if (saveSection) saveSection.style.display = 'block';
+                        if (saveLayerName) saveLayerName.textContent = polygonImportState.selectedLayer;
+                        if (saveValid) saveValid.textContent = String(validResults.length);
+                        if (saveFailed) saveFailed.textContent = String(failedResults.length);
+
+                        if (saveBtn) saveBtn.disabled = validResults.length === 0;
+                        if (clearBtn) clearBtn.disabled = false;
+                        if (createAnotherBtn) createAnotherBtn.disabled = false;
+
+                        const errorPreview = failedResults.slice(0, 5).map(item => {
+                            const msg = Array.isArray(item.errors) ? item.errors.join('; ') : (item.error || 'Validation failed');
+                            return `<li><strong>${item.parcelId || item.parcel_id || 'Unknown'}</strong>: ${msg}</li>`;
+                        }).join('');
+                        if (validationResults) {
+                            validationResults.innerHTML = `<div class="status-message ${failedResults.length > 0 ? 'warning' : 'success'}">
+                                <strong>Preview complete:</strong> ${validResults.length} valid, ${failedResults.length} failed.
+                                ${errorPreview ? `<ul style="margin-top:8px;">${errorPreview}</ul>` : ''}
+                            </div>`;
+                        }
+                        showToast(`Preview ready: ${validResults.length} valid parcels`, 'success');
+                    } catch (error) {
+                        console.error('Batch preview failed:', error);
+                        if (validationResults) {
+                            validationResults.innerHTML = `<div class="status-message error">Error: ${error.message}</div>`;
+                        }
+                        showToast(`Batch preview failed: ${error.message}`, 'error');
+                    } finally {
+                        if (createBtn) {
+                            createBtn.disabled = false;
+                            createBtn.innerHTML = '<i class="fas fa-magic"></i> Generate All Polygons';
+                        }
+                        if (plotBtn) {
+                            plotBtn.disabled = false;
+                            plotBtn.innerHTML = '<i class="fas fa-map-marked-alt"></i> Plot Points & Polygons';
+                        }
+                    }
+                }
+
+                async function savePolygonBatchToDatabase() {
+                    const panel = document.getElementById('polygonImportPanel');
+                    const saveBtn = panel ? panel.querySelector('#save-polygon-btn') : document.getElementById('save-polygon-btn');
+                    const saveStatus = panel ? panel.querySelector('#save-status') : document.getElementById('save-status');
+
+                    if (!polygonImportState.batchPreviewResults.length) {
+                        showToast('No valid parcels to save. Run preview first.', 'warning');
+                        return;
+                    }
+                    if (!ALLOWED_SURVEY_POLYGON_LAYERS.includes(polygonImportState.selectedLayer)) {
+                        showToast('Invalid layer selected', 'error');
+                        return;
+                    }
+
+                    if (saveBtn) {
+                        saveBtn.disabled = true;
+                        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving batch...';
+                    }
+                    if (saveStatus) {
+                        saveStatus.className = 'status-message';
+                        saveStatus.innerHTML = '<div><i class="fas fa-spinner fa-spin"></i> Saving all valid parcels...</div>';
+                    }
+
+                    try {
+                        const response = await callPolygonCreatorEdge({
+                            action: 'commit_batch',
+                            layerName: polygonImportState.selectedLayer,
+                            csvFileId: polygonImportState.csvFileId || null,
+                            formData: polygonImportState.formData || {},
+                            parcels: polygonImportState.batchPreviewResults.map(p => ({
+                                parcelId: p.parcelId || p.parcel_id,
+                                geometry: p.geometry,
+                                area_hectares: p.area_hectares,
+                                num_vertices: p.num_vertices,
+                                edge_distances: p.edge_distances || null
+                            }))
+                        });
+
+                        const savedCount = Number(response.savedCount || 0);
+                        const failedCount = Number(response.failedCount || 0);
+                        if (saveStatus) {
+                            saveStatus.className = 'status-message success';
+                            saveStatus.innerHTML = `<div><strong>Saved ${savedCount} parcel(s)</strong>${failedCount ? `, failed ${failedCount}` : ''}.</div>`;
+                        }
+                        if (saveBtn) {
+                            saveBtn.disabled = true;
+                            saveBtn.innerHTML = '<i class="fas fa-check"></i> Saved';
+                        }
+                        polygonImportState.createdPolygons = Array.isArray(response.savedRows) ? response.savedRows : [];
+                        refreshPolygonLayers();
+                        showToast(`Saved ${savedCount} parcel(s) successfully`, 'success');
+                    } catch (error) {
+                        console.error('Batch save failed:', error);
+                        if (saveStatus) {
+                            saveStatus.className = 'status-message error';
+                            saveStatus.innerHTML = `<div>Error: ${error.message}</div>`;
+                        }
+                        if (saveBtn) {
+                            saveBtn.disabled = false;
+                            saveBtn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Save All Parcels';
+                        }
+                        showToast(`Save failed: ${error.message}`, 'error');
+                    }
+                }
 
                 document.addEventListener('DOMContentLoaded', function () {
                     const createPolygonBtn = document.getElementById('create-polygon-btn');
@@ -26904,19 +27252,14 @@
 
                     if (createAnotherBtn) {
                         createAnotherBtn.addEventListener('click', function () {
-                            // Reset for next polygon
-                            clearPolygonPoints();
-                            document.getElementById('gsp-polygon-section').style.display = 'none';
-                            document.getElementById('gsp-save-polygon-section').style.display = 'none';
-                            document.getElementById('gsp-plot-section').style.display = 'block';
-                            polygonImportState.selectedParcel = null;
-                            document.getElementById('parcel-selector').value = '';
+                            cancelBatchWorkflow();
                         });
                     }
                 });
 
                 // Create polygon from points using edge function
                 async function createPolygonFromPoints() {
+                    return previewAndPlotAllParcels();
                     // Get panel reference first
                     const polygonImportPanel = document.getElementById('polygonImportPanel');
 
@@ -27416,6 +27759,7 @@
 
                 // Save polygon to database
                 async function savePolygonToDatabase() {
+                    return savePolygonBatchToDatabase();
                     if (!currentPolygonData || !polygonImportState.formData || !polygonImportState.selectedLayer) {
                         showToast('Missing required data', 'error');
                         return;
