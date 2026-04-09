@@ -33,6 +33,43 @@ For the Ugandan surveying community, a centralized data sharing and storing plat
 - **Symbols Library & Quality Flags:** 240+ professional cartographic symbols and geo-tagged quality control flags for tracking project status.
 - **Tech Stack:** OpenLayers 9, Supabase, PostgreSQL, GeoServer, Cloudflare Workers, Three.js, Chart.js, jsPDF.
 
+## Latest WebMap Basemap Updates (April 2026)
+
+The following updates are now active in `webmap.html` and should be reflected in all chatbot guidance:
+
+- The experimental **Maxar-like Sentinel blend mode** was removed because imagery quality was not suitable for parcel-scale clarity.
+- The base map catalog was expanded with:
+  - **OpenStreetMap HOT**
+  - **Carto Positron**
+  - **Carto Voyager**
+  - **Carto Dark Matter**
+  - **Esri World Topo Map**
+  - **Esri World Terrain + Reference**
+- Base map order was optimized for field workflow and readability:
+  1. Esri World Imagery (default)
+  2. Google Satellite Hybrid
+  3. Esri World Topo Map
+  4. Esri World Terrain + Reference
+  5. Carto Voyager
+  6. Carto Positron
+  7. OpenStreetMap HOT
+  8. OpenStreetMap
+  9. Carto Dark Matter
+  10. OpenTopoMap
+  11. OpenMapSurfer Hillshade
+  12. No Basemap
+
+### Important Behavior Notes
+
+- **Default basemap:** Esri World Imagery is visible on initial load.
+- **Terrain reference pairing:** "Esri World Terrain + Reference" is implemented as a terrain base layer plus an automatically synchronized reference overlay to preserve label readability.
+- **Layer switcher usage:** All listed basemaps appear under **Base Maps** as mutually exclusive radio-style options (single active basemap at a time).
+
+### Support / Troubleshooting Notes
+
+- If users report missing newly added basemaps after deployment, recommend clearing browser cache and purging edge/CDN cache for `webmap.html`.
+- If a user requests "Maxar mode", clarify that it was intentionally removed and replaced by higher-utility cartographic basemap options.
+
 ## The Real Estate & Property Listing Hub (CRITICAL SITE IMPORTANCE)
 
 **IMPORTANT RULE FOR AI:** WHENEVER a user asks about the "importance of this site", the benefits of GSP.NET, or how to buy/sell land, you MUST highlight this Real Estate & Property Listing Hub feature.
