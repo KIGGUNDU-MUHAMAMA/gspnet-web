@@ -8345,6 +8345,46 @@
             color: white;
         }
 
+        /* Maxar-like blend control (shown only when overlay is enabled) */
+        .maxar-blend-control {
+            position: absolute;
+            right: 20px;
+            bottom: 74px;
+            z-index: 350;
+            width: 250px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: rgba(24, 32, 44, 0.78);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
+            backdrop-filter: blur(4px);
+            color: #f8fafc;
+            display: none;
+            pointer-events: auto;
+        }
+
+        .maxar-blend-control label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.83rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: 0.2px;
+        }
+
+        .maxar-blend-control input[type="range"] {
+            width: 100%;
+            accent-color: #38bdf8;
+            cursor: pointer;
+        }
+
+        @media print {
+            .maxar-blend-control {
+                display: none !important;
+            }
+        }
+
         /* ========================================
            3D TERRAIN DTM & CONTOURS DOCK
            ======================================== */
@@ -13285,6 +13325,14 @@
             <div class="map-container">
                 <div id="map"></div>
 
+                <div class="maxar-blend-control" id="maxarBlendControl" aria-hidden="true">
+                    <label for="maxarBlendSlider">
+                        <span>Maxar Blend Strength</span>
+                        <span id="maxarBlendValue">35% (effective: 35%)</span>
+                    </label>
+                    <input type="range" id="maxarBlendSlider" min="0" max="1" step="0.05" value="0.35">
+                </div>
+
                 <div class="terrain-toggle" id="terrainToggle">
                     <span aria-hidden="true">🏔️</span> 3D Terrain
                 </div>
@@ -16523,6 +16571,26 @@
                 ]
             });
 
+            // Maxar-like enhancement overlay: recent Sentinel blend above basemap.
+            const maxarBlendLayer = new ol.layer.Tile({
+                title: '🛰️ Maxar-Like (Recent + Detail)',
+                type: 'overlay',
+                visible: false,
+                opacity: 0.35,
+                zIndex: 20,
+                source: new ol.source.XYZ({
+                    url: 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg',
+                    crossOrigin: 'anonymous',
+                    attributions: 'Sentinel-2 cloudless © EOX'
+                })
+            });
+
+            const enhancementGroup = new ol.layer.Group({
+                title: 'Enhancements',
+                fold: 'open',
+                layers: [maxarBlendLayer]
+            });
+
             // Removed all failed terrain layers: cartoDB, stamen, working, ugandaDEM, alternative
 
             // Create terrain group (always at bottom) - only working layers
@@ -16556,12 +16624,73 @@
             const map = new ol.Map({
                 target: 'map',
                 view: view,
-                layers: [baseMapsGroup],
+                // Keep basemap first, then enhancement overlays.
+                layers: [baseMapsGroup, enhancementGroup],
                 controls: controls
             });
 
             // Make map globally accessible
             window.map = map;
+
+            // Maxar-like blend UI + behavior
+            const maxarBlendControl = document.getElementById('maxarBlendControl');
+            const maxarBlendSlider = document.getElementById('maxarBlendSlider');
+            const maxarBlendValue = document.getElementById('maxarBlendValue');
+            let maxarBlendUserOpacity = 0.35;
+
+            function updateMaxarBlendControlVisibility() {
+                const isVisible = maxarBlendLayer.getVisible();
+                maxarBlendControl.style.display = isVisible ? 'block' : 'none';
+                maxarBlendControl.setAttribute('aria-hidden', isVisible ? 'false' : 'true');
+            }
+
+            function updateMaxarBlendReadout(effectiveOpacity) {
+                const baselinePercent = Math.round(maxarBlendUserOpacity * 100);
+                const effectivePercent = Math.round(Math.max(0, Math.min(1, effectiveOpacity)) * 100);
+                maxarBlendValue.textContent = `${baselinePercent}% (effective: ${effectivePercent}%)`;
+            }
+
+            function applyMaxarBlendOpacity(opacityValue) {
+                const clamped = Math.max(0, Math.min(1, opacityValue));
+                maxarBlendLayer.setOpacity(clamped);
+                updateMaxarBlendReadout(clamped);
+            }
+
+            function getAdaptiveBlendMultiplier() {
+                const zoom = map.getView().getZoom() || 0;
+                return zoom > 16 ? 0.5 : 1.15;
+            }
+
+            function applyAdaptiveMaxarOpacity() {
+                if (!maxarBlendLayer.getVisible()) return;
+                const adaptiveOpacity = maxarBlendUserOpacity * getAdaptiveBlendMultiplier();
+                applyMaxarBlendOpacity(adaptiveOpacity);
+            }
+
+            maxarBlendSlider?.addEventListener('input', function () {
+                const sliderValue = parseFloat(this.value);
+                if (Number.isFinite(sliderValue)) {
+                    maxarBlendUserOpacity = Math.max(0, Math.min(1, sliderValue));
+                    applyAdaptiveMaxarOpacity();
+                }
+            });
+
+            maxarBlendLayer.on('change:visible', () => {
+                updateMaxarBlendControlVisibility();
+                if (maxarBlendLayer.getVisible()) {
+                    applyAdaptiveMaxarOpacity();
+                }
+            });
+
+            map.getView().on('change:resolution', () => {
+                applyAdaptiveMaxarOpacity();
+            });
+
+            // Initialize with configured defaults.
+            maxarBlendSlider.value = maxarBlendUserOpacity.toFixed(2);
+            updateMaxarBlendReadout(maxarBlendUserOpacity);
+            applyAdaptiveMaxarOpacity();
+            updateMaxarBlendControlVisibility();
 
             // ========================================
             // 3D TERRAIN DTM & CONTOURS STATE
