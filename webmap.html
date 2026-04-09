@@ -16575,6 +16575,7 @@
             const maxarBlendLayer = new ol.layer.Tile({
                 title: '🛰️ Maxar-Like (Recent + Detail)',
                 type: 'overlay',
+                displayInLayerSwitcher: true,
                 visible: false,
                 opacity: 0.35,
                 zIndex: 20,
@@ -16587,6 +16588,7 @@
 
             const enhancementGroup = new ol.layer.Group({
                 title: 'Enhancements',
+                displayInLayerSwitcher: true,
                 fold: 'open',
                 layers: [maxarBlendLayer]
             });
@@ -19815,6 +19817,10 @@
                 startActive: true
             });
             map.addControl(layerSwitcher);
+            // Force an explicit panel refresh so newly added groups reliably appear.
+            if (typeof layerSwitcher.renderPanel === 'function') {
+                setTimeout(() => layerSwitcher.renderPanel(), 0);
+            }
 
             function installLayerSwitcherFlatGeobufWarmup() {
                 if (window.__fgbWarmupInstalled) return;
