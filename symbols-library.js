@@ -20,6 +20,17 @@ let isAutoLoadEnabled = false;
 let autoLoadTimeout = null;
 let selectedSymbol = null;
 
+// Expanded symbols expected in production catalog (used for health check/bootstrap)
+const REQUIRED_EXPANDED_SYMBOL_KEYS = [
+    'culvert', 'bus_stop', 'taxi_stage', 'junction_roundabout',
+    'transformer', 'water_valve', 'hydrant', 'storm_drain_inlet',
+    'protected_tree', 'needs_verification', 'missing_feature',
+    'access_blocked', 'photo_evidence_point', 'bridge', 'sewer_line',
+    'drainage_channel', 'school', 'health_facility', 'market',
+    'worship_place', 'public_office', 'wetland', 'flood_zone',
+    'landslide_zone', 'conflict_overlap'
+];
+
 /**
  * Normalize geometry type from DB category to OpenLayers format
  * DB category column stores: point, line, polygon
@@ -64,6 +75,7 @@ async function initSymbolsLibrary(olMap, supabase) {
         // Load symbol catalog
         console.log('[SL] Loading symbol catalog...');
         await loadSymbolCatalog();
+        await ensureExpandedCatalogAvailable();
         console.log('[SL] Symbol catalog loaded:', symbolCatalog.length, 'symbols');
 
         // Setup OpenLayers layer
@@ -73,6 +85,9 @@ async function initSymbolsLibrary(olMap, supabase) {
         // Setup UI event handlers
         console.log('[SL] Setting up UI handlers...');
         setupUIHandlers();
+
+        // Load collaborative features immediately (all users in current extent)
+        await loadFeatures();
 
         console.log('Symbols Library: Initialization complete');
     } catch (error) {
@@ -135,6 +150,62 @@ async function loadSymbolCatalog() {
                 </div>
             `;
         }
+    }
+}
+
+function getExpandedCatalogSeedRows() {
+    return [
+        { symbol_key: 'culvert', category: 'point', name: 'Culvert', description: 'Road crossing culvert', svg: '<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="8" ry="5" fill="none" stroke="currentColor" stroke-width="2"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="2"/></svg>', default_style: { color: '#6b7280', size: 20, opacity: 1.0 }, tags: ['transport', 'drainage', 'culvert'] },
+        { symbol_key: 'bus_stop', category: 'point', name: 'Bus Stop', description: 'Public bus stop', svg: '<svg viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="16" r="1.5"/><circle cx="15" cy="16" r="1.5"/></svg>', default_style: { color: '#f59e0b', size: 22, opacity: 1.0 }, tags: ['transport', 'bus', 'stop'] },
+        { symbol_key: 'taxi_stage', category: 'point', name: 'Taxi Stage', description: 'Taxi pickup and drop-off stage', svg: '<svg viewBox="0 0 24 24"><path d="M5 12h14v5H5z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 8h8l2 4H6z" fill="none" stroke="currentColor" stroke-width="2"/></svg>', default_style: { color: '#f97316', size: 22, opacity: 1.0 }, tags: ['transport', 'taxi', 'stage'] },
+        { symbol_key: 'junction_roundabout', category: 'point', name: 'Roundabout Junction', description: 'Roundabout road junction', svg: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3v4M21 12h-4M12 21v-4M3 12h4" stroke="currentColor" stroke-width="2"/></svg>', default_style: { color: '#ef4444', size: 22, opacity: 1.0 }, tags: ['transport', 'junction', 'roundabout'] },
+        { symbol_key: 'transformer', category: 'point', name: 'Transformer', description: 'Electric power transformer', svg: '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="10" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="11" r="1.5"/><circle cx="15" cy="11" r="1.5"/></svg>', default_style: { color: '#7c3aed', size: 20, opacity: 1.0 }, tags: ['utility', 'electricity', 'transformer'] },
+        { symbol_key: 'water_valve', category: 'point', name: 'Water Valve', description: 'Water network valve', svg: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 6v12M6 12h12" stroke="currentColor" stroke-width="2"/></svg>', default_style: { color: '#0284c7', size: 18, opacity: 1.0 }, tags: ['utility', 'water', 'valve'] },
+        { symbol_key: 'hydrant', category: 'point', name: 'Fire Hydrant', description: 'Firefighting hydrant', svg: '<svg viewBox="0 0 24 24"><rect x="9" y="6" width="6" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><rect x="7" y="10" width="2" height="3"/><rect x="15" y="10" width="2" height="3"/></svg>', default_style: { color: '#dc2626', size: 20, opacity: 1.0 }, tags: ['utility', 'fire', 'hydrant'] },
+        { symbol_key: 'storm_drain_inlet', category: 'point', name: 'Storm Drain Inlet', description: 'Stormwater drain inlet', svg: '<svg viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="8" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="8" x2="8" y2="16" stroke="currentColor" stroke-width="1.5"/><line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" stroke-width="1.5"/><line x1="16" y1="8" x2="16" y2="16" stroke="currentColor" stroke-width="1.5"/></svg>', default_style: { color: '#0ea5e9', size: 19, opacity: 1.0 }, tags: ['utility', 'drainage', 'stormwater'] },
+        { symbol_key: 'protected_tree', category: 'point', name: 'Protected Tree', description: 'Protected or heritage tree', svg: '<svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="5"/><rect x="10.5" y="13" width="3" height="7"/><path d="M6 6l12 12" stroke="currentColor" stroke-width="2" fill="none"/></svg>', default_style: { color: '#16a34a', size: 22, opacity: 1.0 }, tags: ['environment', 'tree', 'protected'] },
+        { symbol_key: 'needs_verification', category: 'point', name: 'Needs Verification', description: 'Feature requiring field verification', svg: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v6" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="17" r="1.2"/></svg>', default_style: { color: '#f59e0b', size: 22, opacity: 1.0 }, tags: ['qa', 'verification', 'review'] },
+        { symbol_key: 'missing_feature', category: 'point', name: 'Missing Feature', description: 'Expected feature missing on ground', svg: '<svg viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/></svg>', default_style: { color: '#e11d48', size: 22, opacity: 1.0 }, tags: ['qa', 'missing', 'correction'] },
+        { symbol_key: 'access_blocked', category: 'point', name: 'Access Blocked', description: 'No physical access to target area', svg: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 6l12 12" stroke="currentColor" stroke-width="2"/></svg>', default_style: { color: '#b91c1c', size: 21, opacity: 1.0 }, tags: ['qa', 'access', 'blocked'] },
+        { symbol_key: 'photo_evidence_point', category: 'point', name: 'Photo Evidence Point', description: 'Location with photo evidence', svg: '<svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12.5" r="3" fill="none" stroke="currentColor" stroke-width="2"/><rect x="8" y="5" width="4" height="2"/></svg>', default_style: { color: '#2563eb', size: 21, opacity: 1.0 }, tags: ['qa', 'photo', 'evidence'] },
+        { symbol_key: 'bridge', category: 'line', name: 'Bridge', description: 'Bridge crossing segment', svg: null, default_style: { strokeColor: '#7c2d12', strokeWidth: 4, strokeOpacity: 1.0, strokeDash: [2, 2] }, tags: ['transport', 'bridge', 'crossing'] },
+        { symbol_key: 'sewer_line', category: 'line', name: 'Sewer Line', description: 'Underground sewer network line', svg: null, default_style: { strokeColor: '#374151', strokeWidth: 2, strokeOpacity: 1.0, strokeDash: [4, 3] }, tags: ['utility', 'sewer', 'infrastructure'] },
+        { symbol_key: 'drainage_channel', category: 'line', name: 'Drainage Channel', description: 'Open drainage channel', svg: null, default_style: { strokeColor: '#0ea5e9', strokeWidth: 2.5, strokeOpacity: 0.9, strokeDash: [10, 4] }, tags: ['hydrology', 'drainage', 'channel'] },
+        { symbol_key: 'school', category: 'polygon', name: 'School Compound', description: 'School land parcel/compound', svg: null, default_style: { fillColor: '#fbbf24', fillOpacity: 0.35, strokeColor: '#b45309', strokeWidth: 1.8, strokeOpacity: 1.0 }, tags: ['landuse', 'education', 'school'] },
+        { symbol_key: 'health_facility', category: 'polygon', name: 'Health Facility', description: 'Hospital, clinic, or health center', svg: null, default_style: { fillColor: '#f87171', fillOpacity: 0.35, strokeColor: '#b91c1c', strokeWidth: 1.8, strokeOpacity: 1.0 }, tags: ['landuse', 'health', 'clinic'] },
+        { symbol_key: 'market', category: 'polygon', name: 'Market Area', description: 'Market zone or trading center', svg: null, default_style: { fillColor: '#fb923c', fillOpacity: 0.35, strokeColor: '#c2410c', strokeWidth: 1.6, strokeOpacity: 1.0 }, tags: ['landuse', 'market', 'commercial'] },
+        { symbol_key: 'worship_place', category: 'polygon', name: 'Place of Worship', description: 'Religious worship compound', svg: null, default_style: { fillColor: '#a78bfa', fillOpacity: 0.35, strokeColor: '#6d28d9', strokeWidth: 1.6, strokeOpacity: 1.0 }, tags: ['landuse', 'religion', 'worship'] },
+        { symbol_key: 'public_office', category: 'polygon', name: 'Public Office', description: 'Government/public administration office', svg: null, default_style: { fillColor: '#60a5fa', fillOpacity: 0.35, strokeColor: '#1d4ed8', strokeWidth: 1.6, strokeOpacity: 1.0 }, tags: ['landuse', 'public', 'office'] },
+        { symbol_key: 'wetland', category: 'polygon', name: 'Wetland', description: 'Wetland or marsh area', svg: null, default_style: { fillColor: '#22d3ee', fillOpacity: 0.3, strokeColor: '#0891b2', strokeWidth: 1.5, strokeOpacity: 0.9 }, tags: ['hydrology', 'wetland', 'environment'] },
+        { symbol_key: 'flood_zone', category: 'polygon', name: 'Flood Risk Zone', description: 'Area prone to seasonal flooding', svg: null, default_style: { fillColor: '#38bdf8', fillOpacity: 0.28, strokeColor: '#0369a1', strokeWidth: 1.6, strokeOpacity: 0.9 }, tags: ['hazard', 'flood', 'risk'] },
+        { symbol_key: 'landslide_zone', category: 'polygon', name: 'Landslide Risk Zone', description: 'Area susceptible to landslides', svg: null, default_style: { fillColor: '#fca5a5', fillOpacity: 0.28, strokeColor: '#b91c1c', strokeWidth: 1.6, strokeOpacity: 0.9 }, tags: ['hazard', 'landslide', 'risk'] },
+        { symbol_key: 'conflict_overlap', category: 'polygon', name: 'Conflict Overlap', description: 'Overlapping claims requiring adjudication', svg: null, default_style: { fillColor: '#f43f5e', fillOpacity: 0.25, strokeColor: '#9f1239', strokeWidth: 2.0, strokeOpacity: 1.0 }, tags: ['qa', 'overlap', 'conflict'] }
+    ];
+}
+
+async function ensureExpandedCatalogAvailable() {
+    try {
+        const existingKeys = new Set(symbolCatalog.map(s => s.symbol_key));
+        const missingKeys = REQUIRED_EXPANDED_SYMBOL_KEYS.filter(key => !existingKeys.has(key));
+        if (missingKeys.length === 0) return;
+
+        console.warn(`[SL] Expanded symbols missing (${missingKeys.length}), attempting bootstrap...`);
+        const seedRows = getExpandedCatalogSeedRows().filter(row => missingKeys.includes(row.symbol_key));
+        const { error } = await supabaseClient
+            .from('symbol_catalog')
+            .upsert(seedRows, { onConflict: 'symbol_key', ignoreDuplicates: true });
+
+        if (error) {
+            console.warn('[SL] Bootstrap upsert blocked (likely RLS):', error.message);
+            showMessage(`Missing ${missingKeys.length} symbols in catalog. Run SQL seed to load expanded symbols.`, 'warning');
+            return;
+        }
+
+        console.log(`[SL] Bootstrapped ${seedRows.length} symbols, reloading catalog...`);
+        await loadSymbolCatalog();
+        showMessage(`Expanded symbols loaded (${seedRows.length} added)`, 'success');
+    } catch (error) {
+        console.error('[SL] Expanded catalog bootstrap failed:', error);
     }
 }
 
@@ -562,6 +633,11 @@ function setupUIHandlers() {
     // Auto-load toggle
     const autoLoadToggle = document.getElementById('autoLoadToggle');
     if (autoLoadToggle) {
+        // Default to collaborative behavior: keep all users' visible features in sync.
+        autoLoadToggle.checked = true;
+        isAutoLoadEnabled = true;
+        enableAutoLoad();
+
         autoLoadToggle.onchange = (e) => {
             isAutoLoadEnabled = e.target.checked;
             if (isAutoLoadEnabled) {
@@ -808,9 +884,12 @@ function updateMyFeaturesTab() {
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
             <h4 style="margin: 0;">My Features (${myFeatures.length})</h4>
             <button id="loadMyFeaturesBtn" class="action-btn" style="padding: 8px 12px; font-size: 12px;">
-                <i class="fas fa-sync-alt"></i> Load
+                <i class="fas fa-sync-alt"></i> Load Visible (All Users)
             </button>
         </div>
+        <p style="margin: 0 0 12px 0; font-size: 11px; color: #6b7280;">
+            Map loads features from all users in current extent; this list shows only your own features.
+        </p>
     `;
 
     if (myFeatures.length === 0) {
@@ -881,10 +960,10 @@ function updateMyFeaturesTab() {
         });
     });
 
-    // Add Load button handler
+    // Add Load button handler (collaborative extent load)
     const loadBtn = document.getElementById('loadMyFeaturesBtn');
     if (loadBtn) {
-        loadBtn.onclick = loadMyFeatures;
+        loadBtn.onclick = loadFeatures;
     }
 }
 
@@ -1290,7 +1369,7 @@ async function loadFeatures() {
         }
 
         updateLegendSummaryPanel();
-        showMessage(`Loaded ${data?.features?.length || 0} features`, 'success');
+        showMessage(`Loaded ${data?.features?.length || 0} visible features (all users)`, 'success');
     } catch (error) {
         console.error('[SL] Failed to load features:', error);
         showMessage(`Error loading features: ${error.message}`, 'error');

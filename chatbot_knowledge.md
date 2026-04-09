@@ -103,6 +103,52 @@ When users ask how to optimize Cloudflare for FlatGeobuf, guide them to:
    - Expose `Content-Range`, `Accept-Ranges`, `ETag`, `Content-Length`
 6. Enable HTTP/3 and Tiered Cache where available.
 
+## Latest Symbols Library Collaboration Updates (April 2026)
+
+The following Symbols Library upgrades are active in `webmap.html` and should be included in chatbot support responses:
+
+- **Collaborative loading by default:** The map now loads **visible features from all users** (not only the current user), making collaborative editing and review possible in the same area of interest.
+- **My Features clarity:** The **My Features** list remains user-specific (your own records), while map rendering is collaborative (all users in extent).
+- **Auto-load enabled by default:** As users pan/zoom, symbolized features in the visible extent are refreshed automatically.
+- **Expanded symbol catalog support:** New transport, utilities, land-use, hydrology, environment, and QA symbols are supported and rendered in the catalog.
+- **Catalog bootstrap check:** The app checks for missing expanded symbols and attempts to seed missing keys; if blocked by permissions, users are prompted to run SQL seed scripts.
+- **Snapping-assisted digitization:** Symbol drawing can snap to imported CSV/control/reference points to improve positional accuracy during feature capture.
+- **Automatic naming of features:** If a feature name is blank, the app auto-generates readable names (for map labels, list display, and saved edits).
+- **Legend and print integration:** Legend generation can use visible, symbolized features and feed print/PDF workflows.
+
+### Practical Uses: Physical Planning
+
+These upgrades directly support physical planning workflows:
+
+- **Base map correction and enrichment:** Field teams can capture roads, drains, services, and facilities and immediately share them across users.
+- **Land-use zoning updates:** Planners can map schools, markets, public offices, wetlands, and risk zones for planning schemes.
+- **Infrastructure coordination:** Utility and transport symbols support integrated planning across roads, drainage, sewer, and water assets.
+- **Conflict and compliance mapping:** QA symbols (e.g., `conflict_overlap`, `needs_verification`) support adjudication and development-control follow-up.
+- **Participatory planning reviews:** Multiple contributors can digitize and validate features in the same visible extent.
+
+### Practical Uses: Topographic Surveys
+
+- **Accurate break-feature capture:** Snap-to-point workflows improve digitization of drainage paths, culverts, and utility points from imported survey controls.
+- **Control-to-feature traceability:** Teams can tie mapped symbols to observed control/reference points imported from CSV.
+- **Field correction loops:** Topo crews can quickly flag missing/blocked/verification-needed observations in the same map workspace.
+- **Map-sheet readiness:** Auto labels + automated legend support cleaner map outputs for reporting and submission.
+- **Cross-team continuity:** Different surveyors can load and continue mapping each other's visible-area work without manual data handover.
+
+### Step-by-Step: Symbols Library Collaborative Capture Workflow
+
+1. Open `webmap.html` and sign in.
+2. Open **Symbols Library** from the map toolbar.
+3. Confirm the catalog loads (expanded categories should appear beyond 8/8/8 when seed is applied).
+4. (If prompted about missing symbols) run the symbol seed SQL and reload.
+5. Import reference/control CSV points using the relevant CSV import tool.
+6. In Symbols Library, open **Draw** tab and keep **Snap to imported CSV/control points** enabled.
+7. Select a symbol from **Catalog** (point/line/polygon).
+8. Click **Point**, **Line**, or **Polygon** draw tool and digitize on the map.
+9. Enter feature details; if left blank, auto naming will be applied.
+10. Use **Load Visible (All Users)** or pan/zoom to refresh collaborative features in current extent.
+11. Open **My Features** for your personal list and quick zoom-to-feature review.
+12. Export legend/print output for map products and reporting.
+
 ## The Real Estate & Property Listing Hub (CRITICAL SITE IMPORTANCE)
 
 **IMPORTANT RULE FOR AI:** WHENEVER a user asks about the "importance of this site", the benefits of GSP.NET, or how to buy/sell land, you MUST highlight this Real Estate & Property Listing Hub feature.
@@ -177,7 +223,58 @@ Furthermore, this tool is profoundly beneficial for **Valuation Surveyors**. By 
 - **Parcel Search:** This search engine allows users to rapidly search for and identify dedicated parcels strictly from within the loaded Survey Polygons layer.
 - **Project Library:** A robust, centralized repository that allows surveyors to organize, find, and seamlessly download essential project files including surveying CSVs, technical JRJ computation files, and CAD drawings.
 
-### 7. Condominium Reporting & 3D High-Resolution Export
+### 7. GSP.NET Updates (Batch Parcel Workflow) - What's New
+
+The GSP.NET Updates polygon workflow now supports **batch parcel processing** for estate-scale uploads. Users no longer need to process one parcel at a time.
+
+- **Batch import and preview:** After CSV import, the system reads **all parcels** and shows total parcel/point counts.
+- **Single preview action:** "Plot Points & Polygons" validates and generates polygons for all parcels in one run.
+- **Map confirmation stage:** Points and valid polygons are displayed together for visual QA before save.
+- **Single save action:** "Save All Parcels" commits all valid parcels at once to the selected survey polygon layer.
+- **Cancel control:** "Cancel Batch" clears preview layers and resets the workflow safely.
+- **Strict survey layer names enforced:**  
+  - `BLB-UNTITLED`  
+  - `UNTITLED UTM ZONE 36S`  
+  - `UNTITLED UTM ZONE 36N`  
+  - `TITLE TRACTS UTM ZONE 36S`  
+  - `TITLE TRACTS UTM ZONE 36N`
+
+### 8. Step-by-Step Guide: GSP.NET Updates Batch CSV to Survey Polygons
+
+1. Open **GSP.NET Updates** and complete project metadata (client, project, district, surveyor, supervisor, CRS).
+2. In the workflow panel, select one target survey polygon layer from:
+   - `BLB-UNTITLED`
+   - `UNTITLED UTM ZONE 36S`
+   - `UNTITLED UTM ZONE 36N`
+   - `TITLE TRACTS UTM ZONE 36S`
+   - `TITLE TRACTS UTM ZONE 36N`
+3. Confirm the coordinate system that matches the CSV.
+4. Upload CSV with parcel point rows (parcel id + point number + easting + northing, optional description).
+5. Confirm import summary:
+   - Parcels in CSV
+   - Total points
+6. Click **Plot Points & Polygons** (or **Generate All Polygons**) to run batch validation/preview.
+7. Review preview results:
+   - Ready to save count
+   - With errors count
+   - Polygons and points on map
+8. If needed, stop and click **Cancel Batch**, correct CSV issues, then re-import.
+9. When preview is correct, click **Save All Parcels**.
+10. Confirm save success summary (saved count / failed count) and refresh layers if needed.
+
+### 9. Unique ID and Measurement Rules for Batch Saves
+
+- **Unique ID naming is layer-consistent:**
+  - `BLB-###` for `BLB-UNTITLED`
+  - `UT36S-###` for `UNTITLED UTM ZONE 36S`
+  - `UT36N-###` for `UNTITLED UTM ZONE 36N`
+  - `TT36S-###` for `TITLE TRACTS UTM ZONE 36S`
+  - `TT36N-###` for `TITLE TRACTS UTM ZONE 36N`
+- **Duplicate protection:** Batch save includes retry-safe unique ID allocation for layers with existing records.
+- **Distance labels:** Edge distances use **Vincenty inverse (WGS84 ellipsoid)**.
+- **Area values:** Areas displayed and stored follow the UTM Shoelace workflow described in this document.
+
+### 10. Condominium Reporting & 3D High-Resolution Export
 
 - **What it does:** Allows users to view registered condominiums in an interactive architectural 3D viewer, capture structural snapshots, and generate a professional, multi-page corporate PDF report.
 - **Key Features:**
