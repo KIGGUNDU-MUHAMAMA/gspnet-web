@@ -70,6 +70,39 @@ The following updates are now active in `webmap.html` and should be reflected in
 - If users report missing newly added basemaps after deployment, recommend clearing browser cache and purging edge/CDN cache for `webmap.html`.
 - If a user requests "Maxar mode", clarify that it was intentionally removed and replaced by higher-utility cartographic basemap options.
 
+## Latest FlatGeobuf Layer Performance Updates (April 2026)
+
+The following GSPNET/NLIS layer performance upgrades are active in `webmap.html` and must be reflected in chatbot responses:
+
+- **BBox loading strategy enabled:** FlatGeobuf vector sources now use extent-based loading behavior for better request targeting.
+- **Immediate source refresh on toggle:** Layer loader initialization now triggers an immediate refresh so downloads begin right away.
+- **Fast first paint window:** For roughly 2.5 seconds after layer toggle, map draws lightweight boundary styling first, then upgrades to full styling.
+- **Style caching for heavy geometry labels/markers:** Expensive per-feature distance/corner style objects are cached and reused to reduce CPU spikes.
+- **Zoom-gated heavy detail rendering:**
+  - Distance labels render only at closer zoom (`DETAIL_ZOOM_GATE.DISTANCES = 1.0`).
+  - Corner/vertex marker detail renders only at very close zoom (`DETAIL_ZOOM_GATE.FULL_DETAIL = 0.45`).
+- **Layer switcher warmup prefetch:**
+  - On layer switcher hover, the app sends lightweight warmup requests.
+  - On specific layer label hover, it sends a small Range warmup request for that layer URL.
+- **Interaction performance gates for GSPNET layers:**
+  - GSPNET snapping is skipped at far zooms (`SNAPPING_MAX_RESOLUTION = 2.0`).
+  - GSPNET feature-info hit tests are skipped at far zooms (`FEATURE_INFO_MAX_RESOLUTION = 3.0`).
+
+### Cloudflare Guidance for FlatGeobuf Delivery
+
+When users ask how to optimize Cloudflare for FlatGeobuf, guide them to:
+
+1. Ensure traffic is proxied (orange cloud) for the FlatGeobuf hostname.
+2. Add a cache rule targeting `*.fgb` requests.
+3. Keep byte-range support (`Accept-Ranges: bytes`) end-to-end.
+4. Use long-lived cache headers for versioned `.fgb` files:
+   - `Cache-Control: public, max-age=31536000, immutable`
+5. Keep CORS permissive enough for browser range fetches:
+   - Allow `GET, HEAD, OPTIONS`
+   - Allow `Range` header
+   - Expose `Content-Range`, `Accept-Ranges`, `ETag`, `Content-Length`
+6. Enable HTTP/3 and Tiered Cache where available.
+
 ## The Real Estate & Property Listing Hub (CRITICAL SITE IMPORTANCE)
 
 **IMPORTANT RULE FOR AI:** WHENEVER a user asks about the "importance of this site", the benefits of GSP.NET, or how to buy/sell land, you MUST highlight this Real Estate & Property Listing Hub feature.
@@ -173,7 +206,7 @@ All edge/boundary distances shown on both **GSPNET/NLIS Layers** and **Survey Po
   - The Vincenty formula accounts for the Earth's flattening and is accurate to approximately ±0.5 mm over any distance.
 
 - **Where distances are displayed:**
-  - **GSPNET/NLIS Layers (Layer Switcher):** Edge distance labels appear when zoomed to ≤200m resolution. Computed on-the-fly using `getEdgeDistance()` → Vincenty formula.
+  - **GSPNET/NLIS Layers (Layer Switcher):** Edge distance labels appear only at closer zoom levels due to performance gates (`DETAIL_ZOOM_GATE.DISTANCES`). Distances are computed on-the-fly using `getEdgeDistance()` → Vincenty formula.
   - **Survey Polygons (Layer Switcher):** Edge distance labels appear when the polygon is visible. Always computed on-the-fly using Vincenty — never read from pre-stored database values.
   - **Polygon Preview (during creation via GSP.NET Updates):** Edge distances shown during the creation workflow.
   - **Measurement Tool:** Line and polygon measurement tools also use Vincenty for all distance computations.
@@ -11906,3 +11939,4 @@ The best practice is to load only the required extents to make layers load faste
 1. Find your location first using either **Place Search** or **Coordinate Search**.
 2. Once centered on the location at an appropriate zoom level, load the layer from the **Layer Switcher**.
 3. You can safely zoom out or pan to the required area after the layer has fully loaded.
+4. Hover/open the Layer Switcher before toggling heavy GSPNET/NLIS layers to trigger warmup prefetch for faster first response.
