@@ -8345,11 +8345,40 @@
             color: white;
         }
 
+        .maxar-toggle {
+            position: absolute;
+            right: 20px;
+            bottom: 64px;
+            z-index: 120;
+            background: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.25s ease;
+            color: #1f2937;
+        }
+
+        .maxar-toggle:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+        }
+
+        .maxar-toggle.active {
+            background: linear-gradient(135deg, #0ea5e9, #0284c7);
+            color: #fff;
+        }
+
         /* Maxar-like blend control (shown only when overlay is enabled) */
         .maxar-blend-control {
             position: absolute;
             right: 20px;
-            bottom: 74px;
+            bottom: 114px;
             z-index: 350;
             width: 250px;
             padding: 12px 14px;
@@ -8380,6 +8409,7 @@
         }
 
         @media print {
+            .maxar-toggle,
             .maxar-blend-control {
                 display: none !important;
             }
@@ -13333,6 +13363,11 @@
                     <input type="range" id="maxarBlendSlider" min="0" max="1" step="0.05" value="0.35">
                 </div>
 
+                <button type="button" class="maxar-toggle" id="maxarToggleBtn" aria-pressed="false"
+                    title="Recent + Detail imagery blend" aria-label="Toggle Maxar blend overlay">
+                    <span aria-hidden="true">🛰️</span> Maxar Blend
+                </button>
+
                 <div class="terrain-toggle" id="terrainToggle">
                     <span aria-hidden="true">🏔️</span> 3D Terrain
                 </div>
@@ -16638,12 +16673,19 @@
             const maxarBlendControl = document.getElementById('maxarBlendControl');
             const maxarBlendSlider = document.getElementById('maxarBlendSlider');
             const maxarBlendValue = document.getElementById('maxarBlendValue');
+            const maxarToggleBtn = document.getElementById('maxarToggleBtn');
             let maxarBlendUserOpacity = 0.35;
 
             function updateMaxarBlendControlVisibility() {
                 const isVisible = maxarBlendLayer.getVisible();
                 maxarBlendControl.style.display = isVisible ? 'block' : 'none';
                 maxarBlendControl.setAttribute('aria-hidden', isVisible ? 'false' : 'true');
+            }
+
+            function updateMaxarToggleState() {
+                const isVisible = maxarBlendLayer.getVisible();
+                maxarToggleBtn?.classList.toggle('active', isVisible);
+                maxarToggleBtn?.setAttribute('aria-pressed', isVisible ? 'true' : 'false');
             }
 
             function updateMaxarBlendReadout(effectiveOpacity) {
@@ -16677,8 +16719,13 @@
                 }
             });
 
+            maxarToggleBtn?.addEventListener('click', () => {
+                maxarBlendLayer.setVisible(!maxarBlendLayer.getVisible());
+            });
+
             maxarBlendLayer.on('change:visible', () => {
                 updateMaxarBlendControlVisibility();
+                updateMaxarToggleState();
                 if (maxarBlendLayer.getVisible()) {
                     applyAdaptiveMaxarOpacity();
                 }
@@ -16693,6 +16740,7 @@
             updateMaxarBlendReadout(maxarBlendUserOpacity);
             applyAdaptiveMaxarOpacity();
             updateMaxarBlendControlVisibility();
+            updateMaxarToggleState();
 
             // ========================================
             // 3D TERRAIN DTM & CONTOURS STATE
