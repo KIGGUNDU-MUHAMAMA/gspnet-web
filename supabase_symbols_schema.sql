@@ -307,6 +307,74 @@ INSERT INTO public.symbol_catalog (symbol_key, category, name, description, svg,
   ARRAY['parking', 'transport', 'urban'])
 ON CONFLICT (symbol_key) DO NOTHING;
 
+-- POINT SYMBOLS (EXPANDED: Transport, Utilities, Hydrology, QA)
+INSERT INTO public.symbol_catalog (symbol_key, category, name, description, svg, default_style, tags) VALUES
+('culvert', 'point', 'Culvert', 'Road crossing culvert',
+  '<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="8" ry="5" fill="none" stroke="currentColor" stroke-width="2"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="2"/></svg>',
+  '{"color": "#6b7280", "size": 20, "opacity": 1.0}'::jsonb,
+  ARRAY['transport', 'drainage', 'culvert']),
+
+('bus_stop', 'point', 'Bus Stop', 'Public bus stop',
+  '<svg viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="16" r="1.5"/><circle cx="15" cy="16" r="1.5"/></svg>',
+  '{"color": "#f59e0b", "size": 22, "opacity": 1.0}'::jsonb,
+  ARRAY['transport', 'bus', 'stop']),
+
+('taxi_stage', 'point', 'Taxi Stage', 'Taxi pickup and drop-off stage',
+  '<svg viewBox="0 0 24 24"><path d="M5 12h14v5H5z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 8h8l2 4H6z" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
+  '{"color": "#f97316", "size": 22, "opacity": 1.0}'::jsonb,
+  ARRAY['transport', 'taxi', 'stage']),
+
+('junction_roundabout', 'point', 'Roundabout Junction', 'Roundabout road junction',
+  '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3v4M21 12h-4M12 21v-4M3 12h4" stroke="currentColor" stroke-width="2"/></svg>',
+  '{"color": "#ef4444", "size": 22, "opacity": 1.0}'::jsonb,
+  ARRAY['transport', 'junction', 'roundabout']),
+
+('transformer', 'point', 'Transformer', 'Electric power transformer',
+  '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="10" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="11" r="1.5"/><circle cx="15" cy="11" r="1.5"/></svg>',
+  '{"color": "#7c3aed", "size": 20, "opacity": 1.0}'::jsonb,
+  ARRAY['utility', 'electricity', 'transformer']),
+
+('water_valve', 'point', 'Water Valve', 'Water network valve',
+  '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 6v12M6 12h12" stroke="currentColor" stroke-width="2"/></svg>',
+  '{"color": "#0284c7", "size": 18, "opacity": 1.0}'::jsonb,
+  ARRAY['utility', 'water', 'valve']),
+
+('hydrant', 'point', 'Fire Hydrant', 'Firefighting hydrant',
+  '<svg viewBox="0 0 24 24"><rect x="9" y="6" width="6" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><rect x="7" y="10" width="2" height="3"/><rect x="15" y="10" width="2" height="3"/></svg>',
+  '{"color": "#dc2626", "size": 20, "opacity": 1.0}'::jsonb,
+  ARRAY['utility', 'fire', 'hydrant']),
+
+('storm_drain_inlet', 'point', 'Storm Drain Inlet', 'Stormwater drain inlet',
+  '<svg viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="8" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="8" x2="8" y2="16" stroke="currentColor" stroke-width="1.5"/><line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" stroke-width="1.5"/><line x1="16" y1="8" x2="16" y2="16" stroke="currentColor" stroke-width="1.5"/></svg>',
+  '{"color": "#0ea5e9", "size": 19, "opacity": 1.0}'::jsonb,
+  ARRAY['utility', 'drainage', 'stormwater']),
+
+('protected_tree', 'point', 'Protected Tree', 'Protected or heritage tree',
+  '<svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="5"/><rect x="10.5" y="13" width="3" height="7"/><path d="M6 6l12 12" stroke="currentColor" stroke-width="2" fill="none"/></svg>',
+  '{"color": "#16a34a", "size": 22, "opacity": 1.0}'::jsonb,
+  ARRAY['environment', 'tree', 'protected']),
+
+('needs_verification', 'point', 'Needs Verification', 'Feature requiring field verification',
+  '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v6" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="17" r="1.2"/></svg>',
+  '{"color": "#f59e0b", "size": 22, "opacity": 1.0}'::jsonb,
+  ARRAY['qa', 'verification', 'review']),
+
+('missing_feature', 'point', 'Missing Feature', 'Expected feature missing on ground',
+  '<svg viewBox="0 0 24 24"><path d="M12 4v16M4 12h16" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
+  '{"color": "#e11d48", "size": 22, "opacity": 1.0}'::jsonb,
+  ARRAY['qa', 'missing', 'correction']),
+
+('access_blocked', 'point', 'Access Blocked', 'No physical access to target area',
+  '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 6l12 12" stroke="currentColor" stroke-width="2"/></svg>',
+  '{"color": "#b91c1c", "size": 21, "opacity": 1.0}'::jsonb,
+  ARRAY['qa', 'access', 'blocked']),
+
+('photo_evidence_point', 'point', 'Photo Evidence Point', 'Location with photo evidence',
+  '<svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12.5" r="3" fill="none" stroke="currentColor" stroke-width="2"/><rect x="8" y="5" width="4" height="2"/></svg>',
+  '{"color": "#2563eb", "size": 21, "opacity": 1.0}'::jsonb,
+  ARRAY['qa', 'photo', 'evidence'])
+ON CONFLICT (symbol_key) DO NOTHING;
+
 -- LINE SYMBOLS
 INSERT INTO public.symbol_catalog (symbol_key, category, name, description, svg, default_style, tags) VALUES
 ('road_major', 'line', 'Road (Major)', 'Primary road or highway',
@@ -350,6 +418,24 @@ INSERT INTO public.symbol_catalog (symbol_key, category, name, description, svg,
   ARRAY['pipeline', 'utility', 'infrastructure'])
 ON CONFLICT (symbol_key) DO NOTHING;
 
+-- LINE SYMBOLS (EXPANDED)
+INSERT INTO public.symbol_catalog (symbol_key, category, name, description, svg, default_style, tags) VALUES
+('bridge', 'line', 'Bridge', 'Bridge crossing segment',
+  NULL,
+  '{"strokeColor": "#7c2d12", "strokeWidth": 4, "strokeOpacity": 1.0, "strokeDash": [2, 2]}'::jsonb,
+  ARRAY['transport', 'bridge', 'crossing']),
+
+('sewer_line', 'line', 'Sewer Line', 'Underground sewer network line',
+  NULL,
+  '{"strokeColor": "#374151", "strokeWidth": 2, "strokeOpacity": 1.0, "strokeDash": [4, 3]}'::jsonb,
+  ARRAY['utility', 'sewer', 'infrastructure']),
+
+('drainage_channel', 'line', 'Drainage Channel', 'Open drainage channel',
+  NULL,
+  '{"strokeColor": "#0ea5e9", "strokeWidth": 2.5, "strokeOpacity": 0.9, "strokeDash": [10, 4]}'::jsonb,
+  ARRAY['hydrology', 'drainage', 'channel'])
+ON CONFLICT (symbol_key) DO NOTHING;
+
 -- POLYGON SYMBOLS
 INSERT INTO public.symbol_catalog (symbol_key, category, name, description, svg, default_style, tags) VALUES
 ('building_residential', 'polygon', 'Building (Residential)', 'House or residential building',
@@ -391,6 +477,54 @@ INSERT INTO public.symbol_catalog (symbol_key, category, name, description, svg,
   NULL,
   '{"fillColor": "#9ca3af", "fillOpacity": 0.4, "strokeColor": "#4b5563", "strokeWidth": 1.5, "strokeOpacity": 1.0}'::jsonb,
   ARRAY['parking', 'transport', 'urban'])
+ON CONFLICT (symbol_key) DO NOTHING;
+
+-- POLYGON SYMBOLS (EXPANDED)
+INSERT INTO public.symbol_catalog (symbol_key, category, name, description, svg, default_style, tags) VALUES
+('school', 'polygon', 'School Compound', 'School land parcel/compound',
+  NULL,
+  '{"fillColor": "#fbbf24", "fillOpacity": 0.35, "strokeColor": "#b45309", "strokeWidth": 1.8, "strokeOpacity": 1.0}'::jsonb,
+  ARRAY['landuse', 'education', 'school']),
+
+('health_facility', 'polygon', 'Health Facility', 'Hospital, clinic, or health center',
+  NULL,
+  '{"fillColor": "#f87171", "fillOpacity": 0.35, "strokeColor": "#b91c1c", "strokeWidth": 1.8, "strokeOpacity": 1.0}'::jsonb,
+  ARRAY['landuse', 'health', 'clinic']),
+
+('market', 'polygon', 'Market Area', 'Market zone or trading center',
+  NULL,
+  '{"fillColor": "#fb923c", "fillOpacity": 0.35, "strokeColor": "#c2410c", "strokeWidth": 1.6, "strokeOpacity": 1.0}'::jsonb,
+  ARRAY['landuse', 'market', 'commercial']),
+
+('worship_place', 'polygon', 'Place of Worship', 'Religious worship compound',
+  NULL,
+  '{"fillColor": "#a78bfa", "fillOpacity": 0.35, "strokeColor": "#6d28d9", "strokeWidth": 1.6, "strokeOpacity": 1.0}'::jsonb,
+  ARRAY['landuse', 'religion', 'worship']),
+
+('public_office', 'polygon', 'Public Office', 'Government/public administration office',
+  NULL,
+  '{"fillColor": "#60a5fa", "fillOpacity": 0.35, "strokeColor": "#1d4ed8", "strokeWidth": 1.6, "strokeOpacity": 1.0}'::jsonb,
+  ARRAY['landuse', 'public', 'office']),
+
+('wetland', 'polygon', 'Wetland', 'Wetland or marsh area',
+  NULL,
+  '{"fillColor": "#22d3ee", "fillOpacity": 0.3, "strokeColor": "#0891b2", "strokeWidth": 1.5, "strokeOpacity": 0.9}'::jsonb,
+  ARRAY['hydrology', 'wetland', 'environment']),
+
+('flood_zone', 'polygon', 'Flood Risk Zone', 'Area prone to seasonal flooding',
+  NULL,
+  '{"fillColor": "#38bdf8", "fillOpacity": 0.28, "strokeColor": "#0369a1", "strokeWidth": 1.6, "strokeOpacity": 0.9}'::jsonb,
+  ARRAY['hazard', 'flood', 'risk']),
+
+('landslide_zone', 'polygon', 'Landslide Risk Zone', 'Area susceptible to landslides',
+  NULL,
+  '{"fillColor": "#fca5a5", "fillOpacity": 0.28, "strokeColor": "#b91c1c", "strokeWidth": 1.6, "strokeOpacity": 0.9}'::jsonb,
+  ARRAY['hazard', 'landslide', 'risk']),
+
+('conflict_overlap', 'polygon', 'Conflict Overlap', 'Overlapping claims requiring adjudication',
+  NULL,
+  '{"fillColor": "#f43f5e", "fillOpacity": 0.25, "strokeColor": "#9f1239", "strokeWidth": 2.0, "strokeOpacity": 1.0}'::jsonb,
+  ARRAY['qa', 'overlap', 'conflict'])
 ON CONFLICT (symbol_key) DO NOTHING;
 
 -- ============================================

@@ -11,6 +11,7 @@ let symbolCatalog = [];
 let featuresLayer = null;
 let featuresSource = null;
 let drawInteraction = null;
+let snapInteractions = [];
 let modifyInteraction = null;
 let selectInteraction = null;
 let loadedFeatures = new Map(); // Map<featureId, ol.Feature> for upsert
@@ -328,9 +329,10 @@ function featureStyleFunction(feature) {
     // Merge default style with per-feature overrides
     const defaultStyle = symbol.default_style || {};
     const mergedStyle = { ...defaultStyle, ...style };
+    const displayName = getFeatureDisplayName(feature, symbol);
 
     // Create cache key
-    const cacheKey = `${symbolKey}-${JSON.stringify(mergedStyle)}-${props.name || ''}`;
+    const cacheKey = `${symbolKey}-${JSON.stringify(mergedStyle)}-${displayName}`;
     if (styleCache.has(cacheKey)) {
         return styleCache.get(cacheKey);
     }
@@ -338,11 +340,11 @@ function featureStyleFunction(feature) {
     let olStyle;
 
     if (geomType === 'Point') {
-        olStyle = createPointStyle(symbol, mergedStyle, props);
+        olStyle = createPointStyle(symbol, mergedStyle, props, displayName);
     } else if (geomType === 'LineString') {
-        olStyle = createLineStyle(mergedStyle, props);
+        olStyle = createLineStyle(mergedStyle, props, displayName);
     } else if (geomType === 'Polygon') {
-        olStyle = createPolygonStyle(mergedStyle, props);
+        olStyle = createPolygonStyle(mergedStyle, props, displayName);
     }
 
     styleCache.set(cacheKey, olStyle);
@@ -352,7 +354,7 @@ function featureStyleFunction(feature) {
 /**
  * Create style for point features
  */
-function createPointStyle(symbol, style, props) {
+function createPointStyle(symbol, style, props, displayName = '') {
     const color = style.color || '#000000';
     const size = style.size || 24;
     const opacity = style.opacity !== undefined ? style.opacity : 1.0;
@@ -375,10 +377,10 @@ function createPointStyle(symbol, style, props) {
     ];
 
     // Add label (default ON for points)
-    if (props.name) {
+    if (displayName) {
         styles.push(new ol.style.Style({
             text: new ol.style.Text({
-                text: props.name,
+                text: displayName,
                 offsetY: size / 2 + 10,
                 font: '12px sans-serif',
                 fill: new ol.style.Fill({ color: '#000' }),
@@ -391,10 +393,39 @@ function createPointStyle(symbol, style, props) {
     return styles;
 }
 
+function buildLabelTextStyle(text, font = '12px sans-serif') {
+    if (!text) return null;
+    return new ol.style.Text({
+        text: text,
+        font: font,
+        fill: new ol.style.Fill({ color: '#111827' }),
+        stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 })
+    });
+}
+
+function makeAutoName(symbol, geomType, featureId = null) {
+    const baseName = symbol?.name || geomType || 'Feature';
+    if (featureId) {
+        const suffix = String(featureId).slice(0, 8);
+        return `${baseName} ${suffix}`;
+    }
+    const ts = Date.now().toString().slice(-5);
+    return `${baseName} ${ts}`;
+}
+
+function getFeatureDisplayName(feature, symbol = null) {
+    const rawName = feature.get('name');
+    if (rawName && String(rawName).trim() !== '') {
+        return String(rawName).trim();
+    }
+    const geomType = normalizeGeomType(feature.get('geom_type') || feature.get('category') || feature.getGeometry()?.getType());
+    return makeAutoName(symbol, geomType, feature.getId());
+}
+
 /**
  * Create style for line features
  */
-function createLineStyle(style, props) {
+function createLineStyle(style, props, displayName = '') {
     const strokeColor = style.strokeColor || '#000000';
     const strokeWidth = style.strokeWidth || 2;
     const strokeOpacity = style.strokeOpacity !== undefined ? style.strokeOpacity : 1.0;
@@ -403,19 +434,25 @@ function createLineStyle(style, props) {
     // Convert hex color to rgba
     const rgba = hexToRgba(strokeColor, strokeOpacity);
 
+    const textStyle = buildLabelTextStyle(displayName, '11px sans-serif');
+    if (textStyle) {
+        textStyle.setPlacement('line');
+    }
+
     return new ol.style.Style({
         stroke: new ol.style.Stroke({
             color: rgba,
             width: strokeWidth,
             lineDash: strokeDash
-        })
+        }),
+        text: textStyle
     });
 }
 
 /**
  * Create style for polygon features
  */
-function createPolygonStyle(style, props) {
+function createPolygonStyle(style, props, displayName = '') {
     const fillColor = style.fillColor || '#3b82f6';
     const fillOpacity = style.fillOpacity !== undefined ? style.fillOpacity : 0.4;
     const strokeColor = style.strokeColor || '#1e40af';
@@ -430,7 +467,8 @@ function createPolygonStyle(style, props) {
         stroke: new ol.style.Stroke({
             color: strokeRgba,
             width: strokeWidth
-        })
+        }),
+        text: buildLabelTextStyle(displayName, '11px sans-serif')
     });
 }
 
@@ -539,11 +577,21 @@ function setupUIHandlers() {
     const drawLineBtn = document.getElementById('drawLineBtn');
     const drawPolygonBtn = document.getElementById('drawPolygonBtn');
     const stopDrawBtn = document.getElementById('stopDrawBtn');
+    const snapToggle = document.getElementById('symbolsSnapToPointsToggle');
 
     if (drawPointBtn) drawPointBtn.onclick = () => startDrawing('Point');
     if (drawLineBtn) drawLineBtn.onclick = () => startDrawing('LineString');
     if (drawPolygonBtn) drawPolygonBtn.onclick = () => startDrawing('Polygon');
     if (stopDrawBtn) stopDrawBtn.onclick = stopDrawing;
+    if (snapToggle) {
+        snapToggle.onchange = () => {
+            if (drawInteraction && snapToggle.checked) {
+                enableDrawingSnapping();
+            } else if (!snapToggle.checked) {
+                clearDrawingSnapping();
+            }
+        };
+    }
 
     // Modify/Delete buttons
     const modifyBtn = document.getElementById('modifyFeatureBtn');
@@ -772,9 +820,9 @@ function updateMyFeaturesTab() {
 
         myFeatures.forEach(feature => {
             const id = feature.getId();
-            const name = feature.get('name') || 'Unnamed';
             const symbolKey = feature.get('symbol_key');
             const symbol = symbolCatalog.find(s => s.symbol_key === symbolKey);
+            const name = getFeatureDisplayName(feature, symbol);
             const geomType = feature.get('geom_type');
             const createdAt = new Date(feature.get('created_at')).toLocaleDateString();
 
@@ -855,6 +903,7 @@ function startModify() {
 
     // Stop drawing if active
     if (drawInteraction) {
+        clearDrawingSnapping();
         map.removeInteraction(drawInteraction);
         drawInteraction = null;
     }
@@ -1028,7 +1077,9 @@ function showEditForm(feature) {
  * Update feature attributes (name, description, status)
  */
 async function updateFeatureAttributes(feature) {
-    const name = document.getElementById('editFeatureName').value;
+    const inputName = document.getElementById('editFeatureName').value;
+    const symbol = symbolCatalog.find(s => s.symbol_key === feature.get('symbol_key')) || null;
+    const name = String(inputName || '').trim() || makeAutoName(symbol, feature.get('geom_type'), feature.getId());
     const description = document.getElementById('editFeatureDesc').value;
     const status = document.getElementById('editFeatureStatus').value;
 
@@ -1102,6 +1153,7 @@ function startDelete() {
 
     // Stop drawing if active
     if (drawInteraction) {
+        clearDrawingSnapping();
         map.removeInteraction(drawInteraction);
         drawInteraction = null;
     }
@@ -1265,6 +1317,7 @@ function startDrawing(geomType) {
 
     // Remove existing interaction
     if (drawInteraction) {
+        clearDrawingSnapping();
         map.removeInteraction(drawInteraction);
     }
 
@@ -1276,6 +1329,7 @@ function startDrawing(geomType) {
 
     drawInteraction.on('drawend', handleDrawEnd);
     map.addInteraction(drawInteraction);
+    enableDrawingSnapping();
 
     showMessage(`Drawing ${geomType}... Click on map to draw`, 'info');
 }
@@ -1284,6 +1338,7 @@ function startDrawing(geomType) {
  * Stop drawing interaction
  */
 function stopDrawing() {
+    clearDrawingSnapping();
     if (drawInteraction) {
         map.removeInteraction(drawInteraction);
         drawInteraction = null;
@@ -1305,11 +1360,12 @@ function handleDrawEnd(event) {
     featuresSource.removeFeature(feature);
 
     // Prompt user for feature attributes
-    const name = prompt(`Name for this ${selectedSymbol.name}:`, `New ${selectedSymbol.name}`);
-    if (!name) {
+    const inputName = prompt(`Name for this ${selectedSymbol.name}:`, `New ${selectedSymbol.name}`);
+    if (inputName === null) {
         showMessage('Feature creation cancelled', 'info');
         return;
     }
+    const name = String(inputName).trim() || makeAutoName(selectedSymbol, selectedSymbol.geom_type);
 
     const description = prompt('Description (optional):', '');
 
@@ -1322,6 +1378,98 @@ function handleDrawEnd(event) {
         status: 'existing',
         style: selectedSymbol.default_style || {}
     });
+}
+
+function clearDrawingSnapping() {
+    snapInteractions.forEach(interaction => {
+        if (interaction && map) {
+            map.removeInteraction(interaction);
+        }
+    });
+    snapInteractions = [];
+}
+
+function isVectorSourceWithPointFeatures(source) {
+    if (!source || !(source instanceof ol.source.Vector)) return false;
+    const features = source.getFeatures();
+    if (!Array.isArray(features) || features.length === 0) return false;
+
+    const sample = features.slice(0, 50);
+    return sample.some(feature => {
+        const geometry = feature.getGeometry && feature.getGeometry();
+        if (!geometry || !geometry.getType) return false;
+        const type = geometry.getType();
+        return type === 'Point' || type === 'MultiPoint';
+    });
+}
+
+function collectPointSnapSources() {
+    const discovered = new Set();
+    const candidates = [];
+
+    const addSource = (source) => {
+        if (!source || source === featuresSource || discovered.has(source)) return;
+        if (isVectorSourceWithPointFeatures(source)) {
+            discovered.add(source);
+            candidates.push(source);
+        }
+    };
+
+    // Known global point sources from CSV/control-point workflows
+    addSource(window.csvPointsSource);
+    addSource(window.controlPointsSource);
+
+    const pushLayerSource = (layer) => {
+        if (!layer || typeof layer.getVisible !== 'function' || !layer.getVisible()) return;
+
+        if (typeof layer.getLayers === 'function') {
+            layer.getLayers().forEach(pushLayerSource);
+            return;
+        }
+
+        if (!layer.getSource || typeof layer.getSource !== 'function') return;
+        const source = layer.getSource();
+        if (!source) return;
+
+        const title = typeof layer.get === 'function' ? (layer.get('title') || '') : '';
+        const titleLooksLikePointRef = /csv|control point|reference point|survey point|polygon points/i.test(String(title));
+        if (titleLooksLikePointRef || isVectorSourceWithPointFeatures(source)) {
+            addSource(source);
+        }
+    };
+
+    if (map && map.getLayers) {
+        map.getLayers().forEach(pushLayerSource);
+    }
+
+    return candidates;
+}
+
+function enableDrawingSnapping() {
+    clearDrawingSnapping();
+    if (!map || !drawInteraction) return;
+
+    const snapToggle = document.getElementById('symbolsSnapToPointsToggle');
+    if (snapToggle && !snapToggle.checked) return;
+
+    const snapSources = collectPointSnapSources();
+    if (snapSources.length === 0) {
+        console.log('[SL] No point sources found for snapping');
+        return;
+    }
+
+    snapSources.forEach(source => {
+        const interaction = new ol.interaction.Snap({
+            source,
+            pixelTolerance: 12,
+            vertex: true,
+            edge: false
+        });
+        map.addInteraction(interaction);
+        snapInteractions.push(interaction);
+    });
+
+    console.log('[SL] Snapping enabled for drawing with sources:', snapSources.length);
 }
 
 /**
