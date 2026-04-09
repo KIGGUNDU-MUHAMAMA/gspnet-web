@@ -42478,6 +42478,20 @@ function smoothChaikin(points) {
                 // Generate QR code
                 const qrCodeUrl = generateQRCode('https://webmap.geospatialnetworkug.xyz', 120);
 
+                // Get automated symbols legend HTML from Symbols Library (if available)
+                let symbolsLegendHtml = '';
+                try {
+                    if (typeof window.getSymbolsLegendForPrint === 'function') {
+                        const legendExtent = window.printPreviewMap
+                            ? window.printPreviewMap.getView().calculateExtent(window.printPreviewMap.getSize())
+                            : null;
+                        const legendPayload = window.getSymbolsLegendForPrint({ extent: legendExtent });
+                        symbolsLegendHtml = legendPayload?.html || '';
+                    }
+                } catch (legendError) {
+                    console.warn('[PRINT] Failed to generate symbols legend:', legendError);
+                }
+
                 // Define page size (needed for both PDF and print preview)
                 const pageSize = printData.orientation === 'landscape' ? 'A3 landscape' : 'A3';
 
@@ -42485,7 +42499,7 @@ function smoothChaikin(points) {
                 const format = document.getElementById('printFormat').value;
                 if (format === 'pdf' && !previewOnly) {
                     // Use html2canvas to capture preview window for exact match
-                    generatePDFFromPreviewWindow(printData, mapCanvas, qrCodeUrl, scaleBarSVG, gridlinesSVG, mapWidth, mapHeight, pageSize);
+                    generatePDFFromPreviewWindow(printData, mapCanvas, qrCodeUrl, scaleBarSVG, gridlinesSVG, mapWidth, mapHeight, pageSize, symbolsLegendHtml);
                     return;
                 }
 
@@ -42853,6 +42867,7 @@ function smoothChaikin(points) {
                                 <strong>DISCLAIMER:</strong> This map is provided "as is" without warranty. GSP.NET UGANDA does not verify all data and assumes no liability for errors, omissions, or damages. Users must independently verify all information.
                             </p>
                         </div>
+                        ${symbolsLegendHtml || ''}
                     </div>
                 </body>
                 </html>
@@ -42868,7 +42883,7 @@ function smoothChaikin(points) {
             }
 
             // PDF generation from preview window (captures exactly what user sees)
-            async function generatePDFFromPreviewWindow(printData, mapCanvas, qrCodeUrl, scaleBarSVG, gridlinesSVG, mapWidth, mapHeight, pageSize) {
+            async function generatePDFFromPreviewWindow(printData, mapCanvas, qrCodeUrl, scaleBarSVG, gridlinesSVG, mapWidth, mapHeight, pageSize, symbolsLegendHtml = '') {
                 // Create a temporary div with the preview content, capture it, then convert to PDF
                 const tempDiv = document.createElement('div');
                 tempDiv.style.position = 'absolute';
@@ -42879,7 +42894,7 @@ function smoothChaikin(points) {
                 document.body.appendChild(tempDiv);
 
                 // Generate HTML content
-                tempDiv.innerHTML = generatePreviewHTMLForPDF(printData, mapCanvas, qrCodeUrl, scaleBarSVG, gridlinesSVG, mapWidth, mapHeight, pageSize);
+                tempDiv.innerHTML = generatePreviewHTMLForPDF(printData, mapCanvas, qrCodeUrl, scaleBarSVG, gridlinesSVG, mapWidth, mapHeight, pageSize, symbolsLegendHtml);
 
                 // Wait for images to load
                 await new Promise(resolve => {
@@ -42954,7 +42969,7 @@ function smoothChaikin(points) {
             }
 
             // Generate preview HTML for PDF (extracted function)
-            function generatePreviewHTMLForPDF(printData, mapCanvas, qrCodeUrl, scaleBarSVG, gridlinesSVG, mapWidth, mapHeight, pageSize) {
+            function generatePreviewHTMLForPDF(printData, mapCanvas, qrCodeUrl, scaleBarSVG, gridlinesSVG, mapWidth, mapHeight, pageSize, symbolsLegendHtml = '') {
                 // This will return the inner HTML content (without html/body tags)
                 return `
                 <div class="print-layout" style="width: 100%; height: 100%; font-family: 'Arial', 'Helvetica', sans-serif; font-size: 11px; color: #000; background: #fff;">
@@ -43060,6 +43075,7 @@ function smoothChaikin(points) {
                             <strong>DISCLAIMER:</strong> This map is provided "as is" without warranty. GSP.NET UGANDA does not verify all data and assumes no liability for errors, omissions, or damages. Users must independently verify all information.
                         </p>
                     </div>
+                    ${symbolsLegendHtml || ''}
                 </div>
             `;
             }
@@ -56915,17 +56931,18 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
 
         // Wait for map to be ready
         function initSymbolsLibraryWhenReady() {
+            const mapInstance = window.map || null;
             console.log('[SYMBOLS] Checking for map and supabase...', {
-                hasMap: typeof map !== 'undefined',
-                mapValue: typeof map !== 'undefined' ? 'exists' : 'undefined',
+                hasMap: !!mapInstance,
+                mapValue: mapInstance ? 'exists' : 'undefined',
                 hasWindowSupabase: typeof window.supabaseClient !== 'undefined',
                 supabaseValue: typeof window.supabaseClient !== 'undefined' ? 'exists' : 'undefined'
             });
 
-            if (typeof map !== 'undefined' && map &&
+            if (mapInstance &&
                 typeof window.supabaseClient !== 'undefined' && window.supabaseClient) {
                 console.log('[SYMBOLS] Initializing Symbols Library...');
-                initSymbolsLibrary(map, window.supabaseClient).catch(error => {
+                initSymbolsLibrary(mapInstance, window.supabaseClient).catch(error => {
                     console.error('[SYMBOLS] Failed to initialize:', error);
                 });
             } else {

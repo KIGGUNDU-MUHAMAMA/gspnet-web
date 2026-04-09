@@ -52,11 +52,13 @@ async function initSymbolsLibrary(olMap, supabase) {
         console.log('[SL] Getting current user...');
         const { data: { user } } = await supabaseClient.auth.getUser();
         if (!user) {
-            console.warn('[SL] Symbols Library: User not authenticated');
-            return;
+            console.warn('[SL] Symbols Library: User not authenticated, running in read-only mode');
+            showMessage('Sign in to save/edit features. Catalog can still load if permissions allow.', 'warning');
+            currentUserId = null;
+        } else {
+            console.log('[SL] User authenticated:', user.id);
+            currentUserId = user.id;
         }
-        console.log('[SL] User authenticated:', user.id);
-        currentUserId = user.id;
 
         // Load symbol catalog
         console.log('[SL] Loading symbol catalog...');
@@ -113,6 +115,25 @@ async function loadSymbolCatalog() {
         populateCatalogUI();
     } catch (error) {
         console.error('Symbols Library: Failed to load symbol catalog:', error);
+        const catalogContainer = document.getElementById('catalogSymbols');
+        if (catalogContainer) {
+            catalogContainer.innerHTML = `
+                <div style="padding: 15px; color: #6b7280;">
+                    <p style="margin: 0 0 8px 0; color: #dc2626; font-weight: 600;">
+                        Failed to load symbols library.
+                    </p>
+                    <p style="margin: 0 0 6px 0;">
+                        Common causes:
+                    </p>
+                    <ul style="margin: 0 0 8px 18px; padding: 0;">
+                        <li>No rows in <code>symbol_catalog</code></li>
+                        <li>RLS policy blocks reads for current session</li>
+                        <li>Supabase connection/auth issue</li>
+                    </ul>
+                    <p style="margin: 0;">Check browser console for details.</p>
+                </div>
+            `;
+        }
     }
 }
 
@@ -144,6 +165,21 @@ function populateCatalogUI() {
 
     let html = '';
 
+    if (symbolCatalog.length === 0) {
+        catalogContainer.innerHTML = `
+            <div style="padding: 15px; color: #6b7280;">
+                <p style="margin: 0 0 8px 0; font-weight: 600;">No symbols found.</p>
+                <p style="margin: 0 0 6px 0;">Verify that:</p>
+                <ul style="margin: 0 0 8px 18px; padding: 0;">
+                    <li><code>symbol_catalog</code> has seeded rows</li>
+                    <li>current user/session can SELECT the table</li>
+                    <li>the app is connected to the expected Supabase project</li>
+                </ul>
+            </div>
+        `;
+        return;
+    }
+
     // Render Points
     if (grouped.Point.length > 0) {
         html += `<h4><i class="fas fa-map-marker-alt"></i> Points (${grouped.Point.length})</h4>`;
@@ -164,7 +200,7 @@ function populateCatalogUI() {
         html += `<h4><i class="fas fa-route"></i> Lines (${grouped.LineString.length})</h4>`;
         html += '<div class="symbol-grid">';
         grouped.LineString.forEach(symbol => {
-            const color = symbol.default_style?.stroke_color || '#3b82f6';
+            const color = symbol.default_style?.strokeColor || symbol.default_style?.stroke_color || '#3b82f6';
             html += `
                 <div class="symbol-card" data-symbol-key="${symbol.symbol_key}" data-geom-type="LineString">
                     <div class="symbol-icon">
@@ -184,8 +220,8 @@ function populateCatalogUI() {
         html += `<h4><i class="fas fa-draw-polygon"></i> Polygons (${grouped.Polygon.length})</h4>`;
         html += '<div class="symbol-grid">';
         grouped.Polygon.forEach(symbol => {
-            const fillColor = symbol.default_style?.fill_color || '#22c55e';
-            const strokeColor = symbol.default_style?.stroke_color || '#166534';
+            const fillColor = symbol.default_style?.fillColor || symbol.default_style?.fill_color || '#22c55e';
+            const strokeColor = symbol.default_style?.strokeColor || symbol.default_style?.stroke_color || '#166534';
             html += `
                 <div class="symbol-card" data-symbol-key="${symbol.symbol_key}" data-geom-type="Polygon">
                     <div class="symbol-icon">
@@ -522,6 +558,11 @@ function setupUIHandlers() {
     const exportLegendBtn = document.getElementById('exportLegendBtn');
     if (exportLegendBtn) exportLegendBtn.onclick = exportLegend;
 
+    if (map) {
+        map.on('moveend', updateLegendSummaryPanel);
+    }
+    updateLegendSummaryPanel();
+
     console.log('Symbols Library: UI handlers attached');
 }
 
@@ -618,6 +659,7 @@ async function loadMyFeatures() {
         }
 
         updateMyFeaturesTab();
+        updateLegendSummaryPanel();
         showMessage(`Loaded ${data?.length || 0} features`, 'success');
 
     } catch (error) {
@@ -1195,6 +1237,7 @@ async function loadFeatures() {
             });
         }
 
+        updateLegendSummaryPanel();
         showMessage(`Loaded ${data?.features?.length || 0} features`, 'success');
     } catch (error) {
         console.error('[SL] Failed to load features:', error);
@@ -1340,6 +1383,203 @@ function showMessage(message, type = 'info') {
         // Fallback to console if toast not available
         console.log(`[SL] ${type.toUpperCase()}: ${message}`);
     }
+}
+
+function getCurrentMapExtent() {
+    if (!map || !map.getView || !map.getSize) return null;
+    const size = map.getSize();
+    if (!size) return null;
+    return map.getView().calculateExtent(size);
+}
+
+function getLegendFeatures(options = {}) {
+    const { extent = null } = options;
+    if (!featuresSource) return [];
+    const candidates = extent ? featuresSource.getFeaturesInExtent(extent) : featuresSource.getFeatures();
+    return candidates.filter(feature => feature && feature.get('symbol_key'));
+}
+
+function getLegendEntries(options = {}) {
+    const features = getLegendFeatures(options);
+    const grouped = new Map();
+
+    features.forEach(feature => {
+        const symbolKey = feature.get('symbol_key');
+        const symbol = symbolCatalog.find(s => s.symbol_key === symbolKey) || null;
+        const geomType = normalizeGeomType(feature.get('geom_type') || symbol?.geom_type || feature.getGeometry()?.getType());
+        const status = feature.get('status') || 'existing';
+        const mergedStyle = { ...(symbol?.default_style || {}), ...(feature.get('style') || {}) };
+
+        if (!grouped.has(symbolKey)) {
+            grouped.set(symbolKey, {
+                symbolKey,
+                symbolName: symbol?.name || symbolKey,
+                geomType,
+                symbol,
+                style: mergedStyle,
+                count: 0,
+                statusCounts: {}
+            });
+        }
+
+        const entry = grouped.get(symbolKey);
+        entry.count += 1;
+        entry.statusCounts[status] = (entry.statusCounts[status] || 0) + 1;
+    });
+
+    const geomSort = { Point: 1, LineString: 2, Polygon: 3 };
+    return Array.from(grouped.values()).sort((a, b) => {
+        const typeDelta = (geomSort[a.geomType] || 99) - (geomSort[b.geomType] || 99);
+        if (typeDelta !== 0) return typeDelta;
+        return a.symbolName.localeCompare(b.symbolName);
+    });
+}
+
+function makeLegendSwatchHtml(entry) {
+    const style = entry.style || {};
+    const symbol = entry.symbol || {};
+
+    if (entry.geomType === 'Point') {
+        let svg = symbol.svg || '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg>';
+        svg = svg.replace(/currentColor/g, style.color || '#111827');
+        return `<span style="display:inline-flex; width:20px; height:20px; align-items:center; justify-content:center;">${svg}</span>`;
+    }
+
+    if (entry.geomType === 'LineString') {
+        const stroke = style.strokeColor || '#1f2937';
+        return `<svg width="22" height="14" viewBox="0 0 22 14" aria-hidden="true"><line x1="1" y1="7" x2="21" y2="7" stroke="${stroke}" stroke-width="3"/></svg>`;
+    }
+
+    const fill = style.fillColor || '#93c5fd';
+    const stroke = style.strokeColor || '#1e3a8a';
+    return `<svg width="22" height="14" viewBox="0 0 22 14" aria-hidden="true"><rect x="1" y="1" width="20" height="12" fill="${fill}" fill-opacity="0.6" stroke="${stroke}" stroke-width="1.5"/></svg>`;
+}
+
+function updateLegendSummaryPanel() {
+    const legendTab = document.getElementById('legendTab');
+    if (!legendTab) return;
+
+    const panel = legendTab.querySelector('div');
+    if (!panel) return;
+
+    let summary = document.getElementById('legendSummaryBox');
+    if (!summary) {
+        summary = document.createElement('div');
+        summary.id = 'legendSummaryBox';
+        summary.style.marginTop = '12px';
+        panel.appendChild(summary);
+    }
+
+    const extent = getCurrentMapExtent();
+    const entries = getLegendEntries({ extent });
+    const featureCount = entries.reduce((acc, item) => acc + item.count, 0);
+
+    if (entries.length === 0) {
+        summary.innerHTML = `
+            <div style="padding:10px; border:1px solid #e5e7eb; border-radius:8px; background:#f9fafb; color:#6b7280;">
+                No symbolized features in current view. Load features or draw new ones.
+            </div>
+        `;
+        return;
+    }
+
+    const rows = entries.map(entry => {
+        return `
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 0; border-bottom:1px solid #f1f5f9;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    ${makeLegendSwatchHtml(entry)}
+                    <span style="font-size:12px; color:#1f2937;">${entry.symbolName}</span>
+                </div>
+                <span style="font-size:12px; color:#374151; font-weight:600;">${entry.count}</span>
+            </div>
+        `;
+    }).join('');
+
+    summary.innerHTML = `
+        <div style="padding:10px; border:1px solid #e5e7eb; border-radius:8px; background:#fff;">
+            <div style="font-size:12px; color:#374151; margin-bottom:8px; font-weight:600;">
+                Automated legend (current map extent): ${featureCount} features, ${entries.length} symbol types
+            </div>
+            <div>${rows}</div>
+        </div>
+    `;
+}
+
+function hexToRgbObject(hex, fallback) {
+    if (typeof hex !== 'string' || !hex.startsWith('#') || (hex.length !== 7 && hex.length !== 4)) {
+        return fallback;
+    }
+    if (hex.length === 4) {
+        return {
+            r: parseInt(hex[1] + hex[1], 16),
+            g: parseInt(hex[2] + hex[2], 16),
+            b: parseInt(hex[3] + hex[3], 16)
+        };
+    }
+    return {
+        r: parseInt(hex.slice(1, 3), 16),
+        g: parseInt(hex.slice(3, 5), 16),
+        b: parseInt(hex.slice(5, 7), 16)
+    };
+}
+
+function drawLegendSwatchInPdf(doc, entry, x, y) {
+    const style = entry.style || {};
+    if (entry.geomType === 'Point') {
+        const fill = hexToRgbObject(style.color || '#2563eb', { r: 37, g: 99, b: 235 });
+        doc.setDrawColor(255, 255, 255);
+        doc.setFillColor(fill.r, fill.g, fill.b);
+        doc.circle(x + 3, y - 1, 2.5, 'FD');
+        return;
+    }
+    if (entry.geomType === 'LineString') {
+        const stroke = hexToRgbObject(style.strokeColor || '#1f2937', { r: 31, g: 41, b: 55 });
+        doc.setDrawColor(stroke.r, stroke.g, stroke.b);
+        doc.setLineWidth(0.8);
+        doc.line(x, y - 1, x + 8, y - 1);
+        return;
+    }
+    const fill = hexToRgbObject(style.fillColor || '#93c5fd', { r: 147, g: 197, b: 253 });
+    const stroke = hexToRgbObject(style.strokeColor || '#1e3a8a', { r: 30, g: 58, b: 138 });
+    doc.setDrawColor(stroke.r, stroke.g, stroke.b);
+    doc.setFillColor(fill.r, fill.g, fill.b);
+    doc.rect(x, y - 3.5, 8, 5, 'FD');
+}
+
+function getSymbolsLegendForPrint(options = {}) {
+    const extent = options.extent || getCurrentMapExtent();
+    const entries = getLegendEntries({ extent });
+    const totalFeatures = entries.reduce((acc, item) => acc + item.count, 0);
+
+    if (!entries.length) {
+        return { html: '', entries: [], totalFeatures: 0 };
+    }
+
+    const rows = entries.map(entry => {
+        return `
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:5px 0; border-bottom:1px solid #e5e7eb;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    ${makeLegendSwatchHtml(entry)}
+                    <span>${entry.symbolName}</span>
+                </div>
+                <span style="font-weight:600;">${entry.count}</span>
+            </div>
+        `;
+    }).join('');
+
+    const html = `
+        <div class="print-symbols-legend" style="border:2px solid #000; padding:10px; margin-top:10px; background:#fff;">
+            <div style="font-weight:700; font-size:12px; margin-bottom:6px;">Automated Symbols Legend (Visible Extent)</div>
+            <div style="font-size:10px; color:#374151; margin-bottom:6px;">
+                ${totalFeatures} features • ${entries.length} symbol types • ${new Date().toLocaleString()}
+            </div>
+            <div style="font-size:10px; color:#111827;">
+                ${rows}
+            </div>
+        </div>
+    `;
+
+    return { html, entries, totalFeatures };
 }
 
 // ====================================
@@ -1495,60 +1735,55 @@ async function updateFlagsTab() {
  * Export legend as PDF
  */
 async function exportLegend() {
+    const JsPdfCtor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+
     // Check for jsPDF library
-    if (typeof jsPDF === 'undefined') {
+    if (!JsPdfCtor) {
         showMessage('PDF library not available. Legend export disabled.', 'error');
         console.warn('[SL] jsPDF library not found');
         return;
     }
 
     try {
-        // Get unique symbols from user's features
-        const myFeatures = Array.from(loadedFeatures.values())
-            .filter(f => f.get('user_id') === currentUserId);
+        const extent = getCurrentMapExtent();
+        const entries = getLegendEntries({ extent });
+        const totalFeatures = entries.reduce((acc, item) => acc + item.count, 0);
 
-        if (myFeatures.length === 0) {
-            showMessage('No features to export', 'warning');
+        if (entries.length === 0) {
+            showMessage('No symbolized features in current map extent', 'warning');
             return;
         }
 
-        // Count features by symbol
-        const symbolCounts = {};
-        myFeatures.forEach(feature => {
-            const symbolKey = feature.get('symbol_key');
-            symbolCounts[symbolKey] = (symbolCounts[symbolKey] || 0) + 1;
-        });
-
         // Create PDF
-        const doc = new jsPDF();
+        const doc = new JsPdfCtor();
         doc.setFontSize(16);
-        doc.text('Symbols Legend', 20, 20);
+        doc.text('Symbols Legend (Visible Extent)', 20, 20);
 
         doc.setFontSize(10);
         doc.text(`Generated: ${new Date().toLocaleString()}`, 20, 30);
-        doc.text(`Total Features: ${myFeatures.length}`, 20, 36);
+        doc.text(`Total Features: ${totalFeatures}`, 20, 36);
+        doc.text(`Symbol Types: ${entries.length}`, 20, 42);
 
-        let y = 50;
+        let y = 52;
 
-        // Add each symbol
-        Object.entries(symbolCounts).forEach(([symbolKey, count]) => {
-            const symbol = symbolCatalog.find(s => s.symbol_key === symbolKey);
-            if (symbol) {
-                // Check page break
-                if (y > 270) {
-                    doc.addPage();
-                    y = 20;
-                }
-
-                doc.setFontSize(12);
-                doc.text(`• ${symbol.name}`, 25, y);
-                doc.setFontSize(9);
-                doc.setTextColor(100);
-                doc.text(`(${count} feature${count > 1 ? 's' : ''})`, 25, y + 5);
-                doc.setTextColor(0);
-
-                y += 12;
+        // Add each symbol with swatch
+        entries.forEach(entry => {
+            // Check page break
+            if (y > 275) {
+                doc.addPage();
+                y = 20;
             }
+
+            drawLegendSwatchInPdf(doc, entry, 22, y);
+            doc.setFontSize(11);
+            doc.setTextColor(0);
+            doc.text(entry.symbolName, 34, y);
+            doc.setFontSize(9);
+            doc.setTextColor(100);
+            doc.text(`${entry.count} feature${entry.count > 1 ? 's' : ''} • ${entry.geomType}`, 34, y + 4.5);
+            doc.setTextColor(0);
+
+            y += 11;
         });
 
         // Download PDF
@@ -1566,6 +1801,7 @@ async function exportLegend() {
 
 // Export initialization function (now accessible globally via window)
 window.initSymbolsLibrary = initSymbolsLibrary;
+window.getSymbolsLegendForPrint = getSymbolsLegendForPrint;
 
 // Export additional functions if needed
 export {
