@@ -53178,35 +53178,50 @@ function smoothChaikin(points) {
 
             // --- Gemini AI Assistant Integration ---
             const GeminiBot = {
-                systemInstruction: `You are the official AI expert assistant for Geospatial Network Uganda (geospatialnetworkug.xyz). 
+                systemInstructionBase: `You are the official AI expert assistant for Geospatial Network Uganda (geospatialnetworkug.xyz). 
 CRITICAL RULES:
 1. You MUST solely rely on the "KNOWLEDGE BASE & GUIDES" provided below to answer user queries.
 2. When a user asks for instructions or a step-by-step guide, you MUST provide the EXACT steps as written in the KNOWLEDGE BASE. Do not skip steps or make up your own workflow.
 3. Keep your answers concise, helpful, and format them using clean Markdown. 
 4. Never invent features, tools, or URLs that are not in the knowledge base.`,
+                authSystemInstruction: `You are the authentication assistant for Geospatial Network Uganda.
+Focus on account signup, email verification, login issues, account roles, and admin contact.
+Never invent contact details or workflows. If a detail is unavailable, say so clearly.`,
                 
                 // Used your deployed custom domain URL
                 workerUrl: 'https://bot.geospatialnetworkug.xyz', 
                 
                 chatHistory: [],
+                maxKnowledgeChars: 12000,
+                maxHistoryTurns: 20,
+                maxRetries: 3,
+                retryBaseDelayMs: 600,
+                contextInstruction: '',
+                backendOnline: null,
+                lastError: 'none',
+                lastResponseMs: null,
 
                 async init() {
                     const sendBtn = document.getElementById('bot-message-send-btn');
+                    const clearBtn = document.getElementById('bot-clear-history-btn');
                     const inputField = document.getElementById('bot-message-input');
                     const botTab = document.getElementById('tab-bot');
 
                     // Fetch the knowledge base markdown to provide context to the AI
                     try {
-                        const response = await fetch('chatbot_knowledge.md');
+                        const response = await fetch('chatbot_assistant_context.md');
                         if (response.ok) {
-                            const kbContent = await response.text();
-                            this.systemInstruction += "\n\n### KNOWLEDGE BASE & GUIDES:\n" + kbContent;
-                            console.log("Successfully loaded chatbot knowledge base.");
+                            const contextContent = await response.text();
+                            const safeContext = contextContent.length > this.maxKnowledgeChars
+                                ? `${contextContent.slice(0, this.maxKnowledgeChars)}\n\n[Assistant context truncated for model context window.]`
+                                : contextContent;
+                            this.contextInstruction = safeContext;
+                            console.log("Successfully loaded chatbot assistant context.");
                         } else {
-                            console.warn("Failed to load chatbot knowledge base: " + response.status);
+                            console.warn("Failed to load chatbot_assistant_context.md: " + response.status);
                         }
                     } catch (error) {
-                        console.error("Error fetching chatbot_knowledge.md:", error);
+                        console.error("Error fetching chatbot assistant context:", error);
                     }
 
                     if (botTab) {
@@ -53222,8 +53237,12 @@ CRITICAL RULES:
                             }
                         });
                     }
+                    if (clearBtn) {
+                        clearBtn.addEventListener('click', () => this.clearMemory());
+                    }
                     
                     this.loadHistory();
+                    this.updateDiagnostics();
                 },
 
                 loadHistory() {
@@ -53269,33 +53288,39 @@ CRITICAL RULES:
 
                     // 2. Add loading state
                     const loadingId = this.appendMessage('GSPNET AI Assistant', '<div class="typing-indicator" style="font-style: italic; color: #666;">Thinking...</div>', 'received');
+                    this.updateDiagnostics('connecting');
 
                     // 3. Prepare payload
                     this.chatHistory.push({ role: "user", parts: [{ text }] });
+                    if (this.chatHistory.length > this.maxHistoryTurns) {
+                        this.chatHistory = this.chatHistory.slice(-this.maxHistoryTurns);
+                    }
                     this.saveHistory();
                     
+                    const systemInstruction = this.buildInstructionForIntent(text);
                     const payload = {
                         contents: this.chatHistory,
                         systemInstruction: {
-                            parts: [{ text: this.systemInstruction }]
+                            parts: [{ text: systemInstruction }]
                         }
                     };
 
                     try {
-                        const response = await fetch(this.workerUrl, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify(payload)
-                        });
+                        const startTime = performance.now();
+                        const response = await this.fetchWithRetry(payload);
 
-                        const data = await response.json();
+                        const rawBody = await response.text();
+                        const data = this.safeParseJson(rawBody);
+                        this.lastResponseMs = Math.round(performance.now() - startTime);
 
                         if (!response.ok) {
-                            throw new Error(data.error || 'Failed to fetch from Gemini');
+                            const parsedError = this.extractApiErrorMessage(data);
+                            const fallbackError = rawBody || response.statusText || `HTTP ${response.status}`;
+                            throw new Error(parsedError || fallbackError || 'Failed to fetch from Gemini');
                         }
 
                         // Parse response
-                        const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate a response.";
+                        const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate a response.";
                         
                         // Replace loading with actual response
                         this.updateMessage(loadingId, this.formatMarkdown(replyText));
@@ -53303,6 +53328,9 @@ CRITICAL RULES:
                         // Append to history
                         this.chatHistory.push({ role: "model", parts: [{ text: replyText }] });
                         this.saveHistory();
+                        this.backendOnline = true;
+                        this.lastError = 'none';
+                        this.updateDiagnostics('online');
 
                     } catch (error) {
                         console.error("Gemini API Error:", error);
@@ -53310,6 +53338,54 @@ CRITICAL RULES:
                         // Remove the failed user prompt so they can try again
                         this.chatHistory.pop();
                         this.saveHistory();
+                        this.backendOnline = false;
+                        this.lastError = error.message || 'Unknown error';
+                        this.updateDiagnostics('offline');
+                    }
+                },
+
+                buildInstructionForIntent(userText) {
+                    const authIntentPattern = /(login|log in|sign up|signup|register|password|verify|verification|email|account|subscription|admin|whatsapp|role|valuer|rsu|land clerk)/i;
+                    const isAuthIntent = authIntentPattern.test(userText || '');
+                    const promptBase = isAuthIntent ? this.authSystemInstruction : this.systemInstructionBase;
+                    const contextBlock = this.contextInstruction ? `\n\n### KNOWLEDGE BASE & GUIDES:\n${this.contextInstruction}` : '';
+                    return `${promptBase}${contextBlock}`;
+                },
+
+                async fetchWithRetry(payload) {
+                    let lastError = null;
+                    for (let attempt = 1; attempt <= this.maxRetries; attempt += 1) {
+                        try {
+                            const response = await fetch(this.workerUrl, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify(payload)
+                            });
+                            const retriableStatus = response.status === 429 || response.status === 503;
+                            if (retriableStatus && attempt < this.maxRetries) {
+                                await this.sleep(this.retryBaseDelayMs * (2 ** (attempt - 1)) + Math.floor(Math.random() * 150));
+                                continue;
+                            }
+                            return response;
+                        } catch (error) {
+                            lastError = error;
+                            if (attempt < this.maxRetries) {
+                                await this.sleep(this.retryBaseDelayMs * (2 ** (attempt - 1)) + Math.floor(Math.random() * 150));
+                                continue;
+                            }
+                            throw error;
+                        }
+                    }
+                    throw lastError || new Error('Request failed');
+                },
+
+                safeParseJson(rawText) {
+                    if (!rawText) return {};
+                    try {
+                        return JSON.parse(rawText);
+                    } catch (parseError) {
+                        console.warn("Gemini response was not JSON:", parseError);
+                        return {};
                     }
                 },
 
@@ -53343,6 +53419,60 @@ CRITICAL RULES:
                         const container = document.getElementById('bot-messages-container');
                         container.scrollTop = container.scrollHeight;
                     }
+                },
+
+                extractApiErrorMessage(errorPayload) {
+                    if (!errorPayload) return '';
+                    if (typeof errorPayload === 'string') return errorPayload;
+                    if (errorPayload.error) {
+                        if (typeof errorPayload.error === 'string') return errorPayload.error;
+                        if (errorPayload.error.message) return errorPayload.error.message;
+                        const detailDescription = errorPayload.error?.details?.[0]?.description;
+                        if (detailDescription) return detailDescription;
+                    }
+                    if (errorPayload.message) return errorPayload.message;
+                    try {
+                        return JSON.stringify(errorPayload);
+                    } catch (serializationError) {
+                        console.warn("Could not serialize error payload:", serializationError);
+                        return '';
+                    }
+                },
+
+                updateDiagnostics(statusOverride) {
+                    const diagnosticsEl = document.getElementById('bot-diagnostics-line');
+                    if (!diagnosticsEl) return;
+                    let backendLabel = statusOverride;
+                    if (!backendLabel) {
+                        if (this.backendOnline === true) backendLabel = 'online';
+                        else if (this.backendOnline === false) backendLabel = 'offline';
+                        else backendLabel = 'unknown';
+                    }
+                    const responseLabel = Number.isFinite(this.lastResponseMs) ? `${this.lastResponseMs} ms` : 'n/a';
+                    diagnosticsEl.textContent = `Backend: ${backendLabel} | Last error: ${this.lastError || 'none'} | Response: ${responseLabel}`;
+                },
+
+                clearMemory() {
+                    this.chatHistory = [];
+                    localStorage.removeItem('gspnet_chat_history_main');
+                    const container = document.getElementById('bot-messages-container');
+                    if (container) {
+                        container.innerHTML = `
+                            <div class="message message-received" style="align-self: flex-start; align-items: flex-start; margin-bottom: 12px; display: flex; flex-direction: column; max-width: 80%;">
+                                <div class="sender-name" style="font-size: 0.75rem; color: #666; margin-bottom: 4px; padding: 0 4px;">GSPNET AI Assistant</div>
+                                <div class="message-bubble" style="background: #f0f4ff; border: 1px solid #d2e3fc; padding: 10px 14px; border-radius: 18px 18px 18px 4px; font-size: 14px; line-height: 1.4; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                    Memory cleared. Ask me a fresh question about account access, tools, or workflows.
+                                </div>
+                            </div>
+                        `;
+                    }
+                    this.lastError = 'none';
+                    this.lastResponseMs = null;
+                    this.updateDiagnostics();
+                },
+
+                sleep(ms) {
+                    return new Promise((resolve) => setTimeout(resolve, ms));
                 },
 
                 formatMarkdown(text) {
@@ -53492,10 +53622,12 @@ CRITICAL RULES:
                     </div>
                     <div class="message-input-area" style="padding: 15px; border-top: 1px solid #e0e0e0; background: #fff;">
                         <textarea id="bot-message-input" placeholder="Ask a question..." rows="2" style="width: 100%; resize: none; border-radius: 8px; border: 1px solid #ccc; padding: 10px; font-family: inherit; margin-bottom: 10px;"></textarea>
-                        <div class="message-actions" style="display: flex; justify-content: flex-end;">
+                        <div class="message-actions" style="display: flex; justify-content: space-between; align-items: center;">
+                            <button id="bot-clear-history-btn" class="message-send" style="background: transparent; color: #1f2937; border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: 600;">Clear memory</button>
                             <button id="bot-message-send-btn" class="message-send" style="background: #2563eb; color: white; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-weight: bold;">Send</button>
                         </div>
                         <div style="font-size: 10px; color: #999; text-align: center; margin-top: 5px;">AI can make mistakes. Check important info.</div>
+                        <div id="bot-diagnostics-line" style="font-size: 10px; color: #777; margin-top: 6px;">Backend: unknown | Last error: none | Response: n/a</div>
                     </div>
                 </div>
             </div>

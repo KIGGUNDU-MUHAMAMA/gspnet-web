@@ -272,6 +272,7 @@ async function generateUniqueIds(
   }
 
   const ids: string[] = [];
+  const seen = new Set<string>();
   let rpcFailed = false;
 
   // Prefer existing DB RPC if available, to keep project's server-side numbering logic.
@@ -284,7 +285,13 @@ async function generateUniqueIds(
         rpcFailed = true;
         break;
       }
-      ids.push(formatId(parsed));
+      const normalized = formatId(parsed);
+      if (seen.has(normalized)) {
+        rpcFailed = true;
+        break;
+      }
+      ids.push(normalized);
+      seen.add(normalized);
       continue;
     }
     rpcFailed = true;
@@ -314,10 +321,48 @@ async function generateUniqueIds(
 
   while (ids.length < count) {
     maxSeq += 1;
-    ids.push(formatId(maxSeq));
+    const id = formatId(maxSeq);
+    if (!seen.has(id)) {
+      ids.push(id);
+      seen.add(id);
+    }
   }
 
   return ids;
+}
+
+async function insertPolygonRowsWithRetry(
+  admin: ReturnType<typeof createClient>,
+  baseRows: Array<Record<string, unknown>>,
+  layerName: string,
+  maxAttempts = 4,
+) {
+  let lastError: { message?: string } | null = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const uniqueIds = await generateUniqueIds(admin, layerName, baseRows.length);
+    const rows = baseRows.map((row, idx) => ({ ...row, unique_id: uniqueIds[idx] }));
+
+    const { data, error } = await admin
+      .from("polygon_features")
+      .insert(rows)
+      .select("id, unique_id, layer_name, area_hectares, plot_number");
+
+    if (!error) {
+      return { data: data || [], error: null };
+    }
+
+    lastError = error as { message?: string };
+    const msg = String(error.message || "").toLowerCase();
+    const isUniqueIdConflict = msg.includes("polygon_features_unique_id_key") ||
+      (msg.includes("duplicate key") && msg.includes("unique_id"));
+
+    if (!isUniqueIdConflict || attempt === maxAttempts) {
+      return { data: null, error };
+    }
+  }
+
+  return { data: null, error: lastError };
 }
 
 Deno.serve(async (req) => {
@@ -383,14 +428,11 @@ Deno.serve(async (req) => {
 
       const formData = body?.formData || {};
       const csvFileId = body?.csvFileId ?? null;
-      const uniqueIds = await generateUniqueIds(admin, layerName, parcels.length);
-
-      const rows = parcels.map((p: Record<string, unknown>, idx: number) => {
+      const baseRows = parcels.map((p: Record<string, unknown>) => {
         const parcelId = String(p.parcelId || p.parcel_id || "");
         const formAdditional = formData.additionalInfo ? String(formData.additionalInfo) : "";
         const parcelTag = parcelId ? `CSV Parcel: ${parcelId}` : "CSV Parcel: N/A";
         return {
-          unique_id: uniqueIds[idx],
           layer_name: layerName,
           client: formData.client || null,
           project_name: formData.projectName || null,
@@ -412,10 +454,7 @@ Deno.serve(async (req) => {
         };
       });
 
-      const { data, error } = await admin
-        .from("polygon_features")
-        .insert(rows)
-        .select("id, unique_id, layer_name, area_hectares, plot_number");
+      const { data, error } = await insertPolygonRowsWithRetry(admin, baseRows, layerName, 4);
       if (error) return fail(500, `Failed to save parcels: ${error.message}`);
 
       return ok({

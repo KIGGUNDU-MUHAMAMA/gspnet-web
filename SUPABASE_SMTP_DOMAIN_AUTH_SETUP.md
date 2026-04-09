@@ -9,12 +9,12 @@ Use this checklist to complete deliverability setup in Supabase.
 1. Open Supabase Dashboard for project `kwssgfanbntfjdclchfi`.
 2. Go to **Authentication -> Email -> SMTP Settings**.
 3. Enable custom SMTP and fill:
-   - Host
-   - Port
-   - Username
-   - Password
-   - Sender name
-   - Sender email (must match verified domain)
+  - Host
+  - Port
+  - Username
+  - Password
+  - Sender name
+  - Sender email (must match verified domain)
 4. Save and send a test email.
 
 Recommended providers: Resend, SendGrid, Mailgun, Amazon SES.

@@ -2472,8 +2472,12 @@
                 <textarea id="bot-message-input" placeholder="Ask a question..." rows="2"></textarea>
                 <div class="message-actions" style="display: flex; justify-content: space-between; align-items: center;">
                     <div style="font-size: 10px; color: var(--text-secondary);">AI can make mistakes. Verify important info.</div>
-                    <button id="bot-message-send-btn" class="message-send">Send</button>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button id="bot-clear-history-btn" class="message-send" style="background: transparent; color: var(--text-primary); border: 1px solid rgba(210, 180, 140, 0.4);">Clear memory</button>
+                        <button id="bot-message-send-btn" class="message-send">Send</button>
+                    </div>
                 </div>
+                <div id="bot-diagnostics-line" style="font-size: 10px; color: var(--text-secondary); margin-top: 8px;">Backend: unknown | Last error: none | Response: n/a</div>
             </div>
         </div>
         <button id="chatbot-toggle" class="chatbot-toggle" aria-label="AI Assistant">
@@ -2486,7 +2490,15 @@
         const GeminiBot = {
             chatHistory: [],
             isTyping: false,
-            systemInstruction: `You are the official AI expert assistant for Geospatial Network Uganda (geospatialnetworkug.xyz). 
+            maxKnowledgeChars: 12000,
+            maxHistoryTurns: 20,
+            maxRetries: 3,
+            retryBaseDelayMs: 600,
+            contextInstruction: '',
+            backendOnline: null,
+            lastError: 'none',
+            lastResponseMs: null,
+            systemInstructionBase: `You are the official AI expert assistant for Geospatial Network Uganda (geospatialnetworkug.xyz). 
 CRITICAL RULES:
 1. You MUST solely rely on the "KNOWLEDGE BASE & GUIDES" provided below to answer user queries.
 2. When a user asks for instructions or a step-by-step guide, you MUST provide the EXACT steps as written in the KNOWLEDGE BASE. Do not skip steps or make up your own workflow.
@@ -2494,23 +2506,30 @@ CRITICAL RULES:
 4. Never invent features, tools, URLs, or phone numbers that are not in the knowledge base.
 5. You are currently on the LOGIN interface. Focus proactively on helping users create accounts, verify emails, troubleshoot login issues, and contact the Admin.
 6. The ONLY authorized Admin WhatsApp number is +256753771256 (or 0753771256). NEVER provide any other phone number under any circumstances.`,
+            authSystemInstruction: `You are the authentication assistant for Geospatial Network Uganda.
+Focus only on account signup, email verification, login troubleshooting, account roles, and admin contact.
+Never invent phone numbers, links, or workflows. If unsure, say you do not have that detail.`,
 
             init: async function() {
                 try {
-                    const response = await fetch('./chatbot_knowledge.md');
+                    const response = await fetch('./chatbot_assistant_context.md');
                     if (response.ok) {
-                        const kbContent = await response.text();
-                        this.systemInstruction += "\n\n### KNOWLEDGE BASE & GUIDES:\n" + kbContent;
-                        console.log("Chatbot knowledge base loaded via index.html");
+                        const contextContent = await response.text();
+                        const safeContext = contextContent.length > this.maxKnowledgeChars
+                            ? `${contextContent.slice(0, this.maxKnowledgeChars)}\n\n[Assistant context truncated for model context window.]`
+                            : contextContent;
+                        this.contextInstruction = safeContext;
+                        console.log("Chatbot assistant context loaded via index.html");
                     } else {
-                        console.warn("Could not load chatbot knowledge base.");
+                        console.warn("Could not load chatbot_assistant_context.md.");
                     }
                 } catch(e) {
-                    console.error("Error loading knowledge base: ", e);
+                    console.error("Error loading assistant context: ", e);
                 }
                 
                 this.setupUI();
                 this.loadHistory();
+                this.updateDiagnostics();
             },
             
             loadHistory: function() {
@@ -2540,6 +2559,7 @@ CRITICAL RULES:
                 const closeBtn = document.getElementById('chatbot-close');
                 const panel = document.getElementById('chatbot-panel');
                 const sendBtn = document.getElementById('bot-message-send-btn');
+                const clearBtn = document.getElementById('bot-clear-history-btn');
                 const inputArea = document.getElementById('bot-message-input');
                 
                 toggleBtn.addEventListener('click', () => {
@@ -2559,6 +2579,9 @@ CRITICAL RULES:
                 });
                 
                 sendBtn.addEventListener('click', () => this.sendMessage());
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', () => this.clearMemory());
+                }
                 
                 inputArea.addEventListener('keypress', (e) => {
                     if(e.key === 'Enter' && !e.shiftKey) {
@@ -2587,49 +2610,151 @@ CRITICAL RULES:
                 
                 this.isTyping = true;
                 this.showTypingIndicator();
+                this.updateDiagnostics('connecting');
                 
                 this.chatHistory.push({ role: "user", parts: [{ text }] });
+                if (this.chatHistory.length > this.maxHistoryTurns) {
+                    this.chatHistory = this.chatHistory.slice(-this.maxHistoryTurns);
+                }
                 this.saveHistory();
                 
+                const systemInstruction = this.buildInstructionForIntent(text);
                 const payload = {
                     contents: this.chatHistory,
                     systemInstruction: {
-                        parts: [{ text: this.systemInstruction }]
+                        parts: [{ text: systemInstruction }]
                     }
                 };
 
                 try {
-                    const response = await fetch('https://bot.geospatialnetworkug.xyz', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(payload)
-                    });
+                    const startTime = performance.now();
+                    const response = await this.fetchWithRetry(payload);
+                    const rawBody = await response.text();
+                    const data = this.safeParseJson(rawBody);
+                    this.lastResponseMs = Math.round(performance.now() - startTime);
                     
                     this.removeTypingIndicator();
-                    const data = await response.json();
                     
                     if(response.ok) {
                         const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate a response.";
                         this.appendMessage('assistant', replyText);
                         this.chatHistory.push({ role: 'model', parts: [{ text: replyText }] });
                         this.saveHistory();
+                        this.backendOnline = true;
+                        this.lastError = 'none';
+                        this.updateDiagnostics('online');
                     } else {
-                        // Extract precise error message if formatted like a Google API error
-                        const errStr = data.error?.message || data.error?.details?.[0]?.description || (typeof data.error === 'object' ? JSON.stringify(data.error) : data.error) || response.statusText;
+                        const errStr = this.extractApiErrorMessage(data) || rawBody || response.statusText || `HTTP ${response.status}`;
                         this.appendMessage('assistant', `*Error getting response: ${errStr}*`);
                         this.chatHistory.pop(); // remove failed prompt
                         this.saveHistory();
+                        this.backendOnline = response.status < 500;
+                        this.lastError = errStr;
+                        this.updateDiagnostics(this.backendOnline ? 'online' : 'offline');
                     }
                 } catch(e) {
                     this.removeTypingIndicator();
                     this.appendMessage('assistant', `*Network error: ${e.message}. Please try again later.*`);
                     this.chatHistory.pop(); // remove failed prompt
                     this.saveHistory();
+                    this.backendOnline = false;
+                    this.lastError = e.message || 'Network error';
+                    this.updateDiagnostics('offline');
                 }
                 
                 this.isTyping = false;
+            },
+
+            buildInstructionForIntent: function(userText) {
+                const authIntentPattern = /(login|log in|sign up|signup|register|password|verify|verification|email|account|subscription|admin|whatsapp|role|valuer|rsu|land clerk)/i;
+                const isAuthIntent = authIntentPattern.test(userText || '');
+                const promptBase = isAuthIntent ? this.authSystemInstruction : this.systemInstructionBase;
+                const contextBlock = this.contextInstruction ? `\n\n### KNOWLEDGE BASE & GUIDES:\n${this.contextInstruction}` : '';
+                return `${promptBase}${contextBlock}`;
+            },
+
+            fetchWithRetry: async function(payload) {
+                let lastError = null;
+                for (let attempt = 1; attempt <= this.maxRetries; attempt += 1) {
+                    try {
+                        const response = await fetch('https://bot.geospatialnetworkug.xyz', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        const retriableStatus = response.status === 429 || response.status === 503;
+                        if (retriableStatus && attempt < this.maxRetries) {
+                            await this.sleep(this.retryBaseDelayMs * (2 ** (attempt - 1)) + Math.floor(Math.random() * 150));
+                            continue;
+                        }
+                        return response;
+                    } catch (error) {
+                        lastError = error;
+                        if (attempt < this.maxRetries) {
+                            await this.sleep(this.retryBaseDelayMs * (2 ** (attempt - 1)) + Math.floor(Math.random() * 150));
+                            continue;
+                        }
+                        throw error;
+                    }
+                }
+                throw lastError || new Error('Request failed');
+            },
+
+            safeParseJson: function(text) {
+                if (!text) return {};
+                try {
+                    return JSON.parse(text);
+                } catch (error) {
+                    console.warn('Could not parse JSON response:', error);
+                    return {};
+                }
+            },
+
+            extractApiErrorMessage: function(payload) {
+                if (!payload) return '';
+                if (typeof payload === 'string') return payload;
+                if (payload.error) {
+                    if (typeof payload.error === 'string') return payload.error;
+                    if (payload.error.message) return payload.error.message;
+                    if (payload.error?.details?.[0]?.description) return payload.error.details[0].description;
+                }
+                if (payload.message) return payload.message;
+                try {
+                    return JSON.stringify(payload);
+                } catch (_error) {
+                    return '';
+                }
+            },
+
+            updateDiagnostics: function(statusOverride) {
+                const diagnosticsEl = document.getElementById('bot-diagnostics-line');
+                if (!diagnosticsEl) return;
+                let backendLabel = statusOverride;
+                if (!backendLabel) {
+                    if (this.backendOnline === true) backendLabel = 'online';
+                    else if (this.backendOnline === false) backendLabel = 'offline';
+                    else backendLabel = 'unknown';
+                }
+                const responseLabel = Number.isFinite(this.lastResponseMs) ? `${this.lastResponseMs} ms` : 'n/a';
+                const lastError = this.lastError || 'none';
+                diagnosticsEl.textContent = `Backend: ${backendLabel} | Last error: ${lastError} | Response: ${responseLabel}`;
+            },
+
+            clearMemory: function() {
+                this.chatHistory = [];
+                localStorage.removeItem('gspnet_chat_history_auth');
+                const container = document.getElementById('bot-messages-container');
+                if (container) {
+                    container.innerHTML = '';
+                    this.appendMessage('assistant', 'Hello! I reset our chat memory. Ask me anything about account setup, verification, and access.');
+                }
+                this.lastError = 'none';
+                this.lastResponseMs = null;
+                this.updateDiagnostics();
+            },
+
+            sleep: function(ms) {
+                return new Promise((resolve) => setTimeout(resolve, ms));
             },
             
             saveHistory: function() {
