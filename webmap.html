@@ -18499,6 +18499,28 @@
                 DISTANCES: 2.0,   // ~200m scale bar: add distance measurements
                 FULL_DETAIL: 1.0  // ~100m scale bar: all details (markers, haversine, etc.)
             };
+            // Additional zoom gates for expensive vector detail on heavy FlatGeobuf layers.
+            // Keep boundaries responsive at wider scales; render heavy annotations only when closer.
+            const DETAIL_ZOOM_GATE = {
+                DISTANCES: 1.0,   // Previously 2.0
+                FULL_DETAIL: 0.45 // Previously 1.0
+            };
+
+            // Fast first paint window for heavy FlatGeobuf layers.
+            const FGB_FAST_RENDER_WINDOW_MS = 2500;
+            const fastRenderUntilByLayerTitle = Object.create(null);
+
+            function markLayerFastRender(layerTitle) {
+                if (!layerTitle) return;
+                fastRenderUntilByLayerTitle[layerTitle] = Date.now() + FGB_FAST_RENDER_WINDOW_MS;
+            }
+
+            function isLayerInFastRender(feature) {
+                const layerTitle = feature.get('__layerTitle');
+                if (!layerTitle) return false;
+                const until = fastRenderUntilByLayerTitle[layerTitle];
+                return typeof until === 'number' && Date.now() < until;
+            }
 
             // Create FlatGeobuf layers with DEFERRED loading and maxResolution
             const gspnetLayers = [];
@@ -18510,7 +18532,9 @@
 
             // Build layers with deferred loading (only download .fgb when toggled visible)
             layerConfigs.forEach(config => {
-                const source = new ol.source.Vector();
+                const source = new ol.source.Vector({
+                    strategy: ol.loadingstrategy.bbox
+                });
                 const isBlock = config.name.toLowerCase().includes('blocks') || config.name.toLowerCase().includes('block');
                 const isProtected = config.name === 'Protected Areas';
                 const isForest = config.name === 'Uganda Forests Reserve';
@@ -18535,8 +18559,20 @@
                 layer._fgbUrl = config.url;
                 layer._fgbLoaded = false;
 
+                source.on('addfeature', function (evt) {
+                    const feature = evt.feature;
+                    if (feature && typeof feature.set === 'function') {
+                        feature.set('__layerTitle', config.name, true);
+                    }
+                });
+
                 // Deferred loading: only download FlatGeoBuf file when layer is toggled visible
                 layer.on('change:visible', function () {
+                    if (this.getVisible()) {
+                        markLayerFastRender(config.name);
+                        setTimeout(() => this.changed(), FGB_FAST_RENDER_WINDOW_MS + 50);
+                    }
+
                     if (this.getVisible() && !this._fgbLoaded) {
                         this._fgbLoaded = true;
                         console.log(`[FGB] Deferred loading: ${config.name}`);
@@ -18549,6 +18585,7 @@
                             true
                         );
                         src.setLoader(loader);
+                        src.refresh();
                     }
                 });
 
@@ -18813,8 +18850,8 @@
 
             // NLIS Polygon style function — RESOLUTION-AWARE
             // Tier 1 (res <= 5.0, ~500m): Stroke + labels
-            // Tier 2 (res <= 2.0, ~200m): + distance labels
-            // Tier 3 (res <= 1.0, ~100m): + corner circles
+            // Tier 2: + distance labels (gated by DETAIL_ZOOM_GATE.DISTANCES)
+            // Tier 3: + corner circles (gated by DETAIL_ZOOM_GATE.FULL_DETAIL)
             function getNlisPolygonStyle(feature) {
                 const geometry = feature.getGeometry();
                 const geomType = geometry ? geometry.getType() : null;
@@ -18824,52 +18861,73 @@
 
                 const view = map.getView();
                 const resolution = view.getResolution();
+                const geomRevision = geometry.getRevision ? geometry.getRevision() : 0;
                 // For MultiPolygon, use the first polygon's outer ring
                 const coordinates = geomType === 'MultiPolygon' ? geometry.getCoordinates()[0][0] : geometry.getCoordinates()[0];
 
                 // TIER 1: Always show base strokes (reuse shared cached styles)
                 const styles = [SHARED_STYLES.nlisWhiteBuffer, SHARED_STYLES.nlisBlackStroke];
 
+                // Fast first paint for perceived performance on first visibility toggle.
+                if (isLayerInFastRender(feature)) {
+                    return styles;
+                }
+
                 // TIER 1: Show polygon label at 500m zoom
                 // (no extra work needed — label is cheap)
 
-                // TIER 2: Distance labels at 200m zoom
-                if (resolution <= RES_THRESHOLD.DISTANCES) {
-                    for (let i = 0; i < coordinates.length - 1; i++) {
-                        const distanceMeters = getEdgeDistance(coordinates[i], coordinates[i + 1]);
-                        const edgeLine = new ol.geom.LineString([coordinates[i], coordinates[i + 1]]);
-                        styles.push(new ol.style.Style({
-                            text: new ol.style.Text({
-                                text: `${distanceMeters.toFixed(2)} m`,
-                                font: '12px sans-serif',
-                                fill: new ol.style.Fill({ color: '#333' }),
-                                stroke: new ol.style.Stroke({ color: '#fff', width: 2 }),
-                                offsetY: -10,
-                                placement: 'line',
-                                textAlign: 'center',
-                                textBaseline: 'middle',
-                                overflow: true,
-                                maxAngle: Math.PI / 4
-                            }),
-                            geometry: edgeLine
-                        }));
+                // TIER 2: Distance labels only at closer zoom (performance gate)
+                if (resolution <= DETAIL_ZOOM_GATE.DISTANCES) {
+                    const cacheKey = '__nlisDistanceStylesCache';
+                    let distanceStylesCache = feature.get(cacheKey);
+                    if (!distanceStylesCache || distanceStylesCache.revision !== geomRevision) {
+                        const distanceStyles = [];
+                        for (let i = 0; i < coordinates.length - 1; i++) {
+                            const distanceMeters = getEdgeDistance(coordinates[i], coordinates[i + 1]);
+                            const edgeLine = new ol.geom.LineString([coordinates[i], coordinates[i + 1]]);
+                            distanceStyles.push(new ol.style.Style({
+                                text: new ol.style.Text({
+                                    text: `${distanceMeters.toFixed(2)} m`,
+                                    font: '12px sans-serif',
+                                    fill: new ol.style.Fill({ color: '#333' }),
+                                    stroke: new ol.style.Stroke({ color: '#fff', width: 2 }),
+                                    offsetY: -10,
+                                    placement: 'line',
+                                    textAlign: 'center',
+                                    textBaseline: 'middle',
+                                    overflow: true,
+                                    maxAngle: Math.PI / 4
+                                }),
+                                geometry: edgeLine
+                            }));
+                        }
+                        distanceStylesCache = { revision: geomRevision, styles: distanceStyles };
+                        feature.set(cacheKey, distanceStylesCache, true);
                     }
+                    styles.push(...distanceStylesCache.styles);
                 }
 
-                // TIER 3: Corner circles at 100m zoom
-                if (resolution <= RES_THRESHOLD.FULL_DETAIL) {
-                    const radiusInPixels = resolution ? (1 / resolution) : 3;
-                    const circleRadius = Math.max(2, Math.min(10, radiusInPixels));
-                    for (let i = 0; i < coordinates.length - 1; i++) {
-                        styles.push(new ol.style.Style({
-                            image: new ol.style.Circle({
-                                radius: circleRadius,
-                                fill: new ol.style.Fill({ color: '#000000' }),
-                                stroke: new ol.style.Stroke({ color: '#ffffff', width: 1.5 })
-                            }),
-                            geometry: new ol.geom.Point(coordinates[i])
-                        }));
+                // TIER 3: Corner circles only at very close zoom (performance gate)
+                if (resolution <= DETAIL_ZOOM_GATE.FULL_DETAIL) {
+                    const cacheKey = '__nlisCornerStylesCache';
+                    let cornerStylesCache = feature.get(cacheKey);
+                    if (!cornerStylesCache || cornerStylesCache.revision !== geomRevision) {
+                        const cornerStyles = [];
+                        const circleRadius = 4;
+                        for (let i = 0; i < coordinates.length - 1; i++) {
+                            cornerStyles.push(new ol.style.Style({
+                                image: new ol.style.Circle({
+                                    radius: circleRadius,
+                                    fill: new ol.style.Fill({ color: '#000000' }),
+                                    stroke: new ol.style.Stroke({ color: '#ffffff', width: 1.5 })
+                                }),
+                                geometry: new ol.geom.Point(coordinates[i])
+                            }));
+                        }
+                        cornerStylesCache = { revision: geomRevision, styles: cornerStyles };
+                        feature.set(cacheKey, cornerStylesCache, true);
                     }
+                    styles.push(...cornerStylesCache.styles);
                 }
 
                 return styles;
@@ -19030,7 +19088,9 @@
 
             // Create vector sources and layers for each NLIS layer
             nlisLayerConfigs.forEach(config => {
-                const source = new ol.source.Vector();
+                const source = new ol.source.Vector({
+                    strategy: ol.loadingstrategy.bbox
+                });
 
                 // Create layer with styling — DEFERRED LOADING
                 const layer = new ol.layer.Vector({
@@ -19048,8 +19108,20 @@
                 layer._fgbUrls = config.urls || [config.url];
                 layer._fgbLoaded = false;
 
+                source.on('addfeature', function (evt) {
+                    const feature = evt.feature;
+                    if (feature && typeof feature.set === 'function') {
+                        feature.set('__layerTitle', config.name, true);
+                    }
+                });
+
                 // Deferred loading: only download FlatGeoBuf when layer is toggled visible
                 layer.on('change:visible', function () {
+                    if (this.getVisible()) {
+                        markLayerFastRender(config.name);
+                        setTimeout(() => this.changed(), FGB_FAST_RENDER_WINDOW_MS + 50);
+                    }
+
                     if (this.getVisible() && !this._fgbLoaded) {
                         this._fgbLoaded = true;
                         const urls = this._fgbUrls;
@@ -19071,6 +19143,7 @@
                                     true
                                 );
                                 src.setLoader(loader);
+                                src.refresh();
                             } catch (error) {
                                 console.warn(`[FGB] Failed ${config.name} from ${url}:`, error);
                                 tryNextUrl();
@@ -19248,9 +19321,9 @@
             }
 
             // FlatGeobuf Parcel Styling — RESOLUTION-AWARE
-            // Tier 1 (res <= 1.2, ~500m): Stroke + polygon label
-            // Tier 2 (res <= 0.6, ~200m): + distance labels
-            // Tier 3 (res <= 0.3, ~100m): + survey markers (red circles with black dots)
+            // Tier 1: Stroke + polygon label
+            // Tier 2: Distance labels (gated by DETAIL_ZOOM_GATE.DISTANCES)
+            // Tier 3: Survey markers (gated by DETAIL_ZOOM_GATE.FULL_DETAIL)
             function getFlatGeobufParcelStyle(feature) {
                 const geometry = feature.getGeometry();
                 const geomType = geometry ? geometry.getType() : null;
@@ -19260,79 +19333,110 @@
 
                 const view = map.getView();
                 const resolution = view.getResolution();
+                const geomRevision = geometry.getRevision ? geometry.getRevision() : 0;
                 // For MultiPolygon, use the first polygon's outer ring
                 const coordinates = geomType === 'MultiPolygon' ? geometry.getCoordinates()[0][0] : geometry.getCoordinates()[0];
 
                 // TIER 1: Always show base strokes (reuse shared cached styles)
                 const styles = [SHARED_STYLES.parcelWhiteBuffer, SHARED_STYLES.parcelBlackStroke];
 
+                // Fast first paint: keep initial render cheap, then enrich styles.
+                if (isLayerInFastRender(feature)) {
+                    return styles;
+                }
+
                 // TIER 1: Polygon label at 500m zoom (res <= 5.0)
                 if (resolution <= RES_THRESHOLD.LABELS) {
                     const nlisId = feature.get('nlis_id');
                     if (nlisId) {
-                        const centroid = ol.extent.getCenter(geometry.getExtent());
-                        styles.push(new ol.style.Style({
-                            geometry: new ol.geom.Point(centroid),
-                            text: new ol.style.Text({
-                                text: nlisId.toString(),
-                                font: 'bold 12px sans-serif',
-                                fill: new ol.style.Fill({ color: '#000000' }),
-                                stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
-                                textAlign: 'center',
-                                textBaseline: 'middle',
-                                offsetY: 0
-                            })
-                        }));
+                        const cacheKey = '__parcelLabelStyleCache';
+                        const labelText = nlisId.toString();
+                        let labelStyleCache = feature.get(cacheKey);
+                        if (!labelStyleCache || labelStyleCache.revision !== geomRevision || labelStyleCache.text !== labelText) {
+                            const centroid = ol.extent.getCenter(geometry.getExtent());
+                            labelStyleCache = {
+                                revision: geomRevision,
+                                text: labelText,
+                                style: new ol.style.Style({
+                                    geometry: new ol.geom.Point(centroid),
+                                    text: new ol.style.Text({
+                                        text: labelText,
+                                        font: 'bold 12px sans-serif',
+                                        fill: new ol.style.Fill({ color: '#000000' }),
+                                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                                        textAlign: 'center',
+                                        textBaseline: 'middle',
+                                        offsetY: 0
+                                    })
+                                })
+                            };
+                            feature.set(cacheKey, labelStyleCache, true);
+                        }
+                        styles.push(labelStyleCache.style);
                     }
                 }
 
-                // TIER 2: Distance labels at 200m zoom (res <= 2.0)
-                if (resolution <= RES_THRESHOLD.DISTANCES) {
-                    for (let i = 0; i < coordinates.length - 1; i++) {
-                        const distanceMeters = getEdgeDistance(coordinates[i], coordinates[i + 1]);
-                        const edgeLine = new ol.geom.LineString([coordinates[i], coordinates[i + 1]]);
-                        styles.push(new ol.style.Style({
-                            text: new ol.style.Text({
-                                text: `${distanceMeters.toFixed(2)} m`,
-                                font: '11px sans-serif',
-                                fill: new ol.style.Fill({ color: '#000000' }),
-                                stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }),
-                                offsetY: -8,
-                                placement: 'line',
-                                textAlign: 'center',
-                                textBaseline: 'middle',
-                                overflow: true,
-                                maxAngle: Math.PI / 4
-                            }),
-                            geometry: edgeLine
-                        }));
+                // TIER 2: Distance labels only at closer zoom (performance gate)
+                if (resolution <= DETAIL_ZOOM_GATE.DISTANCES) {
+                    const cacheKey = '__parcelDistanceStylesCache';
+                    let distanceStylesCache = feature.get(cacheKey);
+                    if (!distanceStylesCache || distanceStylesCache.revision !== geomRevision) {
+                        const distanceStyles = [];
+                        for (let i = 0; i < coordinates.length - 1; i++) {
+                            const distanceMeters = getEdgeDistance(coordinates[i], coordinates[i + 1]);
+                            const edgeLine = new ol.geom.LineString([coordinates[i], coordinates[i + 1]]);
+                            distanceStyles.push(new ol.style.Style({
+                                text: new ol.style.Text({
+                                    text: `${distanceMeters.toFixed(2)} m`,
+                                    font: '11px sans-serif',
+                                    fill: new ol.style.Fill({ color: '#000000' }),
+                                    stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }),
+                                    offsetY: -8,
+                                    placement: 'line',
+                                    textAlign: 'center',
+                                    textBaseline: 'middle',
+                                    overflow: true,
+                                    maxAngle: Math.PI / 4
+                                }),
+                                geometry: edgeLine
+                            }));
+                        }
+                        distanceStylesCache = { revision: geomRevision, styles: distanceStyles };
+                        feature.set(cacheKey, distanceStylesCache, true);
                     }
+                    styles.push(...distanceStylesCache.styles);
                 }
 
-                // TIER 3: Survey markers at 100m zoom (res <= 1.0)
-                if (resolution <= RES_THRESHOLD.FULL_DETAIL) {
-                    const radiusInPixels = resolution ? (1 / resolution) : 3;
-                    const circleRadius = Math.max(3, Math.min(12, radiusInPixels));
+                // TIER 3: Survey markers only at very close zoom (performance gate)
+                if (resolution <= DETAIL_ZOOM_GATE.FULL_DETAIL) {
+                    const cacheKey = '__parcelCornerStylesCache';
+                    let cornerStylesCache = feature.get(cacheKey);
+                    if (!cornerStylesCache || cornerStylesCache.revision !== geomRevision) {
+                        const cornerStyles = [];
+                        const circleRadius = 4;
+                        const centerDotRadius = 1.2;
 
-                    for (let i = 0; i < coordinates.length - 1; i++) {
-                        // Red circle
-                        styles.push(new ol.style.Style({
-                            geometry: new ol.geom.Point(coordinates[i]),
-                            image: new ol.style.Circle({
-                                radius: circleRadius,
-                                fill: new ol.style.Fill({ color: '#ff0000' }),
-                                stroke: new ol.style.Stroke({ color: '#000000', width: 1.5 })
-                            })
-                        }));
-                        // Black dot in center
-                        styles.push(new ol.style.Style({
-                            geometry: new ol.geom.Point(coordinates[i]),
-                            image: new ol.style.Circle({
-                                radius: Math.max(1, circleRadius / 4),
-                                fill: new ol.style.Fill({ color: '#000000' })
-                            })
-                        }));
+                        for (let i = 0; i < coordinates.length - 1; i++) {
+                            cornerStyles.push(new ol.style.Style({
+                                geometry: new ol.geom.Point(coordinates[i]),
+                                image: new ol.style.Circle({
+                                    radius: circleRadius,
+                                    fill: new ol.style.Fill({ color: '#ff0000' }),
+                                    stroke: new ol.style.Stroke({ color: '#000000', width: 1.5 })
+                                })
+                            }));
+                            cornerStyles.push(new ol.style.Style({
+                                geometry: new ol.geom.Point(coordinates[i]),
+                                image: new ol.style.Circle({
+                                    radius: centerDotRadius,
+                                    fill: new ol.style.Fill({ color: '#000000' })
+                                })
+                            }));
+                        }
+                        cornerStylesCache = { revision: geomRevision, styles: cornerStyles };
+                        feature.set(cacheKey, cornerStylesCache, true);
                     }
+                    styles.push(...cornerStylesCache.styles);
                 }
 
                 return styles;
