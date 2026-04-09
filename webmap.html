@@ -18509,6 +18509,13 @@
             // Fast first paint window for heavy FlatGeobuf layers.
             const FGB_FAST_RENDER_WINDOW_MS = 2500;
             const fastRenderUntilByLayerTitle = Object.create(null);
+            const FGB_INTERACTION_GATES = {
+                SNAPPING_MAX_RESOLUTION: 2.0,
+                FEATURE_INFO_MAX_RESOLUTION: 3.0
+            };
+            const fgbWarmupUrlsByLayerTitle = new Map();
+            const fgbWarmupDone = new Set();
+            const fgbWarmupPending = new Set();
 
             function markLayerFastRender(layerTitle) {
                 if (!layerTitle) return;
@@ -18520,6 +18527,70 @@
                 if (!layerTitle) return false;
                 const until = fastRenderUntilByLayerTitle[layerTitle];
                 return typeof until === 'number' && Date.now() < until;
+            }
+
+            function normalizeLayerTitleForMatch(value) {
+                return String(value || '')
+                    .trim()
+                    .toLowerCase()
+                    .replace(/\s+/g, ' ');
+            }
+
+            function registerFlatGeobufWarmupUrls(layerTitle, urls) {
+                if (!layerTitle || !Array.isArray(urls)) return;
+                const key = normalizeLayerTitleForMatch(layerTitle);
+                const existing = fgbWarmupUrlsByLayerTitle.get(key) || [];
+                const merged = new Set(existing);
+                urls.forEach(url => {
+                    if (url && typeof url === 'string') merged.add(url);
+                });
+                fgbWarmupUrlsByLayerTitle.set(key, Array.from(merged));
+            }
+
+            async function warmupFlatGeobufUrl(url, mode) {
+                if (!url || fgbWarmupDone.has(url) || fgbWarmupPending.has(url)) return;
+                fgbWarmupPending.add(url);
+
+                try {
+                    if (mode === 'range') {
+                        const controller = new AbortController();
+                        const timeout = setTimeout(() => controller.abort(), 2500);
+                        try {
+                            const res = await fetch(url, {
+                                method: 'GET',
+                                mode: 'cors',
+                                cache: 'force-cache',
+                                credentials: 'omit',
+                                headers: { Range: 'bytes=0-65535' },
+                                signal: controller.signal
+                            });
+                            if (res.body && typeof res.body.getReader === 'function') {
+                                const reader = res.body.getReader();
+                                try {
+                                    await reader.read();
+                                } catch (e) {
+                                    // Ignore transient read/cancel failures.
+                                } finally {
+                                    try { await reader.cancel(); } catch (e) { /* ignore */ }
+                                }
+                            }
+                        } finally {
+                            clearTimeout(timeout);
+                        }
+                    } else {
+                        await fetch(url, {
+                            method: 'HEAD',
+                            mode: 'cors',
+                            cache: 'force-cache',
+                            credentials: 'omit'
+                        });
+                    }
+                    fgbWarmupDone.add(url);
+                } catch (e) {
+                    // Warmup is best-effort; ignore failures.
+                } finally {
+                    fgbWarmupPending.delete(url);
+                }
             }
 
             // Create FlatGeobuf layers with DEFERRED loading and maxResolution
@@ -18558,6 +18629,7 @@
                 // Store URL for deferred loading
                 layer._fgbUrl = config.url;
                 layer._fgbLoaded = false;
+                registerFlatGeobufWarmupUrls(config.name, [config.url]);
 
                 source.on('addfeature', function (evt) {
                     const feature = evt.feature;
@@ -19107,6 +19179,7 @@
                 // Store URLs for deferred loading
                 layer._fgbUrls = config.urls || [config.url];
                 layer._fgbLoaded = false;
+                registerFlatGeobufWarmupUrls(config.name, layer._fgbUrls);
 
                 source.on('addfeature', function (evt) {
                     const feature = evt.feature;
@@ -19613,6 +19686,53 @@
                 startActive: true
             });
             map.addControl(layerSwitcher);
+
+            function installLayerSwitcherFlatGeobufWarmup() {
+                if (window.__fgbWarmupInstalled) return;
+                const switcherEl = document.querySelector('.layer-switcher');
+                if (!switcherEl) {
+                    setTimeout(installLayerSwitcherFlatGeobufWarmup, 300);
+                    return;
+                }
+                window.__fgbWarmupInstalled = true;
+
+                const allWarmupUrls = Array.from(fgbWarmupUrlsByLayerTitle.values()).flat();
+
+                const warmupLayerByLabel = (labelText) => {
+                    const normalized = normalizeLayerTitleForMatch(labelText);
+                    if (!normalized) return;
+                    for (const [titleKey, urls] of fgbWarmupUrlsByLayerTitle.entries()) {
+                        if (titleKey === normalized || normalized.includes(titleKey) || titleKey.includes(normalized)) {
+                            urls.forEach(url => warmupFlatGeobufUrl(url, 'range'));
+                        }
+                    }
+                };
+
+                const bindHoverWarmup = () => {
+                    switcherEl.querySelectorAll('label').forEach(label => {
+                        if (label.dataset.fgbWarmupBound === '1') return;
+                        label.dataset.fgbWarmupBound = '1';
+                        label.addEventListener('mouseenter', () => {
+                            warmupLayerByLabel(label.textContent || '');
+                        }, { passive: true });
+                    });
+                };
+
+                // Warm DNS/TLS/cache as soon as user approaches the switcher.
+                switcherEl.addEventListener('mouseenter', () => {
+                    allWarmupUrls.forEach(url => warmupFlatGeobufUrl(url, 'head'));
+                }, { once: true, passive: true });
+
+                switcherEl.addEventListener('click', () => {
+                    setTimeout(bindHoverWarmup, 0);
+                }, { passive: true });
+
+                const observer = new MutationObserver(() => bindHoverWarmup());
+                observer.observe(switcherEl, { childList: true, subtree: true });
+                bindHoverWarmup();
+            }
+
+            installLayerSwitcherFlatGeobufWarmup();
 
 
             // Layer counter functionality
@@ -24950,18 +25070,27 @@
                 // Get snapping tolerance from UI
                 snappingTolerance = parseInt(document.getElementById('snapping-tolerance').value) || 5;
                 snappingMode = document.getElementById('snapping-mode').value || 'both';
+                const currentResolution = map.getView().getResolution();
+                const allowGspnetSnapping = currentResolution <= FGB_INTERACTION_GATES.SNAPPING_MAX_RESOLUTION;
 
                 // Get selected layer or use all visible layers
                 const selectedLayerId = document.getElementById('coordExtractorLayerSelect').value;
                 let snapSources = [];
+                let skippedGspnetLayers = 0;
 
                 if (selectedLayerId) {
                     // Use only selected layer
                     selectedSnappingLayer = findLayerById(selectedLayerId);
                     console.log('Selected layer:', selectedLayerId, 'Found layer:', selectedSnappingLayer);
                     if (selectedSnappingLayer && selectedSnappingLayer.getVisible()) {
-                        snapSources.push(selectedSnappingLayer.getSource());
-                        console.log('Added source for selected layer:', selectedSnappingLayer.getSource());
+                        const selectedIsGspnet = gspnetLayers.includes(selectedSnappingLayer);
+                        if (selectedIsGspnet && !allowGspnetSnapping) {
+                            skippedGspnetLayers++;
+                            console.log('[Snap] Skipped GSPNET snapping at current zoom for performance');
+                        } else {
+                            snapSources.push(selectedSnappingLayer.getSource());
+                            console.log('Added source for selected layer:', selectedSnappingLayer.getSource());
+                        }
                     } else {
                         console.warn('Selected layer not found or not visible:', selectedLayerId);
                     }
@@ -24975,6 +25104,10 @@
 
                     visibleGspnetLayers.forEach(layer => {
                         if (layer.getSource()) {
+                            if (!allowGspnetSnapping) {
+                                skippedGspnetLayers++;
+                                return;
+                            }
                             const source = layer.getSource();
                             const features = source.getFeatures();
                             console.log('GSPNET layer:', layer.get('title'), 'has', features.length, 'features');
@@ -24990,6 +25123,10 @@
                             snapSources.push(source);
                         }
                     });
+                }
+
+                if (skippedGspnetLayers > 0) {
+                    console.log(`[Snap] Skipped ${skippedGspnetLayers} GSPNET layer(s) at this zoom for performance`);
                 }
 
                 if (snapSources.length > 0) {
@@ -40323,6 +40460,10 @@ function smoothChaikin(points) {
 
             // Get feature info for FlatGeobuf layers (GSPNET LAYERS)
             function getFlatGeobufFeatureInfo(pixel) {
+                const resolution = map.getView().getResolution();
+                if (resolution > FGB_INTERACTION_GATES.FEATURE_INFO_MAX_RESOLUTION) {
+                    return [];
+                }
                 // Check all visible FlatGeobuf layers (gspnetLayers)
                 const features = [];
                 gspnetLayers.forEach(layer => {
@@ -40639,7 +40780,11 @@ function smoothChaikin(points) {
                     }
 
                     // Fallback to vector features
-                    const feature = map.forEachFeatureAtPixel(pixel, function (feature) {
+                    const allowGspnetFallbackInfo = map.getView().getResolution() <= FGB_INTERACTION_GATES.FEATURE_INFO_MAX_RESOLUTION;
+                    const feature = map.forEachFeatureAtPixel(pixel, function (feature, layer) {
+                        if (!allowGspnetFallbackInfo && layer && gspnetLayers.includes(layer)) {
+                            return undefined;
+                        }
                         return feature;
                     });
 
