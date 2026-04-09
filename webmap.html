@@ -16485,6 +16485,42 @@
                 })
             });
 
+            const esriWorldTopo = new ol.layer.Tile({
+                title: 'Esri World Topo Map',
+                type: 'base',
+                visible: false,
+                source: new ol.source.XYZ({
+                    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+                    attributions: 'Tiles © Esri',
+                    crossOrigin: 'anonymous'
+                })
+            });
+
+            const esriTerrainBase = new ol.layer.Tile({
+                title: 'Esri World Terrain + Reference',
+                type: 'base',
+                visible: false,
+                source: new ol.source.XYZ({
+                    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}',
+                    attributions: 'Tiles © Esri',
+                    crossOrigin: 'anonymous'
+                })
+            });
+
+            // Keep this out of the switcher and auto-link it to terrain base visibility.
+            const esriTerrainReference = new ol.layer.Tile({
+                title: 'Esri Terrain Reference Overlay',
+                type: 'overlay',
+                visible: false,
+                displayInLayerSwitcher: false,
+                zIndex: 30,
+                source: new ol.source.XYZ({
+                    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Reference_Overlay/MapServer/tile/{z}/{y}/{x}',
+                    attributions: 'Reference © Esri',
+                    crossOrigin: 'anonymous'
+                })
+            });
+
             const googleHybrid = new ol.layer.Tile({
                 title: 'Google Satellite Hybrid',
                 type: 'base',
@@ -16560,6 +16596,8 @@
                 layers: [
                     esriSatellite,
                     googleHybrid,
+                    esriWorldTopo,
+                    esriTerrainBase,
                     cartoVoyagerLayer,
                     cartoPositronLayer,
                     osmHotLayer,
@@ -16604,12 +16642,17 @@
             const map = new ol.Map({
                 target: 'map',
                 view: view,
-                layers: [baseMapsGroup],
+                layers: [baseMapsGroup, esriTerrainReference],
                 controls: controls
             });
 
             // Make map globally accessible
             window.map = map;
+
+            // Sync Esri terrain reference with its basemap visibility.
+            esriTerrainBase.on('change:visible', function () {
+                esriTerrainReference.setVisible(this.getVisible());
+            });
 
             // ========================================
             // 3D TERRAIN DTM & CONTOURS STATE
