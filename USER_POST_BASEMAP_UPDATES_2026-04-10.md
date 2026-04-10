@@ -25,6 +25,7 @@ We have released a major basemap update to improve clarity, speed, and day-to-da
 ### Why this matters
 
 These additions give surveyors and GIS users better context switching between:
+
 - high-detail imagery,
 - terrain/topographic understanding,
 - and clean thematic basemaps for overlays and reporting.
