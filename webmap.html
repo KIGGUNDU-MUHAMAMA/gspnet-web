@@ -33676,7 +33676,7 @@
                     } else if (styleName === 'dotted') {
                         lineDash = [lineWidth, lineWidth * 2];
                     } else {
-                        lineDash = undefined; // solid
+                        lineDash = null; // SOLID: must be null for VectorImage layers
                     }
 
                     // Line style
@@ -35452,14 +35452,14 @@
                         ? (terrain3DState.majorContourStyle || 'solid')
                         : (terrain3DState.minorContourStyle || 'solid');
 
-                    // Resolve lineDash: use EMPTY ARRAY [] for solid (explicit canvas reset)
+                    // Resolve lineDash: OpenLayers requires NULL for solid (not [] or undefined)
                     let lineDash;
                     if (liveStyle === 'dashed') {
                         lineDash = [liveWidth * 4, liveWidth * 3];
                     } else if (liveStyle === 'dotted') {
                         lineDash = [liveWidth, liveWidth * 2];
                     } else {
-                        lineDash = [];  // SOLID: explicit empty array resets canvas dash
+                        lineDash = null;  // SOLID: must be null for VectorImage layers
                     }
 
                     const stroke = new ol.style.Stroke({
