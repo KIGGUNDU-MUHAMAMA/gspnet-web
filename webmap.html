@@ -33670,24 +33670,22 @@
                     // Resolve line dash pattern from style name
                     const styleName = isMajor ? config.majorStyle : config.minorStyle;
                     const lineWidth = isMajor ? config.majorWidth : config.minorWidth;
-                    let lineDash;
+                    // Build stroke options - omit lineDash for solid
+                    const strokeOpts = {
+                        color: isMajor ? config.majorColor : config.minorColor,
+                        width: lineWidth,
+                        lineCap: 'round',
+                        lineJoin: 'round'
+                    };
                     if (styleName === 'dashed') {
-                        lineDash = [lineWidth * 4, lineWidth * 3];
+                        strokeOpts.lineDash = [lineWidth * 4, lineWidth * 3];
                     } else if (styleName === 'dotted') {
-                        lineDash = [lineWidth, lineWidth * 2];
-                    } else {
-                        lineDash = null; // SOLID: must be null for VectorImage layers
+                        strokeOpts.lineDash = [lineWidth, lineWidth * 2];
                     }
 
                     // Line style
                     styles.push(new ol.style.Style({
-                        stroke: new ol.style.Stroke({
-                            color: isMajor ? config.majorColor : config.minorColor,
-                            width: lineWidth,
-                            lineDash: lineDash,
-                            lineCap: 'round',
-                            lineJoin: 'round'
-                        })
+                        stroke: new ol.style.Stroke(strokeOpts)
                     }));
 
                     // Smart label filtering
@@ -35426,10 +35424,13 @@
                 console.log(`[CONTOUR] Site: ${siteWidth.toFixed(1)}m × ${siteHeight.toFixed(1)}m, Label spacing: ${metersPerLabel.toFixed(1)}m`);
 
                 // ============================================================
-                // SINGLE CONTOUR STYLE FUNCTION
+                // SINGLE CONTOUR STYLE FUNCTION (v7.0)
                 // Reads ALL style values from terrain3DState on EVERY call
                 // so user changes take effect immediately.
+                // For SOLID lines: omit lineDash entirely from Stroke options
+                // so OpenLayers never calls ctx.setLineDash() at all.
                 // ============================================================
+                let _contourStyleLogCount = 0;
                 const styleFunction = (feature, resolution) => {
                     const elev = feature.get('elevation');
                     const isMajor = feature.get('isMajor');
@@ -35452,23 +35453,30 @@
                         ? (terrain3DState.majorContourStyle || 'solid')
                         : (terrain3DState.minorContourStyle || 'solid');
 
-                    // Resolve lineDash: OpenLayers requires NULL for solid (not [] or undefined)
-                    let lineDash;
-                    if (liveStyle === 'dashed') {
-                        lineDash = [liveWidth * 4, liveWidth * 3];
-                    } else if (liveStyle === 'dotted') {
-                        lineDash = [liveWidth, liveWidth * 2];
-                    } else {
-                        lineDash = null;  // SOLID: must be null for VectorImage layers
+                    // One-time diagnostic log
+                    if (_contourStyleLogCount < 3) {
+                        console.log(`[CONTOUR v7.0 STYLE] isMajor=${isMajor}, style="${liveStyle}", color=${liveColor}, width=${liveWidth}`);
+                        _contourStyleLogCount++;
                     }
 
-                    const stroke = new ol.style.Stroke({
+                    // Build stroke options - OMIT lineDash entirely for solid
+                    // so OpenLayers/Canvas never calls setLineDash()
+                    const strokeOpts = {
                         color: liveColor,
                         width: liveWidth,
                         lineCap: 'round',
-                        lineJoin: 'round',
-                        lineDash: lineDash
-                    });
+                        lineJoin: 'round'
+                    };
+
+                    // Only add lineDash when NOT solid
+                    if (liveStyle === 'dashed') {
+                        strokeOpts.lineDash = [liveWidth * 4, liveWidth * 3];
+                    } else if (liveStyle === 'dotted') {
+                        strokeOpts.lineDash = [liveWidth, liveWidth * 2];
+                    }
+                    // For 'solid': lineDash is NOT set on strokeOpts at all
+
+                    const stroke = new ol.style.Stroke(strokeOpts);
 
                     // --------------------------------------------------------
                     // LABEL FILTERING (MAJOR AND MINOR CONTOURS)
@@ -39314,6 +39322,12 @@ function smoothChaikin(points) {
                             return;
                         }
 
+                        // Show loading indicator BEFORE starting heavy computation
+                        showLoadingIndicator('Generating DTM raster...');
+                        updateLoadingProgress(`Preparing ${combinedData.length} data points...`);
+                        // Yield to browser so overlay paints before CPU-heavy work
+                        await new Promise(resolve => setTimeout(resolve, 50));
+
                         await generateDTMLayer();
 
                         // Zoom to extent
@@ -39414,6 +39428,12 @@ function smoothChaikin(points) {
                             showToast('Please load at least 3 data points to generate terrain', 'error');
                             return;
                         }
+
+                        // Show loading indicator BEFORE starting heavy computation
+                        showLoadingIndicator('Generating DTM and Contours...');
+                        updateLoadingProgress(`Processing ${combinedData.length} data points...`);
+                        // Yield to browser so overlay paints before CPU-heavy work
+                        await new Promise(resolve => setTimeout(resolve, 50));
 
                         // Generate DTM and Contours
                         await generateDTMLayer();
