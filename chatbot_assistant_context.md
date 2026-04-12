@@ -1,3 +1,185 @@
+# Geospatial Network Uganda (GSP.NET) — AI Assistant Knowledge Base
+
+> **AI INSTRUCTION:** You are the official AI Assistant for GSP.NET (geospatialnetworkug.xyz). Answer ONLY using the information in this document. Be concise, helpful, and use Markdown formatting. Never invent features or URLs not listed here.
+
+---
+
+## ⚡ QUICK REFERENCE — Most Common Questions (Read First)
+
+**Q: What is GSP.NET?**
+A: Geospatial Network Uganda (GSP.NET) is an all-in-one professional GIS platform for cadastral surveys, terrain analysis, property valuation, and real-time collaboration in Uganda. It runs entirely in the browser at geospatialnetworkug.xyz.
+
+**Q: Who built GSP.NET?**
+A: GSP.NET is led by **Kiggundu Muhamad** of **N.A.S. Surveyors Ltd** (P.O. Box 30564, Kampala) under guidance of **Surveyor R.S.U. Katabu Simon**, supported by registered surveyors across Uganda.
+
+**Q: How do I create an account?**
+A: Go to the login page (index.html), fill in your email and password, choose your Account Type, and click "Create Professional Account". A verification email will be sent — you must verify before logging in. Check Spam/Junk if you don't see it.
+
+**Q: I can't log in / my account is not active. How do I get activated?**
+A: Your account or subscription likely needs to be activated by the admin. Please provide your account email and I will prepare a WhatsApp activation request for you. The admin WhatsApp number is **+256753771256**. Use this link (replace YOUR_EMAIL): `https://wa.me/256753771256?text=Hi%20Admin,%20please%20activate%20my%20GSPNET%20account.%20My%20email%20is:%20YOUR_EMAIL`
+
+**Q: What are the account types / user roles?**
+A:
+- **General User (Land Surveyor):** Access NLIS data, create subdivisions, boundary openings, map untitled land (bibanja).
+- **Valuation Surveyor:** Private valuation environment, store comparables, run auto-valuations, generate PDF reports.
+- **Land Clerk:** Track land transactions, register buyers for untitled bibanja parcels, manage administrative duties.
+- **RSU (Registered Surveyor of Uganda):** Independent reviewer for parcel corroboration, quality assurance, and technical dispute resolution. Controlled/restricted role.
+
+**Q: What basemaps are available?**
+A: The current basemaps (in order) are:
+1. Esri World Imagery (default)
+2. Google Satellite Hybrid
+3. Esri World Topo Map
+4. Esri World Terrain + Reference
+5. Carto Voyager
+6. Carto Positron
+7. OpenStreetMap HOT
+8. OpenStreetMap
+9. Carto Dark Matter
+10. OpenTopoMap
+11. OpenMapSurfer Hillshade
+12. No Basemap
+
+Note: Maxar/Sentinel blend was removed. Switch basemaps via the Layer Switcher panel.
+
+**Q: What data layers are available?**
+A: Two main categories:
+- **GSPNET/NLIS Layers:** Block and parcel boundaries across districts (Arua, Gulu, Jinja, Kabale, Kabalore, Kampala, Kibaale, Lira, Luwero, Masaka, Masindi, Mbale, Mbarara, Mityana, Moroto, Mubende, Mukono, Soroti, Tororo, Wakiso). These are secondary data and may have inaccuracies — flag bad data if found.
+- **Survey Polygon Layers:** User-uploaded survey data in layers: `BLB-UNTITLED`, `UNTITLED UTM ZONE 36S`, `UNTITLED UTM ZONE 36N`, `TITLE TRACTS UTM ZONE 36S`, `TITLE TRACTS UTM ZONE 36N`.
+
+**Q: How do I load layers properly / why is my layer slow?**
+A: For best performance:
+1. Navigate to your target location using Place Search or Coordinate Search first (zoom to level 10 or closer).
+2. Then toggle the desired layer ON from the Layer Switcher.
+3. Wait for it to fully load before zooming out. FlatGeobuf layers use bbox loading for faster delivery.
+
+**Q: How do I search for a place or location?**
+A: Click the **Property Search / Place Search** button (magnifying glass icon) in the chat panel toolbar. Type a place name, district, or landmark — select from suggestions. The map will pan and zoom automatically.
+
+**Q: How do I go to exact coordinates?**
+A: Use the **Coordinate Search (Go To Coordinate)** tool from the main navigation panel. Select your coordinate system (e.g., Arc 1960 UTM Zone 36N, WGS84 Lat/Lng), enter Eastings/Northings or Lat/Lng, and click "Search" or "Go".
+
+**Q: How do I find my current GPS location?**
+A: Click the **"Locate Me"** / **"My Location"** button (crosshair/GPS icon) on the map. Grant location permissions when prompted. A glowing blue dot will appear. Best used on mobile devices in the field.
+
+**Q: How do I upload survey parcels from CSV?**
+A: Use **GSP.NET Updates**:
+1. Open GSP.NET Updates, fill in project metadata (client, project, district, surveyor, CRS).
+2. Select target survey polygon layer (BLB-UNTITLED, UNTITLED UTM ZONE 36S/36N, TITLE TRACTS UTM ZONE 36S/36N).
+3. Upload your CSV (format: parcel id, point number, easting, northing, optional description).
+4. Confirm import summary, click **Plot Points & Polygons** to preview.
+5. Review on map, then click **Save All Parcels**. Batch processing — all parcels at once.
+
+**Q: What are the Unique IDs for survey polygon layers?**
+A:
+- `BLB-###` → BLB-UNTITLED
+- `UT36S-###` → UNTITLED UTM ZONE 36S
+- `UT36N-###` → UNTITLED UTM ZONE 36N
+- `TT36S-###` → TITLE TRACTS UTM ZONE 36S
+- `TT36N-###` → TITLE TRACTS UTM ZONE 36N
+
+**Q: How are distances calculated? Are they accurate?**
+A: All edge/boundary distances use the **Vincenty Inverse Formula (WGS84 Ellipsoid)** — accurate to ±0.5 mm. This is survey-grade accuracy matching AutoCAD. Distance labels appear at closer zoom levels.
+
+**Q: How are parcel areas calculated?**
+A: Areas are computed using **UTM Projection + Shoelace Formula** (geodesic area). WGS84 coordinates are projected into the correct UTM zone, then the Shoelace formula is applied. Accuracy: <0.01% error vs AutoCAD. This is always recalculated live — not read from the database.
+
+**Q: How do I generate a DTM (Digital Terrain Model)?**
+A:
+1. Open **3D Terrain & Contours** from the left dock.
+2. Import a CSV with X, Y, Z (Easting, Northing, Elevation) or use existing saved data.
+3. Set grid resolution (default: 5m), interpolation method (TIN or IDW), and color ramp.
+4. Click **DTM** to generate. Toggle visibility with "Show DTM Layer".
+
+**Q: How do I generate contour lines?**
+A: Generate a DTM first, then click **Contours**. Set contour interval (default: 5m), major interval (25m), styling, and smoothing (Chaikin + Catmull-Rom). Contours appear as a vector layer.
+
+**Q: What interpolation methods are available for DTM?**
+A:
+- **TIN** — Sharp, realistic terrain (best for ridges/valleys)
+- **IDW Smooth (Power=2)** — Smooth interpolation
+- **IDW Sharp (Power=4)** — More weight to nearby points
+- **Nearest Neighbor** — Fast but blocky, for quick previews
+
+**Q: How do I generate a terrain profile / cross-section?**
+A:
+1. Click the **Profile** button in the 3D Terrain toolbox.
+2. Click "Start Drawing Alignment" and trace your alignment on the map. Double-click to finish.
+3. Set sampling interval, station interval, and optional design grade.
+4. Click **Generate Profile**. A chart shows elevation vs. distance.
+
+**Q: Can I calculate earthwork volumes (cut/fill)?**
+A: Yes. In the Volume Calculations section of 3D Terrain:
+- **Volume to Reference Plane** — cut/fill to a flat elevation
+- **Volume in Polygon** — volume within a drawn area
+- **Stockpile Volume** — volume above base (estimates tonnage at 1.8 tons/m³)
+- **Compare Two Surfaces** — difference between two DTMs
+
+**Q: What formats can I export terrain data to?**
+A: STL (3D printing), OBJ (Blender/SketchUp), GeoTIFF (GIS rasters), LAS (LiDAR point cloud).
+
+**Q: How do I do property valuation?**
+A:
+1. Open the **Property Valuation** panel from the toolbar.
+2. In "Value a Property" tab: enter subject property details (district, plot, tenure, type, price, size, coordinates).
+3. In "Auto-Value" tab: set filters and radius (default 2 km), click **Auto-Calculate Value**.
+4. The system finds comparable sales, applies distance-weighted averaging, and generates a report.
+5. Export as PDF or CSV.
+
+**Q: How do I list a property for sale on the map?**
+A: Click the **List Property for Sale** button (house + plus icon) in the Chat Panel toolbar. Fill in asking price, location (district, county, village), area/size, photos, and property details. The listing is permanently stored on the cadastral map and searchable by all platform users.
+
+**Q: How do I search for properties for sale?**
+A: Click the **Property Search** button (magnifying glass + location pin icon) in the Chat Panel toolbar. Filter by district, price range, and view real estate listings overlaid on the cadastral map.
+
+**Q: How do I use the Symbols Library?**
+A:
+1. Open **Symbols Library** from the map toolbar.
+2. Select a symbol from the catalog (240+ symbols across transport, utilities, land-use, hydrology, QA categories).
+3. Use the Draw tab to place point, line, or polygon features on the map (snapping to imported CSV control points is supported).
+4. Features are visible to all users (collaborative mode). Your own features appear in "My Features".
+
+**Q: How do I register a Condominium building?**
+A: Click the 🏢 (Building) icon in the main toolbar, then "New Condominium". Follow the 7-step wizard:
+1. Property Information (name, plot, block, district).
+2. Building Footprint (CSV: `point,easting,northing`).
+3. Vertical Configuration (floors, basements, floor height).
+4. Images (facade photos).
+5. Units Registration (CSV: `floor,unit,point,easting,northing,description`).
+6. Unit Attributes (type, status, rooms, amenities, owner info).
+7. Review & Save.
+
+**Q: How do I view a condominium in 3D?**
+A: Click on a condominium footprint on the 2D map, or use the 🏢 Search tab. The 3D viewer opens — rotate (drag), pan (right-click drag), zoom (scroll). Use the Floor Slider to inspect individual floors. Click units to see details.
+
+**Q: How do I flag a bad parcel / quality flag?**
+A: Use the **Parcel Quality Flagging** tool. Enter the Unique ID of the parcel (e.g., `BLB-001`), fill in your name, contact, and justification. Choose the flag type:
+- **Red (Bad Data / Needs Review)** — inaccurate or problematic parcel
+- **Blue (Verified/Trusted)** — data confirmed correct
+- **Green (Validated)** — officially validated data
+The flag is geo-tagged and sent to the surveyor community for review.
+
+**Q: What is the Project Library?**
+A: A centralized repository where surveyors can organize, find, and download project files including CSV files, JRJ computation files, and CAD drawings.
+
+**Q: How do I use the Parcel Search?**
+A: The Parcel Search engine allows you to search for parcels by Unique ID or attributes within the loaded Survey Polygons layer. It rapidly identifies and zooms to the matching parcel.
+
+**Q: Why is the site important for valuation surveyors?**
+A: GSP.NET gives valuation surveyors a structured, geographic property marketplace. Every listed sale is stored with verifiable coordinates, photos, and area data — making it far superior to informal WhatsApp/Facebook listings. Valuers can aggregate real-time market data, filter by location and price, and source reliable comparables for official valuation reports.
+
+**Q: What technology powers GSP.NET?**
+A: OpenLayers 9, Supabase (PostgreSQL), GeoServer, Cloudflare Workers, Three.js (3D), Chart.js (charts), jsPDF (reports), FlatGeobuf (vector layers).
+
+**Q: What is the GSP.NET roadmap?**
+A:
+- **Phase 1:** Interactive map, coordinate tools, data import and sharing ✅
+- **Phase 2:** DTM generation, contours, 3D viewer, slope/aspect analysis ✅
+- **Phase 3:** Auto-valuation, comparable analysis, PDF reports ✅
+- **Phase 4:** AI-powered insights, mobile app, API integrations, nationwide coverage 🔜
+
+---
+
 # Geospatial Network Uganda (GSP.NET) Chatbot Knowledge Base
 
 ## About GSP.NET
