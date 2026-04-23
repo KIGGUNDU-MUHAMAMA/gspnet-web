@@ -36819,24 +36819,9 @@ function smoothChaikin(points) {
                 const { bounds } = gridData;  // { minX, minY, maxX, maxY } in projected CRS
                 if (!bounds || bounds.minX == null) throw new Error('Grid data has no bounds');
 
-                // ── Resolve source projection ──
-                const crsString = terrain3DState.coordinateSystem || 'EPSG:32636';
-                const epsgMatch = crsString.match(/(\d{4,6})/);
-                const epsg = epsgMatch ? parseInt(epsgMatch[1]) : 32636;
-                const zoneMatch = String(epsg).match(/326(\d{2})|327(\d{2})/);
-                let utmZone = 36, hemisphere = 'N';
-                if (zoneMatch) {
-                    if (zoneMatch[1]) { utmZone = parseInt(zoneMatch[1]); hemisphere = 'N'; }
-                    else if (zoneMatch[2]) { utmZone = parseInt(zoneMatch[2]); hemisphere = 'S'; }
-                }
-
-                let srcProj;
-                try {
-                    srcProj = proj4.defs(crsString) ? crsString
-                        : `+proj=utm +zone=${utmZone} +${hemisphere === 'S' ? 'south' : 'north'} +datum=WGS84 +units=m +no_defs`;
-                } catch (e) {
-                    srcProj = `+proj=utm +zone=${utmZone} +${hemisphere === 'S' ? 'south' : 'north'} +datum=WGS84 +units=m +no_defs`;
-                }
+                // ── Resolve source projection (Grid is in Web Mercator / EPSG:3857) ──
+                const proj4WebMercator = '+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs';
+                const srcProj = proj4WebMercator;
                 const proj4WGS84 = '+proj=longlat +datum=WGS84 +no_defs';
 
                 // ── Reproject corners to WGS84 ──
