@@ -36305,7 +36305,14 @@ function smoothChaikin(points) {
                 isOpen: false,
                 showContours: true,
                 showGrid: true,
-                verticalExag: 2.0
+                verticalExag: 2.0,
+                // Basemap texture draping
+                showBasemap: false,
+                basemapBlend: 0.85,
+                basemapTexture: null,
+                basemapMesh: null,
+                basemapLoading: false,
+                basemapCachedUrl: null  // cache key to avoid re-fetching same basemap
             };
 
             function open3DViewer() {
@@ -36382,6 +36389,63 @@ function smoothChaikin(points) {
                                 background: linear-gradient(to top, #2d5a27, #4a8c3f, #a8c256, #e8d44d, #d4a037, #b87333, #a0522d, #8b4513, #d2b48c, #f5f5dc, #ffffff);
                             }
                             .viewer3d-legend label { color: #94a3b8; font-size: 0.65rem; white-space: nowrap; }
+                            /* === Basemap Drape Styles === */
+                            .viewer3d-basemap-loading {
+                                position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                                background: rgba(0,0,0,0.6); display: flex; flex-direction: column;
+                                align-items: center; justify-content: center; z-index: 20;
+                                backdrop-filter: blur(4px); transition: opacity 0.4s;
+                            }
+                            .viewer3d-basemap-loading.hidden { opacity: 0; pointer-events: none; }
+                            .viewer3d-basemap-spinner {
+                                width: 56px; height: 56px; border-radius: 50%;
+                                border: 4px solid rgba(255,255,255,0.15);
+                                border-top-color: #3b82f6; border-right-color: #8b5cf6;
+                                animation: viewer3dSpin 0.8s linear infinite;
+                            }
+                            @keyframes viewer3dSpin { to { transform: rotate(360deg); } }
+                            .viewer3d-basemap-loading p {
+                                color: #e2e8f0; font-size: 0.85rem; margin-top: 14px;
+                                font-weight: 500; letter-spacing: 0.3px;
+                            }
+                            .viewer3d-basemap-loading .loading-sub {
+                                color: #94a3b8; font-size: 0.72rem; margin-top: 4px; font-weight: 400;
+                            }
+                            .viewer3d-basemap-badge {
+                                position: absolute; top: 12px; right: 12px;
+                                background: linear-gradient(135deg, rgba(59,130,246,0.85), rgba(139,92,246,0.85));
+                                color: white; padding: 6px 14px; border-radius: 20px;
+                                font-size: 0.72rem; font-weight: 600; letter-spacing: 0.5px;
+                                backdrop-filter: blur(8px); pointer-events: none;
+                                box-shadow: 0 4px 15px rgba(59,130,246,0.3);
+                                display: none; align-items: center; gap: 6px;
+                                animation: viewer3dBadgeIn 0.4s ease-out;
+                            }
+                            .viewer3d-basemap-badge.visible { display: flex; }
+                            @keyframes viewer3dBadgeIn {
+                                from { opacity: 0; transform: translateY(-8px); }
+                                to { opacity: 1; transform: translateY(0); }
+                            }
+                            .viewer3d-basemap-badge i { font-size: 0.7rem; }
+                            .viewer3d-blend-group {
+                                display: flex; align-items: center; gap: 8px;
+                                opacity: 0; max-width: 0; overflow: hidden;
+                                transition: all 0.35s ease; pointer-events: none;
+                            }
+                            .viewer3d-blend-group.active {
+                                opacity: 1; max-width: 240px; pointer-events: auto;
+                            }
+                            .viewer3d-blend-group input[type="range"] {
+                                width: 90px; accent-color: #8b5cf6;
+                            }
+                            .viewer3d-blend-val {
+                                color: #c4b5fd; font-size: 0.75rem; min-width: 30px;
+                                font-weight: 600;
+                            }
+                            .viewer3d-sep {
+                                width: 1px; height: 24px; background: rgba(255,255,255,0.15);
+                                flex-shrink: 0;
+                            }
                         </style>
                         <canvas id="terrain3DCanvas"></canvas>
                         <div class="viewer3d-info" id="viewer3dInfo">
@@ -36392,6 +36456,15 @@ function smoothChaikin(points) {
                             <label id="viewer3dLegendMax" style="display:block;text-align:center;margin-bottom:3px;"></label>
                             <div class="viewer3d-legend-bar"></div>
                             <label id="viewer3dLegendMin" style="display:block;text-align:center;margin-top:3px;"></label>
+                        </div>
+                        <div class="viewer3d-basemap-loading hidden" id="viewer3dBasemapLoading">
+                            <div class="viewer3d-basemap-spinner"></div>
+                            <p>Loading basemap tiles…</p>
+                            <p class="loading-sub" id="viewer3dLoadingSub">Fetching satellite imagery for DTM extent</p>
+                        </div>
+                        <div class="viewer3d-basemap-badge" id="viewer3dBasemapBadge">
+                            <i class="fas fa-satellite"></i>
+                            <span id="viewer3dBasemapName">Esri World Imagery</span>
                         </div>
                         <div class="viewer3d-controls">
                             <label>Vertical Exag:</label>
@@ -36409,7 +36482,21 @@ function smoothChaikin(points) {
                                 <label for="viewer3dShowGrid">Grid</label>
                             </div>
 
-                            <div style="width:1px;height:24px;background:rgba(255,255,255,0.15);"></div>
+                            <div class="viewer3d-sep"></div>
+
+                            <div class="viewer3d-toggle">
+                                <input type="checkbox" id="viewer3dShowBasemap">
+                                <label for="viewer3dShowBasemap" style="display:flex;align-items:center;gap:5px;">
+                                    <i class="fas fa-satellite" style="font-size:0.7rem;color:#8b5cf6;"></i> Basemap
+                                </label>
+                            </div>
+                            <div class="viewer3d-blend-group" id="viewer3dBlendGroup">
+                                <label style="color:#c4b5fd;">Blend:</label>
+                                <input type="range" id="viewer3dBasemapBlend" min="0" max="100" step="5" value="85">
+                                <span class="viewer3d-blend-val" id="viewer3dBlendVal">85%</span>
+                            </div>
+
+                            <div class="viewer3d-sep"></div>
 
                             <button class="viewer3d-btn viewer3d-btn-capture" id="viewer3dCaptureBtn"
                                 title="Capture current view for PDF report">
@@ -36452,6 +36539,26 @@ function smoothChaikin(points) {
                     document.getElementById('export3DPdfBtn').addEventListener('click', export3DViewsPDF);
                     document.getElementById('viewer3dResetBtn').addEventListener('click', reset3DCamera);
                     document.getElementById('viewer3dCloseBtn').addEventListener('click', close3DViewer);
+
+                    // Basemap drape controls
+                    document.getElementById('viewer3dShowBasemap').addEventListener('change', async function () {
+                        viewer3D.showBasemap = this.checked;
+                        const blendGroup = document.getElementById('viewer3dBlendGroup');
+                        if (this.checked) {
+                            blendGroup.classList.add('active');
+                            await toggleBasemapDrape(true);
+                        } else {
+                            blendGroup.classList.remove('active');
+                            toggleBasemapDrape(false);
+                        }
+                    });
+                    document.getElementById('viewer3dBasemapBlend').addEventListener('input', function () {
+                        viewer3D.basemapBlend = parseInt(this.value) / 100;
+                        document.getElementById('viewer3dBlendVal').textContent = this.value + '%';
+                        if (viewer3D.basemapMesh) {
+                            viewer3D.basemapMesh.material.opacity = viewer3D.basemapBlend;
+                        }
+                    });
 
                     // ESC key to close
                     modal.addEventListener('keydown', function (e) {
@@ -36563,6 +36670,13 @@ function smoothChaikin(points) {
                     viewer3D.scene.remove(viewer3D.gridGroup);
                     viewer3D.gridGroup.traverse(c => { if (c.geometry) c.geometry.dispose(); if (c.material) c.material.dispose(); });
                 }
+                // Remove old basemap overlay mesh
+                if (viewer3D.basemapMesh) {
+                    viewer3D.scene.remove(viewer3D.basemapMesh);
+                    viewer3D.basemapMesh.geometry.dispose();
+                    viewer3D.basemapMesh.material.dispose();
+                    viewer3D.basemapMesh = null;
+                }
 
                 const vExag = viewer3D.verticalExag;
                 const { grid, width, height, cellSize, bounds } = gridData;
@@ -36581,6 +36695,7 @@ function smoothChaikin(points) {
                 const geometry = new THREE.BufferGeometry();
                 const positions = [];
                 const colors = [];
+                const uvs = [];  // UV coordinates for basemap texture mapping
                 const indices = [];
 
                 const minElev = terrain3DState.minElevation || 0;
@@ -36595,6 +36710,11 @@ function smoothChaikin(points) {
                         const y = srcRow * cellSize;
                         const z = (grid[srcRow][srcCol] || minElev) * vExag;
                         positions.push(x, y, z);
+
+                        // UV coordinates: map (0,0) → (1,1) across terrain extent
+                        const u = x / totalWidth;
+                        const v = y / totalHeight;
+                        uvs.push(u, v);
 
                         // Hypsometric color
                         const t = Math.max(0, Math.min(1, (grid[srcRow][srcCol] - minElev) / elevRange));
@@ -36613,6 +36733,7 @@ function smoothChaikin(points) {
 
                 geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
                 geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+                geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
                 geometry.setIndex(indices);
                 geometry.computeVertexNormals();
 
@@ -36636,6 +36757,262 @@ function smoothChaikin(points) {
                 const avgElev = ((minElev + maxElev) / 2) * vExag;
                 viewer3D.controls.target.set(totalWidth / 2, totalHeight / 2, avgElev);
                 viewer3D.controls.update();
+
+                // Re-apply basemap drape if it was active
+                if (viewer3D.showBasemap && viewer3D.basemapTexture) {
+                    applyBasemapMesh();
+                }
+            }
+
+            // ========== BASEMAP DRAPING ==========
+
+            /**
+             * Fetch basemap tiles for the terrain extent, stitch into a single texture.
+             * Uses Esri World Imagery WMTS endpoint. Reprojects DTM bounds from UTM to WGS84.
+             */
+            async function fetchBasemapTiles() {
+                const gridData = terrain3DState.gridData;
+                if (!gridData) throw new Error('No grid data');
+
+                const { bounds } = gridData;  // { minX, minY, maxX, maxY } in projected CRS
+
+                // Get EPSG code from coordinateSystem (e.g., 'EPSG:32636')
+                const crsString = terrain3DState.coordinateSystem || 'EPSG:32636';
+                const epsgMatch = crsString.match(/(\d{4,6})/);
+                const epsg = epsgMatch ? parseInt(epsgMatch[1]) : 32636;
+                const zoneMatch = String(epsg).match(/326(\d{2})|327(\d{2})/);
+                let utmZone = 36, hemisphere = 'N';
+                if (zoneMatch) {
+                    if (zoneMatch[1]) { utmZone = parseInt(zoneMatch[1]); hemisphere = 'N'; }
+                    else if (zoneMatch[2]) { utmZone = parseInt(zoneMatch[2]); hemisphere = 'S'; }
+                }
+
+                // Use proj4 to reproject. First try registered definition, then build UTM string.
+                let srcProj;
+                try {
+                    srcProj = proj4.defs(crsString) ? crsString : `+proj=utm +zone=${utmZone} +${hemisphere === 'S' ? 'south' : 'north'} +datum=WGS84 +units=m +no_defs`;
+                } catch (e) {
+                    srcProj = `+proj=utm +zone=${utmZone} +${hemisphere === 'S' ? 'south' : 'north'} +datum=WGS84 +units=m +no_defs`;
+                }
+                const proj4WGS84 = '+proj=longlat +datum=WGS84 +no_defs';
+
+                // Reproject corners to WGS84
+                const sw = proj4(srcProj, proj4WGS84, [bounds.minX, bounds.minY]);
+                const ne = proj4(srcProj, proj4WGS84, [bounds.maxX, bounds.maxY]);
+                const lonMin = sw[0], latMin = sw[1], lonMax = ne[0], latMax = ne[1];
+
+                // Choose zoom level based on terrain extent (in degrees)
+                const span = Math.max(lonMax - lonMin, latMax - latMin);
+                let zoom = 17;
+                if (span > 0.5) zoom = 12;
+                else if (span > 0.1) zoom = 13;
+                else if (span > 0.05) zoom = 14;
+                else if (span > 0.01) zoom = 15;
+                else if (span > 0.005) zoom = 16;
+
+                // Convert lat/lon to tile indices (Web Mercator tiling)
+                function lonToTileX(lon, z) { return Math.floor((lon + 180) / 360 * Math.pow(2, z)); }
+                function latToTileY(lat, z) {
+                    const rad = lat * Math.PI / 180;
+                    return Math.floor((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2 * Math.pow(2, z));
+                }
+                function tileXToLon(x, z) { return x / Math.pow(2, z) * 360 - 180; }
+                function tileYToLat(y, z) {
+                    const n = Math.PI - 2 * Math.PI * y / Math.pow(2, z);
+                    return 180 / Math.PI * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+                }
+
+                let xMin = lonToTileX(lonMin, zoom);
+                let xMax = lonToTileX(lonMax, zoom);
+                let yMin = latToTileY(latMax, zoom); // note: y is flipped
+                let yMax = latToTileY(latMin, zoom);
+
+                let tilesX = xMax - xMin + 1;
+                let tilesY = yMax - yMin + 1;
+
+                // Cap tile count to prevent excessive fetching
+                const maxTiles = 64;
+                while (tilesX * tilesY > maxTiles && zoom > 10) {
+                    zoom--;
+                    xMin = lonToTileX(lonMin, zoom);
+                    xMax = lonToTileX(lonMax, zoom);
+                    yMin = latToTileY(latMax, zoom);
+                    yMax = latToTileY(latMin, zoom);
+                    tilesX = xMax - xMin + 1;
+                    tilesY = yMax - yMin + 1;
+                }
+
+                // Create stitched canvas
+                const tileSize = 256;
+                const canvas = document.createElement('canvas');
+                canvas.width = tilesX * tileSize;
+                canvas.height = tilesY * tileSize;
+                const ctx = canvas.getContext('2d');
+
+                // Esri World Imagery URL template
+                const baseUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile';
+
+                const loadingSubEl = document.getElementById('viewer3dLoadingSub');
+                let loaded = 0;
+                const totalTiles = tilesX * tilesY;
+
+                // Fetch all tiles in parallel
+                const promises = [];
+                for (let ty = yMin; ty <= yMax; ty++) {
+                    for (let tx = xMin; tx <= xMax; tx++) {
+                        const url = `${baseUrl}/${zoom}/${ty}/${tx}`;
+                        const px = (tx - xMin) * tileSize;
+                        const py = (ty - yMin) * tileSize;
+
+                        promises.push(
+                            new Promise((resolve) => {
+                                const img = new Image();
+                                img.crossOrigin = 'anonymous';
+                                img.onload = () => {
+                                    ctx.drawImage(img, px, py, tileSize, tileSize);
+                                    loaded++;
+                                    if (loadingSubEl) loadingSubEl.textContent = `Loaded ${loaded}/${totalTiles} tiles (zoom ${zoom})`;
+                                    resolve();
+                                };
+                                img.onerror = () => {
+                                    // Draw grey placeholder for failed tiles
+                                    ctx.fillStyle = '#334155';
+                                    ctx.fillRect(px, py, tileSize, tileSize);
+                                    loaded++;
+                                    resolve();
+                                };
+                                img.src = url;
+                            })
+                        );
+                    }
+                }
+
+                await Promise.all(promises);
+
+                // The stitched canvas covers the tile extent, but we need to crop to the DTM extent.
+                // Calculate the DTM's position within the tile extent
+                const tileLonMin = tileXToLon(xMin, zoom);
+                const tileLonMax = tileXToLon(xMax + 1, zoom);
+                const tileLatMax2 = tileYToLat(yMin, zoom);
+                const tileLatMin2 = tileYToLat(yMax + 1, zoom);
+
+                // Pixel positions of DTM extent within stitched canvas (using Web Mercator math)
+                function lonToPixel(lon) {
+                    return ((lon - tileLonMin) / (tileLonMax - tileLonMin)) * canvas.width;
+                }
+                function latToPixel(lat) {
+                    // Mercator Y projection
+                    function mercY(la) { return Math.log(Math.tan(Math.PI / 4 + la * Math.PI / 360)); }
+                    const yTop = mercY(tileLatMax2);
+                    const yBot = mercY(tileLatMin2);
+                    const yPt = mercY(lat);
+                    return ((yTop - yPt) / (yTop - yBot)) * canvas.height;
+                }
+
+                const cropX = lonToPixel(lonMin);
+                const cropY = latToPixel(latMax);
+                const cropW = lonToPixel(lonMax) - cropX;
+                const cropH = latToPixel(latMin) - cropY;
+
+                // Create cropped canvas
+                const croppedCanvas = document.createElement('canvas');
+                croppedCanvas.width = Math.max(1, Math.round(cropW));
+                croppedCanvas.height = Math.max(1, Math.round(cropH));
+                const croppedCtx = croppedCanvas.getContext('2d');
+                croppedCtx.drawImage(canvas,
+                    Math.round(cropX), Math.round(cropY), Math.round(cropW), Math.round(cropH),
+                    0, 0, croppedCanvas.width, croppedCanvas.height
+                );
+
+                // Create THREE.js texture from cropped canvas
+                const texture = new THREE.CanvasTexture(croppedCanvas);
+                texture.minFilter = THREE.LinearFilter;
+                texture.magFilter = THREE.LinearFilter;
+                texture.wrapS = THREE.ClampToEdgeWrapping;
+                texture.wrapT = THREE.ClampToEdgeWrapping;
+                texture.needsUpdate = true;
+
+                return { texture, zoom, tilesX, tilesY };
+            }
+
+            /**
+             * Create a mesh that overlays the terrain with the basemap texture.
+             * Uses the same geometry as the terrain but with a slight Z offset.
+             */
+            function applyBasemapMesh() {
+                if (!viewer3D.terrainMesh || !viewer3D.basemapTexture) return;
+
+                // Remove old basemap mesh if present
+                if (viewer3D.basemapMesh) {
+                    viewer3D.scene.remove(viewer3D.basemapMesh);
+                    viewer3D.basemapMesh.geometry.dispose();
+                    viewer3D.basemapMesh.material.dispose();
+                }
+
+                // Clone the terrain geometry (it already has UVs)
+                const geo = viewer3D.terrainMesh.geometry.clone();
+
+                // Flip V coordinate because the basemap image Y-axis is top-down
+                // but the terrain's Y-axis (row 0 = south) grows upward.
+                const uvAttr = geo.getAttribute('uv');
+                for (let i = 0; i < uvAttr.count; i++) {
+                    uvAttr.setY(i, 1.0 - uvAttr.getY(i));
+                }
+                uvAttr.needsUpdate = true;
+
+                const mat = new THREE.MeshBasicMaterial({
+                    map: viewer3D.basemapTexture,
+                    transparent: true,
+                    opacity: viewer3D.basemapBlend,
+                    side: THREE.DoubleSide,
+                    depthWrite: false,
+                    polygonOffset: true,
+                    polygonOffsetFactor: -1,
+                    polygonOffsetUnits: -1
+                });
+
+                viewer3D.basemapMesh = new THREE.Mesh(geo, mat);
+                viewer3D.scene.add(viewer3D.basemapMesh);
+            }
+
+            /**
+             * Toggle basemap drape on/off. Manages loading overlay and badge visibility.
+             */
+            async function toggleBasemapDrape(enable) {
+                const loadingEl = document.getElementById('viewer3dBasemapLoading');
+                const badgeEl = document.getElementById('viewer3dBasemapBadge');
+
+                if (enable) {
+                    // If we haven't fetched the texture yet, do it now
+                    if (!viewer3D.basemapTexture) {
+                        loadingEl.classList.remove('hidden');
+                        try {
+                            const result = await fetchBasemapTiles();
+                            viewer3D.basemapTexture = result.texture;
+                        } catch (err) {
+                            console.error('Failed to load basemap:', err);
+                            loadingEl.classList.add('hidden');
+                            // Uncheck the toggle
+                            const chk = document.getElementById('viewer3dShowBasemap');
+                            if (chk) { chk.checked = false; viewer3D.showBasemap = false; }
+                            document.getElementById('viewer3dBlendGroup').classList.remove('active');
+                            return;
+                        }
+                        loadingEl.classList.add('hidden');
+                    }
+
+                    applyBasemapMesh();
+                    badgeEl.classList.add('visible');
+                } else {
+                    // Hide basemap mesh
+                    if (viewer3D.basemapMesh) {
+                        viewer3D.scene.remove(viewer3D.basemapMesh);
+                        viewer3D.basemapMesh.geometry.dispose();
+                        viewer3D.basemapMesh.material.dispose();
+                        viewer3D.basemapMesh = null;
+                    }
+                    badgeEl.classList.remove('visible');
+                }
             }
 
             // Hypsometric color ramp: green → yellow → brown → white
@@ -37059,6 +37436,18 @@ function smoothChaikin(points) {
             function close3DViewer() {
                 viewer3D.isOpen = false;
                 if (viewer3D.animationId) cancelAnimationFrame(viewer3D.animationId);
+                // Clean up basemap resources
+                if (viewer3D.basemapMesh) {
+                    viewer3D.scene.remove(viewer3D.basemapMesh);
+                    viewer3D.basemapMesh.geometry.dispose();
+                    viewer3D.basemapMesh.material.dispose();
+                    viewer3D.basemapMesh = null;
+                }
+                if (viewer3D.basemapTexture) {
+                    viewer3D.basemapTexture.dispose();
+                    viewer3D.basemapTexture = null;
+                }
+                viewer3D.showBasemap = false;
                 const modal = document.getElementById('terrain3DViewerModal');
                 if (modal) modal.style.display = 'none';
                 window.removeEventListener('resize', window._viewer3dResize);
