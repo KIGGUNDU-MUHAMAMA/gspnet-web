@@ -15453,6 +15453,9 @@
             <!-- Profile Generation Panel -->
             <aside id="profile-generation-panel" class="profile-generation-panel">
                 <div class="profile-panel-header">
+                    <button id="profile-panel-back" title="Back to 3D Terrain &amp; Contours" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1rem;padding:4px 8px;border-radius:6px;display:flex;align-items:center;gap:6px;transition:color 0.2s;" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='#94a3b8'">
+                        <i class="fas fa-arrow-left"></i><span style="font-size:0.78rem;font-weight:600;">3D Terrain</span>
+                    </button>
                     <h3><i class="fas fa-project-diagram"></i> Profile Generation</h3>
                     <button id="profile-panel-close" class="profile-panel-close">&times;</button>
                 </div>
@@ -32228,6 +32231,12 @@
                 document.getElementById('profile-generation-panel')?.classList.remove('active');
             });
 
+            // Profile panel back → open terrain-3d-dock
+            document.getElementById('profile-panel-back')?.addEventListener('click', function () {
+                document.getElementById('profile-generation-panel')?.classList.remove('active');
+                document.getElementById('terrain-3d-dock')?.classList.add('active');
+            });
+
             // Start drawing alignment
             document.getElementById('startDrawingBtn')?.addEventListener('click', function () {
                 startProfileDrawing();
@@ -36933,6 +36942,7 @@ function smoothChaikin(points) {
                 });
 
                 viewer3D.terrainMesh = new THREE.Mesh(geometry, material);
+                viewer3D.terrainMesh.renderOrder = 0;
                 viewer3D.scene.add(viewer3D.terrainMesh);
 
                 // Add contour lines
@@ -37203,6 +37213,7 @@ function smoothChaikin(points) {
                 });
 
                 viewer3D.basemapMesh = new THREE.Mesh(geo, mat);
+                viewer3D.basemapMesh.renderOrder = 1;
                 viewer3D.scene.add(viewer3D.basemapMesh);
             }
 
@@ -37463,6 +37474,7 @@ function smoothChaikin(points) {
                 }
 
                 viewer3D.contourGroup.visible = viewer3D.showContours;
+                viewer3D.contourGroup.renderOrder = 2;
                 viewer3D.scene.add(viewer3D.contourGroup);
             }
 
@@ -37685,14 +37697,47 @@ function smoothChaikin(points) {
                             const pointZ = (point.elevation * vExag) + zOffset;
                             csPoints.push(new THREE.Vector3(localX, localY, pointZ));
                         });
-                        
+
                         if (csPoints.length > 1) {
                             const csGeom = new THREE.BufferGeometry().setFromPoints(csPoints);
-                            viewer3D.profileGroup.add(new THREE.Line(csGeom, csMat));
+                            const csLine = new THREE.Line(csGeom, csMat);
+                            csLine.renderOrder = 3;
+                            viewer3D.profileGroup.add(csLine);
+
+                            // Add chainage label at the midpoint of the cross-section line
+                            const mid = csPoints[Math.floor(csPoints.length / 2)];
+                            if (mid) {
+                                const labelCanvas = document.createElement('canvas');
+                                labelCanvas.width = 256;
+                                labelCanvas.height = 64;
+                                const ctx = labelCanvas.getContext('2d');
+                                ctx.clearRect(0, 0, 256, 64);
+                                ctx.font = 'bold 26px Arial';
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'middle';
+                                // Dark outline for readability
+                                ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+                                ctx.lineWidth = 5;
+                                ctx.lineJoin = 'round';
+                                ctx.strokeText(`Ch.${cs.chainage.toFixed(0)}m`, 128, 32);
+                                ctx.fillStyle = '#ffd60a';
+                                ctx.fillText(`Ch.${cs.chainage.toFixed(0)}m`, 128, 32);
+                                const labelTex = new THREE.CanvasTexture(labelCanvas);
+                                labelTex.minFilter = THREE.LinearFilter;
+                                const spriteMat = new THREE.SpriteMaterial({ map: labelTex, transparent: true, depthTest: false });
+                                const sprite = new THREE.Sprite(spriteMat);
+                                const maxDim = Math.max(gridData.width, gridData.height) * gridData.cellSize;
+                                const s = maxDim * 0.035;
+                                sprite.scale.set(s * 4, s, 1);
+                                sprite.position.set(mid.x, mid.y, mid.z + 5);
+                                sprite.renderOrder = 4;
+                                viewer3D.profileGroup.add(sprite);
+                            }
                         }
                     });
                 }
-                
+
+                viewer3D.profileGroup.renderOrder = 3;
                 viewer3D.scene.add(viewer3D.profileGroup);
             }
 
