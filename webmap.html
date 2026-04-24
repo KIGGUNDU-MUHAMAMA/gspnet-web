@@ -36509,7 +36509,9 @@ function smoothChaikin(points) {
                 basemapMesh: null,
                 basemapLoading: false,
                 basemapCachedUrl: null,   // legacy key (unused)
-                basemapCachedType: null   // tracks which basemap was last fetched (esri/google/osm)
+                basemapCachedType: null,  // tracks which basemap was last fetched (esri/google/osm)
+                // Incremented on each drape/close: stale async fetches must not apply a dead texture
+                basemapLoadSerial: 0
             };
 
             function open3DViewer() {
@@ -36971,10 +36973,40 @@ function smoothChaikin(points) {
                 // Re-apply basemap drape if it was active
                 if (viewer3D.showBasemap && viewer3D.basemapTexture) {
                     applyBasemapMesh();
+                    prerender3DBasemapDrape();
+                    setTimeout(function () {
+                        prerender3DBasemapDrape();
+                    }, 0);
                 }
             }
 
             // ========== BASEMAP DRAPING ==========
+
+            function _sleep3d(ms) {
+                return new Promise((r) => setTimeout(r, ms));
+            }
+
+            function _doubleRaf3d() {
+                return new Promise((resolve) => {
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(resolve);
+                    });
+                });
+            }
+
+            function prerender3DBasemapDrape() {
+                if (!viewer3D || !viewer3D.renderer || !viewer3D.scene || !viewer3D.camera) {
+                    return;
+                }
+                if (viewer3D.basemapTexture) {
+                    viewer3D.basemapTexture.needsUpdate = true;
+                }
+                try {
+                    viewer3D.renderer.render(viewer3D.scene, viewer3D.camera);
+                } catch (e) {
+                    console.warn('[3D Basemap] prerender', e);
+                }
+            }
 
             /**
              * Get the tile URL template for the currently-selected basemap.
@@ -37017,43 +37049,86 @@ function smoothChaikin(points) {
             }
 
             /**
-             * Load one map tile: fetch() + createImageBitmap is the most reliable way to
-             * get CORS-safe pixels for canvas → WebGL (Image() on cross-origin often taints
-             * or decodes in a way that shows as a white/blank DataTexture/CanvasTexture).
+             * Load one map tile. fetch + createImageBitmap is CORS-safe. Uses timeout + 1
+             * retry (slow / saturated connections often fail all-at-once parallel fetches).
              */
-            async function loadMapTileFor3DBasemap(url) {
+            async function _fetchImageBitmapOrHtmlImage(url, timeoutMs) {
+                const t = timeoutMs > 0 ? timeoutMs : 30000;
+                const ac = new AbortController();
+                const to = setTimeout(() => { try { ac.abort(); } catch (e) { } }, t);
                 try {
-                    const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
-                    if (!res.ok) {
-                        throw new Error('HTTP ' + res.status);
+                    const res = await fetch(url, { mode: 'cors', credentials: 'omit', signal: ac.signal, cache: 'default' });
+                    if (!res || !res.ok) {
+                        throw new Error('HTTP ' + (res ? res.status : 0));
                     }
                     const blob = await res.blob();
                     if (typeof createImageBitmap === 'function') {
                         return await createImageBitmap(blob);
                     }
-                    return await new Promise((resolve, reject) => {
-                        const img = new Image();
+                    return await new Promise((ok, no) => {
+                        const im = new Image();
                         const u = URL.createObjectURL(blob);
-                        img.crossOrigin = 'anonymous';
-                        img.onload = () => {
+                        im.crossOrigin = 'anonymous';
+                        im.onload = () => {
                             URL.revokeObjectURL(u);
-                            resolve(img);
+                            ok(im);
                         };
-                        img.onerror = () => {
+                        im.onerror = () => {
                             URL.revokeObjectURL(u);
-                            reject(new Error('Tile decode failed'));
+                            no(new Error('decode tile'));
                         };
-                        img.src = u;
+                        im.src = u;
                     });
                 } catch (e) {
-                    return await new Promise((resolve, reject) => {
-                        const img = new Image();
-                        img.crossOrigin = 'anonymous';
-                        img.onload = () => resolve(img);
-                        img.onerror = () => reject(new Error('Tile load failed'));
-                        img.src = url;
-                    });
+                    if (e && e.name === 'AbortError') {
+                        throw new Error('Tile fetch timeout');
+                    }
+                    throw e;
+                } finally {
+                    clearTimeout(to);
                 }
+            }
+
+            function _loadMapTileWithImgFallback(url, timeoutMs) {
+                return new Promise((resolve, reject) => {
+                    const t = setTimeout(() => { reject(new Error('Image tile timeout')); }, timeoutMs);
+                    const im = new Image();
+                    im.crossOrigin = 'anonymous';
+                    im.onload = () => {
+                        clearTimeout(t);
+                        resolve(im);
+                    };
+                    im.onerror = () => {
+                        clearTimeout(t);
+                        reject(new Error('Image tile error'));
+                    };
+                    im.src = url;
+                });
+            }
+
+            async function loadMapTileFor3DBasemap(url) {
+                const T = 30000;
+                for (let a = 0; a < 2; a++) {
+                    try {
+                        return await _fetchImageBitmapOrHtmlImage(url, T);
+                    } catch (e) {
+                        if (a) {
+                            break;
+                        }
+                        await _sleep3d(400 + Math.random() * 200);
+                    }
+                }
+                for (let a = 0; a < 2; a++) {
+                    try {
+                        return await _loadMapTileWithImgFallback(url, T);
+                    } catch (e) {
+                        if (a) {
+                            break;
+                        }
+                        await _sleep3d(400);
+                    }
+                }
+                throw new Error('Tile load failed: ' + url);
             }
 
             /**
@@ -37255,17 +37330,27 @@ function smoothChaikin(points) {
                 let loaded = 0, failed = 0;
                 const totalTiles = tilesX * tilesY;
 
-                // fetch + createImageBitmap: CORS-safe pixels for canvas getImageData → WebGL DataTexture
-                const tilePromises = [];
+                // Batched fetches: browsers only run ~6 concurrent connections per host; firing
+                // 64 fetches at once can stall or get slow responses. Small gaps between batches
+                // let tiles finish and reduce white/partial mosaics on slow links.
+                const tileJobs = [];
                 for (let ty = yMin; ty <= yMax; ty++) {
                     for (let tx = xMin; tx <= xMax; tx++) {
-                        const url = tileConfig.urlFn(zoom, ty, tx);
-                        const px = (tx - xMin) * tileSize;
-                        const py = (ty - yMin) * tileSize;
-                        tilePromises.push(
-                            loadMapTileFor3DBasemap(url).then((source) => {
+                        tileJobs.push({
+                            url: tileConfig.urlFn(zoom, ty, tx),
+                            px: (tx - xMin) * tileSize,
+                            py: (ty - yMin) * tileSize
+                        });
+                    }
+                }
+                const batchSize = 6;
+                for (let i = 0; i < tileJobs.length; i += batchSize) {
+                    const chunk = tileJobs.slice(i, i + batchSize);
+                    await Promise.all(
+                        chunk.map((job) =>
+                            loadMapTileFor3DBasemap(job.url).then((source) => {
                                 try {
-                                    ctx.drawImage(source, px, py, tileSize, tileSize);
+                                    ctx.drawImage(source, job.px, job.py, tileSize, tileSize);
                                 } finally {
                                     if (source && typeof source.close === 'function') {
                                         try { source.close(); } catch (e) { }
@@ -37277,20 +37362,24 @@ function smoothChaikin(points) {
                                         `${tileConfig.label} — ${loaded}/${totalTiles} tiles (z${zoom})`;
                                 }
                                 return true;
-                            }).catch(() => {
+                            }).catch((err) => {
                                 failed++;
                                 loaded++;
+                                if (typeof console !== 'undefined' && console.debug) {
+                                    console.debug('[3D Basemap] tile miss', err && err.message, job.url);
+                                }
                                 if (loadingSubEl) {
                                     loadingSubEl.textContent =
                                         `${tileConfig.label} — ${loaded}/${totalTiles} tiles (z${zoom})`;
                                 }
                                 return false;
                             })
-                        );
+                        )
+                    );
+                    if (i + batchSize < tileJobs.length) {
+                        await new Promise((r) => setTimeout(r, 0));
                     }
                 }
-
-                await Promise.all(tilePromises);
 
                 if (failed === totalTiles) {
                     throw new Error(`All ${totalTiles} tiles failed to load for "${tileConfig.label}". Check network / CORS.`);
@@ -37333,6 +37422,7 @@ function smoothChaikin(points) {
                 );
 
                 const texture = await buildBasemapGLTexture(croppedCanvas);
+                await _doubleRaf3d();
                 return { texture, zoom, tilesX, tilesY, label: tileConfig.label };
             }
 
@@ -37378,6 +37468,7 @@ function smoothChaikin(points) {
              * Automatically re-fetches if the basemap type has changed since last load.
              */
             async function toggleBasemapDrape(enable) {
+                const mySerial = ++viewer3D.basemapLoadSerial;
                 const loadingEl = document.getElementById('viewer3dBasemapLoading');
                 const badgeEl = document.getElementById('viewer3dBasemapBadge');
                 const badgeNameEl = document.getElementById('viewer3dBasemapName');
@@ -37419,25 +37510,46 @@ function smoothChaikin(points) {
                         }
 
                         loadingEl.classList.remove('hidden');
+                        await _sleep3d(50);
+                        if (mySerial !== viewer3D.basemapLoadSerial) {
+                            loadingEl.classList.add('hidden');
+                            return;
+                        }
                         try {
                             const result = await fetchBasemapTiles();
+                            if (mySerial !== viewer3D.basemapLoadSerial) {
+                                dispose3DBasemapTexture(result.texture);
+                                loadingEl.classList.add('hidden');
+                                return;
+                            }
                             viewer3D.basemapTexture = result.texture;
                             viewer3D.basemapCachedType = currentBm;
-                            // Update badge label
-                            if (badgeNameEl) badgeNameEl.textContent = result.label || currentBm;
+                            if (badgeNameEl) {
+                                badgeNameEl.textContent = result.label || currentBm;
+                            }
                         } catch (err) {
                             console.error('Failed to load basemap:', err);
-                            showToast('Basemap loading failed: ' + err.message, 'error');
+                            if (mySerial === viewer3D.basemapLoadSerial) {
+                                showToast('Basemap loading failed: ' + err.message, 'error');
+                            }
                             loadingEl.classList.add('hidden');
                             const chk = document.getElementById('viewer3dShowBasemap');
                             if (chk) { chk.checked = false; viewer3D.showBasemap = false; }
                             document.getElementById('viewer3dBlendGroup').classList.remove('active');
                             return;
                         }
-                        loadingEl.classList.add('hidden');
+                        if (mySerial === viewer3D.basemapLoadSerial) {
+                            loadingEl.classList.add('hidden');
+                        }
                     }
 
+                    if (mySerial !== viewer3D.basemapLoadSerial) {
+                        return;
+                    }
                     applyBasemapMesh();
+                    prerender3DBasemapDrape();
+                    await _doubleRaf3d();
+                    prerender3DBasemapDrape();
                     badgeEl.classList.add('visible');
                 } else {
                     // Hide basemap mesh
@@ -38011,6 +38123,7 @@ function smoothChaikin(points) {
             }
 
             function close3DViewer() {
+                viewer3D.basemapLoadSerial++;
                 viewer3D.isOpen = false;
                 if (viewer3D.animationId) cancelAnimationFrame(viewer3D.animationId);
                 // Clean up basemap resources
@@ -40452,8 +40565,14 @@ function smoothChaikin(points) {
                     }
 
                     // If 3D basemap drape is currently active, re-fetch with the new basemap
-                    if (viewer3D.showBasemap && viewer3D.basemapMesh) {
-                        toggleBasemapDrape(true);
+                    if (viewer3D && viewer3D.showBasemap && viewer3D.basemapMesh) {
+                        void (async function () {
+                            try {
+                                await toggleBasemapDrape(true);
+                            } catch (e) {
+                                console.error('[3D Basemap] refresh on map change', e);
+                            }
+                        }());
                     }
                 });
             });
