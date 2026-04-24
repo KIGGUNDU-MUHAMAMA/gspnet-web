@@ -15467,6 +15467,10 @@
                         <p style="font-size: 0.9rem; margin: 10px 0; color: #7f8c8d;">
                             Click on the map to draw your alignment. Double-click to finish.
                         </p>
+                        <div class="profile-checkbox-group" style="margin-bottom: 15px;">
+                            <input type="checkbox" id="profileSnapToFeatures" checked>
+                            <label for="profileSnapToFeatures">Snap to Points/Parcels</label>
+                        </div>
                         <button type="button" class="terrain-btn terrain-btn-primary" id="startDrawingBtn"
                             style="width: 100%;">
                             <i class="fas fa-pencil-alt"></i> Start Drawing Alignment
@@ -16909,7 +16913,7 @@
                     profileState.snapInteractions = [];
                 }
 
-                if (terrain3DState.snapToPoints) {
+                if (document.getElementById('profileSnapToFeatures') && document.getElementById('profileSnapToFeatures').checked) {
                     // 1. CSV Points
                     if (terrain3DState.pointsLayer && terrain3DState.pointsLayer.getVisible()) {
                         const snap = new ol.interaction.Snap({
@@ -17077,7 +17081,8 @@
                     const dy = end[1] - start[1];
                     const segmentLength = Math.sqrt(dx * dx + dy * dy);
 
-                    const numSamples = Math.ceil(segmentLength / samplingInterval);
+                    const numSamples = Math.max(1, Math.ceil(segmentLength / samplingInterval));
+                    const actualInterval = segmentLength / numSamples;
 
                     for (let j = 0; j < numSamples; j++) {
                         const fraction = j / numSamples;
@@ -17102,12 +17107,32 @@
                                 designElevation: designElevation,
                                 x: x,
                                 y: y,
-                                isStation: (Math.abs(chainage % stationInterval) < 0.1)
+                                isStation: (Math.abs(chainage % stationInterval) < Math.max(0.1, actualInterval / 2))
                             });
                         }
 
-                        chainage += samplingInterval;
+                        chainage += actualInterval;
                     }
+                }
+                
+                // Add the very last point
+                const lastPoint = coordinates[coordinates.length - 1];
+                const lastElevation = getElevationFromGrid(lastPoint[0], lastPoint[1], terrain3DState.gridData);
+                if (lastElevation !== null) {
+                    let designElevation = null;
+                    if (profileState.enableDesignGrade) {
+                        const grade = parseFloat(document.getElementById('designGrade').value) / 100;
+                        const startElev = parseFloat(document.getElementById('designStartElevation').value);
+                        designElevation = startElev + (chainage * grade);
+                    }
+                    profileData.push({
+                        chainage: chainage,
+                        elevation: lastElevation,
+                        designElevation: designElevation,
+                        x: lastPoint[0],
+                        y: lastPoint[1],
+                        isStation: (Math.abs(chainage % stationInterval) < 0.1)
+                    });
                 }
 
                 return profileData;
@@ -17477,7 +17502,9 @@
                             if (elevation !== null) {
                                 crossSectionData.push({
                                     offset: offset,
-                                    elevation: elevation
+                                    elevation: elevation,
+                                    x: sampleX,
+                                    y: sampleY
                                 });
                             }
                         }
@@ -32159,11 +32186,41 @@
                 }
             });
 
+            function updateDesignAndReplot() {
+                if (!profileState.profileData || profileState.profileData.length === 0) return;
+                
+                // Recalculate design elevations
+                const grade = parseFloat(document.getElementById('designGrade').value) / 100;
+                const startElev = parseFloat(document.getElementById('designStartElevation').value);
+                const isEnabled = profileState.enableDesignGrade;
+                
+                profileState.profileData.forEach(point => {
+                    if (isEnabled && !isNaN(grade) && !isNaN(startElev)) {
+                        point.designElevation = startElev + (point.chainage * grade);
+                    } else {
+                        point.designElevation = null;
+                    }
+                });
+                
+                // Update chart
+                displayProfileResults(profileState.profileData);
+                
+                // Update 3D Viewer if open
+                if (viewer3D && viewer3D.isOpen && viewer3D.profileGroup) {
+                    // Clear only profile lines, keep other 3D elements
+                    while(viewer3D.profileGroup.children.length > 0){ 
+                        viewer3D.profileGroup.remove(viewer3D.profileGroup.children[0]); 
+                    }
+                    plotProfileLinesIn3D();
+                }
+            }
+
             // Enable design grade toggle
             document.getElementById('enableDesignGrade')?.addEventListener('change', function () {
                 const designInputs = document.getElementById('designGradeInputs');
                 profileState.enableDesignGrade = this.checked;
                 designInputs.style.display = this.checked ? 'block' : 'none';
+                updateDesignAndReplot();
             });
 
             // Enable cross sections toggle
@@ -32171,6 +32228,10 @@
                 const crossSectionInputs = document.getElementById('crossSectionInputs');
                 profileState.enableCrossSections = this.checked;
                 crossSectionInputs.style.display = this.checked ? 'block' : 'none';
+                if (this.checked && (!profileState.crossSectionData || profileState.crossSectionData.length === 0)) {
+                    // We need to generate cross sections if they don't exist
+                    // This is handled by the main generate button, so we don't auto-generate here
+                }
             });
 
             document.getElementById('crossSectionInterval')?.addEventListener('change', function () {
@@ -32190,20 +32251,24 @@
                 profileState.stationInterval = parseFloat(this.value) || 50;
             });
 
-            document.getElementById('designGrade')?.addEventListener('change', function () {
+            document.getElementById('designGrade')?.addEventListener('input', function () {
                 profileState.designGrade = parseFloat(this.value) / 100;
+                updateDesignAndReplot();
             });
 
-            document.getElementById('designStartElevation')?.addEventListener('change', function () {
+            document.getElementById('designStartElevation')?.addEventListener('input', function () {
                 profileState.designStartElevation = parseFloat(this.value);
+                updateDesignAndReplot();
             });
 
-            document.getElementById('sideSlope')?.addEventListener('change', function () {
+            document.getElementById('sideSlope')?.addEventListener('input', function () {
                 profileState.sideSlope = parseFloat(this.value) || 2;
+                updateDesignAndReplot();
             });
 
-            document.getElementById('roadWidth')?.addEventListener('change', function () {
+            document.getElementById('roadWidth')?.addEventListener('input', function () {
                 profileState.roadWidth = parseFloat(this.value) || 6;
+                updateDesignAndReplot();
             });
 
             // Generate profile button
@@ -37516,9 +37581,14 @@ function smoothChaikin(points) {
                     
                     terrainPoints.push(new THREE.Vector3(localX, localY, terrainZ));
                     
-                    if (profileState.enableDesignGrade && point.designElevation !== null && point.designElevation !== undefined) {
-                        const designZ = (point.designElevation * vExag) + zOffset + 1.0; // Draw slightly above terrain line
-                        designPoints.push(new THREE.Vector3(localX, localY, designZ));
+                    if (profileState.enableDesignGrade) {
+                        const grade = parseFloat(document.getElementById('designGrade').value) / 100;
+                        const startElev = parseFloat(document.getElementById('designStartElevation').value);
+                        if (!isNaN(grade) && !isNaN(startElev)) {
+                            const calculatedDesignElevation = startElev + (point.chainage * grade);
+                            const designZ = (calculatedDesignElevation * vExag) + zOffset + 1.0; // Draw slightly above terrain line
+                            designPoints.push(new THREE.Vector3(localX, localY, designZ));
+                        }
                     }
                 }
                 
@@ -37546,6 +37616,27 @@ function smoothChaikin(points) {
                     viewer3D.profileGroup.add(new THREE.Line(designGeom2, designMat));
                     const designGeom3 = new THREE.BufferGeometry().setFromPoints(designPoints.map(p => new THREE.Vector3(p.x, p.y - 0.5, p.z)));
                     viewer3D.profileGroup.add(new THREE.Line(designGeom3, designMat));
+                }
+
+                // Plot cross-sections if enabled
+                if (profileState.enableCrossSections && profileState.crossSectionData) {
+                    const csMat = new THREE.LineBasicMaterial({ color: 0xffd60a }); // Yellow
+                    profileState.crossSectionData.forEach(cs => {
+                        const csPoints = [];
+                        cs.data.forEach(point => {
+                            if (point.x === undefined || point.y === undefined) return;
+                            const localX = point.x - bounds.minX;
+                            const localY = point.y - bounds.minY;
+                            const zOffset = 2.0;
+                            const pointZ = (point.elevation * vExag) + zOffset;
+                            csPoints.push(new THREE.Vector3(localX, localY, pointZ));
+                        });
+                        
+                        if (csPoints.length > 1) {
+                            const csGeom = new THREE.BufferGeometry().setFromPoints(csPoints);
+                            viewer3D.profileGroup.add(new THREE.Line(csGeom, csMat));
+                        }
+                    });
                 }
                 
                 viewer3D.scene.add(viewer3D.profileGroup);
