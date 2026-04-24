@@ -16880,12 +16880,28 @@
             });
             map.addLayer(profileVectorLayer);
 
+            // Create vector layer for cross sections visualization
+            const crossSectionVectorSource = new ol.source.Vector();
+            const crossSectionVectorLayer = new ol.layer.Vector({
+                source: crossSectionVectorSource,
+                style: new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: '#ffd60a', // Yellow
+                        width: 2,
+                        lineDash: [4, 4]
+                    })
+                }),
+                zIndex: 199
+            });
+            map.addLayer(crossSectionVectorLayer);
+
             // Start drawing alignment
             function startProfileDrawing() {
                 if (profileState.isDrawing) return;
 
-                // Clear any existing alignment
+                // Clear any existing alignment and cross sections
                 profileVectorSource.clear();
+                if (typeof crossSectionVectorSource !== 'undefined') crossSectionVectorSource.clear();
                 profileState.alignmentFeature = null;
 
                 // Create draw interaction
@@ -16982,6 +16998,7 @@
             // Clear alignment
             function clearAlignment() {
                 profileVectorSource.clear();
+                if (typeof crossSectionVectorSource !== 'undefined') crossSectionVectorSource.clear();
                 profileState.alignmentFeature = null;
                 profileState.profileData = [];
                 document.getElementById('clearAlignmentBtn').style.display = 'none';
@@ -17535,6 +17552,21 @@
                 document.getElementById('crossSectionsContainer').style.display = 'block';
                 const container = document.getElementById('crossSectionCharts');
                 container.innerHTML = ''; // Clear existing charts
+                
+                // Clear and update 2D map vector layer
+                if (typeof crossSectionVectorSource !== 'undefined') {
+                    crossSectionVectorSource.clear();
+                    crossSections.forEach(cs => {
+                        const coords = cs.data.map(p => [p.x, p.y]);
+                        if (coords.length > 1) {
+                            const feature = new ol.Feature({
+                                geometry: new ol.geom.LineString(coords),
+                                type: 'cross-section'
+                            });
+                            crossSectionVectorSource.addFeature(feature);
+                        }
+                    });
+                }
 
                 // Destroy old charts and clean up hidden container
                 profileState.crossSectionCharts.forEach(chart => chart.destroy());
