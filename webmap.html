@@ -16904,6 +16904,51 @@
                 map.addInteraction(profileState.drawInteraction);
                 profileState.isDrawing = true;
 
+                // Create snap interactions for all visible sources
+                if (!profileState.snapInteractions) {
+                    profileState.snapInteractions = [];
+                }
+
+                if (terrain3DState.snapToPoints) {
+                    // 1. CSV Points
+                    if (terrain3DState.pointsLayer && terrain3DState.pointsLayer.getVisible()) {
+                        const snap = new ol.interaction.Snap({
+                            source: terrain3DState.pointsLayer.getSource(),
+                            pixelTolerance: 20
+                        });
+                        map.addInteraction(snap);
+                        profileState.snapInteractions.push(snap);
+                    }
+                    
+                    // 2. GSPNET Layers
+                    if (typeof gspnetLayers !== 'undefined') {
+                        gspnetLayers.filter(l => l.getVisible()).forEach(layer => {
+                            if (layer.getSource && layer.getSource()) {
+                                const snap = new ol.interaction.Snap({
+                                    source: layer.getSource(),
+                                    pixelTolerance: 20
+                                });
+                                map.addInteraction(snap);
+                                profileState.snapInteractions.push(snap);
+                            }
+                        });
+                    }
+                    
+                    // 3. Survey Polygons
+                    if (typeof polygonLayers !== 'undefined') {
+                        Object.values(polygonLayers).filter(l => l.getVisible()).forEach(layer => {
+                            if (layer.getSource && layer.getSource()) {
+                                const snap = new ol.interaction.Snap({
+                                    source: layer.getSource(),
+                                    pixelTolerance: 20
+                                });
+                                map.addInteraction(snap);
+                                profileState.snapInteractions.push(snap);
+                            }
+                        });
+                    }
+                }
+
                 // Show drawing indicator
                 document.getElementById('drawingModeIndicator').style.display = 'flex';
                 document.getElementById('startDrawingBtn').disabled = true;
@@ -16912,6 +16957,13 @@
                 profileState.drawInteraction.on('drawend', function (event) {
                     profileState.alignmentFeature = event.feature;
                     map.removeInteraction(profileState.drawInteraction);
+                    
+                    // Remove snap interactions
+                    if (profileState.snapInteractions) {
+                        profileState.snapInteractions.forEach(snap => map.removeInteraction(snap));
+                        profileState.snapInteractions = [];
+                    }
+                    
                     profileState.isDrawing = false;
 
                     // Hide drawing indicator
@@ -16934,6 +16986,11 @@
                 if (profileState.chart) {
                     profileState.chart.destroy();
                     profileState.chart = null;
+                }
+                
+                // Update 3D visualization
+                if (typeof plotProfileLinesIn3D === 'function') {
+                    plotProfileLinesIn3D();
                 }
             }
 
@@ -16982,6 +17039,11 @@
                         const crossSections = await generateCrossSections();
                         profileState.crossSectionData = crossSections;
                         displayCrossSections(crossSections);
+                    }
+
+                    // Update 3D visualization
+                    if (typeof plotProfileLinesIn3D === 'function') {
+                        plotProfileLinesIn3D();
                     }
 
                     // Zoom to alignment extent
@@ -17038,6 +17100,8 @@
                                 chainage: chainage,
                                 elevation: elevation,
                                 designElevation: designElevation,
+                                x: x,
+                                y: y,
                                 isStation: (Math.abs(chainage % stationInterval) < 0.1)
                             });
                         }
@@ -36763,6 +36827,9 @@ function smoothChaikin(points) {
                 viewer3D.controls.target.set(totalWidth / 2, totalHeight / 2, avgElev);
                 viewer3D.controls.update();
 
+                // Add 3D Profile Lines if they exist
+                plotProfileLinesIn3D();
+
                 // Re-apply basemap drape if it was active
                 if (viewer3D.showBasemap && viewer3D.basemapTexture) {
                     applyBasemapMesh();
@@ -37402,6 +37469,86 @@ function smoothChaikin(points) {
                 const s = maxDim * 0.05 * scale;
                 sprite.scale.set(s * 4, s, 1);
                 return sprite;
+            }
+
+            function plotProfileLinesIn3D() {
+                // Check if viewer is open and profile data exists
+                if (!viewer3D.scene || !terrain3DState.gridData) return;
+
+                // Remove existing profile group if it exists
+                if (viewer3D.profileGroup) {
+                    viewer3D.scene.remove(viewer3D.profileGroup);
+                    viewer3D.profileGroup.traverse(c => {
+                        if (c.geometry) c.geometry.dispose();
+                        if (c.material) c.material.dispose();
+                    });
+                    viewer3D.profileGroup = null;
+                }
+                
+                // If profile panel is not visible or there is no data, don't render
+                const isProfileVisible = document.getElementById('profileDisplayArea').classList.contains('visible');
+                if (!isProfileVisible || !profileState.profileData || profileState.profileData.length === 0) {
+                    return;
+                }
+
+                viewer3D.profileGroup = new THREE.Group();
+                const gridData = terrain3DState.gridData;
+                const vExag = viewer3D.verticalExag;
+                
+                // Plot the terrain profile line
+                const terrainPoints = [];
+                const designPoints = [];
+                const { bounds } = gridData;
+
+                for (let i = 0; i < profileState.profileData.length; i++) {
+                    const point = profileState.profileData[i];
+                    
+                    if (point.x === undefined || point.y === undefined) continue;
+
+                    // Coordinates need to be local to the 3D terrain mesh
+                    // 3D terrain mesh coordinates start at 0,0 corresponding to bounds.minX, bounds.minY
+                    const localX = point.x - bounds.minX;
+                    const localY = point.y - bounds.minY;
+                    
+                    // Add slight vertical offset so lines don't z-fight with terrain mesh
+                    const zOffset = 2.0; 
+                    const terrainZ = (point.elevation * vExag) + zOffset;
+                    
+                    terrainPoints.push(new THREE.Vector3(localX, localY, terrainZ));
+                    
+                    if (profileState.enableDesignGrade && point.designElevation !== null && point.designElevation !== undefined) {
+                        const designZ = (point.designElevation * vExag) + zOffset + 1.0; // Draw slightly above terrain line
+                        designPoints.push(new THREE.Vector3(localX, localY, designZ));
+                    }
+                }
+                
+                // Note: Standard LineBasicMaterial in WebGL often ignores linewidth and draws 1px lines.
+                // We draw multiple lines slightly offset to simulate thickness.
+                if (terrainPoints.length > 1) {
+                    const terrainGeom = new THREE.BufferGeometry().setFromPoints(terrainPoints);
+                    const terrainMat = new THREE.LineBasicMaterial({ color: 0xff3b30 });
+                    viewer3D.profileGroup.add(new THREE.Line(terrainGeom, terrainMat));
+                    
+                    // Add slightly offset lines for thickness
+                    const terrainGeom2 = new THREE.BufferGeometry().setFromPoints(terrainPoints.map(p => new THREE.Vector3(p.x, p.y + 0.5, p.z)));
+                    viewer3D.profileGroup.add(new THREE.Line(terrainGeom2, terrainMat));
+                    const terrainGeom3 = new THREE.BufferGeometry().setFromPoints(terrainPoints.map(p => new THREE.Vector3(p.x, p.y - 0.5, p.z)));
+                    viewer3D.profileGroup.add(new THREE.Line(terrainGeom3, terrainMat));
+                }
+                
+                if (designPoints.length > 1) {
+                    const designGeom = new THREE.BufferGeometry().setFromPoints(designPoints);
+                    const designMat = new THREE.LineBasicMaterial({ color: 0x34c759 });
+                    viewer3D.profileGroup.add(new THREE.Line(designGeom, designMat));
+                    
+                    // Add slightly offset lines for thickness
+                    const designGeom2 = new THREE.BufferGeometry().setFromPoints(designPoints.map(p => new THREE.Vector3(p.x, p.y + 0.5, p.z)));
+                    viewer3D.profileGroup.add(new THREE.Line(designGeom2, designMat));
+                    const designGeom3 = new THREE.BufferGeometry().setFromPoints(designPoints.map(p => new THREE.Vector3(p.x, p.y - 0.5, p.z)));
+                    viewer3D.profileGroup.add(new THREE.Line(designGeom3, designMat));
+                }
+                
+                viewer3D.scene.add(viewer3D.profileGroup);
             }
 
             function animate3D() {
