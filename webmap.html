@@ -14670,6 +14670,10 @@
                                 <i class="fas fa-draw-polygon"></i> Draw Extent Polygon
                             </button>
 
+                            <button id="selectExtentBtn" class="terrain-btn" style="width: 100%; margin-bottom: 8px;">
+                                <i class="fas fa-hand-pointer"></i> Select Extent from Map
+                            </button>
+
                             <button id="clearExtentBtn" class="terrain-btn"
                                 style="width: 100%; margin-bottom: 12px; background: #e74c3c; opacity: 0.6;" disabled>
                                 <i class="fas fa-times"></i> Clear Extent
@@ -38416,15 +38420,58 @@ function smoothChaikin(points) {
                 if (window.extentDrawInteraction) {
                     map.removeInteraction(window.extentDrawInteraction);
                 }
+                
+                // Remove existing select interaction if any
+                if (window.extentSelectInteraction) {
+                    map.removeInteraction(window.extentSelectInteraction);
+                    window.extentSelectInteraction = null;
+                }
 
-                // Create snap interaction if enabled
-                let snapInteraction = null;
-                if (terrain3DState.snapToPoints && terrain3DState.pointsLayer) {
-                    snapInteraction = new ol.interaction.Snap({
-                        source: terrain3DState.pointsLayer.getSource(),
-                        pixelTolerance: 20
-                    });
-                    map.addInteraction(snapInteraction);
+                // Clean up any existing snap interactions
+                if (window.extentSnapInteractions) {
+                    window.extentSnapInteractions.forEach(interaction => map.removeInteraction(interaction));
+                }
+                window.extentSnapInteractions = [];
+
+                // Create snap interactions for all visible sources
+                if (terrain3DState.snapToPoints) {
+                    // 1. CSV Points
+                    if (terrain3DState.pointsLayer && terrain3DState.pointsLayer.getVisible()) {
+                        const snap = new ol.interaction.Snap({
+                            source: terrain3DState.pointsLayer.getSource(),
+                            pixelTolerance: 20
+                        });
+                        map.addInteraction(snap);
+                        window.extentSnapInteractions.push(snap);
+                    }
+                    
+                    // 2. GSPNET Layers
+                    if (typeof gspnetLayers !== 'undefined') {
+                        gspnetLayers.filter(l => l.getVisible()).forEach(layer => {
+                            if (layer.getSource && layer.getSource()) {
+                                const snap = new ol.interaction.Snap({
+                                    source: layer.getSource(),
+                                    pixelTolerance: 20
+                                });
+                                map.addInteraction(snap);
+                                window.extentSnapInteractions.push(snap);
+                            }
+                        });
+                    }
+                    
+                    // 3. Survey Polygons
+                    if (typeof polygonLayers !== 'undefined') {
+                        Object.values(polygonLayers).filter(l => l.getVisible()).forEach(layer => {
+                            if (layer.getSource && layer.getSource()) {
+                                const snap = new ol.interaction.Snap({
+                                    source: layer.getSource(),
+                                    pixelTolerance: 20
+                                });
+                                map.addInteraction(snap);
+                                window.extentSnapInteractions.push(snap);
+                            }
+                        });
+                    }
                 }
 
                 window.extentDrawInteraction = new ol.interaction.Draw({
@@ -38455,7 +38502,10 @@ function smoothChaikin(points) {
 
                     // Clean up
                     map.removeInteraction(window.extentDrawInteraction);
-                    if (snapInteraction) map.removeInteraction(snapInteraction);
+                    if (window.extentSnapInteractions) {
+                        window.extentSnapInteractions.forEach(interaction => map.removeInteraction(interaction));
+                        window.extentSnapInteractions = [];
+                    }
                     window.extentDrawInteraction = null;
 
                     // Update UI
@@ -38476,6 +38526,116 @@ function smoothChaikin(points) {
                 showToast('Click on map to draw extent polygon. Double-click to finish.', 'info');
             }
 
+            // Start extent selection from existing features
+            function startExtentSelection() {
+                initializeExtentLayer();
+
+                // Clear existing extent
+                if (terrain3DState.customExtent) {
+                    terrain3DState.extentLayer.getSource().clear();
+                    terrain3DState.customExtent = null;
+                }
+
+                // Remove existing draw interaction
+                if (window.extentDrawInteraction) {
+                    map.removeInteraction(window.extentDrawInteraction);
+                    window.extentDrawInteraction = null;
+                }
+                
+                // Clean up any existing snap interactions
+                if (window.extentSnapInteractions) {
+                    window.extentSnapInteractions.forEach(interaction => map.removeInteraction(interaction));
+                    window.extentSnapInteractions = [];
+                }
+                
+                // Remove existing select interaction
+                if (window.extentSelectInteraction) {
+                    map.removeInteraction(window.extentSelectInteraction);
+                }
+
+                // Collect layers to select from
+                const selectableLayers = [];
+                
+                // 1. GSPNET Layers
+                if (typeof gspnetLayers !== 'undefined') {
+                    gspnetLayers.forEach(layer => {
+                        if (layer.getVisible()) selectableLayers.push(layer);
+                    });
+                }
+                
+                // 2. Survey Polygons
+                if (typeof polygonLayers !== 'undefined') {
+                    Object.values(polygonLayers).forEach(layer => {
+                        if (layer.getVisible()) selectableLayers.push(layer);
+                    });
+                }
+                
+                if (selectableLayers.length === 0) {
+                    showToast('No visible polygon layers to select from.', 'warning');
+                    return;
+                }
+
+                window.extentSelectInteraction = new ol.interaction.Select({
+                    layers: selectableLayers,
+                    // We only want polygon features
+                    filter: function(feature) {
+                        const geometry = feature.getGeometry();
+                        return geometry && (geometry.getType() === 'Polygon' || geometry.getType() === 'MultiPolygon');
+                    }
+                });
+
+                window.extentSelectInteraction.on('select', function (event) {
+                    if (event.selected.length > 0) {
+                        const selectedFeature = event.selected[0];
+                        
+                        // Clone the feature to add to our extent layer
+                        const featureClone = selectedFeature.clone();
+                        
+                        featureClone.set('id', 'extent_polygon');
+                        featureClone.set('type', 'extent');
+                        
+                        // Apply extent style
+                        featureClone.setStyle(new ol.style.Style({
+                            stroke: new ol.style.Stroke({
+                                color: '#FF6B00',
+                                width: 2,
+                                lineDash: [10, 5]
+                            }),
+                            fill: new ol.style.Fill({
+                                color: 'rgba(255, 107, 0, 0.1)'
+                            })
+                        }));
+
+                        // Add to extent layer
+                        terrain3DState.extentLayer.getSource().addFeature(featureClone);
+                        terrain3DState.customExtent = featureClone;
+
+                        // Clear selection to avoid visual conflicts
+                        window.extentSelectInteraction.getFeatures().clear();
+
+                        // Clean up
+                        map.removeInteraction(window.extentSelectInteraction);
+                        window.extentSelectInteraction = null;
+
+                        // Update UI
+                        updateExtentInfo();
+                        document.getElementById('clearExtentBtn').disabled = false;
+                        document.getElementById('clearExtentBtn').style.opacity = '1';
+                        document.getElementById('useCustomExtent').disabled = false;
+                        document.getElementById('useCustomExtent').checked = true;
+                        terrain3DState.useCustomExtent = true;
+
+                        // Save to localStorage
+                        saveExtentToLocalStorage();
+
+                        showToast('Extent selected successfully!', 'success');
+                    }
+                });
+
+                map.addInteraction(window.extentSelectInteraction);
+                showToast('Click on an existing polygon on the map to set it as extent.', 'info');
+            }
+
             // Clear extent polygon
             function clearExtent() {
                 if (terrain3DState.extentLayer) {
@@ -38483,6 +38643,20 @@ function smoothChaikin(points) {
                 }
                 terrain3DState.customExtent = null;
                 terrain3DState.useCustomExtent = false;
+
+                // Remove active interactions
+                if (window.extentDrawInteraction) {
+                    map.removeInteraction(window.extentDrawInteraction);
+                    window.extentDrawInteraction = null;
+                }
+                if (window.extentSelectInteraction) {
+                    map.removeInteraction(window.extentSelectInteraction);
+                    window.extentSelectInteraction = null;
+                }
+                if (window.extentSnapInteractions) {
+                    window.extentSnapInteractions.forEach(interaction => map.removeInteraction(interaction));
+                    window.extentSnapInteractions = [];
+                }
 
                 // Update UI
                 document.getElementById('extentInfoPanel').style.display = 'none';
@@ -39638,6 +39812,7 @@ function smoothChaikin(points) {
 
             // Extent Control Event Handlers
             document.getElementById('drawExtentBtn')?.addEventListener('click', startExtentDrawing);
+            document.getElementById('selectExtentBtn')?.addEventListener('click', startExtentSelection);
             document.getElementById('clearExtentBtn')?.addEventListener('click', clearExtent);
 
             document.getElementById('useCustomExtent')?.addEventListener('change', function () {
