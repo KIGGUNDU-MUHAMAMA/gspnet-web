@@ -36899,6 +36899,13 @@ function smoothChaikin(points) {
                 const maxElev = terrain3DState.maxElevation || 100;
                 const elevRange = maxElev - minElev || 1;
 
+                // Geographic span of the DTM in projected CRS (must match basemap WGS84 crop, not (width-1)*cell)
+                const b = gridData.bounds;
+                const geoW = (b && b.maxX != null) ? (b.maxX - b.minX) : totalWidth;
+                const geoH = (b && b.maxY != null) ? (b.maxY - b.minY) : totalHeight;
+                const gwx = Math.max(geoW, 1e-6);
+                const ghy = Math.max(geoH, 1e-6);
+
                 for (let row = 0; row < sampledH; row++) {
                     for (let col = 0; col < sampledW; col++) {
                         const srcRow = Math.min(row * step, height - 1);
@@ -36908,9 +36915,10 @@ function smoothChaikin(points) {
                         const z = (grid[srcRow][srcCol] || minElev) * vExag;
                         positions.push(x, y, z);
 
-                        // UV coordinates: map (0,0) → (1,1) across terrain extent
-                        const u = x / totalWidth;
-                        const v = y / totalHeight;
+                        // UVs: map each vertex to the same real-world position within full raster bounds
+                        // so the stitched WGS84 basemap aligns with the DTM (was wrong when using (width-1)*cell)
+                        const u = x / gwx;
+                        const v = y / ghy;
                         uvs.push(u, v);
 
                         // Hypsometric color
@@ -37029,19 +37037,36 @@ function smoothChaikin(points) {
                 const srcProj = dataCRS;
                 const proj4WGS84 = '+proj=longlat +datum=WGS84 +no_defs';
 
-                // ── Reproject corners to WGS84 ──
-                let sw, ne;
-                try {
-                    sw = proj4(srcProj, proj4WGS84, [bounds.minX, bounds.minY]);
-                    ne = proj4(srcProj, proj4WGS84, [bounds.maxX, bounds.maxY]);
-                } catch (e) {
-                    // Fallback: try Web Mercator (some older data may be in EPSG:3857)
-                    console.warn('[3D Basemap] proj4 failed for', srcProj, '— falling back to EPSG:3857', e);
-                    const wm = '+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs';
-                    sw = proj4(wm, proj4WGS84, [bounds.minX, bounds.minY]);
-                    ne = proj4(wm, proj4WGS84, [bounds.maxX, bounds.maxY]);
+                // ── Reproject all four axis-aligned bounds corners to WGS84 (avoids basemap/DTM
+                //     skew that occurs when reprojecting only [min, min] and [max, max]).
+                function transformPointTo4326(pt) {
+                    if (typeof ol !== 'undefined' && ol.proj) {
+                        try {
+                            return ol.proj.transform(pt, srcProj, 'EPSG:4326');
+                        } catch (e) { /* fall through to proj4 */ }
+                    }
+                    try {
+                        return proj4(srcProj, proj4WGS84, pt);
+                    } catch (e2) {
+                        const wm = '+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs';
+                        return proj4(wm, proj4WGS84, pt);
+                    }
                 }
-                const lonMin = sw[0], latMin = sw[1], lonMax = ne[0], latMax = ne[1];
+                const cornerPts = [
+                    [bounds.minX, bounds.minY],
+                    [bounds.maxX, bounds.minY],
+                    [bounds.minX, bounds.maxY],
+                    [bounds.maxX, bounds.maxY]
+                ];
+                let lonMin = Infinity, lonMax = -Infinity, latMin = Infinity, latMax = -Infinity;
+                for (const c of cornerPts) {
+                    const ll = transformPointTo4326(c);
+                    const lo = ll[0], la = ll[1];
+                    if (lo < lonMin) lonMin = lo;
+                    if (lo > lonMax) lonMax = lo;
+                    if (la < latMin) latMin = la;
+                    if (la > latMax) latMax = la;
+                }
 
                 console.log(`[3D Basemap] DTM extent WGS84: lon ${lonMin.toFixed(6)}..${lonMax.toFixed(6)}, lat ${latMin.toFixed(6)}..${latMax.toFixed(6)}`);
 
@@ -37187,6 +37212,14 @@ function smoothChaikin(points) {
                 texture.wrapT = THREE.ClampToEdgeWrapping;
                 texture.needsUpdate = true;
 
+                // Tainted canvas (CORS) cannot be uploaded to WebGL and appears as a solid white/blank drape
+                try {
+                    croppedCanvas.getContext('2d').getImageData(0, 0, 1, 1);
+                } catch (corsErr) {
+                    texture.dispose();
+                    throw new Error('Basemap image is CORS-tainted. Use Esri or OSM in Basemap Settings, or serve the app from http(s).');
+                }
+
                 return { texture, zoom, tilesX, tilesY, label: tileConfig.label };
             }
 
@@ -37220,7 +37253,9 @@ function smoothChaikin(points) {
                     depthWrite: false,
                     polygonOffset: true,
                     polygonOffsetFactor: -1,
-                    polygonOffsetUnits: -1
+                    polygonOffsetUnits: -1,
+                    // Exp2 white fog (scene.fog) was washing the drape to a solid white haze
+                    fog: false
                 });
 
                 viewer3D.basemapMesh = new THREE.Mesh(geo, mat);
