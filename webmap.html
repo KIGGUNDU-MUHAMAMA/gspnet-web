@@ -36982,6 +36982,40 @@ function smoothChaikin(points) {
 
             // ========== BASEMAP DRAPING ==========
 
+            /** Reject “Map data not available” & similar 200-OK error PNGs (small / flat) */
+            const _MIN_MAP_TILE_BYTES = 3500;
+
+            function _isLikelyServicePlaceholderImageBitmap(bmp) {
+                try {
+                    const w = Math.min(48, bmp.width);
+                    const h = Math.min(48, bmp.height);
+                    if (w < 8 || h < 8) {
+                        return true;
+                    }
+                    const c = document.createElement('canvas');
+                    c.width = w;
+                    c.height = h;
+                    const c2 = c.getContext('2d', { willReadFrequently: true });
+                    c2.drawImage(bmp, 0, 0, w, h);
+                    const d = c2.getImageData(0, 0, w, h).data;
+                    let sum = 0, sum2 = 0, n = 0;
+                    for (let i = 0; i < d.length; i += 16) {
+                        const l = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+                        sum += l;
+                        sum2 += l * l;
+                        n++;
+                    }
+                    if (!n) {
+                        return true;
+                    }
+                    const m = sum / n;
+                    const v = Math.max(0, sum2 / n - m * m);
+                    return m > 252 && v < 18;
+                } catch (e) {
+                    return false;
+                }
+            }
+
             function _sleep3d(ms) {
                 return new Promise((r) => setTimeout(r, ms));
             }
@@ -37061,9 +37095,23 @@ function smoothChaikin(points) {
                     if (!res || !res.ok) {
                         throw new Error('HTTP ' + (res ? res.status : 0));
                     }
+                    const ct = (res.headers.get('content-type') || '').toLowerCase();
+                    if (ct && ct.indexOf('text/html') >= 0) {
+                        throw new Error('Server returned HTML instead of an image (tile URL may be wrong)');
+                    }
                     const blob = await res.blob();
+                    if (!blob || blob.size < _MIN_MAP_TILE_BYTES) {
+                        throw new Error('Tile response too small (likely a “not available” placeholder from the server)');
+                    }
                     if (typeof createImageBitmap === 'function') {
-                        return await createImageBitmap(blob);
+                        const bitmap = await createImageBitmap(blob);
+                        if (blob.size < 10000 && _isLikelyServicePlaceholderImageBitmap(bitmap)) {
+                            if (typeof bitmap.close === 'function') {
+                                try { bitmap.close(); } catch (e) { }
+                            }
+                            throw new Error('Service placeholder (flat) tile');
+                        }
+                        return bitmap;
                     }
                     return await new Promise((ok, no) => {
                         const im = new Image();
@@ -37315,6 +37363,45 @@ function smoothChaikin(points) {
 
                 console.log(`[3D Basemap] Using "${tileConfig.label}" z=${zoom}, ${tilesX}×${tilesY} = ${tilesX * tilesY} tiles`);
 
+                // Esri MapServer may expect slippy Y (Google/OSM) or TMS Y in the /tile/{z}/{y}/{x}
+                // path. Wrong Y often returns a 200 OK image with “Map data not available” text.
+                let esriUseTmsYInPath = false;
+                if ((tileConfig.label || '').indexOf('Esri') >= 0) {
+                    try {
+                        const z0 = zoom;
+                        const yOsm = yMin;
+                        const x0 = xMin;
+                        const uOsm = tileConfig.urlFn(z0, yOsm, x0);
+                        const yTms = Math.pow(2, z0) - 1 - yOsm;
+                        const uTms = tileConfig.urlFn(z0, yTms, x0);
+                        const probe = async (u) => {
+                            const a = new AbortController();
+                            const t = setTimeout(() => { try { a.abort(); } catch (e) { } }, 12000);
+                            try {
+                                const r = await fetch(u, { mode: 'cors', credentials: 'omit', cache: 'default', signal: a.signal });
+                                if (!r.ok) {
+                                    return 0;
+                                }
+                                return (await r.blob()).size;
+                            } catch (e) {
+                                return 0;
+                            } finally {
+                                clearTimeout(t);
+                            }
+                        };
+                        const sa = await probe(uOsm);
+                        const sb = await probe(uTms);
+                        if (sb > sa + 2000 && sb >= _MIN_MAP_TILE_BYTES) {
+                            esriUseTmsYInPath = true;
+                            console.log('[3D Basemap] Esri: using TMS Y in tile path (probe chose larger image).');
+                        } else {
+                            console.log('[3D Basemap] Esri: using slippy (OSM) Y in tile path.');
+                        }
+                    } catch (e) {
+                        console.warn('[3D Basemap] Esri Y order probe failed; using slippy Y.', e);
+                    }
+                }
+
                 // ── Stitch tiles ──
                 const tileSize = 256;
                 const canvas = document.createElement('canvas');
@@ -37329,6 +37416,7 @@ function smoothChaikin(points) {
                 const loadingSubEl = document.getElementById('viewer3dLoadingSub');
                 let loaded = 0, failed = 0;
                 const totalTiles = tilesX * tilesY;
+                const isEsri3D = (tileConfig.label || '').indexOf('Esri') >= 0;
 
                 // Batched fetches: browsers only run ~6 concurrent connections per host; firing
                 // 64 fetches at once can stall or get slow responses. Small gaps between batches
@@ -37336,8 +37424,11 @@ function smoothChaikin(points) {
                 const tileJobs = [];
                 for (let ty = yMin; ty <= yMax; ty++) {
                     for (let tx = xMin; tx <= xMax; tx++) {
+                        const yForPath = (isEsri3D && esriUseTmsYInPath)
+                            ? (Math.pow(2, zoom) - 1 - ty)
+                            : ty;
                         tileJobs.push({
-                            url: tileConfig.urlFn(zoom, ty, tx),
+                            url: tileConfig.urlFn(zoom, yForPath, tx),
                             px: (tx - xMin) * tileSize,
                             py: (ty - yMin) * tileSize
                         });
