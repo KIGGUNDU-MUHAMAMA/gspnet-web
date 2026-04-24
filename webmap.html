@@ -37019,14 +37019,28 @@ function smoothChaikin(points) {
                 const { bounds } = gridData;  // { minX, minY, maxX, maxY } in projected CRS
                 if (!bounds || bounds.minX == null) throw new Error('Grid data has no bounds');
 
-                // ── Resolve source projection (Grid is in Web Mercator / EPSG:3857) ──
-                const proj4WebMercator = '+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs';
-                const srcProj = proj4WebMercator;
+                // ── Resolve source projection from the actual data CRS ──
+                //    terrain3DState.coordinateSystem holds the EPSG code the survey data is in
+                //    (e.g. "EPSG:32736", "EPSG:32636", "EPSG:21096", etc.).
+                //    The DTM bounds (minX/minY/maxX/maxY) are easting/northing in that CRS.
+                //    We must reproject those coords to WGS84 to pick the correct tile coverage.
+                const dataCRS = terrain3DState.coordinateSystem || 'EPSG:32636';
+                // proj4 accepts EPSG codes if they have been pre-registered via proj4.defs()
+                const srcProj = dataCRS;
                 const proj4WGS84 = '+proj=longlat +datum=WGS84 +no_defs';
 
                 // ── Reproject corners to WGS84 ──
-                const sw = proj4(srcProj, proj4WGS84, [bounds.minX, bounds.minY]);
-                const ne = proj4(srcProj, proj4WGS84, [bounds.maxX, bounds.maxY]);
+                let sw, ne;
+                try {
+                    sw = proj4(srcProj, proj4WGS84, [bounds.minX, bounds.minY]);
+                    ne = proj4(srcProj, proj4WGS84, [bounds.maxX, bounds.maxY]);
+                } catch (e) {
+                    // Fallback: try Web Mercator (some older data may be in EPSG:3857)
+                    console.warn('[3D Basemap] proj4 failed for', srcProj, '— falling back to EPSG:3857', e);
+                    const wm = '+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs';
+                    sw = proj4(wm, proj4WGS84, [bounds.minX, bounds.minY]);
+                    ne = proj4(wm, proj4WGS84, [bounds.maxX, bounds.maxY]);
+                }
                 const lonMin = sw[0], latMin = sw[1], lonMax = ne[0], latMax = ne[1];
 
                 console.log(`[3D Basemap] DTM extent WGS84: lon ${lonMin.toFixed(6)}..${lonMax.toFixed(6)}, lat ${latMin.toFixed(6)}..${latMax.toFixed(6)}`);
@@ -37190,16 +37204,13 @@ function smoothChaikin(points) {
                     viewer3D.basemapMesh.material.dispose();
                 }
 
-                // Clone the terrain geometry (it already has UVs)
+                // Clone the terrain geometry (it already has correct UVs).
+                // NOTE: THREE.js CanvasTexture has flipY=true by default, which automatically
+                // inverts the canvas (top = latMax/north → v=1, bottom = latMin/south → v=0)
+                // to match the terrain UV layout (v=0 = south, v=1 = north).
+                // No manual V-flip is needed here — applying one would double-invert and
+                // produce a north↔south misalignment.
                 const geo = viewer3D.terrainMesh.geometry.clone();
-
-                // Flip V coordinate because the basemap image Y-axis is top-down
-                // but the terrain's Y-axis (row 0 = south) grows upward.
-                const uvAttr = geo.getAttribute('uv');
-                for (let i = 0; i < uvAttr.count; i++) {
-                    uvAttr.setY(i, 1.0 - uvAttr.getY(i));
-                }
-                uvAttr.needsUpdate = true;
 
                 const mat = new THREE.MeshBasicMaterial({
                     map: viewer3D.basemapTexture,
