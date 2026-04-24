@@ -16884,13 +16884,26 @@
             const crossSectionVectorSource = new ol.source.Vector();
             const crossSectionVectorLayer = new ol.layer.Vector({
                 source: crossSectionVectorSource,
-                style: new ol.style.Style({
-                    stroke: new ol.style.Stroke({
-                        color: '#ffd60a', // Yellow
-                        width: 2,
-                        lineDash: [4, 4]
-                    })
-                }),
+                style: function(feature) {
+                    const chainage = feature.get('chainage');
+                    const label = chainage !== undefined ? `Ch.${chainage.toFixed(0)}m` : '';
+                    return new ol.style.Style({
+                        stroke: new ol.style.Stroke({
+                            color: '#ffd60a',
+                            width: 2,
+                            lineDash: [4, 4]
+                        }),
+                        text: new ol.style.Text({
+                            text: label,
+                            font: 'bold 11px sans-serif',
+                            fill: new ol.style.Fill({ color: '#ffd60a' }),
+                            stroke: new ol.style.Stroke({ color: '#000', width: 3 }),
+                            placement: 'point',
+                            offsetY: -8,
+                            overflow: true
+                        })
+                    });
+                },
                 zIndex: 199
             });
             map.addLayer(crossSectionVectorLayer);
@@ -16924,14 +16937,23 @@
                 map.addInteraction(profileState.drawInteraction);
                 profileState.isDrawing = true;
 
-                // Create snap interactions for all visible sources
-                if (!profileState.snapInteractions) {
-                    profileState.snapInteractions = [];
+                // Reset and rebuild snap interactions
+                if (profileState.snapInteractions) {
+                    profileState.snapInteractions.forEach(s => map.removeInteraction(s));
                 }
+                profileState.snapInteractions = [];
+
+                // Always snap to the alignment itself (own vertices)
+                const selfSnap = new ol.interaction.Snap({
+                    source: profileVectorSource,
+                    pixelTolerance: 15
+                });
+                map.addInteraction(selfSnap);
+                profileState.snapInteractions.push(selfSnap);
 
                 if (document.getElementById('profileSnapToFeatures') && document.getElementById('profileSnapToFeatures').checked) {
                     // 1. CSV Points
-                    if (terrain3DState.pointsLayer && terrain3DState.pointsLayer.getVisible()) {
+                    if (terrain3DState.pointsLayer && terrain3DState.pointsLayer.getSource && terrain3DState.pointsLayer.getSource()) {
                         const snap = new ol.interaction.Snap({
                             source: terrain3DState.pointsLayer.getSource(),
                             pixelTolerance: 20
@@ -16939,7 +16961,7 @@
                         map.addInteraction(snap);
                         profileState.snapInteractions.push(snap);
                     }
-                    
+
                     // 2. GSPNET Layers
                     if (typeof gspnetLayers !== 'undefined') {
                         gspnetLayers.filter(l => l.getVisible()).forEach(layer => {
@@ -16953,7 +16975,7 @@
                             }
                         });
                     }
-                    
+
                     // 3. Survey Polygons
                     if (typeof polygonLayers !== 'undefined') {
                         Object.values(polygonLayers).filter(l => l.getVisible()).forEach(layer => {
@@ -17553,16 +17575,16 @@
                 const container = document.getElementById('crossSectionCharts');
                 container.innerHTML = ''; // Clear existing charts
                 
-                // Clear and update 2D map vector layer
+                // Clear and update 2D map vector layer with labeled cross-section lines
                 if (typeof crossSectionVectorSource !== 'undefined') {
                     crossSectionVectorSource.clear();
                     crossSections.forEach(cs => {
                         const coords = cs.data.map(p => [p.x, p.y]);
                         if (coords.length > 1) {
                             const feature = new ol.Feature({
-                                geometry: new ol.geom.LineString(coords),
-                                type: 'cross-section'
+                                geometry: new ol.geom.LineString(coords)
                             });
+                            feature.set('chainage', cs.chainage);
                             crossSectionVectorSource.addFeature(feature);
                         }
                     });
