@@ -36790,11 +36790,11 @@ function smoothChaikin(points) {
                 viewer3D.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
                 viewer3D.renderer.setClearColor(0xffffff);
 
-                // Scene
                 viewer3D.scene = new THREE.Scene();
 
-                // Fog for atmosphere
-                viewer3D.scene.fog = new THREE.FogExp2(0xffffff, 0.00015);
+                // No global fog: white FogExp2 was washing out the basemap drape (unlit
+                // textures + fog read as a solid white layer). Lighting still gives depth.
+                viewer3D.scene.fog = null;
 
                 // Camera
                 const gridData = terrain3DState.gridData;
@@ -37016,6 +37016,72 @@ function smoothChaikin(points) {
             }
 
             /**
+             * Load one map tile: fetch() + createImageBitmap is the most reliable way to
+             * get CORS-safe pixels for canvas → WebGL (Image() on cross-origin often taints
+             * or decodes in a way that shows as a white/blank DataTexture/CanvasTexture).
+             */
+            async function loadMapTileFor3DBasemap(url) {
+                try {
+                    const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
+                    if (!res.ok) {
+                        throw new Error('HTTP ' + res.status);
+                    }
+                    const blob = await res.blob();
+                    if (typeof createImageBitmap === 'function') {
+                        return await createImageBitmap(blob);
+                    }
+                    return await new Promise((resolve, reject) => {
+                        const img = new Image();
+                        const u = URL.createObjectURL(blob);
+                        img.crossOrigin = 'anonymous';
+                        img.onload = () => {
+                            URL.revokeObjectURL(u);
+                            resolve(img);
+                        };
+                        img.onerror = () => {
+                            URL.revokeObjectURL(u);
+                            reject(new Error('Tile decode failed'));
+                        };
+                        img.src = u;
+                    });
+                } catch (e) {
+                    return await new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.crossOrigin = 'anonymous';
+                        img.onload = () => resolve(img);
+                        img.onerror = () => reject(new Error('Tile load failed'));
+                        img.src = url;
+                    });
+                }
+            }
+
+            /**
+             * Build a WebGL texture from a 2D canvas. DataTexture from raw RGBA is more
+             * reliable than CanvasTexture (avoids NPOT+mipmap and upload quirks in WebGL1).
+             */
+            function dataTextureFromCanvas2D(cnv) {
+                const w = cnv.width;
+                const h = cnv.height;
+                if (w < 1 || h < 1) {
+                    throw new Error('Invalid basemap canvas size');
+                }
+                const ctx2 = cnv.getContext('2d', { willReadFrequently: true });
+                const im = ctx2.getImageData(0, 0, w, h);
+                // Copy: Three.js expects a Uint8Array; ImageData is Uint8ClampedArray
+                const data = new Uint8Array(im.data.length);
+                data.set(im.data);
+                const tex = new THREE.DataTexture(data, w, h, THREE.RGBAFormat);
+                tex.flipY = true;
+                tex.minFilter = THREE.LinearFilter;
+                tex.magFilter = THREE.LinearFilter;
+                tex.wrapS = THREE.ClampToEdgeWrapping;
+                tex.wrapT = THREE.ClampToEdgeWrapping;
+                tex.generateMipmaps = false;
+                tex.needsUpdate = true;
+                return tex;
+            }
+
+            /**
              * Fetch basemap tiles for the terrain extent, stitch into a single texture.
              * Respects terrain3DState.activeBasemap (esri / google / osm).
              * Reprojects DTM bounds from the project CRS to WGS84 via proj4.
@@ -37121,7 +37187,7 @@ function smoothChaikin(points) {
                 const canvas = document.createElement('canvas');
                 canvas.width = tilesX * tileSize;
                 canvas.height = tilesY * tileSize;
-                const ctx = canvas.getContext('2d');
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
                 // Fill with a dark background so failed tiles aren't transparent
                 ctx.fillStyle = '#1e293b';
@@ -37131,40 +37197,42 @@ function smoothChaikin(points) {
                 let loaded = 0, failed = 0;
                 const totalTiles = tilesX * tilesY;
 
-                // Fetch all tiles in parallel (batched to avoid overwhelming the browser)
-                const promises = [];
+                // fetch + createImageBitmap: CORS-safe pixels for canvas getImageData → WebGL DataTexture
+                const tilePromises = [];
                 for (let ty = yMin; ty <= yMax; ty++) {
                     for (let tx = xMin; tx <= xMax; tx++) {
                         const url = tileConfig.urlFn(zoom, ty, tx);
                         const px = (tx - xMin) * tileSize;
                         const py = (ty - yMin) * tileSize;
-
-                        promises.push(
-                            new Promise((resolve) => {
-                                const img = new Image();
-                                img.crossOrigin = 'anonymous';
-                                img.onload = () => {
-                                    ctx.drawImage(img, px, py, tileSize, tileSize);
-                                    loaded++;
-                                    if (loadingSubEl) loadingSubEl.textContent =
+                        tilePromises.push(
+                            loadMapTileFor3DBasemap(url).then((source) => {
+                                try {
+                                    ctx.drawImage(source, px, py, tileSize, tileSize);
+                                } finally {
+                                    if (source && typeof source.close === 'function') {
+                                        try { source.close(); } catch (e) { }
+                                    }
+                                }
+                                loaded++;
+                                if (loadingSubEl) {
+                                    loadingSubEl.textContent =
                                         `${tileConfig.label} — ${loaded}/${totalTiles} tiles (z${zoom})`;
-                                    resolve(true);
-                                };
-                                img.onerror = () => {
-                                    // Keep the dark fill for failed tiles
-                                    failed++;
-                                    loaded++;
-                                    if (loadingSubEl) loadingSubEl.textContent =
+                                }
+                                return true;
+                            }).catch(() => {
+                                failed++;
+                                loaded++;
+                                if (loadingSubEl) {
+                                    loadingSubEl.textContent =
                                         `${tileConfig.label} — ${loaded}/${totalTiles} tiles (z${zoom})`;
-                                    resolve(false);
-                                };
-                                img.src = url;
+                                }
+                                return false;
                             })
                         );
                     }
                 }
 
-                await Promise.all(promises);
+                await Promise.all(tilePromises);
 
                 if (failed === totalTiles) {
                     throw new Error(`All ${totalTiles} tiles failed to load for "${tileConfig.label}". Check network / CORS.`);
@@ -37190,34 +37258,28 @@ function smoothChaikin(points) {
                     return ((yTop - yPt) / (yTop - yBot)) * canvas.height;
                 }
 
-                const cropX = lonToPixel(lonMin);
-                const cropY = latToPixel(latMax);
-                const cropW = lonToPixel(lonMax) - cropX;
-                const cropH = latToPixel(latMin) - cropY;
+                let cropX = lonToPixel(lonMin);
+                let cropY = latToPixel(latMax);
+                let cropW = lonToPixel(lonMax) - cropX;
+                let cropH = latToPixel(latMin) - cropY;
+                if (cropW < 0) { cropX += cropW; cropW = Math.abs(cropW); }
+                if (cropH < 0) { cropY += cropH; cropH = Math.abs(cropH); }
 
                 const croppedCanvas = document.createElement('canvas');
                 croppedCanvas.width = Math.max(1, Math.round(cropW));
                 croppedCanvas.height = Math.max(1, Math.round(cropH));
-                const croppedCtx = croppedCanvas.getContext('2d');
+                const croppedCtx = croppedCanvas.getContext('2d', { willReadFrequently: true });
                 croppedCtx.drawImage(canvas,
                     Math.round(cropX), Math.round(cropY), Math.round(cropW), Math.round(cropH),
                     0, 0, croppedCanvas.width, croppedCanvas.height
                 );
 
-                // ── Create THREE.js texture ──
-                const texture = new THREE.CanvasTexture(croppedCanvas);
-                texture.minFilter = THREE.LinearFilter;
-                texture.magFilter = THREE.LinearFilter;
-                texture.wrapS = THREE.ClampToEdgeWrapping;
-                texture.wrapT = THREE.ClampToEdgeWrapping;
-                texture.needsUpdate = true;
-
-                // Tainted canvas (CORS) cannot be uploaded to WebGL and appears as a solid white/blank drape
+                // RGBA DataTexture: avoids WebGL1 NPOT+CanvasTexture/mipmap path that can show white
+                let texture;
                 try {
-                    croppedCanvas.getContext('2d').getImageData(0, 0, 1, 1);
-                } catch (corsErr) {
-                    texture.dispose();
-                    throw new Error('Basemap image is CORS-tainted. Use Esri or OSM in Basemap Settings, or serve the app from http(s).');
+                    texture = dataTextureFromCanvas2D(croppedCanvas);
+                } catch (readErr) {
+                    throw new Error('Basemap pixels could not be read (CORS or security). Use Esri or OSM basemap, open the app from http(s), and avoid the Google option for 3D drape. ' + (readErr && readErr.message ? readErr.message : ''));
                 }
 
                 return { texture, zoom, tilesX, tilesY, label: tileConfig.label };
@@ -37237,12 +37299,8 @@ function smoothChaikin(points) {
                     viewer3D.basemapMesh.material.dispose();
                 }
 
-                // Clone the terrain geometry (it already has correct UVs).
-                // NOTE: THREE.js CanvasTexture has flipY=true by default, which automatically
-                // inverts the canvas (top = latMax/north → v=1, bottom = latMin/south → v=0)
-                // to match the terrain UV layout (v=0 = south, v=1 = north).
-                // No manual V-flip is needed here — applying one would double-invert and
-                // produce a north↔south misalignment.
+                // Clone the terrain geometry (it already has correct UVs). Basemap uses
+                // a DataTexture with flipY so image north lines up with terrain +v.
                 const geo = viewer3D.terrainMesh.geometry.clone();
 
                 const mat = new THREE.MeshBasicMaterial({
