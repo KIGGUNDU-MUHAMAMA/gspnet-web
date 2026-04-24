@@ -36871,6 +36871,7 @@ function smoothChaikin(points) {
                 if (viewer3D.basemapMesh) {
                     viewer3D.scene.remove(viewer3D.basemapMesh);
                     viewer3D.basemapMesh.geometry.dispose();
+                    detachBasemapMapFromMaterial(viewer3D.basemapMesh.material);
                     viewer3D.basemapMesh.material.dispose();
                     viewer3D.basemapMesh = null;
                 }
@@ -37056,29 +37057,86 @@ function smoothChaikin(points) {
             }
 
             /**
-             * Build a WebGL texture from a 2D canvas. DataTexture from raw RGBA is more
-             * reliable than CanvasTexture (avoids NPOT+mipmap and upload quirks in WebGL1).
+             * Detach the shared basemap from a material so Material.dispose() does not
+             * call Texture.dispose() on the CPU/GPU object we keep in viewer3D.basemapTexture
+             * (re-applying a disposed texture appears as a solid white drape in WebGL).
              */
-            function dataTextureFromCanvas2D(cnv) {
-                const w = cnv.width;
-                const h = cnv.height;
-                if (w < 1 || h < 1) {
-                    throw new Error('Invalid basemap canvas size');
+            function detachBasemapMapFromMaterial(material) {
+                if (material && material.map) {
+                    material.map = null;
                 }
-                const ctx2 = cnv.getContext('2d', { willReadFrequently: true });
-                const im = ctx2.getImageData(0, 0, w, h);
-                // Copy: Three.js expects a Uint8Array; ImageData is Uint8ClampedArray
-                const data = new Uint8Array(im.data.length);
-                data.set(im.data);
-                const tex = new THREE.DataTexture(data, w, h, THREE.RGBAFormat);
-                tex.flipY = true;
-                tex.minFilter = THREE.LinearFilter;
-                tex.magFilter = THREE.LinearFilter;
-                tex.wrapS = THREE.ClampToEdgeWrapping;
-                tex.wrapT = THREE.ClampToEdgeWrapping;
-                tex.generateMipmaps = false;
-                tex.needsUpdate = true;
-                return tex;
+            }
+
+            /**
+             * Free basemap WebGL memory and ImageBitmaps / blob side channels.
+             */
+            function dispose3DBasemapTexture(tex) {
+                if (!tex) {
+                    return;
+                }
+                if (tex.userData) {
+                    if (tex.userData._bitmap && typeof tex.userData._bitmap.close === 'function') {
+                        try { tex.userData._bitmap.close(); } catch (e) { }
+                        tex.userData._bitmap = null;
+                    }
+                }
+                try { tex.dispose(); } catch (e) { }
+            }
+
+            /**
+             * Build THREE.Texture for the drape. Prefer createImageBitmap(canvas) (native
+             * WebGL upload). Fallback: canvas.toBlob() + Image (avoids getImageData/DataTexture).
+             */
+            async function buildBasemapGLTexture(croppedCanvas) {
+                if (typeof createImageBitmap === 'function') {
+                    try {
+                        const bitmap = await createImageBitmap(croppedCanvas);
+                        const tex = new THREE.Texture(bitmap);
+                        tex.userData = { _bitmap: bitmap };
+                        tex.minFilter = THREE.LinearFilter;
+                        tex.magFilter = THREE.LinearFilter;
+                        tex.wrapS = THREE.ClampToEdgeWrapping;
+                        tex.wrapT = THREE.ClampToEdgeWrapping;
+                        tex.generateMipmaps = false;
+                        tex.flipY = true;
+                        tex.needsUpdate = true;
+                        return tex;
+                    } catch (e) {
+                        console.warn('[3D Basemap] createImageBitmap path failed, using toBlob + Image', e);
+                    }
+                }
+                return new Promise((resolve, reject) => {
+                    croppedCanvas.toBlob(
+                        (blob) => {
+                            if (!blob) {
+                                reject(new Error('toBlob failed (canvas tainted? use Esri/OSM, serve over http(s))'));
+                                return;
+                            }
+                            const u = URL.createObjectURL(blob);
+                            const img = new Image();
+                            img.onload = function () {
+                                URL.revokeObjectURL(u);
+                                const tex = new THREE.Texture(img);
+                                tex.userData = { _img: img };
+                                tex.minFilter = THREE.LinearFilter;
+                                tex.magFilter = THREE.LinearFilter;
+                                tex.wrapS = THREE.ClampToEdgeWrapping;
+                                tex.wrapT = THREE.ClampToEdgeWrapping;
+                                tex.generateMipmaps = false;
+                                tex.flipY = true;
+                                tex.needsUpdate = true;
+                                resolve(tex);
+                            };
+                            img.onerror = function () {
+                                URL.revokeObjectURL(u);
+                                reject(new Error('Could not decode basemap from canvas blob'));
+                            };
+                            img.src = u;
+                        },
+                        'image/png',
+                        0.95
+                    );
+                });
             }
 
             /**
@@ -37274,14 +37332,7 @@ function smoothChaikin(points) {
                     0, 0, croppedCanvas.width, croppedCanvas.height
                 );
 
-                // RGBA DataTexture: avoids WebGL1 NPOT+CanvasTexture/mipmap path that can show white
-                let texture;
-                try {
-                    texture = dataTextureFromCanvas2D(croppedCanvas);
-                } catch (readErr) {
-                    throw new Error('Basemap pixels could not be read (CORS or security). Use Esri or OSM basemap, open the app from http(s), and avoid the Google option for 3D drape. ' + (readErr && readErr.message ? readErr.message : ''));
-                }
-
+                const texture = await buildBasemapGLTexture(croppedCanvas);
                 return { texture, zoom, tilesX, tilesY, label: tileConfig.label };
             }
 
@@ -37296,11 +37347,12 @@ function smoothChaikin(points) {
                 if (viewer3D.basemapMesh) {
                     viewer3D.scene.remove(viewer3D.basemapMesh);
                     viewer3D.basemapMesh.geometry.dispose();
+                    detachBasemapMapFromMaterial(viewer3D.basemapMesh.material);
                     viewer3D.basemapMesh.material.dispose();
+                    viewer3D.basemapMesh = null;
                 }
 
-                // Clone the terrain geometry (it already has correct UVs). Basemap uses
-                // a DataTexture with flipY so image north lines up with terrain +v.
+                // Clone the terrain geometry (it already has correct UVs).
                 const geo = viewer3D.terrainMesh.geometry.clone();
 
                 const mat = new THREE.MeshBasicMaterial({
@@ -37342,6 +37394,7 @@ function smoothChaikin(points) {
                         if (viewer3D.basemapMesh) {
                             viewer3D.scene.remove(viewer3D.basemapMesh);
                             viewer3D.basemapMesh.geometry.dispose();
+                            detachBasemapMapFromMaterial(viewer3D.basemapMesh.material);
                             viewer3D.basemapMesh.material.dispose();
                             viewer3D.basemapMesh = null;
                         }
@@ -37353,16 +37406,16 @@ function smoothChaikin(points) {
                     const needsRefetch = !viewer3D.basemapTexture || viewer3D.basemapCachedType !== currentBm;
 
                     if (needsRefetch) {
-                        // Dispose old texture
-                        if (viewer3D.basemapTexture) {
-                            viewer3D.basemapTexture.dispose();
-                            viewer3D.basemapTexture = null;
-                        }
                         if (viewer3D.basemapMesh) {
                             viewer3D.scene.remove(viewer3D.basemapMesh);
                             viewer3D.basemapMesh.geometry.dispose();
+                            detachBasemapMapFromMaterial(viewer3D.basemapMesh.material);
                             viewer3D.basemapMesh.material.dispose();
                             viewer3D.basemapMesh = null;
+                        }
+                        if (viewer3D.basemapTexture) {
+                            dispose3DBasemapTexture(viewer3D.basemapTexture);
+                            viewer3D.basemapTexture = null;
                         }
 
                         loadingEl.classList.remove('hidden');
@@ -37391,6 +37444,7 @@ function smoothChaikin(points) {
                     if (viewer3D.basemapMesh) {
                         viewer3D.scene.remove(viewer3D.basemapMesh);
                         viewer3D.basemapMesh.geometry.dispose();
+                        detachBasemapMapFromMaterial(viewer3D.basemapMesh.material);
                         viewer3D.basemapMesh.material.dispose();
                         viewer3D.basemapMesh = null;
                     }
@@ -37963,11 +38017,12 @@ function smoothChaikin(points) {
                 if (viewer3D.basemapMesh) {
                     viewer3D.scene.remove(viewer3D.basemapMesh);
                     viewer3D.basemapMesh.geometry.dispose();
+                    detachBasemapMapFromMaterial(viewer3D.basemapMesh.material);
                     viewer3D.basemapMesh.material.dispose();
                     viewer3D.basemapMesh = null;
                 }
                 if (viewer3D.basemapTexture) {
-                    viewer3D.basemapTexture.dispose();
+                    dispose3DBasemapTexture(viewer3D.basemapTexture);
                     viewer3D.basemapTexture = null;
                 }
                 viewer3D.showBasemap = false;
