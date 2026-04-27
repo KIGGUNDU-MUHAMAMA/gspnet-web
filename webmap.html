@@ -15398,11 +15398,11 @@
 
                             <div class="range-slider-wrapper" id="basemapOpacityWrapper">
                                 <label>
-                                    <span>Basemap Opacity</span>
-                                    <span id="basemapOpacityValue">60%</span>
+                                    <span>Basemap Opacity (2D map)</span>
+                                    <span id="basemapOpacityValue">100%</span>
                                 </label>
                                 <input type="range" id="basemapOpacity" class="range-slider" min="0" max="100"
-                                    value="60" step="5">
+                                    value="100" step="5">
                             </div>
                         </div>
                     </div>
@@ -16721,7 +16721,7 @@
 
                 // Basemap: canonical name = OpenLayers layer title (e.g. "Esri World Imagery"); see syncActiveBasemapFromMap()
                 activeBasemap: 'Esri World Imagery',
-                basemapOpacity: 0.6,
+                basemapOpacity: 1.0,
 
                 // Layers
                 pointsLayer: null,
@@ -16871,10 +16871,6 @@
             }());
 
             syncActiveBasemapFromMap();
-            if (document.getElementById('basemapOpacity')) {
-                const bo = document.getElementById('basemapOpacity');
-                applyBasemapOpacityToVisibleMapLayer((parseInt(bo.value, 10) || 60) / 100);
-            }
 
             // ========================================
             // MERGED CSV DATASET CONFIGURATIONS
@@ -37087,13 +37083,17 @@ function smoothChaikin(points) {
 
             // ========== BASEMAP DRAPING ==========
 
-            /** Reject “Map data not available” & similar 200-OK error PNGs (small / flat) */
-            const _MIN_MAP_TILE_BYTES = 3500;
+            /** Reject tiny / HTML responses; “not available” checks only in strict (Esri) mode */
+            const _MIN_MAP_TILE_BYTES_STRICT = 1200;
+            const _MIN_MAP_TILE_BYTES_LOOSE = 200;
 
-            function _isLikelyServicePlaceholderImageBitmap(bmp) {
+            /**
+             * Esri/MapServer “data not available” white tiles — only use when strictPlaceholder is on.
+             */
+            function _isEsriStyleDataUnavailableBitmap(bmp) {
                 try {
-                    const w = Math.min(128, bmp.width);
-                    const h = Math.min(128, bmp.height);
+                    const w = Math.min(64, bmp.width);
+                    const h = Math.min(64, bmp.height);
                     if (w < 8 || h < 8) {
                         return true;
                     }
@@ -37109,8 +37109,12 @@ function smoothChaikin(points) {
                         sum += l;
                         sum2 += l * l;
                         n++;
-                        if (l > 245) bright++;
-                        if (l < 150) ink++;
+                        if (l > 244) {
+                            bright++;
+                        }
+                        if (l < 130) {
+                            ink++;
+                        }
                     }
                     if (!n) {
                         return true;
@@ -37119,16 +37123,16 @@ function smoothChaikin(points) {
                     const v = Math.max(0, sum2 / n - m * m);
                     const bRatio = bright / n;
                     const iRatio = ink / n;
-                    if (m > 248 && bRatio > 0.8 && iRatio > 0.01 && iRatio < 0.12) {
+                    if (m > 245 && bRatio > 0.75 && iRatio > 0.006 && iRatio < 0.14) {
                         return true;
                     }
-                    if (m > 250 && v < 22) {
+                    if (m > 250 && v < 20) {
                         return true;
                     }
-                    if (m > 252 && v < 18) {
+                    if (m > 252 && v < 12) {
                         return true;
                     }
-                    return m > 248 && v < 15;
+                    return false;
                 } catch (e) {
                     return false;
                 }
@@ -37176,68 +37180,79 @@ function smoothChaikin(points) {
                 const table = {
                     'Esri World Imagery': {
                         label: 'Esri World Imagery',
-                        maxZoom: 20,
+                        maxZoom: 18,
                         esriTmsProbe: true,
+                        strictPlaceholder: true,
                         urlFn: (z, y, x) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`
                     },
                     'Esri World Topo Map': {
                         label: 'Esri World Topo Map',
-                        maxZoom: 19,
+                        maxZoom: 18,
                         esriTmsProbe: true,
+                        strictPlaceholder: true,
                         urlFn: (z, y, x) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/${z}/${y}/${x}`
                     },
                     'Esri World Terrain + Reference': {
                         label: 'Esri World Terrain + Reference',
                         maxZoom: 13,
                         esriTmsProbe: true,
+                        strictPlaceholder: true,
                         urlFn: (z, y, x) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/${z}/${y}/${x}`
                     },
                     'Google Satellite Hybrid': {
                         label: 'Google Satellite Hybrid',
                         maxZoom: 20,
                         esriTmsProbe: false,
+                        strictPlaceholder: false,
                         urlFn: (z, y, x) => `https://${gsv(x, y, z)}.google.com/vt/lyrs=y&x=${x}&y=${y}&z=${z}`
                     },
                     'OpenStreetMap': {
                         label: 'OpenStreetMap',
                         maxZoom: 19,
                         esriTmsProbe: false,
+                        strictPlaceholder: false,
                         urlFn: (z, y, x) => `https://${pickAbc(x, y, z)}.tile.openstreetmap.org/${z}/${x}/${y}.png`
                     },
                     'OpenStreetMap HOT': {
                         label: 'OpenStreetMap HOT',
                         maxZoom: 19,
                         esriTmsProbe: false,
+                        strictPlaceholder: false,
                         urlFn: (z, y, x) => `https://${pickAbc(x, y, z)}.tile.openstreetmap.fr/hot/${z}/${x}/${y}.png`
                     },
                     'Carto Positron': {
                         label: 'Carto Positron',
                         maxZoom: 20,
                         esriTmsProbe: false,
+                        strictPlaceholder: false,
                         urlFn: (z, y, x) => `https://${pickAbc(x, y, z)}.basemaps.cartocdn.com/light_all/${z}/${x}/${y}${cartoR}.png`
                     },
                     'Carto Voyager': {
                         label: 'Carto Voyager',
                         maxZoom: 20,
                         esriTmsProbe: false,
+                        strictPlaceholder: false,
                         urlFn: (z, y, x) => `https://${pickAbc(x, y, z)}.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}${cartoR}.png`
                     },
                     'Carto Dark Matter': {
                         label: 'Carto Dark Matter',
                         maxZoom: 20,
                         esriTmsProbe: false,
+                        strictPlaceholder: false,
                         urlFn: (z, y, x) => `https://${pickAbc(x, y, z)}.basemaps.cartocdn.com/dark_all/${z}/${x}/${y}${cartoR}.png`
                     },
                     'OpenTopoMap': {
                         label: 'OpenTopoMap',
                         maxZoom: 17,
                         esriTmsProbe: false,
+                        strictPlaceholder: false,
                         urlFn: (z, y, x) => `https://${pickAbc(x, y, z)}.tile.opentopomap.org/${z}/${x}/${y}.png`
                     },
                     'OpenMapSurfer Hillshade': {
                         label: 'OpenMapSurfer Hillshade',
                         maxZoom: 19,
                         esriTmsProbe: false,
+                        strictPlaceholder: false,
                         urlFn: (z, y, x) => `https://maps.heigit.org/openmapsurfer/tiles/roads/webmercator/${z}/${x}/${y}.png`
                     }
                 };
@@ -37253,7 +37268,10 @@ function smoothChaikin(points) {
              * Load one map tile. fetch + createImageBitmap is CORS-safe. Uses timeout + 1
              * retry (slow / saturated connections often fail all-at-once parallel fetches).
              */
-            async function _fetchImageBitmapOrHtmlImage(url, timeoutMs) {
+            async function _fetchImageBitmapOrHtmlImage(url, timeoutMs, opts) {
+                const o = opts || {};
+                const strict = o.strictPlaceholder === true;
+                const minB = typeof o.minBytes === 'number' ? o.minBytes : (strict ? _MIN_MAP_TILE_BYTES_STRICT : _MIN_MAP_TILE_BYTES_LOOSE);
                 const t = timeoutMs > 0 ? timeoutMs : 30000;
                 const ac = new AbortController();
                 const to = setTimeout(() => { try { ac.abort(); } catch (e) { } }, t);
@@ -37267,16 +37285,16 @@ function smoothChaikin(points) {
                         throw new Error('Server returned HTML instead of an image (tile URL may be wrong)');
                     }
                     const blob = await res.blob();
-                    if (!blob || blob.size < _MIN_MAP_TILE_BYTES) {
-                        throw new Error('Tile response too small (likely a “not available” placeholder from the server)');
+                    if (!blob || blob.size < minB) {
+                        throw new Error('Tile response too small');
                     }
                     if (typeof createImageBitmap === 'function') {
                         const bitmap = await createImageBitmap(blob);
-                        if (_isLikelyServicePlaceholderImageBitmap(bitmap)) {
+                        if (strict && _isEsriStyleDataUnavailableBitmap(bitmap)) {
                             if (typeof bitmap.close === 'function') {
                                 try { bitmap.close(); } catch (e) { }
                             }
-                            throw new Error('Map tile looks like a “not available” / error placeholder from the service');
+                            throw new Error('Esri/MapServer “not available” placeholder tile');
                         }
                         return bitmap;
                     }
@@ -37304,6 +37322,44 @@ function smoothChaikin(points) {
                 }
             }
 
+            /**
+             * Google (and similar) tile servers often block fetch() CORS but allow <img crossorigin>
+             * like OpenLayers — use this for 3D stitching so hybrid tiles actually load.
+             */
+            async function loadMapTileViaImageElement(url, timeoutMs) {
+                const t = timeoutMs > 0 ? timeoutMs : 30000;
+                return new Promise((resolve, reject) => {
+                    const timer = setTimeout(() => {
+                        reject(new Error('Image tile timeout'));
+                    }, t);
+                    const im = new Image();
+                    im.crossOrigin = 'anonymous';
+                    im.onload = () => {
+                        clearTimeout(timer);
+                        try {
+                            const w = im.naturalWidth || 256;
+                            const h = im.naturalHeight || 256;
+                            const c = document.createElement('canvas');
+                            c.width = w;
+                            c.height = h;
+                            c.getContext('2d', { willReadFrequently: true }).drawImage(im, 0, 0);
+                            if (typeof createImageBitmap === 'function') {
+                                createImageBitmap(c).then(resolve, function () { resolve(im); });
+                            } else {
+                                resolve(im);
+                            }
+                        } catch (e) {
+                            resolve(im);
+                        }
+                    };
+                    im.onerror = () => {
+                        clearTimeout(timer);
+                        reject(new Error('Image tile error'));
+                    };
+                    im.src = url;
+                });
+            }
+
             function _loadMapTileWithImgFallback(url, timeoutMs) {
                 return new Promise((resolve, reject) => {
                     const t = setTimeout(() => { reject(new Error('Image tile timeout')); }, timeoutMs);
@@ -37321,11 +37377,31 @@ function smoothChaikin(points) {
                 });
             }
 
-            async function loadMapTileFor3DBasemap(url) {
+            async function loadMapTileFor3DBasemap(url, tileConfig) {
                 const T = 30000;
+                const cfg = tileConfig || {};
+                const strict = cfg.strictPlaceholder === true;
+                const googleLike = url.indexOf('google.com') >= 0 || url.indexOf('kh.google.com') >= 0 || url.indexOf('gstatic') >= 0;
+
+                if (googleLike) {
+                    for (let a = 0; a < 3; a++) {
+                        try {
+                            return await loadMapTileViaImageElement(url, T);
+                        } catch (e) {
+                            if (a >= 2) {
+                                break;
+                            }
+                            await _sleep3d(400 + Math.random() * 250);
+                        }
+                    }
+                }
+
                 for (let a = 0; a < 2; a++) {
                     try {
-                        return await _fetchImageBitmapOrHtmlImage(url, T);
+                        return await _fetchImageBitmapOrHtmlImage(url, T, {
+                            strictPlaceholder: strict,
+                            minBytes: strict ? _MIN_MAP_TILE_BYTES_STRICT : _MIN_MAP_TILE_BYTES_LOOSE
+                        });
                     } catch (e) {
                         if (a) {
                             break;
@@ -37495,6 +37571,9 @@ function smoothChaikin(points) {
                 else if (span > 0.05) zoom = Math.min(14, tileConfig.maxZoom);
                 else if (span > 0.01) zoom = Math.min(15, tileConfig.maxZoom);
                 else if (span > 0.005) zoom = Math.min(16, tileConfig.maxZoom);
+                if (tileConfig.esriTmsProbe) {
+                    zoom = Math.min(zoom, 17);
+                }
 
                 // ── Tile math helpers ──
                 function lonToTileX(lon, z) { return Math.floor((lon + 180) / 360 * Math.pow(2, z)); }
@@ -37530,8 +37609,7 @@ function smoothChaikin(points) {
 
                 console.log(`[3D Basemap] Using "${tileConfig.label}" z=${zoom}, ${tilesX}×${tilesY} = ${tilesX * tilesY} tiles`);
 
-                // Esri MapServer may expect slippy Y (Google/OSM) or TMS Y in the /tile/{z}/{y}/{x}
-                // path. Wrong Y often returns a 200 OK image with “Map data not available” text.
+                // Esri: pick slippy vs TMS Y by which probe returns a real image (not “data not available”).
                 let esriUseTmsYInPath = false;
                 if (tileConfig.esriTmsProbe) {
                     try {
@@ -37541,28 +37619,46 @@ function smoothChaikin(points) {
                         const uOsm = tileConfig.urlFn(z0, yOsm, x0);
                         const yTms = Math.pow(2, z0) - 1 - yOsm;
                         const uTms = tileConfig.urlFn(z0, yTms, x0);
-                        const probe = async (u) => {
+
+                        async function esriProbeBad(u) {
                             const a = new AbortController();
                             const t = setTimeout(() => { try { a.abort(); } catch (e) { } }, 12000);
                             try {
                                 const r = await fetch(u, { mode: 'cors', credentials: 'omit', cache: 'default', signal: a.signal });
                                 if (!r.ok) {
-                                    return 0;
+                                    return true;
                                 }
-                                return (await r.blob()).size;
+                                const blob = await r.blob();
+                                if (!blob || blob.size < 400) {
+                                    return true;
+                                }
+                                if (typeof createImageBitmap !== 'function') {
+                                    return false;
+                                }
+                                const bitmap = await createImageBitmap(blob);
+                                const bad = _isEsriStyleDataUnavailableBitmap(bitmap);
+                                if (typeof bitmap.close === 'function') {
+                                    try { bitmap.close(); } catch (e) { }
+                                }
+                                return bad;
                             } catch (e) {
-                                return 0;
+                                return true;
                             } finally {
                                 clearTimeout(t);
                             }
-                        };
-                        const sa = await probe(uOsm);
-                        const sb = await probe(uTms);
-                        if (sb > sa + 2000 && sb >= _MIN_MAP_TILE_BYTES) {
+                        }
+
+                        const badO = await esriProbeBad(uOsm);
+                        const badT = await esriProbeBad(uTms);
+                        if (badO && !badT) {
                             esriUseTmsYInPath = true;
-                            console.log('[3D Basemap] Esri: using TMS Y in tile path (probe chose larger image).');
+                            console.log('[3D Basemap] Esri: using TMS Y (slippy tile was a “not available” placeholder).');
                         } else {
-                            console.log('[3D Basemap] Esri: using slippy (OSM) Y in tile path.');
+                            esriUseTmsYInPath = false;
+                            console.log('[3D Basemap] Esri: using slippy Y (matches OpenLayers XYZ).');
+                        }
+                        if (badO && badT) {
+                            console.warn('[3D Basemap] Esri: both Y orders looked like placeholders at probe — try a lower zoom if the drape looks wrong.');
                         }
                     } catch (e) {
                         console.warn('[3D Basemap] Esri Y order probe failed; using slippy Y.', e);
@@ -37606,7 +37702,7 @@ function smoothChaikin(points) {
                     const chunk = tileJobs.slice(i, i + batchSize);
                     await Promise.all(
                         chunk.map((job) =>
-                            loadMapTileFor3DBasemap(job.url).then((source) => {
+                            loadMapTileFor3DBasemap(job.url, tileConfig).then((source) => {
                                 try {
                                     ctx.drawImage(source, job.px, job.py, tileSize, tileSize);
                                 } finally {
@@ -37705,6 +37801,7 @@ function smoothChaikin(points) {
 
                 const mat = new THREE.MeshBasicMaterial({
                     map: viewer3D.basemapTexture,
+                    color: 0xffffff,
                     transparent: true,
                     opacity: viewer3D.basemapBlend,
                     side: THREE.DoubleSide,
