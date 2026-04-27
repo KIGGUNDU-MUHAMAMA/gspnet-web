@@ -15390,24 +15390,11 @@
                             <i class="fas fa-chevron-right toggle-icon"></i>
                         </div>
                         <div class="terrain-3d-section-content" id="basemap-settings-content">
-                            <div class="terrain-basemap-selector">
-                                <label class="basemap-option">
-                                    <input type="radio" name="basemap" value="google" id="basemapGoogle">
-                                    <span>Google Satellite Hybrid</span>
-                                </label>
-                                <label class="basemap-option">
-                                    <input type="radio" name="basemap" value="esri" id="basemapEsri" checked>
-                                    <span>Esri World Imagery</span>
-                                </label>
-                                <label class="basemap-option">
-                                    <input type="radio" name="basemap" value="osm" id="basemapOSM">
-                                    <span>OpenStreetMap</span>
-                                </label>
-                                <label class="basemap-option">
-                                    <input type="radio" name="basemap" value="none" id="basemapNone">
-                                    <span>None</span>
-                                </label>
-                            </div>
+                            <p style="font-size:0.8rem;color:#94a3b8;margin:0 0 10px;line-height:1.45;">
+                                Active basemap for the map and 3D drape is chosen in the
+                                <strong style="color:#e2e8f0;">layer switcher</strong> (Base Maps). Current:
+                            </p>
+                            <p id="terrainBasemapCurrentLabel" style="font-size:0.9rem;font-weight:600;color:#3b82f6;margin:0 0 12px;">Esri World Imagery</p>
 
                             <div class="range-slider-wrapper" id="basemapOpacityWrapper">
                                 <label>
@@ -16732,8 +16719,8 @@
                 // Grid Data Storage
                 gridData: null, // Stores the elevation grid for reuse
 
-                // Basemap
-                activeBasemap: 'esri',
+                // Basemap: canonical name = OpenLayers layer title (e.g. "Esri World Imagery"); see syncActiveBasemapFromMap()
+                activeBasemap: 'Esri World Imagery',
                 basemapOpacity: 0.6,
 
                 // Layers
@@ -16788,6 +16775,106 @@
 
             // Make terrain3DState globally accessible
             window.terrain3DState = terrain3DState;
+
+            // -----------------------------------------------------------------
+            // Basemap: layer switcher → terrain3DState.activeBasemap (for 3D drape)
+            // -----------------------------------------------------------------
+            function normalizeLegacyBasemapId(id) {
+                if (!id) return 'Esri World Imagery';
+                const legacy = {
+                    esri: 'Esri World Imagery',
+                    google: 'Google Satellite Hybrid',
+                    osm: 'OpenStreetMap',
+                    none: 'No Basemap'
+                };
+                return legacy[id] || id;
+            }
+            window.normalizeLegacyBasemapId = normalizeLegacyBasemapId;
+
+            function updateTerrainBasemapSettingsLabel() {
+                const el = document.getElementById('terrainBasemapCurrentLabel');
+                if (el) {
+                    el.textContent = normalizeLegacyBasemapId(terrain3DState.activeBasemap);
+                }
+            }
+
+            function syncActiveBasemapFromMap() {
+                if (!baseMapsGroup || !baseMapsGroup.getLayers) {
+                    return terrain3DState.activeBasemap;
+                }
+                const arr = baseMapsGroup.getLayers().getArray();
+                for (let i = arr.length - 1; i >= 0; i--) {
+                    const L = arr[i];
+                    if (L.get('type') !== 'base' || !L.getVisible()) continue;
+                    const t = L.get('title') || 'Unknown';
+                    terrain3DState.activeBasemap = t;
+                    updateTerrainBasemapSettingsLabel();
+                    const opacityWrapper = document.getElementById('basemapOpacityWrapper');
+                    if (opacityWrapper) {
+                        opacityWrapper.style.opacity = (t === 'No Basemap') ? '0.5' : '1';
+                    }
+                    return t;
+                }
+                terrain3DState.activeBasemap = 'No Basemap';
+                updateTerrainBasemapSettingsLabel();
+                const opacityWrapper = document.getElementById('basemapOpacityWrapper');
+                if (opacityWrapper) {
+                    opacityWrapper.style.opacity = '0.5';
+                }
+                return 'No Basemap';
+            }
+
+            function getVisibleBaseTileLayer() {
+                if (!baseMapsGroup) {
+                    return null;
+                }
+                const arr = baseMapsGroup.getLayers().getArray();
+                for (let i = arr.length - 1; i >= 0; i--) {
+                    const L = arr[i];
+                    if (L.get('type') === 'base' && L.getVisible() && L.getSource && L.getSource()) {
+                        return L;
+                    }
+                }
+                return null;
+            }
+
+            function applyBasemapOpacityToVisibleMapLayer(opacity01) {
+                if (!baseMapsGroup) {
+                    return;
+                }
+                const v = typeof opacity01 === 'number' ? opacity01 : 0.6;
+                baseMapsGroup.getLayers().forEach(function (layer) {
+                    if (layer.get('type') === 'base' && layer.getVisible() && layer.getSource && layer.getSource()) {
+                        layer.setOpacity(v);
+                    }
+                });
+            }
+
+            (function wireBasemapLayerSync() {
+                if (!baseMapsGroup || !baseMapsGroup.getLayers) {
+                    return;
+                }
+                baseMapsGroup.getLayers().forEach(function (layer) {
+                    layer.on('change:visible', function () {
+                        syncActiveBasemapFromMap();
+                        if (typeof viewer3D !== 'undefined' && viewer3D && viewer3D.isOpen && viewer3D.showBasemap && viewer3D.basemapMesh) {
+                            void (async function () {
+                                try {
+                                    await toggleBasemapDrape(true);
+                                } catch (e) {
+                                    console.warn('[3D Basemap] refresh on layer change', e);
+                                }
+                            }());
+                        }
+                    });
+                });
+            }());
+
+            syncActiveBasemapFromMap();
+            if (document.getElementById('basemapOpacity')) {
+                const bo = document.getElementById('basemapOpacity');
+                applyBasemapOpacityToVisibleMapLayer((parseInt(bo.value, 10) || 60) / 100);
+            }
 
             // ========================================
             // MERGED CSV DATASET CONFIGURATIONS
@@ -19778,7 +19865,7 @@
             }
 
             function getSurveyParcelQualityFlagFillAlpha() {
-                let bm = 'esri';
+                let bm = 'Esri World Imagery';
                 try {
                     if (typeof terrain3DState !== 'undefined' && terrain3DState.activeBasemap) {
                         bm = terrain3DState.activeBasemap;
@@ -19786,9 +19873,16 @@
                         bm = window.terrain3DState.activeBasemap;
                     }
                 } catch (e) { /* ignore */ }
-                if (bm === 'none') return 0.34;
-                if (bm === 'osm') return 0.2;
-                if (bm === 'google' || bm === 'esri') return 0.11;
+                if (typeof normalizeLegacyBasemapId === 'function') {
+                    bm = normalizeLegacyBasemapId(bm);
+                }
+                if (bm === 'none' || bm === 'No Basemap') return 0.34;
+                if (bm === 'osm' || bm === 'OpenStreetMap' || bm === 'OpenStreetMap HOT' || (bm + '').indexOf('OpenStreetMap') >= 0) {
+                    return 0.2;
+                }
+                if (bm === 'google' || bm === 'esri' || (bm + '').indexOf('Google') >= 0 || (bm + '').indexOf('Esri') >= 0) {
+                    return 0.11;
+                }
                 return 0.14;
             }
 
@@ -36290,16 +36384,9 @@ function smoothChaikin(points) {
             }
 
             function updateBasemapOpacity(opacity) {
-                const basemap = terrain3DState.activeBasemap;
-                const opacityValue = opacity / 100;
-
-                if (basemap === 'google' && googleHybrid) {
-                    googleHybrid.setOpacity(opacityValue);
-                } else if (basemap === 'esri' && esriSatellite) {
-                    esriSatellite.setOpacity(opacityValue);
-                } else if (basemap === 'osm' && osmLayer) {
-                    osmLayer.setOpacity(opacityValue);
-                }
+                const opacityValue = parseInt(opacity, 10) / 100;
+                terrain3DState.basemapOpacity = opacityValue;
+                applyBasemapOpacityToVisibleMapLayer(opacityValue);
             }
 
             function clearTerrainLayers() {
@@ -36533,6 +36620,9 @@ function smoothChaikin(points) {
                 if (!terrain3DState.gridData) {
                     showToast('Please generate DTM first', 'error');
                     return;
+                }
+                if (typeof syncActiveBasemapFromMap === 'function') {
+                    syncActiveBasemapFromMap();
                 }
 
                 // Create modal if it doesn't exist
@@ -37002,8 +37092,8 @@ function smoothChaikin(points) {
 
             function _isLikelyServicePlaceholderImageBitmap(bmp) {
                 try {
-                    const w = Math.min(48, bmp.width);
-                    const h = Math.min(48, bmp.height);
+                    const w = Math.min(128, bmp.width);
+                    const h = Math.min(128, bmp.height);
                     if (w < 8 || h < 8) {
                         return true;
                     }
@@ -37013,19 +37103,32 @@ function smoothChaikin(points) {
                     const c2 = c.getContext('2d', { willReadFrequently: true });
                     c2.drawImage(bmp, 0, 0, w, h);
                     const d = c2.getImageData(0, 0, w, h).data;
-                    let sum = 0, sum2 = 0, n = 0;
-                    for (let i = 0; i < d.length; i += 16) {
+                    let sum = 0, sum2 = 0, n = 0, bright = 0, ink = 0;
+                    for (let i = 0; i < d.length; i += 4) {
                         const l = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
                         sum += l;
                         sum2 += l * l;
                         n++;
+                        if (l > 245) bright++;
+                        if (l < 150) ink++;
                     }
                     if (!n) {
                         return true;
                     }
                     const m = sum / n;
                     const v = Math.max(0, sum2 / n - m * m);
-                    return m > 252 && v < 18;
+                    const bRatio = bright / n;
+                    const iRatio = ink / n;
+                    if (m > 248 && bRatio > 0.8 && iRatio > 0.01 && iRatio < 0.12) {
+                        return true;
+                    }
+                    if (m > 250 && v < 22) {
+                        return true;
+                    }
+                    if (m > 252 && v < 18) {
+                        return true;
+                    }
+                    return m > 248 && v < 15;
                 } catch (e) {
                     return false;
                 }
@@ -37058,43 +37161,92 @@ function smoothChaikin(points) {
             }
 
             /**
-             * Get the tile URL template for the currently-selected basemap.
-             * Returns { urlFn(z,y,x)->string, label, maxZoom }
+             * 3D basemap tile templates — keys match OpenLayers layer `title` (layer switcher) and
+             * syncActiveBasemapFromMap() / normalizeLegacyBasemapId().
+             * urlFn(z, y, x) uses Web Mercator / XYZ row index y (OSM “slippy”); Esri may remap via esriTmsProbe.
              */
             function getBasemapTileConfig() {
-                const bm = terrain3DState.activeBasemap || 'esri';
-                const subdomains = ['a', 'b', 'c'];
-                let idx = 0;
-                const nextSub = () => subdomains[(idx++) % subdomains.length];
+                const raw = terrain3DState.activeBasemap || 'Esri World Imagery';
+                const bm = normalizeLegacyBasemapId(raw);
+                const sub = ['a', 'b', 'c'];
+                const pickAbc = (x, y, z) => sub[(x + y + (z || 0)) % 3];
+                const gsv = (x, y, z) => ['mt0', 'mt1', 'mt2', 'mt3'][(x + y + z) % 4];
+                const cartoR = '';
 
-                switch (bm) {
-                    case 'google':
-                        return {
-                            urlFn: (z, y, x) => {
-                                const s = ['mt0', 'mt1', 'mt2', 'mt3'][(x + y) % 4];
-                                return `https://${s}.google.com/vt/lyrs=s&x=${x}&y=${y}&z=${z}`;
-                            },
-                            label: 'Google Satellite',
-                            maxZoom: 20
-                        };
-                    case 'osm':
-                        return {
-                            urlFn: (z, y, x) => {
-                                const s = nextSub();
-                                return `https://${s}.tile.openstreetmap.org/${z}/${x}/${y}.png`;
-                            },
-                            label: 'OpenStreetMap',
-                            maxZoom: 19
-                        };
-                    case 'esri':
-                    default:
-                        return {
-                            urlFn: (z, y, x) =>
-                                `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`,
-                            label: 'Esri World Imagery',
-                            maxZoom: 18
-                        };
+                const table = {
+                    'Esri World Imagery': {
+                        label: 'Esri World Imagery',
+                        maxZoom: 20,
+                        esriTmsProbe: true,
+                        urlFn: (z, y, x) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`
+                    },
+                    'Esri World Topo Map': {
+                        label: 'Esri World Topo Map',
+                        maxZoom: 19,
+                        esriTmsProbe: true,
+                        urlFn: (z, y, x) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/${z}/${y}/${x}`
+                    },
+                    'Esri World Terrain + Reference': {
+                        label: 'Esri World Terrain + Reference',
+                        maxZoom: 13,
+                        esriTmsProbe: true,
+                        urlFn: (z, y, x) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/${z}/${y}/${x}`
+                    },
+                    'Google Satellite Hybrid': {
+                        label: 'Google Satellite Hybrid',
+                        maxZoom: 20,
+                        esriTmsProbe: false,
+                        urlFn: (z, y, x) => `https://${gsv(x, y, z)}.google.com/vt/lyrs=y&x=${x}&y=${y}&z=${z}`
+                    },
+                    'OpenStreetMap': {
+                        label: 'OpenStreetMap',
+                        maxZoom: 19,
+                        esriTmsProbe: false,
+                        urlFn: (z, y, x) => `https://${pickAbc(x, y, z)}.tile.openstreetmap.org/${z}/${x}/${y}.png`
+                    },
+                    'OpenStreetMap HOT': {
+                        label: 'OpenStreetMap HOT',
+                        maxZoom: 19,
+                        esriTmsProbe: false,
+                        urlFn: (z, y, x) => `https://${pickAbc(x, y, z)}.tile.openstreetmap.fr/hot/${z}/${x}/${y}.png`
+                    },
+                    'Carto Positron': {
+                        label: 'Carto Positron',
+                        maxZoom: 20,
+                        esriTmsProbe: false,
+                        urlFn: (z, y, x) => `https://${pickAbc(x, y, z)}.basemaps.cartocdn.com/light_all/${z}/${x}/${y}${cartoR}.png`
+                    },
+                    'Carto Voyager': {
+                        label: 'Carto Voyager',
+                        maxZoom: 20,
+                        esriTmsProbe: false,
+                        urlFn: (z, y, x) => `https://${pickAbc(x, y, z)}.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}${cartoR}.png`
+                    },
+                    'Carto Dark Matter': {
+                        label: 'Carto Dark Matter',
+                        maxZoom: 20,
+                        esriTmsProbe: false,
+                        urlFn: (z, y, x) => `https://${pickAbc(x, y, z)}.basemaps.cartocdn.com/dark_all/${z}/${x}/${y}${cartoR}.png`
+                    },
+                    'OpenTopoMap': {
+                        label: 'OpenTopoMap',
+                        maxZoom: 17,
+                        esriTmsProbe: false,
+                        urlFn: (z, y, x) => `https://${pickAbc(x, y, z)}.tile.opentopomap.org/${z}/${x}/${y}.png`
+                    },
+                    'OpenMapSurfer Hillshade': {
+                        label: 'OpenMapSurfer Hillshade',
+                        maxZoom: 19,
+                        esriTmsProbe: false,
+                        urlFn: (z, y, x) => `https://maps.heigit.org/openmapsurfer/tiles/roads/webmercator/${z}/${x}/${y}.png`
+                    }
+                };
+
+                if (table[bm]) {
+                    return table[bm];
                 }
+                console.warn('[3D Basemap] Unknown activeBasemap "' + bm + '", using Esri World Imagery');
+                return table['Esri World Imagery'];
             }
 
             /**
@@ -37120,11 +37272,11 @@ function smoothChaikin(points) {
                     }
                     if (typeof createImageBitmap === 'function') {
                         const bitmap = await createImageBitmap(blob);
-                        if (blob.size < 10000 && _isLikelyServicePlaceholderImageBitmap(bitmap)) {
+                        if (_isLikelyServicePlaceholderImageBitmap(bitmap)) {
                             if (typeof bitmap.close === 'function') {
                                 try { bitmap.close(); } catch (e) { }
                             }
-                            throw new Error('Service placeholder (flat) tile');
+                            throw new Error('Map tile looks like a “not available” / error placeholder from the service');
                         }
                         return bitmap;
                     }
@@ -37381,7 +37533,7 @@ function smoothChaikin(points) {
                 // Esri MapServer may expect slippy Y (Google/OSM) or TMS Y in the /tile/{z}/{y}/{x}
                 // path. Wrong Y often returns a 200 OK image with “Map data not available” text.
                 let esriUseTmsYInPath = false;
-                if ((tileConfig.label || '').indexOf('Esri') >= 0) {
+                if (tileConfig.esriTmsProbe) {
                     try {
                         const z0 = zoom;
                         const yOsm = yMin;
@@ -37431,7 +37583,7 @@ function smoothChaikin(points) {
                 const loadingSubEl = document.getElementById('viewer3dLoadingSub');
                 let loaded = 0, failed = 0;
                 const totalTiles = tilesX * tilesY;
-                const isEsri3D = (tileConfig.label || '').indexOf('Esri') >= 0;
+                const isEsri3D = tileConfig.esriTmsProbe === true;
 
                 // Batched fetches: browsers only run ~6 concurrent connections per host; firing
                 // 64 fetches at once can stall or get slow responses. Small gaps between batches
@@ -37578,12 +37730,14 @@ function smoothChaikin(points) {
                 const loadingEl = document.getElementById('viewer3dBasemapLoading');
                 const badgeEl = document.getElementById('viewer3dBasemapBadge');
                 const badgeNameEl = document.getElementById('viewer3dBasemapName');
-                const currentBm = terrain3DState.activeBasemap || 'esri';
+                if (typeof syncActiveBasemapFromMap === 'function') {
+                    syncActiveBasemapFromMap();
+                }
+                const currentBm = normalizeLegacyBasemapId(terrain3DState.activeBasemap) || 'Esri World Imagery';
 
                 if (enable) {
-                    // "none" basemap — nothing to drape
-                    if (currentBm === 'none') {
-                        showToast('No basemap selected. Choose a basemap first.', 'warning');
+                    if (currentBm === 'No Basemap' || currentBm === 'none') {
+                        showToast('No basemap selected. Choose a basemap in the layer switcher first.', 'warning');
                         const chk = document.getElementById('viewer3dShowBasemap');
                         if (chk) { chk.checked = false; viewer3D.showBasemap = false; }
                         document.getElementById('viewer3dBlendGroup').classList.remove('active');
@@ -40644,45 +40798,7 @@ function smoothChaikin(points) {
                 document.getElementById('simplifyToleranceValue').textContent = parseFloat(this.value).toFixed(1) + 'm';
             });
 
-            // Basemap handlers
-            document.querySelectorAll('input[name="basemap"]').forEach(radio => {
-                radio.addEventListener('change', function () {
-                    terrain3DState.activeBasemap = this.value;
-
-                    // Update basemap styling
-                    document.querySelectorAll('.basemap-option').forEach(opt => {
-                        opt.classList.remove('selected');
-                    });
-                    this.closest('.basemap-option').classList.add('selected');
-
-                    // Apply basemap visibility
-                    if (googleHybrid) googleHybrid.setVisible(this.value === 'google');
-                    if (esriSatellite) esriSatellite.setVisible(this.value === 'esri');
-                    if (osmLayer) osmLayer.setVisible(this.value === 'osm');
-
-                    // Enable/disable opacity slider
-                    const opacityWrapper = document.getElementById('basemapOpacityWrapper');
-                    if (opacityWrapper) {
-                        opacityWrapper.style.opacity = this.value === 'none' ? '0.5' : '1';
-                    }
-
-                    if (typeof refreshSurveyPolygonFeatureStyles === 'function') {
-                        refreshSurveyPolygonFeatureStyles();
-                    }
-
-                    // If 3D basemap drape is currently active, re-fetch with the new basemap
-                    if (viewer3D && viewer3D.showBasemap && viewer3D.basemapMesh) {
-                        void (async function () {
-                            try {
-                                await toggleBasemapDrape(true);
-                            } catch (e) {
-                                console.error('[3D Basemap] refresh on map change', e);
-                            }
-                        }());
-                    }
-                });
-            });
-
+            // Basemap: opacity only (which basemap is active comes from the layer switcher + syncActiveBasemapFromMap)
             document.getElementById('basemapOpacity')?.addEventListener('input', function () {
                 terrain3DState.basemapOpacity = parseFloat(this.value) / 100;
                 document.getElementById('basemapOpacityValue').textContent = this.value + '%';
