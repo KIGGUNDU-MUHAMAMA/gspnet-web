@@ -18667,8 +18667,8 @@
                 { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/mbaleblocks.fgb', title: 'Mbale Blocks' },
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mbarara.nlis.fgb', title: 'Mbarara NLIS' },
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mbararablocks.fgb', title: 'Mbarara Blocks' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mityana.nlis.fgb', title: 'Mityana NLIS' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mityanablocks.fgb', title: 'Mityana Blocks' },
+                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/mityana.nlis.fgb', title: 'Mityana NLIS' },
+                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/mityana.blocks.fgb', title: 'Mityana Blocks' },
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson2/moroto.nlis.fgb', title: 'Moroto NLIS' },
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson2/morotoblock.fgb', title: 'Moroto Block' },
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mpigi.nlis.fgb', title: 'Mpigi NLIS' },
@@ -19306,8 +19306,17 @@
 
                 // Only add label when zoomed in enough (res <= 5.0, ~500m)
                 if (resolution <= RES_THRESHOLD.LABELS) {
-                    const nlisId = feature.get('nlis_id');
-                    const labelText = nlisId ? nlisId.toString() : null;
+                    const layerTitle = feature.get('__layerTitle');
+                    let labelText = null;
+                    
+                    if (layerTitle === 'Mityana Blocks') {
+                        const blockNo = feature.get('BLOCK NO.') || feature.get('BLOCK_NO') || feature.get('Block No');
+                        labelText = blockNo ? blockNo.toString() : null;
+                    } else {
+                        const nlisId = feature.get('nlis_id');
+                        labelText = nlisId ? nlisId.toString() : null;
+                    }
+
                     if (labelText) {
                         const centroid = ol.extent.getCenter(geometry.getExtent());
                         styles.push(new ol.style.Style({
@@ -19667,10 +19676,16 @@
 
                 // TIER 1: Polygon label at 500m zoom (res <= 5.0)
                 if (resolution <= RES_THRESHOLD.LABELS) {
-                    const nlisId = feature.get('nlis_id');
-                    if (nlisId) {
+                    const layerTitle = feature.get('__layerTitle');
+                    let labelAttr = feature.get('nlis_id');
+                    
+                    if (layerTitle === 'Mityana NLIS') {
+                        labelAttr = feature.get('PlotNumber');
+                    }
+                    
+                    if (labelAttr) {
                         const cacheKey = '__parcelLabelStyleCache';
-                        const labelText = nlisId.toString();
+                        const labelText = labelAttr.toString();
                         let labelStyleCache = feature.get(cacheKey);
                         if (!labelStyleCache || labelStyleCache.revision !== geomRevision || labelStyleCache.text !== labelText) {
                             const centroid = ol.extent.getCenter(geometry.getExtent());
