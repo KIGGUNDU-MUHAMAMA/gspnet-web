@@ -37464,7 +37464,7 @@ function smoothChaikin(points) {
                         tex.wrapS = THREE.ClampToEdgeWrapping;
                         tex.wrapT = THREE.ClampToEdgeWrapping;
                         tex.generateMipmaps = false;
-                        tex.flipY = true;
+                        tex.flipY = false;
                         tex.needsUpdate = true;
                         return tex;
                     } catch (e) {
@@ -37489,7 +37489,7 @@ function smoothChaikin(points) {
                                 tex.wrapS = THREE.ClampToEdgeWrapping;
                                 tex.wrapT = THREE.ClampToEdgeWrapping;
                                 tex.generateMipmaps = false;
-                                tex.flipY = true;
+                                tex.flipY = false;
                                 tex.needsUpdate = true;
                                 resolve(tex);
                             };
@@ -37505,12 +37505,250 @@ function smoothChaikin(points) {
                 });
             }
 
-            /**
-             * Fetch basemap tiles for the terrain extent, stitch into a single texture.
-             * Respects terrain3DState.activeBasemap (esri / google / osm).
-             * Reprojects DTM bounds from the project CRS to WGS84 via proj4.
-             */
+            /** DTM bbox → EPSG:3857 (Web Mercator) for tiling identical to Base Maps. */
+            function extent3857FromGridBounds(gridBounds, srcCRS) {
+                if (typeof ol !== 'undefined' && ol.proj) {
+                    try {
+                        var ex3857 = ol.proj.transformExtent(
+                            [gridBounds.minX, gridBounds.minY, gridBounds.maxX, gridBounds.maxY],
+                            srcCRS,
+                            'EPSG:3857'
+                        );
+                        if (ex3857 && ex3857.every(function (v) { return isFinite(v); })) {
+                            return ex3857;
+                        }
+                    } catch (e0) {
+                        try {
+                            var minXm = Infinity, minYm = Infinity, maxXm = -Infinity, maxYm = -Infinity;
+                            var corners = [[gridBounds.minX, gridBounds.minY], [gridBounds.maxX, gridBounds.minY],
+                                [gridBounds.minX, gridBounds.maxY], [gridBounds.maxX, gridBounds.maxY]];
+                            for (var ci = 0; ci < corners.length; ci++) {
+                                var m = ol.proj.transform(corners[ci], srcCRS, 'EPSG:3857');
+                                if (!m || !isFinite(m[0]) || !isFinite(m[1])) {
+                                    throw new Error('corner');
+                                }
+                                if (m[0] < minXm) minXm = m[0];
+                                if (m[0] > maxXm) maxXm = m[0];
+                                if (m[1] < minYm) minYm = m[1];
+                                if (m[1] > maxYm) maxYm = m[1];
+                            }
+                            return [minXm, minYm, maxXm, maxYm];
+                        } catch (e1) {
+                            console.warn('[3D Basemap] extent3857:', e1.message);
+                        }
+                    }
+                }
+                return null;
+            }
+
+            /** Main tile fetch — EPSG:3857 + ol.tilegrid (same as OpenLayers map). Falls back if unavailable. */
             async function fetchBasemapTiles() {
+                var gridData = terrain3DState.gridData;
+                if (!gridData) throw new Error('No grid data available');
+                var gdBounds = gridData.bounds;
+                if (!gdBounds || gdBounds.minX == null) throw new Error('Grid data has no bounds');
+                var dataCRS = terrain3DState.coordinateSystem || 'EPSG:32636';
+                var ext3857 = extent3857FromGridBounds(gdBounds, dataCRS);
+                var olTg = (typeof ol !== 'undefined' && ol.tilegrid && typeof ol.tilegrid.createXYZ === 'function')
+                    ? ol.tilegrid.createXYZ()
+                    : null;
+                if (ext3857 && olTg) {
+                    try {
+                        var out = await fetchBasemapEPSG3857Core(ext3857, olTg);
+                        return out;
+                    } catch (e2) {
+                        console.warn('[3D Basemap] EPSG:3857 path failed:', e2.message || e2);
+                    }
+                }
+                return fetchBasemapTilesLegacyLonLat();
+            }
+
+            async function fetchBasemapEPSG3857Core(extent3857, olTg) {
+                var tileConfig = getBasemapTileConfig();
+                var widthM = typeof ol.extent.getWidth === 'function'
+                    ? ol.extent.getWidth(extent3857)
+                    : Math.abs(extent3857[2] - extent3857[0]);
+                var heightM = typeof ol.extent.getHeight === 'function'
+                    ? ol.extent.getHeight(extent3857)
+                    : Math.abs(extent3857[3] - extent3857[1]);
+                var spanDegLike = Math.max(widthM / 111319, heightM / 111319);
+                var zoom = Math.min(16, tileConfig.maxZoom);
+                if (spanDegLike > 0.5) zoom = Math.min(12, tileConfig.maxZoom);
+                else if (spanDegLike > 0.1) zoom = Math.min(13, tileConfig.maxZoom);
+                else if (spanDegLike > 0.05) zoom = Math.min(14, tileConfig.maxZoom);
+                else if (spanDegLike > 0.01) zoom = Math.min(15, tileConfig.maxZoom);
+                else if (spanDegLike > 0.005) zoom = Math.min(16, tileConfig.maxZoom);
+                if (tileConfig.esriTmsProbe) zoom = Math.min(zoom, 17);
+
+                function tcRange(ext3857, z) {
+                    var corners = [[ext3857[0], ext3857[1]], [ext3857[2], ext3857[1]],
+                        [ext3857[2], ext3857[3]], [ext3857[0], ext3857[3]]];
+                    var mnX = Infinity, mxX = -Infinity, mnY = Infinity, mxY = -Infinity;
+                    for (var qi = 0; qi < corners.length; qi++) {
+                        var tc = olTg.getTileCoordForCoordAndZ(corners[qi], z);
+                        var tx = tc[1], ty = tc[2];
+                        mnX = Math.min(mnX, tx); mxX = Math.max(mxX, tx);
+                        mnY = Math.min(mnY, ty); mxY = Math.max(mxY, ty);
+                    }
+                    return { txMin: mnX, txMax: mxX, tyMin: mnY, tyMax: mxY };
+                }
+
+                var r = tcRange(extent3857, zoom);
+                var xMin = r.txMin, xMax = r.txMax, yMin = r.tyMin, yMax = r.tyMax;
+                var tilesX = xMax - xMin + 1;
+                var tilesY = yMax - yMin + 1;
+                var maxTiles = 64;
+                while (tilesX * tilesY > maxTiles && zoom > 8) {
+                    zoom--;
+                    r = tcRange(extent3857, zoom);
+                    xMin = r.txMin; xMax = r.txMax; yMin = r.tyMin; yMax = r.tyMax;
+                    tilesX = xMax - xMin + 1; tilesY = yMax - yMin + 1;
+                }
+
+                console.log('[3D Basemap] EPSG:3857', tileConfig.label, ' z=' + zoom,
+                    tilesX + '×' + tilesY + '=' + tilesX * tilesY);
+
+                var esriUseTmsYInPath = false;
+                var isEsri3D = tileConfig.esriTmsProbe === true;
+                if (isEsri3D) {
+                    var cx = (extent3857[0] + extent3857[2]) / 2;
+                    var cy = (extent3857[1] + extent3857[3]) / 2;
+                    var tcp = olTg.getTileCoordForCoordAndZ([cx, cy], zoom);
+                    var yOsm = tcp[2];
+                    var x0 = tcp[1];
+                    var uOsm = tileConfig.urlFn(zoom, yOsm, x0);
+                    var yTms = Math.pow(2, zoom) - 1 - yOsm;
+                    var uTms = tileConfig.urlFn(zoom, yTms, x0);
+
+                    async function esriPb(u) {
+                        var a = new AbortController();
+                        var tmr = setTimeout(function () { try { a.abort(); } catch (e) {} }, 12000);
+                        try {
+                            var rsp = await fetch(u, { mode: 'cors', credentials: 'omit', cache: 'default', signal: a.signal });
+                            if (!rsp.ok) return true;
+                            var blob = await rsp.blob();
+                            if (!blob || blob.size < 400) return true;
+                            if (typeof createImageBitmap !== 'function') return false;
+                            var bmp = await createImageBitmap(blob);
+                            var bad = _isEsriStyleDataUnavailableBitmap(bmp);
+                            if (typeof bmp.close === 'function') try { bmp.close(); } catch (e3) {}
+                            return bad;
+                        } catch (ee) {
+                            return true;
+                        } finally {
+                            clearTimeout(tmr);
+                        }
+                    }
+                    var bO = await esriPb(uOsm), bT = await esriPb(uTms);
+                    esriUseTmsYInPath = !!(bO && !bT);
+                }
+
+                var tileSize = 256;
+                var canvas = document.createElement('canvas');
+                canvas.width = tilesX * tileSize;
+                canvas.height = tilesY * tileSize;
+                var ctx = canvas.getContext('2d', { willReadFrequently: true });
+                ctx.fillStyle = '#2a3746';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                var stitchedMinX = Infinity, stitchedMaxX = -Infinity,
+                    stitchedMinY = Infinity, stitchedMaxY = -Infinity;
+                for (var tyi = yMin; tyi <= yMax; tyi++) {
+                    for (var txi = xMin; txi <= xMax; txi++) {
+                        var rex = olTg.getTileCoordExtent([zoom, txi, tyi]);
+                        stitchedMinX = Math.min(stitchedMinX, rex[0]);
+                        stitchedMinY = Math.min(stitchedMinY, rex[1]);
+                        stitchedMaxX = Math.max(stitchedMaxX, rex[2]);
+                        stitchedMaxY = Math.max(stitchedMaxY, rex[3]);
+                    }
+                }
+                var loadingSubEl = document.getElementById('viewer3dLoadingSub');
+                var loaded = 0, failed = 0, totalTiles = tilesX * tilesY;
+                var tileJobs = [];
+                for (var ty = yMin; ty <= yMax; ty++) {
+                    for (var tx = xMin; tx <= xMax; tx++) {
+                        var yFp = isEsri3D && esriUseTmsYInPath ? (Math.pow(2, zoom) - 1 - ty) : ty;
+                        tileJobs.push({
+                            url: tileConfig.urlFn(zoom, yFp, tx),
+                            px: (tx - xMin) * tileSize,
+                            py: (ty - yMin) * tileSize
+                        });
+                    }
+                }
+                var batchSize = 6;
+                for (var bi = 0; bi < tileJobs.length; bi += batchSize) {
+                    var chunk = tileJobs.slice(bi, bi + batchSize);
+                    await Promise.all(chunk.map(function (job) {
+                        return loadMapTileFor3DBasemap(job.url, tileConfig).then(function (source) {
+                            try {
+                                ctx.drawImage(source, job.px, job.py, tileSize, tileSize);
+                            } finally {
+                                if (source && typeof source.close === 'function') {
+                                    try { source.close(); } catch (dc) {}
+                                }
+                            }
+                            loaded++;
+                            if (loadingSubEl) {
+                                loadingSubEl.textContent = tileConfig.label + ' — ' + loaded + '/' + totalTiles +
+                                    ' (z' + zoom + ')';
+                            }
+                            return true;
+                        }).catch(function () {
+                            failed++;
+                            loaded++;
+                            if (loadingSubEl) {
+                                loadingSubEl.textContent = tileConfig.label + ' — ' + loaded + '/' + totalTiles +
+                                    ' (z' + zoom + ')';
+                            }
+                            return false;
+                        });
+                    }));
+                    if (bi + batchSize < tileJobs.length) {
+                        await new Promise(function (rw) { setTimeout(rw, 0); });
+                    }
+                }
+                if (failed === totalTiles) {
+                    throw new Error('All ' + totalTiles + ' tiles failed.');
+                }
+
+                var wMerc = stitchedMaxX - stitchedMinX;
+                var hMercSpan = stitchedMaxY - stitchedMinY;
+                if (wMerc <= 1e-6 || hMercSpan <= 1e-6) {
+                    throw new Error('Degenerate Mercator stitched extent');
+                }
+                var cw = canvas.width;
+                var ch = canvas.height;
+                var cx0 = ((extent3857[0] - stitchedMinX) / wMerc) * cw;
+                var cx1 = ((extent3857[2] - stitchedMinX) / wMerc) * cw;
+                if (cx0 > cx1) {
+                    var _sw = cx0; cx0 = cx1; cx1 = _sw;
+                }
+                var cropX = cx0;
+                var cropW = cx1 - cx0;
+
+                var cn = ((stitchedMaxY - extent3857[3]) / hMercSpan) * ch;
+                var cs = ((stitchedMaxY - extent3857[1]) / hMercSpan) * ch;
+                if (cn > cs) {
+                    var _sy = cn; cn = cs; cs = _sy;
+                }
+                var cropY = cn;
+                var cropH = cs - cn;
+
+                var croppedCanvas = document.createElement('canvas');
+                croppedCanvas.width = Math.max(1, Math.round(cropW));
+                croppedCanvas.height = Math.max(1, Math.round(cropH));
+                var croppedCtx = croppedCanvas.getContext('2d', { willReadFrequently: true });
+                croppedCtx.drawImage(canvas,
+                    Math.round(cropX), Math.round(cropY), Math.round(cropW), Math.round(cropH),
+                    0, 0, croppedCanvas.width, croppedCanvas.height
+                );
+                var texture = await buildBasemapGLTexture(croppedCanvas);
+                await _doubleRaf3d();
+                return { texture: texture, zoom: zoom, tilesX: tilesX, tilesY: tilesY, label: tileConfig.label };
+            }
+
+            /** Legacy XYZ via lon/lat (fallback only). */
+            async function fetchBasemapTilesLegacyLonLat() {
                 const gridData = terrain3DState.gridData;
                 if (!gridData) throw new Error('No grid data available');
 
@@ -37796,8 +38034,22 @@ function smoothChaikin(points) {
                     viewer3D.basemapMesh = null;
                 }
 
-                // Clone the terrain geometry (it already has correct UVs).
+                // Clone terrain geometry and lift mesh slightly above the surface so the basemap
+                // drapes visibly (terrain + basemap previously shared identical z = unreadable blending).
                 const geo = viewer3D.terrainMesh.geometry.clone();
+                try {
+                    const pos = geo.attributes.position;
+                    const arr = pos.array.slice();
+                    const rg = terrain3DState.gridData;
+                    let elevSpan = Math.abs((terrain3DState.maxElevation || 100) -
+                        (terrain3DState.minElevation || 0));
+                    if (rg && rg.grid) elevSpan *= viewer3D.verticalExag || 1;
+                    const epsilon = Math.max(elevSpan * 0.0025, rg ? rg.cellSize * 0.15 : 0.15);
+                    for (let pi = 2; pi < arr.length; pi += 3) {
+                        arr[pi] += epsilon;
+                    }
+                    geo.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
+                } catch (_zOff) {}
 
                 const mat = new THREE.MeshBasicMaterial({
                     map: viewer3D.basemapTexture,
