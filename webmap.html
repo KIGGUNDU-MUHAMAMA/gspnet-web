@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -8647,6 +8647,123 @@
             align-items: center;
             gap: 8px;
         }
+        /* ── DEM Wizard Step Styles ─────────────────────────────────────── */
+        .dem-wizard-step {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            overflow: hidden;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .dem-wizard-step.step-active { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
+        .dem-wizard-step.step-done  { border-color: #22c55e; }
+        .dem-wizard-step.step-locked { opacity: 0.5; pointer-events: none; }
+
+        .dem-step-header {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 14px;
+            background: #f8fafc;
+            font-weight: 600; font-size: 0.86rem; color: #1e293b;
+            user-select: none;
+        }
+        .dem-step-num {
+            width: 22px; height: 22px; border-radius: 50%;
+            background: #cbd5e1; color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.75rem; font-weight: 700; flex-shrink: 0;
+            transition: background 0.2s;
+        }
+        .step-active  .dem-step-num { background: #3b82f6; }
+        .step-done    .dem-step-num { background: #22c55e; }
+        .dem-step-check {
+            margin-left: auto; color: #22c55e; font-size: 1rem;
+            display: none;
+        }
+        .step-done .dem-step-check { display: block; }
+        .dem-step-body { padding: 12px 14px; background: #fff; }
+
+        /* DEM extent info card */
+        .dem-extent-info {
+            display: none; margin-top: 10px;
+            padding: 10px 12px;
+            background: #eff6ff; border-left: 4px solid #3b82f6;
+            border-radius: 6px; font-size: 0.82rem; color: #1e40af;
+        }
+        .dem-extent-info.visible { display: block; }
+        .dem-extent-info .ei-row { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 4px; }
+        .dem-extent-info .ei-val { font-weight: 700; }
+
+        /* Area over-limit warning */
+        .dem-area-warning {
+            display: none; margin-top: 8px;
+            padding: 8px 12px;
+            background: #fef2f2; border-left: 4px solid #ef4444;
+            border-radius: 6px; font-size: 0.82rem; color: #991b1b;
+        }
+        .dem-area-warning.visible { display: flex; align-items: center; gap: 8px; }
+
+        /* CSV info card */
+        .dem-csv-info {
+            display: none; margin-top: 10px;
+            padding: 10px 12px;
+            background: #fff7ed; border-left: 4px solid #f97316;
+            border-radius: 6px; font-size: 0.82rem; color: #7c2d12;
+        }
+        .dem-csv-info.visible { display: block; }
+
+        /* CSV layer toggle button */
+        .dem-csv-layer-btn {
+            display: none; margin-top: 8px; width: 100%;
+            padding: 7px; border: 1px solid #f97316; border-radius: 6px;
+            background: #fff7ed; color: #c2410c;
+            font-size: 0.82rem; font-weight: 600; cursor: pointer;
+            transition: background 0.2s;
+        }
+        .dem-csv-layer-btn:hover { background: #ffedd5; }
+        .dem-csv-layer-btn.visible { display: block; }
+        .dem-csv-layer-btn.layer-hidden { background: #e5e7eb; color: #6b7280; border-color: #d1d5db; }
+
+        /* Calibration quality badges */
+        .dem-cal-quality {
+            display: none; margin-top: 10px;
+            padding: 10px 12px;
+            background: #f0fdf4; border: 1px solid #86efac;
+            border-radius: 6px;
+        }
+        .dem-cal-quality.visible { display: block; }
+        .dem-cal-title {
+            font-size: 0.8rem; font-weight: 700; color: #166534; margin-bottom: 6px;
+        }
+        .dem-cal-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 5px;
+            font-size: 0.8rem;
+        }
+        .dem-cal-row { display: flex; justify-content: space-between; align-items: center; }
+        .dem-cal-badge {
+            padding: 1px 7px; border-radius: 10px; font-size: 0.72rem; font-weight: 700;
+        }
+        .cal-green { background: #dcfce7; color: #166534; }
+        .cal-amber { background: #fef9c3; color: #713f12; }
+        .cal-red   { background: #fee2e2; color: #991b1b; }
+
+        /* Proceed button */
+        .dem-proceed-btn {
+            display: none; width: 100%; margin-top: 12px;
+            padding: 10px; border: none; border-radius: 8px;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: #fff; font-size: 0.88rem; font-weight: 700;
+            cursor: pointer; transition: opacity 0.2s;
+            box-shadow: 0 2px 8px rgba(34,197,94,0.3);
+        }
+        .dem-proceed-btn:hover { opacity: 0.88; }
+        .dem-proceed-btn.visible { display: block; }
+
+        /* Snap options row */
+        .dem-snap-row {
+            display: flex; gap: 12px; flex-wrap: wrap;
+            margin-top: 8px; font-size: 0.8rem; color: #374151;
+        }
+        .dem-snap-row label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
         /* ── End DEM styles ────────────────────────────────────────────── */
 
         .terrain-csv-upload-area {
@@ -14810,116 +14927,355 @@
                         </div>
                     </div>
 
-                    <!-- 3b. DEM Fetch Section — shown only for 'dem' and 'demcsv' sources -->
+                                        <!-- 3b. DEM Fetch Section — stepped wizard for 'dem' and 'demcsv' sources -->
                     <div class="terrain-3d-section" id="dem-fetch-section">
                         <div class="terrain-3d-section-header" data-section="dem-fetch">
-                            <span><i class="fas fa-satellite-dish"></i> DEM Data Fetch</span>
+                            <span><i class="fas fa-satellite-dish"></i> DEM Elevation Fetch</span>
                             <i class="fas fa-chevron-right toggle-icon expanded"></i>
                         </div>
                         <div class="terrain-3d-section-content expanded" id="dem-fetch-content">
 
-                            <!-- Dataset selector -->
-                            <div class="form-group" style="margin-bottom:12px;">
-                                <label for="demDatasetSelect" style="font-size:0.83rem; font-weight:600; color:#374151;">
-                                    <i class="fas fa-database" style="color:#3498db;"></i> DEM Dataset
-                                </label>
-                                <select id="demDatasetSelect" class="form-select" style="margin-top:4px;">
-                                    <option value="COP30">Copernicus DEM GLO-30 — Best Accuracy (30m)</option>
-                                    <option value="NASADEM">NASA DEM — SRTM-Derived, Improved (30m)</option>
-                                    <option value="SRTMGL1">SRTM 1-Arc-Second — Fallback (30m)</option>
-                                </select>
-                                <small style="color:#6b7280; font-size:11px; margin-top:3px; display:block;">
-                                    COP30 is tried first. If unavailable, next sources are used automatically.
-                                </small>
-                            </div>
+                            <!-- MODE A: Use DEM -->
+                            <div id="demWizardA">
 
-                            <!-- Extent requirement notice -->
-                            <div id="demExtentNotice" style="padding:10px 12px; background:#fef9c3; border-left:3px solid #eab308; border-radius:6px; margin-bottom:12px; font-size:0.82rem; color:#713f12;">
-                                <i class="fas fa-draw-polygon" style="margin-right:6px;"></i>
-                                <strong>Draw an extent first.</strong> Use the <em>Processing Extent</em> section below to define the area for the DEM fetch. Recommended: ≤ 1 km² for fast results.
-                            </div>
-
-                            <!-- Fallback banner — shown when not COP30 -->
-                            <div class="dem-fallback-banner" id="demFallbackBanner">
-                                <i class="fas fa-exclamation-triangle"></i>
-                                <span id="demFallbackText">COP30 unavailable — switched to an alternative source. Results may differ slightly in areas with dense vegetation or built structures.</span>
-                            </div>
-
-                            <!-- OpenTopoData fallback banner — last resort -->
-                            <div class="dem-opentopodata-banner" id="demOTDBanner">
-                                <i class="fas fa-exclamation-circle"></i>
-                                <div>
-                                    <strong>All raster DEM sources are offline.</strong><br>
-                                    Switching to <em>OpenTopoData point-sampling</em> — this is slower and produces a lower-resolution approximation. You will be notified when complete.
-                                </div>
-                            </div>
-
-                            <!-- Progress indicator -->
-                            <div class="dem-fetch-progress" id="demFetchProgress">
-                                <div class="dem-progress-label">
-                                    <span class="dem-progress-spinner"></span>
-                                    <span id="demProgressText">Contacting OpenTopography…</span>
-                                </div>
-                                <div class="dem-progress-track">
-                                    <div class="dem-progress-fill indeterminate" id="demProgressFill"></div>
-                                </div>
-                            </div>
-
-                            <!-- Fetch button -->
-                            <button type="button" class="terrain-btn terrain-btn-primary" id="fetchDEMBtn"
-                                style="width:100%; margin-bottom:8px;" disabled>
-                                <i class="fas fa-cloud-download-alt"></i> Fetch DEM for Drawn Extent
-                            </button>
-                            <small id="demFetchHint" style="color:#6b7280; font-size:11px; display:block; margin-bottom:12px; text-align:center;">
-                                Draw an extent polygon to enable this button
-                            </small>
-
-                            <!-- DEM result card — shown after successful fetch -->
-                            <div class="dem-result-card" id="demResultCard">
-                                <div class="dem-result-card-header">
-                                    <i class="fas fa-check-circle" style="color:#16a34a;"></i>
-                                    DEM Ready — <span id="demResultSourceBadge"></span>
-                                </div>
-                                <div class="dem-result-stats">
-                                    <div class="dem-stat-item">
-                                        <span class="dem-stat-label">Resolution</span>
-                                        <span class="dem-stat-value" id="demStatRes">—</span>
+                                <!-- STEP A1: DEM Source -->
+                                <div class="dem-wizard-step step-active" id="demStepA1">
+                                    <div class="dem-step-header">
+                                        <span class="dem-step-num">1</span>
+                                        <span>Select DEM Source</span>
+                                        <i class="fas fa-check-circle dem-step-check"></i>
                                     </div>
-                                    <div class="dem-stat-item">
-                                        <span class="dem-stat-label">Area</span>
-                                        <span class="dem-stat-value" id="demStatArea">—</span>
-                                    </div>
-                                    <div class="dem-stat-item">
-                                        <span class="dem-stat-label">Min Elevation</span>
-                                        <span class="dem-stat-value" id="demStatMin">—</span>
-                                    </div>
-                                    <div class="dem-stat-item">
-                                        <span class="dem-stat-label">Max Elevation</span>
-                                        <span class="dem-stat-value" id="demStatMax">—</span>
-                                    </div>
-                                    <div class="dem-stat-item">
-                                        <span class="dem-stat-label">Grid Points</span>
-                                        <span class="dem-stat-value" id="demStatPoints">—</span>
-                                    </div>
-                                    <div class="dem-stat-item">
-                                        <span class="dem-stat-label">Data Source</span>
-                                        <span class="dem-stat-value" id="demStatSource">—</span>
+                                    <div class="dem-step-body">
+                                        <div style="display:flex;flex-direction:column;gap:6px;">
+                                            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:2px solid #e5e7eb;border-radius:6px;cursor:pointer;transition:border-color 0.2s;" id="demSrcLabelCOP30">
+                                                <input type="radio" name="demDataset" value="COP30" id="demSrcCOP30" checked style="margin-top:2px;accent-color:#3b82f6;">
+                                                <div>
+                                                    <div style="font-weight:700;font-size:0.84rem;color:#1e293b;">Copernicus DEM GLO-30</div>
+                                                    <div style="font-size:0.76rem;color:#64748b;">Best global accuracy &middot; ~30m resolution &middot; ESA Copernicus programme</div>
+                                                </div>
+                                            </label>
+                                            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:2px solid #e5e7eb;border-radius:6px;cursor:pointer;transition:border-color 0.2s;" id="demSrcLabelNASA">
+                                                <input type="radio" name="demDataset" value="NASADEM" id="demSrcNASA" style="margin-top:2px;accent-color:#3b82f6;">
+                                                <div>
+                                                    <div style="font-weight:700;font-size:0.84rem;color:#1e293b;">NASA DEM (NASADEM)</div>
+                                                    <div style="font-size:0.76rem;color:#64748b;">SRTM-derived, improved voids filled &middot; ~30m &middot; Recommended fallback</div>
+                                                </div>
+                                            </label>
+                                            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:2px solid #e5e7eb;border-radius:6px;cursor:pointer;transition:border-color 0.2s;" id="demSrcLabelSRTM">
+                                                <input type="radio" name="demDataset" value="SRTMGL1" id="demSrcSRTM" style="margin-top:2px;accent-color:#3b82f6;">
+                                                <div>
+                                                    <div style="font-weight:700;font-size:0.84rem;color:#1e293b;">SRTM 1-Arc-Second</div>
+                                                    <div style="font-size:0.76rem;color:#64748b;">Original Shuttle Radar Topography Mission &middot; ~30m &middot; Last resort</div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                        <p style="font-size:0.76rem;color:#94a3b8;margin-top:8px;padding:6px 8px;background:#f8fafc;border-radius:4px;">
+                                            <i class="fas fa-info-circle" style="color:#3b82f6;"></i>
+                                            If your selected source is unavailable, the next source is tried automatically server-side.
+                                            <strong>Max fetch area: 25 km&sup2;.</strong>
+                                        </p>
                                     </div>
                                 </div>
-                                <!-- Calibration info — only for DEM+CSV mode -->
-                                <div class="dem-calibration-info" id="demCalibrationInfo">
-                                    <i class="fas fa-sliders-h"></i>
-                                    <strong>Residual Correction active.</strong> DEM elevations have been adjusted using your CSV control points via IDW residual correction — elevations match your survey exactly at control points and blend smoothly in between.
-                                </div>
-                            </div>
 
-                            <p style="font-size:0.78rem; color:#9ca3af; text-align:center; margin-top:8px; border-top:1px solid #f0f0f0; padding-top:8px;">
-                                <i class="fas fa-info-circle"></i> After fetching, click <strong>Generate DTM</strong> to render terrain &amp; contours.
-                            </p>
+                                <!-- STEP A2: DEM Extent -->
+                                <div class="dem-wizard-step" id="demStepA2">
+                                    <div class="dem-step-header">
+                                        <span class="dem-step-num">2</span>
+                                        <span>Define DEM Extent</span>
+                                        <i class="fas fa-check-circle dem-step-check"></i>
+                                    </div>
+                                    <div class="dem-step-body">
+                                        <p style="font-size:0.8rem;color:#64748b;margin-bottom:10px;">
+                                            <i class="fas fa-info-circle" style="color:#3b82f6;"></i>
+                                            Draw or select a boundary. This extent will also be used for DTM &amp; contour generation.
+                                        </p>
+                                        <div style="display:flex;gap:6px;margin-bottom:6px;">
+                                            <button type="button" class="terrain-btn" id="demDrawExtentBtn" style="flex:1;">
+                                                <i class="fas fa-draw-polygon"></i> Draw Extent
+                                            </button>
+                                            <button type="button" class="terrain-btn" id="demSelectExtentBtn" style="flex:1;">
+                                                <i class="fas fa-hand-pointer"></i> Select from Layer
+                                            </button>
+                                        </div>
+                                        <button type="button" class="terrain-btn" id="demClearExtentBtn"
+                                            style="width:100%;background:#fef2f2;color:#dc2626;border-color:#fecaca;" disabled>
+                                            <i class="fas fa-times"></i> Clear DEM Extent
+                                        </button>
+                                        <div class="dem-snap-row">
+                                            <label><input type="checkbox" id="demSnapCsvPoints" checked> <span>Snap to CSV Points</span></label>
+                                            <label><input type="checkbox" id="demSnapActiveLayers" checked> <span>Snap to Active Layers</span></label>
+                                        </div>
+                                        <div class="dem-extent-info" id="demExtentInfoA">
+                                            <div style="font-weight:700;color:#1d4ed8;margin-bottom:4px;">
+                                                <i class="fas fa-check-circle" style="color:#22c55e;"></i> DEM Extent Defined
+                                            </div>
+                                            <div class="ei-row">
+                                                <span>Area: <span class="ei-val" id="demExtAreaA">--</span></span>
+                                                <span>W: <span class="ei-val" id="demExtWidthA">--</span></span>
+                                                <span>H: <span class="ei-val" id="demExtHeightA">--</span></span>
+                                            </div>
+                                        </div>
+                                        <div class="dem-area-warning" id="demAreaWarningA">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            <span>Area exceeds 25 km&sup2; limit. Please draw a smaller extent.</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- STEP A3: Fetch -->
+                                <div class="dem-wizard-step step-locked" id="demStepA3">
+                                    <div class="dem-step-header">
+                                        <span class="dem-step-num">3</span>
+                                        <span>Fetch DEM Data</span>
+                                        <i class="fas fa-check-circle dem-step-check"></i>
+                                    </div>
+                                    <div class="dem-step-body">
+                                        <div class="dem-fallback-banner" id="demFallbackBanner">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            <span id="demFallbackText">Switched to alternative DEM source.</span>
+                                        </div>
+                                        <div class="dem-opentopodata-banner" id="demOTDBanner">
+                                            <i class="fas fa-exclamation-circle"></i>
+                                            <div><strong>All raster DEM sources offline.</strong><br>Switching to OpenTopoData point-sampling.</div>
+                                        </div>
+                                        <div class="dem-fetch-progress" id="demFetchProgress">
+                                            <div class="dem-progress-label">
+                                                <span class="dem-progress-spinner"></span>
+                                                <span id="demProgressText">Contacting DEM service...</span>
+                                            </div>
+                                            <div class="dem-progress-track">
+                                                <div class="dem-progress-fill indeterminate"></div>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="terrain-btn terrain-btn-primary" id="fetchDEMBtn"
+                                            style="width:100%;margin-bottom:8px;" disabled>
+                                            <i class="fas fa-satellite-dish"></i> Fetch DEM via Secure Proxy
+                                        </button>
+                                        <div class="dem-result-card" id="demResultCard">
+                                            <div class="dem-result-card-header">
+                                                <i class="fas fa-check-circle" style="color:#16a34a;"></i>
+                                                DEM Ready -- <span id="demResultSourceBadge"></span>
+                                            </div>
+                                            <div class="dem-result-stats">
+                                                <div class="dem-stat-item"><span class="dem-stat-label">Resolution</span><span class="dem-stat-value" id="demStatRes">--</span></div>
+                                                <div class="dem-stat-item"><span class="dem-stat-label">Area</span><span class="dem-stat-value" id="demStatArea">--</span></div>
+                                                <div class="dem-stat-item"><span class="dem-stat-label">Min Elevation</span><span class="dem-stat-value" id="demStatMin">--</span></div>
+                                                <div class="dem-stat-item"><span class="dem-stat-label">Max Elevation</span><span class="dem-stat-value" id="demStatMax">--</span></div>
+                                                <div class="dem-stat-item"><span class="dem-stat-label">Grid Points</span><span class="dem-stat-value" id="demStatPoints">--</span></div>
+                                                <div class="dem-stat-item"><span class="dem-stat-label">Data Source</span><span class="dem-stat-value" id="demStatSource">--</span></div>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="dem-proceed-btn" id="demProceedBtnA">
+                                            <i class="fas fa-arrow-down"></i> DEM Ready -- Click to Generate DTM &amp; Contours
+                                        </button>
+                                    </div>
+                                </div>
+
+                            </div><!-- end #demWizardA -->
+
+                            <!-- MODE B: DEM + CSV Calibrate -->
+                            <div id="demWizardB" style="display:none;">
+
+                                <!-- STEP B1: Import CSV -->
+                                <div class="dem-wizard-step step-active" id="demStepB1">
+                                    <div class="dem-step-header">
+                                        <span class="dem-step-num">1</span>
+                                        <span>Import CSV Control Points</span>
+                                        <i class="fas fa-check-circle dem-step-check"></i>
+                                    </div>
+                                    <div class="dem-step-body">
+                                        <div class="form-group" style="margin-bottom:10px;">
+                                            <label style="font-size:0.81rem;font-weight:600;color:#374151;">
+                                                <i class="fas fa-globe" style="color:#8b5cf6;"></i> Coordinate System
+                                            </label>
+                                            <select id="demCsvCoordSystem" class="form-select" style="margin-top:4px;">
+                                                <option value="EPSG:32636">WGS84 / UTM Zone 36N (EPSG:32636) -- Default Uganda</option>
+                                                <option value="EPSG:21096">Arc 1960 / UTM Zone 36N (EPSG:21096)</option>
+                                                <option value="EPSG:21036">Arc 1960 / UTM Zone 36S (EPSG:21036)</option>
+                                                <option value="EPSG:32736">WGS84 / UTM Zone 36S (EPSG:32736)</option>
+                                                <option value="EPSG:4326">WGS84 Geographic -- Lat/Lon (EPSG:4326)</option>
+                                            </select>
+                                        </div>
+                                        <div style="border:2px dashed #f97316;border-radius:8px;padding:14px;text-align:center;background:#fff7ed;cursor:pointer;" id="demCsvDropZone">
+                                            <i class="fas fa-file-csv" style="font-size:1.6rem;color:#f97316;"></i>
+                                            <p style="margin:6px 0 0;font-size:0.83rem;color:#7c2d12;">
+                                                <strong>Click to browse</strong> or drag &amp; drop your CSV file
+                                            </p>
+                                            <p style="margin:2px 0 0;font-size:0.74rem;color:#9a3412;">
+                                                Expected: Point, Easting, Northing, Elevation/Z, Description
+                                            </p>
+                                            <button type="button" class="terrain-btn" id="demCsvBrowseBtn"
+                                                style="margin-top:8px;background:#f97316;color:#fff;border-color:#f97316;">
+                                                <i class="fas fa-folder-open"></i> Browse CSV
+                                            </button>
+                                            <input type="file" id="demCsvFileInput" accept=".csv" style="display:none;">
+                                        </div>
+                                        <div class="dem-csv-info" id="demCsvInfoCard">
+                                            <div style="font-weight:700;color:#c2410c;margin-bottom:6px;">
+                                                <i class="fas fa-check-circle" style="color:#22c55e;"></i>
+                                                <span id="demCsvFileName">--</span>
+                                            </div>
+                                            <div style="font-size:0.79rem;color:#7c2d12;line-height:1.7;">
+                                                <div>Points loaded: <strong id="demCsvPointCount">--</strong></div>
+                                                <div>Elevation range: <strong id="demCsvElevRange">--</strong></div>
+                                                <div>Detected columns: <strong id="demCsvCols">--</strong></div>
+                                            </div>
+                                            <div id="demCsvElevColRow" style="display:none;margin-top:8px;">
+                                                <label style="font-size:0.8rem;font-weight:600;color:#7c2d12;">
+                                                    Select Elevation Column:
+                                                </label>
+                                                <select id="demCsvElevCol" class="form-select" style="margin-top:4px;font-size:0.82rem;"></select>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="dem-csv-layer-btn" id="demCsvLayerToggleBtn">
+                                            <i class="fas fa-eye"></i> Hide CSV Preview Layer
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- STEP B2: DEM Source -->
+                                <div class="dem-wizard-step step-locked" id="demStepB2">
+                                    <div class="dem-step-header">
+                                        <span class="dem-step-num">2</span>
+                                        <span>Select DEM Source</span>
+                                        <i class="fas fa-check-circle dem-step-check"></i>
+                                    </div>
+                                    <div class="dem-step-body">
+                                        <div style="display:flex;flex-direction:column;gap:6px;">
+                                            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:2px solid #e5e7eb;border-radius:6px;cursor:pointer;">
+                                                <input type="radio" name="demDatasetB" value="COP30" id="demSrcCOP30B" checked style="margin-top:2px;accent-color:#3b82f6;">
+                                                <div>
+                                                    <div style="font-weight:700;font-size:0.84rem;color:#1e293b;">Copernicus DEM GLO-30</div>
+                                                    <div style="font-size:0.76rem;color:#64748b;">Best global accuracy &middot; ~30m &middot; ESA</div>
+                                                </div>
+                                            </label>
+                                            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:2px solid #e5e7eb;border-radius:6px;cursor:pointer;">
+                                                <input type="radio" name="demDatasetB" value="NASADEM" id="demSrcNASAB" style="margin-top:2px;accent-color:#3b82f6;">
+                                                <div>
+                                                    <div style="font-weight:700;font-size:0.84rem;color:#1e293b;">NASA DEM (NASADEM)</div>
+                                                    <div style="font-size:0.76rem;color:#64748b;">SRTM-derived, improved &middot; ~30m</div>
+                                                </div>
+                                            </label>
+                                            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:2px solid #e5e7eb;border-radius:6px;cursor:pointer;">
+                                                <input type="radio" name="demDatasetB" value="SRTMGL1" id="demSrcSRTMB" style="margin-top:2px;accent-color:#3b82f6;">
+                                                <div>
+                                                    <div style="font-weight:700;font-size:0.84rem;color:#1e293b;">SRTM 1-Arc-Second</div>
+                                                    <div style="font-size:0.76rem;color:#64748b;">Original SRTM &middot; ~30m &middot; Last resort</div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- STEP B3: DEM Extent -->
+                                <div class="dem-wizard-step step-locked" id="demStepB3">
+                                    <div class="dem-step-header">
+                                        <span class="dem-step-num">3</span>
+                                        <span>Define DEM Extent</span>
+                                        <i class="fas fa-check-circle dem-step-check"></i>
+                                    </div>
+                                    <div class="dem-step-body">
+                                        <p style="font-size:0.8rem;color:#64748b;margin-bottom:10px;">
+                                            <i class="fas fa-info-circle" style="color:#3b82f6;"></i>
+                                            Draw or select a boundary. Snaps to CSV points and active polygon layers.
+                                        </p>
+                                        <div style="display:flex;gap:6px;margin-bottom:6px;">
+                                            <button type="button" class="terrain-btn" id="demDrawExtentBtnB" style="flex:1;">
+                                                <i class="fas fa-draw-polygon"></i> Draw Extent
+                                            </button>
+                                            <button type="button" class="terrain-btn" id="demSelectExtentBtnB" style="flex:1;">
+                                                <i class="fas fa-hand-pointer"></i> Select from Layer
+                                            </button>
+                                        </div>
+                                        <button type="button" class="terrain-btn" id="demClearExtentBtnB"
+                                            style="width:100%;background:#fef2f2;color:#dc2626;border-color:#fecaca;" disabled>
+                                            <i class="fas fa-times"></i> Clear DEM Extent
+                                        </button>
+                                        <div class="dem-snap-row">
+                                            <label><input type="checkbox" id="demSnapCsvPointsB" checked> <span>Snap to CSV Points</span></label>
+                                            <label><input type="checkbox" id="demSnapLayersB" checked> <span>Snap to Active Layers</span></label>
+                                        </div>
+                                        <div class="dem-extent-info" id="demExtentInfoB">
+                                            <div style="font-weight:700;color:#1d4ed8;margin-bottom:4px;">
+                                                <i class="fas fa-check-circle" style="color:#22c55e;"></i> DEM Extent Defined
+                                            </div>
+                                            <div class="ei-row">
+                                                <span>Area: <span class="ei-val" id="demExtAreaB">--</span></span>
+                                                <span>W: <span class="ei-val" id="demExtWidthB">--</span></span>
+                                                <span>H: <span class="ei-val" id="demExtHeightB">--</span></span>
+                                            </div>
+                                        </div>
+                                        <div class="dem-area-warning" id="demAreaWarningB">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            <span>Area exceeds 25 km&sup2; limit. Please draw a smaller extent.</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- STEP B4: Fetch & Calibrate -->
+                                <div class="dem-wizard-step step-locked" id="demStepB4">
+                                    <div class="dem-step-header">
+                                        <span class="dem-step-num">4</span>
+                                        <span>Fetch &amp; Calibrate DEM</span>
+                                        <i class="fas fa-check-circle dem-step-check"></i>
+                                    </div>
+                                    <div class="dem-step-body">
+                                        <div class="dem-fallback-banner" id="demFallbackBannerB">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            <span id="demFallbackTextB">Switched to alternative DEM source.</span>
+                                        </div>
+                                        <div class="dem-opentopodata-banner" id="demOTDBannerB">
+                                            <i class="fas fa-exclamation-circle"></i>
+                                            <div><strong>All raster DEM sources offline.</strong><br>Switching to OpenTopoData point-sampling.</div>
+                                        </div>
+                                        <div class="dem-fetch-progress" id="demFetchProgressB">
+                                            <div class="dem-progress-label">
+                                                <span class="dem-progress-spinner"></span>
+                                                <span id="demProgressTextB">Contacting DEM service...</span>
+                                            </div>
+                                            <div class="dem-progress-track">
+                                                <div class="dem-progress-fill indeterminate"></div>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="terrain-btn terrain-btn-primary" id="fetchCalibrateDEMBtn"
+                                            style="width:100%;margin-bottom:8px;" disabled>
+                                            <i class="fas fa-sliders-h"></i> Fetch &amp; Calibrate DEM
+                                        </button>
+                                        <div class="dem-result-card" id="demResultCardB">
+                                            <div class="dem-result-card-header">
+                                                <i class="fas fa-check-circle" style="color:#16a34a;"></i>
+                                                DEM Calibrated -- <span id="demResultSourceBadgeB"></span>
+                                            </div>
+                                            <div class="dem-result-stats">
+                                                <div class="dem-stat-item"><span class="dem-stat-label">Resolution</span><span class="dem-stat-value" id="demStatResB">--</span></div>
+                                                <div class="dem-stat-item"><span class="dem-stat-label">Area</span><span class="dem-stat-value" id="demStatAreaB">--</span></div>
+                                                <div class="dem-stat-item"><span class="dem-stat-label">Min Elevation</span><span class="dem-stat-value" id="demStatMinB">--</span></div>
+                                                <div class="dem-stat-item"><span class="dem-stat-label">Max Elevation</span><span class="dem-stat-value" id="demStatMaxB">--</span></div>
+                                                <div class="dem-stat-item"><span class="dem-stat-label">Grid Points</span><span class="dem-stat-value" id="demStatPointsB">--</span></div>
+                                                <div class="dem-stat-item"><span class="dem-stat-label">Data Source</span><span class="dem-stat-value" id="demStatSourceB">--</span></div>
+                                            </div>
+                                            <div class="dem-cal-quality" id="demCalQuality">
+                                                <div class="dem-cal-title"><i class="fas fa-chart-line"></i> Calibration Quality</div>
+                                                <div class="dem-cal-grid">
+                                                    <div class="dem-cal-row"><span>Control Points</span><strong id="demCalCtrlPts">--</strong></div>
+                                                    <div class="dem-cal-row"><span>RMSE</span><span id="demCalRmse" class="dem-cal-badge">--</span></div>
+                                                    <div class="dem-cal-row"><span>Mean Residual</span><span id="demCalMean" class="dem-cal-badge">--</span></div>
+                                                    <div class="dem-cal-row"><span>Max Residual</span><span id="demCalMax" class="dem-cal-badge">--</span></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="dem-proceed-btn" id="demProceedBtnB">
+                                            <i class="fas fa-arrow-down"></i> DEM Calibrated -- Click to Generate DTM &amp; Contours
+                                        </button>
+                                    </div>
+                                </div>
+
+                            </div><!-- end #demWizardB -->
+
                         </div>
                     </div>
 
-                    <!-- 4. Available Datasets -->
+<!-- 4. Available Datasets -->
                     <div class="terrain-3d-section" id="datasets-section">
                         <div class="terrain-3d-section-header" data-section="datasets">
                             <span><i class="fas fa-list"></i> Available Datasets <span
