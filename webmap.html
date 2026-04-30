@@ -19,6 +19,8 @@
     <!-- Three.js for 3D Condominium Viewer -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- GeoTIFF.js — parse DEM rasters in-browser (for DEM data source feature) -->
+    <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
     <script src="condo-viewer.js"></script>
     <script>
         // ============================================
@@ -8496,6 +8498,157 @@
             background: #e3f2fd;
         }
 
+        /* ── DEM Data Source — new styles ─────────────────────────────── */
+        #dem-fetch-section {
+            display: none; /* hidden until dem / demcsv selected */
+        }
+
+        .dem-source-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+        .dem-source-badge.cop30   { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+        .dem-source-badge.nasadem { background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }
+        .dem-source-badge.srtm    { background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; }
+
+        .dem-fallback-banner {
+            display: none;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 12px;
+            padding: 11px 14px;
+            background: linear-gradient(135deg, #fff8e1, #fff3cd);
+            border-left: 4px solid #f59e0b;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            color: #92400e;
+            animation: slideDown 0.3s ease;
+        }
+        .dem-fallback-banner.visible { display: flex; }
+        .dem-fallback-banner i { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+
+        .dem-opentopodata-banner {
+            display: none;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 12px;
+            padding: 11px 14px;
+            background: linear-gradient(135deg, #fef2f2, #fee2e2);
+            border-left: 4px solid #ef4444;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            color: #991b1b;
+            animation: slideDown 0.3s ease;
+        }
+        .dem-opentopodata-banner.visible { display: flex; }
+        .dem-opentopodata-banner i { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .dem-fetch-progress {
+            display: none;
+            flex-direction: column;
+            gap: 6px;
+            margin: 12px 0;
+        }
+        .dem-fetch-progress.visible { display: flex; }
+        .dem-progress-track {
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .dem-progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            border-radius: 3px;
+            transition: width 0.4s ease;
+        }
+        .dem-progress-fill.indeterminate {
+            width: 40%;
+            animation: indeterminate 1.4s ease-in-out infinite;
+        }
+        @keyframes indeterminate {
+            0%   { transform: translateX(-120%); }
+            100% { transform: translateX(350%); }
+        }
+        .dem-progress-label {
+            font-size: 0.78rem;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .dem-progress-spinner {
+            width: 12px; height: 12px;
+            border: 2px solid #ccc;
+            border-top-color: #3498db;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .dem-result-card {
+            display: none;
+            margin-top: 12px;
+            padding: 12px;
+            background: #f0fdf4;
+            border: 1px solid #86efac;
+            border-radius: 8px;
+            font-size: 0.83rem;
+        }
+        .dem-result-card.visible { display: block; }
+        .dem-result-card-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            color: #166534;
+            margin-bottom: 8px;
+            font-size: 0.88rem;
+        }
+        .dem-result-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            color: #374151;
+            line-height: 1.6;
+        }
+        .dem-stat-item { display: flex; flex-direction: column; }
+        .dem-stat-label { font-size: 0.72rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; }
+        .dem-stat-value { font-weight: 600; color: #111827; }
+
+        .dem-calibration-info {
+            display: none;
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: #eff6ff;
+            border-left: 3px solid #3b82f6;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: #1e40af;
+        }
+        .dem-calibration-info.visible { display: block; }
+
+        /* Notification toast extension for DEM-specific messages */
+        .dem-source-toast {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        /* ── End DEM styles ────────────────────────────────────────────── */
+
         .terrain-csv-upload-area {
             border: 2px dashed #3498db;
             border-radius: 8px;
@@ -14554,6 +14707,14 @@
                                     <input type="radio" name="dataSource" value="both" id="dataSourceBoth">
                                     <span>Combine Both</span>
                                 </label>
+                                <label class="terrain-radio-option">
+                                    <input type="radio" name="dataSource" value="dem" id="dataSourceDEM">
+                                    <span><i class="fas fa-satellite-dish" style="color:#3498db;"></i> Use DEM</span>
+                                </label>
+                                <label class="terrain-radio-option">
+                                    <input type="radio" name="dataSource" value="demcsv" id="dataSourceDemCsv">
+                                    <span><i class="fas fa-layer-group" style="color:#8e44ad;"></i> DEM + CSV (Calibrate)</span>
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -14646,6 +14807,115 @@
                                     <i class="fas fa-redo"></i> Reset Filters
                                 </button>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- 3b. DEM Fetch Section — shown only for 'dem' and 'demcsv' sources -->
+                    <div class="terrain-3d-section" id="dem-fetch-section">
+                        <div class="terrain-3d-section-header" data-section="dem-fetch">
+                            <span><i class="fas fa-satellite-dish"></i> DEM Data Fetch</span>
+                            <i class="fas fa-chevron-right toggle-icon expanded"></i>
+                        </div>
+                        <div class="terrain-3d-section-content expanded" id="dem-fetch-content">
+
+                            <!-- Dataset selector -->
+                            <div class="form-group" style="margin-bottom:12px;">
+                                <label for="demDatasetSelect" style="font-size:0.83rem; font-weight:600; color:#374151;">
+                                    <i class="fas fa-database" style="color:#3498db;"></i> DEM Dataset
+                                </label>
+                                <select id="demDatasetSelect" class="form-select" style="margin-top:4px;">
+                                    <option value="COP30">Copernicus DEM GLO-30 — Best Accuracy (30m)</option>
+                                    <option value="NASADEM">NASA DEM — SRTM-Derived, Improved (30m)</option>
+                                    <option value="SRTMGL1">SRTM 1-Arc-Second — Fallback (30m)</option>
+                                </select>
+                                <small style="color:#6b7280; font-size:11px; margin-top:3px; display:block;">
+                                    COP30 is tried first. If unavailable, next sources are used automatically.
+                                </small>
+                            </div>
+
+                            <!-- Extent requirement notice -->
+                            <div id="demExtentNotice" style="padding:10px 12px; background:#fef9c3; border-left:3px solid #eab308; border-radius:6px; margin-bottom:12px; font-size:0.82rem; color:#713f12;">
+                                <i class="fas fa-draw-polygon" style="margin-right:6px;"></i>
+                                <strong>Draw an extent first.</strong> Use the <em>Processing Extent</em> section below to define the area for the DEM fetch. Recommended: ≤ 1 km² for fast results.
+                            </div>
+
+                            <!-- Fallback banner — shown when not COP30 -->
+                            <div class="dem-fallback-banner" id="demFallbackBanner">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <span id="demFallbackText">COP30 unavailable — switched to an alternative source. Results may differ slightly in areas with dense vegetation or built structures.</span>
+                            </div>
+
+                            <!-- OpenTopoData fallback banner — last resort -->
+                            <div class="dem-opentopodata-banner" id="demOTDBanner">
+                                <i class="fas fa-exclamation-circle"></i>
+                                <div>
+                                    <strong>All raster DEM sources are offline.</strong><br>
+                                    Switching to <em>OpenTopoData point-sampling</em> — this is slower and produces a lower-resolution approximation. You will be notified when complete.
+                                </div>
+                            </div>
+
+                            <!-- Progress indicator -->
+                            <div class="dem-fetch-progress" id="demFetchProgress">
+                                <div class="dem-progress-label">
+                                    <span class="dem-progress-spinner"></span>
+                                    <span id="demProgressText">Contacting OpenTopography…</span>
+                                </div>
+                                <div class="dem-progress-track">
+                                    <div class="dem-progress-fill indeterminate" id="demProgressFill"></div>
+                                </div>
+                            </div>
+
+                            <!-- Fetch button -->
+                            <button type="button" class="terrain-btn terrain-btn-primary" id="fetchDEMBtn"
+                                style="width:100%; margin-bottom:8px;" disabled>
+                                <i class="fas fa-cloud-download-alt"></i> Fetch DEM for Drawn Extent
+                            </button>
+                            <small id="demFetchHint" style="color:#6b7280; font-size:11px; display:block; margin-bottom:12px; text-align:center;">
+                                Draw an extent polygon to enable this button
+                            </small>
+
+                            <!-- DEM result card — shown after successful fetch -->
+                            <div class="dem-result-card" id="demResultCard">
+                                <div class="dem-result-card-header">
+                                    <i class="fas fa-check-circle" style="color:#16a34a;"></i>
+                                    DEM Ready — <span id="demResultSourceBadge"></span>
+                                </div>
+                                <div class="dem-result-stats">
+                                    <div class="dem-stat-item">
+                                        <span class="dem-stat-label">Resolution</span>
+                                        <span class="dem-stat-value" id="demStatRes">—</span>
+                                    </div>
+                                    <div class="dem-stat-item">
+                                        <span class="dem-stat-label">Area</span>
+                                        <span class="dem-stat-value" id="demStatArea">—</span>
+                                    </div>
+                                    <div class="dem-stat-item">
+                                        <span class="dem-stat-label">Min Elevation</span>
+                                        <span class="dem-stat-value" id="demStatMin">—</span>
+                                    </div>
+                                    <div class="dem-stat-item">
+                                        <span class="dem-stat-label">Max Elevation</span>
+                                        <span class="dem-stat-value" id="demStatMax">—</span>
+                                    </div>
+                                    <div class="dem-stat-item">
+                                        <span class="dem-stat-label">Grid Points</span>
+                                        <span class="dem-stat-value" id="demStatPoints">—</span>
+                                    </div>
+                                    <div class="dem-stat-item">
+                                        <span class="dem-stat-label">Data Source</span>
+                                        <span class="dem-stat-value" id="demStatSource">—</span>
+                                    </div>
+                                </div>
+                                <!-- Calibration info — only for DEM+CSV mode -->
+                                <div class="dem-calibration-info" id="demCalibrationInfo">
+                                    <i class="fas fa-sliders-h"></i>
+                                    <strong>Residual Correction active.</strong> DEM elevations have been adjusted using your CSV control points via IDW residual correction — elevations match your survey exactly at control points and blend smoothly in between.
+                                </div>
+                            </div>
+
+                            <p style="font-size:0.78rem; color:#9ca3af; text-align:center; margin-top:8px; border-top:1px solid #f0f0f0; padding-top:8px;">
+                                <i class="fas fa-info-circle"></i> After fetching, click <strong>Generate DTM</strong> to render terrain &amp; contours.
+                            </p>
                         </div>
                     </div>
 
@@ -39599,6 +39869,388 @@ function smoothChaikin(points) {
                     }
                 });
             });
+            // ─── DEM Controller ──────────────────────────────────────────────
+            const demController = (() => {
+                // Internal state
+                let _currentMode = null; // 'dem' | 'demcsv'
+                let _extentWatcher = null; // interval id
+
+                // ---- UI helpers ------------------------------------------------
+                function _elById(id) { return document.getElementById(id); }
+
+                function _setFetchEnabled(enabled) {
+                    const btn = _elById('fetchDEMBtn');
+                    const hint = _elById('demFetchHint');
+                    if (!btn) return;
+                    btn.disabled = !enabled;
+                    if (hint) {
+                        hint.textContent = enabled
+                            ? 'Click to download elevation data for the drawn extent'
+                            : 'Draw an extent polygon to enable this button';
+                    }
+                }
+
+                function _showBanner(id, show) {
+                    const el = _elById(id);
+                    if (el) el.style.display = show ? 'flex' : 'none';
+                }
+
+                function _setProgress(show, text) {
+                    const el = _elById('demFetchProgress');
+                    const txt = _elById('demProgressText');
+                    if (el) el.style.display = show ? 'block' : 'none';
+                    if (txt && text !== undefined) txt.textContent = text;
+                }
+
+                function _showResultCard(show) {
+                    const el = _elById('demResultCard');
+                    if (el) el.style.display = show ? 'block' : 'none';
+                }
+
+                function _showExtentNotice(show) {
+                    const el = _elById('demExtentNotice');
+                    if (el) el.style.display = show ? 'block' : 'none';
+                }
+
+                function _showCalibrationInfo(show) {
+                    const el = _elById('demCalibrationInfo');
+                    if (el) el.style.display = show ? 'block' : 'none';
+                }
+
+                function _setStat(id, val) {
+                    const el = _elById(id);
+                    if (el) el.textContent = val;
+                }
+
+                function _populateResultCard(info) {
+                    _setStat('demStatRes', info.resolution || '~30m');
+                    _setStat('demStatArea', info.area || '—');
+                    _setStat('demStatMin', info.minElev !== undefined ? info.minElev.toFixed(2) + ' m' : '—');
+                    _setStat('demStatMax', info.maxElev !== undefined ? info.maxElev.toFixed(2) + ' m' : '—');
+                    _setStat('demStatPoints', info.points ? info.points.toLocaleString() : '—');
+                    _setStat('demStatSource', info.source || '—');
+                    const badge = _elById('demResultSourceBadge');
+                    if (badge) {
+                        badge.textContent = info.source || 'Unknown';
+                        badge.style.cssText = 'background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;';
+                    }
+                }
+
+                // ---- Extent helper ------------------------------------------------
+                function _getProcessingExtentBounds() {
+                    // Try terrain3DState processingExtent layer first
+                    if (window.terrain3DState && terrain3DState.processingExtentLayer) {
+                        const src = terrain3DState.processingExtentLayer.getSource();
+                        if (src && src.getFeatures().length > 0) {
+                            const ext = src.getExtent(); // [minX, minY, maxX, maxY] in map proj
+                            // Convert OL extent to WGS-84 BBOX
+                            const ol = window.ol;
+                            if (ol && ol.proj) {
+                                const sw = ol.proj.transform([ext[0], ext[1]], 'EPSG:3857', 'EPSG:4326');
+                                const ne = ol.proj.transform([ext[2], ext[3]], 'EPSG:3857', 'EPSG:4326');
+                                return { south: sw[1], west: sw[0], north: ne[1], east: ne[0] };
+                            }
+                        }
+                    }
+                    return null;
+                }
+
+                function _startExtentWatcher() {
+                    if (_extentWatcher) clearInterval(_extentWatcher);
+                    _extentWatcher = setInterval(() => {
+                        const bounds = _getProcessingExtentBounds();
+                        const hasExtent = bounds !== null;
+                        _setFetchEnabled(hasExtent);
+                        _showExtentNotice(!hasExtent);
+                    }, 1000);
+                }
+
+                function _stopExtentWatcher() {
+                    if (_extentWatcher) { clearInterval(_extentWatcher); _extentWatcher = null; }
+                }
+
+                // ---- Area helper ------------------------------------------------
+                function _formatArea(south, west, north, east) {
+                    const R = 6371000;
+                    const lat = (south + north) / 2 * Math.PI / 180;
+                    const w = Math.abs(east - west) * Math.PI / 180 * R * Math.cos(lat);
+                    const h = Math.abs(north - south) * Math.PI / 180 * R;
+                    const m2 = w * h;
+                    return m2 < 1e6 ? m2.toFixed(0) + ' m²' : (m2 / 1e6).toFixed(3) + ' km²';
+                }
+
+                // ---- DEM fetch via Supabase edge function (key never exposed to browser) ----
+                async function _fetchViaEdgeFunction(demtype, south, west, north, east) {
+                    const edgeUrl = `${window.supabaseUrl}/functions/v1/terrain-processor`;
+                    const anonKey = window.supabaseAnonKey || (window.supabase && window.supabase.supabaseKey) || '';
+                    const resp = await fetch(edgeUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'apikey': anonKey,
+                            'Authorization': `Bearer ${anonKey}`
+                        },
+                        body: JSON.stringify({
+                            bbox: { minLat: south, maxLat: north, minLon: west, maxLon: east },
+                            demtype
+                        })
+                    });
+
+                    if (resp.status === 503) {
+                        // Edge function signals all OT sources exhausted — use OTD fallback
+                        throw new Error('all_sources_unavailable');
+                    }
+
+                    if (!resp.ok) {
+                        const txt = await resp.text().catch(() => '');
+                        throw new Error(`Edge function HTTP ${resp.status}: ${txt.substring(0, 150)}`);
+                    }
+
+                    // Read metadata headers
+                    const sourceType  = resp.headers.get('X-DEM-Source') || demtype;
+                    const sourceLabel = resp.headers.get('X-DEM-Source-Label') || sourceType;
+                    const isFallback  = resp.headers.get('X-DEM-Fallback') === 'true';
+                    const buf = await resp.arrayBuffer();
+
+                    return { buf, sourceType, sourceLabel, isFallback };
+                }
+
+                // ---- OpenTopoData point sampling (last-resort fallback) ----------
+                async function _fetchOpenTopoDataPoints(south, west, north, east) {
+                    const step = 0.0002694; // ~30m in degrees at equator
+                    const lats = [], lons = [], elevs = [];
+                    for (let lat = south; lat <= north; lat += step * 3) { // coarser grid for speed
+                        for (let lon = west; lon <= east; lon += step * 3) {
+                            lats.push(lat); lons.push(lon);
+                        }
+                    }
+                    // OpenTopoData allows 100 points per call
+                    const chunkSize = 100;
+                    for (let i = 0; i < lats.length; i += chunkSize) {
+                        const chunk = [];
+                        for (let j = i; j < Math.min(i + chunkSize, lats.length); j++) {
+                            chunk.push({ latitude: lats[j], longitude: lons[j] });
+                        }
+                        const resp = await fetch('https://api.opentopodata.org/v1/srtm30m', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ locations: chunk })
+                        });
+                        if (!resp.ok) throw new Error(`OTD HTTP ${resp.status}`);
+                        const data = await resp.json();
+                        data.results.forEach((r, ri) => {
+                            if (r.elevation !== null) {
+                                elevs.push({ lat: lats[i + ri], lon: lons[i + ri], elev: r.elevation });
+                            }
+                        });
+                        _setProgress(true, `Point sampling… ${Math.min(i + chunkSize, lats.length)}/${lats.length} pts`);
+                        await new Promise(r => setTimeout(r, 300)); // rate-limit
+                    }
+                    return elevs;
+                }
+
+                // ---- Parse GeoTIFF via geotiff.js (CDN loaded lazily) -----------
+                async function _parseGeoTiff(buffer) {
+                    // Ensure geotiff.js is available
+                    if (!window.GeoTIFF) {
+                        await new Promise((resolve, reject) => {
+                            const s = document.createElement('script');
+                            s.src = 'https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js';
+                            s.onload = resolve; s.onerror = reject;
+                            document.head.appendChild(s);
+                        });
+                    }
+                    const tiff = await GeoTIFF.fromArrayBuffer(buffer);
+                    const image = await tiff.getImage();
+                    const data = await image.readRasters();
+                    const width = image.getWidth();
+                    const height = image.getHeight();
+                    const bbox = image.getBoundingBox(); // [west, south, east, north]
+                    const elevData = data[0]; // Float32 or Int16
+                    return { width, height, bbox, elevData };
+                }
+
+                // ---- IDW Residual Correction (DEM+CSV calibration) --------------
+                function _idwResidualCorrection(demGrid, csvPoints, power) {
+                    power = power || 2;
+                    // demGrid: array of {lat, lon, elev}, csvPoints: array of {lat, lon, elev}
+                    if (!csvPoints || csvPoints.length === 0) return demGrid;
+
+                    // For each DEM point, interpolate the residual from CSV control points
+                    return demGrid.map(pt => {
+                        // Find DEM elevation at each CSV point via nearest-neighbor
+                        // Build residuals: residual = survey_elev - dem_elev at control pt
+                        const residuals = csvPoints.map(cp => {
+                            // Find nearest DEM point
+                            let best = demGrid[0], bestD = Infinity;
+                            demGrid.forEach(dp => {
+                                const d = (dp.lat - cp.lat) ** 2 + (dp.lon - cp.lon) ** 2;
+                                if (d < bestD) { bestD = d; best = dp; }
+                            });
+                            return { lat: cp.lat, lon: cp.lon, res: cp.elev - best.elev };
+                        });
+
+                        // IDW interpolation of residuals
+                        let wSum = 0, resSum = 0;
+                        residuals.forEach(r => {
+                            const d2 = (pt.lat - r.lat) ** 2 + (pt.lon - r.lon) ** 2;
+                            if (d2 < 1e-12) { resSum = r.res; wSum = 1; return; }
+                            const w = 1 / Math.pow(d2, power / 2);
+                            wSum += w;
+                            resSum += w * r.res;
+                        });
+                        return { ...pt, elev: pt.elev + (wSum > 0 ? resSum / wSum : 0) };
+                    });
+                }
+
+                // ---- Main fetch orchestration ------------------------------------
+                async function _fetchDEM() {
+                    const bounds = _getProcessingExtentBounds();
+                    if (!bounds) { showToast('Draw a processing extent first', 'warning'); return; }
+
+                    const { south, west, north, east } = bounds;
+                    const dataset = (_elById('demDatasetSelect') || {}).value || 'COP30';
+
+                    _showBanner('demFallbackBanner', false);
+                    _showBanner('demOTDBanner', false);
+                    _showResultCard(false);
+                    _setFetchEnabled(false);
+                    _setProgress(true, 'Contacting DEM service…');
+
+                    let demGrid = null;
+                    let usedSource = null;
+
+                    // ── Route through Supabase edge function (API key stays server-side) ──
+                    try {
+                        _setProgress(true, `Requesting ${dataset} via secure proxy…`);
+                        const { buf, sourceType, sourceLabel, isFallback } =
+                            await _fetchViaEdgeFunction(dataset, south, west, north, east);
+
+                        const { width, height, bbox, elevData } = await _parseGeoTiff(buf);
+                        demGrid = [];
+                        const lonStep = (bbox[2] - bbox[0]) / width;
+                        const latStep = (bbox[3] - bbox[1]) / height;
+                        for (let row = 0; row < height; row++) {
+                            for (let col = 0; col < width; col++) {
+                                const e = elevData[row * width + col];
+                                if (e > -9000) {
+                                    demGrid.push({
+                                        lat: bbox[3] - latStep * (row + 0.5),
+                                        lon: bbox[0] + lonStep * (col + 0.5),
+                                        elev: e
+                                    });
+                                }
+                            }
+                        }
+                        usedSource = sourceLabel || sourceType;
+
+                        if (isFallback) {
+                            const fbText = _elById('demFallbackText');
+                            if (fbText) fbText.textContent =
+                                `${dataset} unavailable — using ${sourceLabel}. Results may differ slightly in vegetated or built-up areas.`;
+                            _showBanner('demFallbackBanner', true);
+                        }
+
+                    } catch (err) {
+                        const isAllFailed = err.message === 'all_sources_unavailable';
+                        if (isAllFailed) {
+                            // Edge function exhausted all OT sources — try OpenTopoData point-sampling
+                            try {
+                                _showBanner('demOTDBanner', true);
+                                _setProgress(true, 'Switching to OpenTopoData point sampling…');
+                                const pts = await _fetchOpenTopoDataPoints(south, west, north, east);
+                                demGrid = pts;
+                                usedSource = 'OpenTopoData (SRTM30m)';
+                            } catch (otdErr) {
+                                _setProgress(false);
+                                _setFetchEnabled(true);
+                                showToast('All DEM sources failed. Check your internet connection and try again.', 'error');
+                                return;
+                            }
+                        } else {
+                            console.error('DEM edge function error:', err);
+                            _setProgress(false);
+                            _setFetchEnabled(true);
+                            showToast(`DEM fetch failed: ${err.message}`, 'error');
+                            return;
+                        }
+                    }
+
+
+                    if (!demGrid || demGrid.length === 0) {
+                        _setProgress(false);
+                        _setFetchEnabled(true);
+                        showToast('DEM fetch returned no valid elevation data for this extent.', 'error');
+                        return;
+                    }
+
+                    // DEM+CSV calibration
+                    if (_currentMode === 'demcsv' && terrain3DState.csvPoints && terrain3DState.csvPoints.length > 0) {
+                        _setProgress(true, 'Applying IDW residual correction…');
+                        demGrid = _idwResidualCorrection(demGrid, terrain3DState.csvPoints, 2);
+                        _showCalibrationInfo(true);
+                    } else {
+                        _showCalibrationInfo(false);
+                    }
+
+                    // Store on terrain3DState for DTM generation
+                    terrain3DState.demGrid = demGrid;
+                    terrain3DState.demSource = usedSource;
+
+                    // Stats
+                    const elevs = demGrid.map(p => p.elev);
+                    const minElev = Math.min(...elevs);
+                    const maxElev = Math.max(...elevs);
+                    const area = _formatArea(south, west, north, east);
+
+                    _populateResultCard({
+                        resolution: '~30m',
+                        area,
+                        minElev,
+                        maxElev,
+                        points: demGrid.length,
+                        source: usedSource
+                    });
+
+                    _setProgress(false);
+                    _setFetchEnabled(true);
+                    _showResultCard(true);
+
+                    showToast(`DEM fetched from ${usedSource} — ${demGrid.length.toLocaleString()} points. Click Generate DTM to render.`, 'success');
+                }
+
+                // ---- Public API ------------------------------------------------
+                function onSourceChanged(mode) {
+                    _currentMode = mode;
+                    _showResultCard(false);
+                    _showBanner('demFallbackBanner', false);
+                    _showBanner('demOTDBanner', false);
+                    _setProgress(false);
+                    _startExtentWatcher();
+                }
+
+                function init() {
+                    // Hide dem-fetch-section initially (it's shown by radio handler)
+                    const demSec = _elById('dem-fetch-section');
+                    if (demSec) demSec.style.display = 'none';
+
+                    // Also hide banners and result card by default
+                    _showBanner('demFallbackBanner', false);
+                    _showBanner('demOTDBanner', false);
+                    _setProgress(false);
+                    _showResultCard(false);
+                    _showCalibrationInfo(false);
+
+                    // Fetch button click
+                    const fetchBtn = _elById('fetchDEMBtn');
+                    if (fetchBtn) fetchBtn.addEventListener('click', _fetchDEM);
+                }
+
+                return { init, onSourceChanged };
+            })();
+
+            // Initialize DEM controller
+            demController.init();
 
             // Data source radio buttons
             document.querySelectorAll('input[name="dataSource"]').forEach(radio => {
@@ -39609,19 +40261,30 @@ function smoothChaikin(points) {
                     const csvSection = document.getElementById('csv-upload-section');
                     const searchSection = document.getElementById('search-existing-section');
                     const datasetsSection = document.getElementById('datasets-section');
+                    const demSection = document.getElementById('dem-fetch-section');
+
+                    // Hide all first, then selectively show
+                    csvSection.style.display = 'none';
+                    searchSection.style.display = 'none';
+                    datasetsSection.style.display = 'none';
+                    demSection.style.display = 'none';
 
                     if (this.value === 'import') {
                         csvSection.style.display = 'block';
-                        searchSection.style.display = 'none';
-                        datasetsSection.style.display = 'none';
                     } else if (this.value === 'existing') {
-                        csvSection.style.display = 'none';
                         searchSection.style.display = 'block';
                         datasetsSection.style.display = 'block';
                     } else if (this.value === 'both') {
                         csvSection.style.display = 'block';
                         searchSection.style.display = 'block';
                         datasetsSection.style.display = 'block';
+                    } else if (this.value === 'dem') {
+                        demSection.style.display = 'block';
+                        demController.onSourceChanged('dem');
+                    } else if (this.value === 'demcsv') {
+                        csvSection.style.display = 'block';
+                        demSection.style.display = 'block';
+                        demController.onSourceChanged('demcsv');
                     }
 
                     // Update radio button styling
