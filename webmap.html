@@ -16669,6 +16669,16 @@
                 esriTerrainReference.setVisible(this.getVisible());
             });
 
+            // Invalidate the 3D basemap texture cache whenever the active basemap changes
+            // via the layer switcher, so the next drape fetch always uses the current basemap.
+            baseMapsGroup.getLayers().forEach(function (layer) {
+                layer.on('change:visible', function () {
+                    if (typeof viewer3D !== 'undefined' && viewer3D.basemapCachedType != null) {
+                        viewer3D.basemapCachedType = null; // force re-capture on next toggle
+                    }
+                });
+            });
+
             // ========================================
             // 3D TERRAIN DTM & CONTOURS STATE
             // ========================================
@@ -36968,226 +36978,124 @@ function smoothChaikin(points) {
             // ========== BASEMAP DRAPING ==========
 
             /**
-             * Get the tile URL template for the currently-selected basemap.
-             * Returns { urlFn(z,y,x)->string, label, maxZoom }
+             * Find the currently visible base layer from the main map's baseMapsGroup.
+             * Returns the ol.layer.Tile that is currently visible, or null if none/"No Basemap".
              */
-            function getBasemapTileConfig() {
-                const bm = terrain3DState.activeBasemap || 'esri';
-                const subdomains = ['a', 'b', 'c'];
-                let idx = 0;
-                const nextSub = () => subdomains[(idx++) % subdomains.length];
-
-                switch (bm) {
-                    case 'google':
-                        return {
-                            urlFn: (z, y, x) => {
-                                const s = ['mt0', 'mt1', 'mt2', 'mt3'][(x + y) % 4];
-                                return `https://${s}.google.com/vt/lyrs=s&x=${x}&y=${y}&z=${z}`;
-                            },
-                            label: 'Google Satellite',
-                            maxZoom: 20
-                        };
-                    case 'osm':
-                        return {
-                            urlFn: (z, y, x) => {
-                                const s = nextSub();
-                                return `https://${s}.tile.openstreetmap.org/${z}/${x}/${y}.png`;
-                            },
-                            label: 'OpenStreetMap',
-                            maxZoom: 19
-                        };
-                    case 'esri':
-                    default:
-                        return {
-                            urlFn: (z, y, x) =>
-                                `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`,
-                            label: 'Esri World Imagery',
-                            maxZoom: 18
-                        };
+            function findActiveBasemapLayer() {
+                if (!baseMapsGroup) return null;
+                const layers = baseMapsGroup.getLayers().getArray();
+                for (const layer of layers) {
+                    if (layer.getVisible() && layer.getSource && layer.getSource()) {
+                        return layer;
+                    }
                 }
+                return null;
             }
 
             /**
-             * Fetch basemap tiles for the terrain extent, stitch into a single texture.
-             * Respects terrain3DState.activeBasemap (esri / google / osm).
-             * Reprojects DTM bounds from the project CRS to WGS84 via proj4.
+             * Capture the currently-active basemap for the DTM extent using OpenLayers.
+             * Creates a hidden OL map with the same source as the visible base layer,
+             * renders the DTM extent, then captures the canvas as a THREE.js texture.
+             * Works for ALL basemaps — no manual tile fetching, no CORS issues.
              */
-            async function fetchBasemapTiles() {
+            async function fetchBasemapViaOL() {
                 const gridData = terrain3DState.gridData;
                 if (!gridData) throw new Error('No grid data available');
 
-                const { bounds } = gridData;  // { minX, minY, maxX, maxY } in projected CRS
+                const { bounds } = gridData;
                 if (!bounds || bounds.minX == null) throw new Error('Grid data has no bounds');
 
-                // ── Resolve source projection from the actual data CRS ──
-                // terrain3DState.coordinateSystem holds the CRS of the uploaded survey data.
-                // proj4.defs() was called at startup for all supported EPSG codes.
+                // ── Find the currently visible basemap layer from the main map ──
+                const activeLayer = findActiveBasemapLayer();
+                if (!activeLayer) throw new Error('No active basemap layer. Please select a basemap in the layer switcher.');
+                const source = activeLayer.getSource();
+                const label = activeLayer.get('title') || 'Basemap';
+
+                // ── Reproject DTM bounds → EPSG:3857 (what OL renders in) ──
                 const dataCRS = (terrain3DState.coordinateSystem || 'EPSG:32636').toUpperCase();
                 const proj4WGS84 = '+proj=longlat +datum=WGS84 +no_defs';
-
-                // ── Reproject corners to WGS84 ──
-                let lonMin, latMin, lonMax, latMax;
+                let extent3857;
                 if (dataCRS === 'EPSG:4326') {
-                    // Already in WGS84 — bounds are lon/lat directly
-                    lonMin = bounds.minX; latMin = bounds.minY;
-                    lonMax = bounds.maxX; latMax = bounds.maxY;
+                    extent3857 = ol.proj.transformExtent(
+                        [bounds.minX, bounds.minY, bounds.maxX, bounds.maxY], 'EPSG:4326', 'EPSG:3857'
+                    );
                 } else {
-                    // Use proj4 with the registered EPSG code (all Uganda CRSes are pre-registered)
                     const srcProjStr = proj4.defs(dataCRS);
-                    if (!srcProjStr) {
-                        throw new Error(`proj4 definition not found for CRS "${dataCRS}". Cannot reproject DTM bounds to WGS84.`);
-                    }
+                    if (!srcProjStr) throw new Error(`proj4 definition not found for CRS "${dataCRS}".`);
                     const sw = proj4(dataCRS, proj4WGS84, [bounds.minX, bounds.minY]);
                     const ne = proj4(dataCRS, proj4WGS84, [bounds.maxX, bounds.maxY]);
-                    lonMin = sw[0]; latMin = sw[1];
-                    lonMax = ne[0]; latMax = ne[1];
+                    extent3857 = ol.proj.transformExtent([sw[0], sw[1], ne[0], ne[1]], 'EPSG:4326', 'EPSG:3857');
                 }
 
-                console.log(`[3D Basemap] CRS: ${dataCRS} → WGS84 extent: lon ${lonMin.toFixed(6)}..${lonMax.toFixed(6)}, lat ${latMin.toFixed(6)}..${latMax.toFixed(6)}`);
+                console.log(`[3D Basemap] Capturing "${label}" (${dataCRS}) for extent3857:`, extent3857);
 
-                // ── Basemap tile config ──
-                const tileConfig = getBasemapTileConfig();
+                // ── Compute proportional capture canvas size (max 2048px) ──
+                const maxPx = 2048;
+                const extW = extent3857[2] - extent3857[0];
+                const extH = extent3857[3] - extent3857[1];
+                const ratio = extW / extH;
+                let capW, capH;
+                if (ratio >= 1) { capW = maxPx; capH = Math.max(1, Math.round(maxPx / ratio)); }
+                else { capH = maxPx; capW = Math.max(1, Math.round(maxPx * ratio)); }
 
-                // ── Choose zoom level ──
-                const span = Math.max(lonMax - lonMin, latMax - latMin);
-                let zoom = Math.min(16, tileConfig.maxZoom);
-                if (span > 0.5) zoom = Math.min(12, tileConfig.maxZoom);
-                else if (span > 0.1) zoom = Math.min(13, tileConfig.maxZoom);
-                else if (span > 0.05) zoom = Math.min(14, tileConfig.maxZoom);
-                else if (span > 0.01) zoom = Math.min(15, tileConfig.maxZoom);
-                else if (span > 0.005) zoom = Math.min(16, tileConfig.maxZoom);
-
-                // ── Tile math helpers ──
-                function lonToTileX(lon, z) { return Math.floor((lon + 180) / 360 * Math.pow(2, z)); }
-                function latToTileY(lat, z) {
-                    const rad = lat * Math.PI / 180;
-                    return Math.floor((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2 * Math.pow(2, z));
-                }
-                function tileXToLon(x, z) { return x / Math.pow(2, z) * 360 - 180; }
-                function tileYToLat(y, z) {
-                    const n = Math.PI - 2 * Math.PI * y / Math.pow(2, z);
-                    return 180 / Math.PI * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
-                }
-
-                let xMin = lonToTileX(lonMin, zoom);
-                let xMax = lonToTileX(lonMax, zoom);
-                let yMin = latToTileY(latMax, zoom);
-                let yMax = latToTileY(latMin, zoom);
-
-                let tilesX = xMax - xMin + 1;
-                let tilesY = yMax - yMin + 1;
-
-                // Cap tile count
-                const maxTiles = 64;
-                while (tilesX * tilesY > maxTiles && zoom > 8) {
-                    zoom--;
-                    xMin = lonToTileX(lonMin, zoom);
-                    xMax = lonToTileX(lonMax, zoom);
-                    yMin = latToTileY(latMax, zoom);
-                    yMax = latToTileY(latMin, zoom);
-                    tilesX = xMax - xMin + 1;
-                    tilesY = yMax - yMin + 1;
-                }
-
-                console.log(`[3D Basemap] Using "${tileConfig.label}" z=${zoom}, ${tilesX}×${tilesY} = ${tilesX * tilesY} tiles`);
-
-                // ── Stitch tiles ──
-                const tileSize = 256;
-                const canvas = document.createElement('canvas');
-                canvas.width = tilesX * tileSize;
-                canvas.height = tilesY * tileSize;
-                const ctx = canvas.getContext('2d');
-
-                // Fill with a dark background so failed tiles aren't transparent
-                ctx.fillStyle = '#1e293b';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                // ── Create hidden container + OL capture map ──
+                const container = document.createElement('div');
+                container.style.cssText =
+                    `position:absolute;left:-99999px;top:-99999px;width:${capW}px;height:${capH}px;overflow:hidden;visibility:hidden;`;
+                document.body.appendChild(container);
 
                 const loadingSubEl = document.getElementById('viewer3dLoadingSub');
-                let loaded = 0, failed = 0;
-                const totalTiles = tilesX * tilesY;
+                if (loadingSubEl) loadingSubEl.textContent = `Rendering "${label}" at ${capW}×${capH}px…`;
 
-                // Fetch all tiles in parallel (batched to avoid overwhelming the browser)
-                const promises = [];
-                for (let ty = yMin; ty <= yMax; ty++) {
-                    for (let tx = xMin; tx <= xMax; tx++) {
-                        const url = tileConfig.urlFn(zoom, ty, tx);
-                        const px = (tx - xMin) * tileSize;
-                        const py = (ty - yMin) * tileSize;
+                const captureMap = new ol.Map({
+                    target: container,
+                    layers: [new ol.layer.Tile({ source: source })],
+                    view: new ol.View({ projection: 'EPSG:3857' }),
+                    controls: [],
+                    interactions: []
+                });
+                captureMap.getView().fit(extent3857, { size: [capW, capH] });
 
-                        promises.push(
-                            new Promise((resolve) => {
-                                const img = new Image();
-                                img.crossOrigin = 'anonymous';
-                                img.onload = () => {
-                                    ctx.drawImage(img, px, py, tileSize, tileSize);
-                                    loaded++;
-                                    if (loadingSubEl) loadingSubEl.textContent =
-                                        `${tileConfig.label} — ${loaded}/${totalTiles} tiles (z${zoom})`;
-                                    resolve(true);
-                                };
-                                img.onerror = () => {
-                                    // Keep the dark fill for failed tiles
-                                    failed++;
-                                    loaded++;
-                                    if (loadingSubEl) loadingSubEl.textContent =
-                                        `${tileConfig.label} — ${loaded}/${totalTiles} tiles (z${zoom})`;
-                                    resolve(false);
-                                };
-                                img.src = url;
-                            })
-                        );
-                    }
-                }
+                // ── Wait for render (with timeout) ──
+                return new Promise((resolve, reject) => {
+                    const cleanup = () => {
+                        try { captureMap.setTarget(null); } catch (_) {}
+                        if (document.body.contains(container)) document.body.removeChild(container);
+                    };
 
-                await Promise.all(promises);
+                    const timer = setTimeout(() => {
+                        cleanup();
+                        reject(new Error(`Basemap render timed out for "${label}". Check network connection.`));
+                    }, 30000);
 
-                if (failed === totalTiles) {
-                    throw new Error(`All ${totalTiles} tiles failed to load for "${tileConfig.label}". Check network / CORS.`);
-                }
-                if (failed > 0) {
-                    console.warn(`[3D Basemap] ${failed}/${totalTiles} tiles failed`);
-                }
+                    captureMap.once('rendercomplete', () => {
+                        clearTimeout(timer);
+                        try {
+                            const olCanvas = container.querySelector('canvas');
+                            if (!olCanvas) throw new Error('OL did not produce a canvas element.');
 
-                // ── Crop to exact DTM extent ──
-                const tileLonMin = tileXToLon(xMin, zoom);
-                const tileLonMax = tileXToLon(xMax + 1, zoom);
-                const tileLatMax2 = tileYToLat(yMin, zoom);
-                const tileLatMin2 = tileYToLat(yMax + 1, zoom);
+                            // Copy to a standalone canvas so we can dispose the OL map safely
+                            const snap = document.createElement('canvas');
+                            snap.width = olCanvas.width;
+                            snap.height = olCanvas.height;
+                            snap.getContext('2d').drawImage(olCanvas, 0, 0);
 
-                function lonToPixel(lon) {
-                    return ((lon - tileLonMin) / (tileLonMax - tileLonMin)) * canvas.width;
-                }
-                function latToPixel(lat) {
-                    function mercY(la) { return Math.log(Math.tan(Math.PI / 4 + la * Math.PI / 360)); }
-                    const yTop = mercY(tileLatMax2);
-                    const yBot = mercY(tileLatMin2);
-                    const yPt = mercY(lat);
-                    return ((yTop - yPt) / (yTop - yBot)) * canvas.height;
-                }
+                            cleanup();
 
-                const cropX = lonToPixel(lonMin);
-                const cropY = latToPixel(latMax);
-                const cropW = lonToPixel(lonMax) - cropX;
-                const cropH = latToPixel(latMin) - cropY;
+                            const texture = new THREE.CanvasTexture(snap);
+                            texture.minFilter = THREE.LinearFilter;
+                            texture.magFilter = THREE.LinearFilter;
+                            texture.wrapS = THREE.ClampToEdgeWrapping;
+                            texture.wrapT = THREE.ClampToEdgeWrapping;
+                            texture.needsUpdate = true;
 
-                const croppedCanvas = document.createElement('canvas');
-                croppedCanvas.width = Math.max(1, Math.round(cropW));
-                croppedCanvas.height = Math.max(1, Math.round(cropH));
-                const croppedCtx = croppedCanvas.getContext('2d');
-                croppedCtx.drawImage(canvas,
-                    Math.round(cropX), Math.round(cropY), Math.round(cropW), Math.round(cropH),
-                    0, 0, croppedCanvas.width, croppedCanvas.height
-                );
-
-                // ── Create THREE.js texture ──
-                const texture = new THREE.CanvasTexture(croppedCanvas);
-                texture.minFilter = THREE.LinearFilter;
-                texture.magFilter = THREE.LinearFilter;
-                texture.wrapS = THREE.ClampToEdgeWrapping;
-                texture.wrapT = THREE.ClampToEdgeWrapping;
-                texture.needsUpdate = true;
-
-                return { texture, zoom, tilesX, tilesY, label: tileConfig.label };
+                            resolve({ texture, label });
+                        } catch (e) {
+                            cleanup();
+                            reject(e);
+                        }
+                    });
+                });
             }
 
             /**
@@ -37232,23 +37140,25 @@ function smoothChaikin(points) {
             }
 
             /**
-             * Toggle basemap drape on/off. Manages loading overlay and badge visibility.
-             * Automatically re-fetches if the basemap type has changed since last load.
+             * Toggle basemap drape on/off.
+             * Uses the currently-visible base layer from the main layer switcher.
+             * Re-captures whenever the active layer changes.
              */
             async function toggleBasemapDrape(enable) {
                 const loadingEl = document.getElementById('viewer3dBasemapLoading');
                 const badgeEl = document.getElementById('viewer3dBasemapBadge');
                 const badgeNameEl = document.getElementById('viewer3dBasemapName');
-                const currentBm = terrain3DState.activeBasemap || 'esri';
 
                 if (enable) {
-                    // "none" basemap — nothing to drape
-                    if (currentBm === 'none') {
-                        showToast('No basemap selected. Choose a basemap first.', 'warning');
+                    // Identify active basemap by its layer title (null = No Basemap)
+                    const activeLayer = findActiveBasemapLayer();
+                    const currentKey = activeLayer ? (activeLayer.get('title') || 'Basemap') : null;
+
+                    if (!currentKey) {
+                        showToast('No basemap active. Please select a basemap in the layer switcher first.', 'warning');
                         const chk = document.getElementById('viewer3dShowBasemap');
                         if (chk) { chk.checked = false; viewer3D.showBasemap = false; }
                         document.getElementById('viewer3dBlendGroup').classList.remove('active');
-
                         if (viewer3D.basemapMesh) {
                             viewer3D.scene.remove(viewer3D.basemapMesh);
                             viewer3D.basemapMesh.geometry.dispose();
@@ -37259,11 +37169,10 @@ function smoothChaikin(points) {
                         return;
                     }
 
-                    // If basemap type changed since last fetch, invalidate the cached texture
-                    const needsRefetch = !viewer3D.basemapTexture || viewer3D.basemapCachedType !== currentBm;
+                    // Re-capture if active layer changed or no texture yet
+                    const needsRefetch = !viewer3D.basemapTexture || viewer3D.basemapCachedType !== currentKey;
 
                     if (needsRefetch) {
-                        // Dispose old texture
                         if (viewer3D.basemapTexture) {
                             viewer3D.basemapTexture.dispose();
                             viewer3D.basemapTexture = null;
@@ -37277,14 +37186,13 @@ function smoothChaikin(points) {
 
                         loadingEl.classList.remove('hidden');
                         try {
-                            const result = await fetchBasemapTiles();
+                            const result = await fetchBasemapViaOL();
                             viewer3D.basemapTexture = result.texture;
-                            viewer3D.basemapCachedType = currentBm;
-                            // Update badge label
-                            if (badgeNameEl) badgeNameEl.textContent = result.label || currentBm;
+                            viewer3D.basemapCachedType = currentKey;
+                            if (badgeNameEl) badgeNameEl.textContent = result.label;
                         } catch (err) {
-                            console.error('Failed to load basemap:', err);
-                            showToast('Basemap loading failed: ' + err.message, 'error');
+                            console.error('[3D Basemap] Capture failed:', err);
+                            showToast('Basemap capture failed: ' + err.message, 'error');
                             loadingEl.classList.add('hidden');
                             const chk = document.getElementById('viewer3dShowBasemap');
                             if (chk) { chk.checked = false; viewer3D.showBasemap = false; }
@@ -37297,7 +37205,6 @@ function smoothChaikin(points) {
                     applyBasemapMesh();
                     badgeEl.classList.add('visible');
                 } else {
-                    // Hide basemap mesh
                     if (viewer3D.basemapMesh) {
                         viewer3D.scene.remove(viewer3D.basemapMesh);
                         viewer3D.basemapMesh.geometry.dispose();
