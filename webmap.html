@@ -15390,19 +15390,32 @@
                             <i class="fas fa-chevron-right toggle-icon"></i>
                         </div>
                         <div class="terrain-3d-section-content" id="basemap-settings-content">
-                            <p style="font-size:0.8rem;color:#94a3b8;margin:0 0 10px;line-height:1.45;">
-                                Active basemap for the map and 3D drape is chosen in the
-                                <strong style="color:#e2e8f0;">layer switcher</strong> (Base Maps). Current:
-                            </p>
-                            <p id="terrainBasemapCurrentLabel" style="font-size:0.9rem;font-weight:600;color:#3b82f6;margin:0 0 12px;">Esri World Imagery</p>
+                            <div class="terrain-basemap-selector">
+                                <label class="basemap-option">
+                                    <input type="radio" name="basemap" value="google" id="basemapGoogle">
+                                    <span>Google Satellite Hybrid</span>
+                                </label>
+                                <label class="basemap-option">
+                                    <input type="radio" name="basemap" value="esri" id="basemapEsri" checked>
+                                    <span>Esri World Imagery</span>
+                                </label>
+                                <label class="basemap-option">
+                                    <input type="radio" name="basemap" value="osm" id="basemapOSM">
+                                    <span>OpenStreetMap</span>
+                                </label>
+                                <label class="basemap-option">
+                                    <input type="radio" name="basemap" value="none" id="basemapNone">
+                                    <span>None</span>
+                                </label>
+                            </div>
 
                             <div class="range-slider-wrapper" id="basemapOpacityWrapper">
                                 <label>
-                                    <span>Basemap Opacity (2D map)</span>
-                                    <span id="basemapOpacityValue">100%</span>
+                                    <span>Basemap Opacity</span>
+                                    <span id="basemapOpacityValue">60%</span>
                                 </label>
                                 <input type="range" id="basemapOpacity" class="range-slider" min="0" max="100"
-                                    value="100" step="5">
+                                    value="60" step="5">
                             </div>
                         </div>
                     </div>
@@ -16719,9 +16732,9 @@
                 // Grid Data Storage
                 gridData: null, // Stores the elevation grid for reuse
 
-                // Basemap: canonical name = OpenLayers layer title (e.g. "Esri World Imagery"); see syncActiveBasemapFromMap()
-                activeBasemap: 'Esri World Imagery',
-                basemapOpacity: 1.0,
+                // Basemap
+                activeBasemap: 'esri',
+                basemapOpacity: 0.6,
 
                 // Layers
                 pointsLayer: null,
@@ -16775,102 +16788,6 @@
 
             // Make terrain3DState globally accessible
             window.terrain3DState = terrain3DState;
-
-            // -----------------------------------------------------------------
-            // Basemap: layer switcher → terrain3DState.activeBasemap (for 3D drape)
-            // -----------------------------------------------------------------
-            function normalizeLegacyBasemapId(id) {
-                if (!id) return 'Esri World Imagery';
-                const legacy = {
-                    esri: 'Esri World Imagery',
-                    google: 'Google Satellite Hybrid',
-                    osm: 'OpenStreetMap',
-                    none: 'No Basemap'
-                };
-                return legacy[id] || id;
-            }
-            window.normalizeLegacyBasemapId = normalizeLegacyBasemapId;
-
-            function updateTerrainBasemapSettingsLabel() {
-                const el = document.getElementById('terrainBasemapCurrentLabel');
-                if (el) {
-                    el.textContent = normalizeLegacyBasemapId(terrain3DState.activeBasemap);
-                }
-            }
-
-            function syncActiveBasemapFromMap() {
-                if (!baseMapsGroup || !baseMapsGroup.getLayers) {
-                    return terrain3DState.activeBasemap;
-                }
-                const arr = baseMapsGroup.getLayers().getArray();
-                for (let i = arr.length - 1; i >= 0; i--) {
-                    const L = arr[i];
-                    if (L.get('type') !== 'base' || !L.getVisible()) continue;
-                    const t = L.get('title') || 'Unknown';
-                    terrain3DState.activeBasemap = t;
-                    updateTerrainBasemapSettingsLabel();
-                    const opacityWrapper = document.getElementById('basemapOpacityWrapper');
-                    if (opacityWrapper) {
-                        opacityWrapper.style.opacity = (t === 'No Basemap') ? '0.5' : '1';
-                    }
-                    return t;
-                }
-                terrain3DState.activeBasemap = 'No Basemap';
-                updateTerrainBasemapSettingsLabel();
-                const opacityWrapper = document.getElementById('basemapOpacityWrapper');
-                if (opacityWrapper) {
-                    opacityWrapper.style.opacity = '0.5';
-                }
-                return 'No Basemap';
-            }
-
-            function getVisibleBaseTileLayer() {
-                if (!baseMapsGroup) {
-                    return null;
-                }
-                const arr = baseMapsGroup.getLayers().getArray();
-                for (let i = arr.length - 1; i >= 0; i--) {
-                    const L = arr[i];
-                    if (L.get('type') === 'base' && L.getVisible() && L.getSource && L.getSource()) {
-                        return L;
-                    }
-                }
-                return null;
-            }
-
-            function applyBasemapOpacityToVisibleMapLayer(opacity01) {
-                if (!baseMapsGroup) {
-                    return;
-                }
-                const v = typeof opacity01 === 'number' ? opacity01 : 0.6;
-                baseMapsGroup.getLayers().forEach(function (layer) {
-                    if (layer.get('type') === 'base' && layer.getVisible() && layer.getSource && layer.getSource()) {
-                        layer.setOpacity(v);
-                    }
-                });
-            }
-
-            (function wireBasemapLayerSync() {
-                if (!baseMapsGroup || !baseMapsGroup.getLayers) {
-                    return;
-                }
-                baseMapsGroup.getLayers().forEach(function (layer) {
-                    layer.on('change:visible', function () {
-                        syncActiveBasemapFromMap();
-                        if (typeof viewer3D !== 'undefined' && viewer3D && viewer3D.isOpen && viewer3D.showBasemap && viewer3D.basemapMesh) {
-                            void (async function () {
-                                try {
-                                    await toggleBasemapDrape(true);
-                                } catch (e) {
-                                    console.warn('[3D Basemap] refresh on layer change', e);
-                                }
-                            }());
-                        }
-                    });
-                });
-            }());
-
-            syncActiveBasemapFromMap();
 
             // ========================================
             // MERGED CSV DATASET CONFIGURATIONS
@@ -18750,8 +18667,8 @@
                 { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/mbaleblocks.fgb', title: 'Mbale Blocks' },
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mbarara.nlis.fgb', title: 'Mbarara NLIS' },
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mbararablocks.fgb', title: 'Mbarara Blocks' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/mityana.nlis.fgb', title: 'Mityana NLIS' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/mityana.blocks.fgb', title: 'Mityana Blocks' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mityana.nlis.fgb', title: 'Mityana NLIS' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mityanablocks.fgb', title: 'Mityana Blocks' },
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson2/moroto.nlis.fgb', title: 'Moroto NLIS' },
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson2/morotoblock.fgb', title: 'Moroto Block' },
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mpigi.nlis.fgb', title: 'Mpigi NLIS' },
@@ -19389,17 +19306,8 @@
 
                 // Only add label when zoomed in enough (res <= 5.0, ~500m)
                 if (resolution <= RES_THRESHOLD.LABELS) {
-                    const layerTitle = feature.get('__layerTitle');
-                    let labelText = null;
-                    
-                    if (layerTitle === 'Mityana Blocks') {
-                        const blockNo = feature.get('BLOCK NO.') || feature.get('BLOCK_NO') || feature.get('Block No');
-                        labelText = blockNo ? blockNo.toString() : null;
-                    } else {
-                        const nlisId = feature.get('nlis_id');
-                        labelText = nlisId ? nlisId.toString() : null;
-                    }
-
+                    const nlisId = feature.get('nlis_id');
+                    const labelText = nlisId ? nlisId.toString() : null;
                     if (labelText) {
                         const centroid = ol.extent.getCenter(geometry.getExtent());
                         styles.push(new ol.style.Style({
@@ -19759,16 +19667,10 @@
 
                 // TIER 1: Polygon label at 500m zoom (res <= 5.0)
                 if (resolution <= RES_THRESHOLD.LABELS) {
-                    const layerTitle = feature.get('__layerTitle');
-                    let labelAttr = feature.get('nlis_id');
-                    
-                    if (layerTitle === 'Mityana NLIS') {
-                        labelAttr = feature.get('PlotNumber');
-                    }
-                    
-                    if (labelAttr) {
+                    const nlisId = feature.get('nlis_id');
+                    if (nlisId) {
                         const cacheKey = '__parcelLabelStyleCache';
-                        const labelText = labelAttr.toString();
+                        const labelText = nlisId.toString();
                         let labelStyleCache = feature.get(cacheKey);
                         if (!labelStyleCache || labelStyleCache.revision !== geomRevision || labelStyleCache.text !== labelText) {
                             const centroid = ol.extent.getCenter(geometry.getExtent());
@@ -19861,7 +19763,7 @@
             }
 
             function getSurveyParcelQualityFlagFillAlpha() {
-                let bm = 'Esri World Imagery';
+                let bm = 'esri';
                 try {
                     if (typeof terrain3DState !== 'undefined' && terrain3DState.activeBasemap) {
                         bm = terrain3DState.activeBasemap;
@@ -19869,16 +19771,9 @@
                         bm = window.terrain3DState.activeBasemap;
                     }
                 } catch (e) { /* ignore */ }
-                if (typeof normalizeLegacyBasemapId === 'function') {
-                    bm = normalizeLegacyBasemapId(bm);
-                }
-                if (bm === 'none' || bm === 'No Basemap') return 0.34;
-                if (bm === 'osm' || bm === 'OpenStreetMap' || bm === 'OpenStreetMap HOT' || (bm + '').indexOf('OpenStreetMap') >= 0) {
-                    return 0.2;
-                }
-                if (bm === 'google' || bm === 'esri' || (bm + '').indexOf('Google') >= 0 || (bm + '').indexOf('Esri') >= 0) {
-                    return 0.11;
-                }
+                if (bm === 'none') return 0.34;
+                if (bm === 'osm') return 0.2;
+                if (bm === 'google' || bm === 'esri') return 0.11;
                 return 0.14;
             }
 
@@ -36380,9 +36275,16 @@ function smoothChaikin(points) {
             }
 
             function updateBasemapOpacity(opacity) {
-                const opacityValue = parseInt(opacity, 10) / 100;
-                terrain3DState.basemapOpacity = opacityValue;
-                applyBasemapOpacityToVisibleMapLayer(opacityValue);
+                const basemap = terrain3DState.activeBasemap;
+                const opacityValue = opacity / 100;
+
+                if (basemap === 'google' && googleHybrid) {
+                    googleHybrid.setOpacity(opacityValue);
+                } else if (basemap === 'esri' && esriSatellite) {
+                    esriSatellite.setOpacity(opacityValue);
+                } else if (basemap === 'osm' && osmLayer) {
+                    osmLayer.setOpacity(opacityValue);
+                }
             }
 
             function clearTerrainLayers() {
@@ -36607,18 +36509,13 @@ function smoothChaikin(points) {
                 basemapMesh: null,
                 basemapLoading: false,
                 basemapCachedUrl: null,   // legacy key (unused)
-                basemapCachedType: null,  // tracks which basemap was last fetched (esri/google/osm)
-                // Incremented on each drape/close: stale async fetches must not apply a dead texture
-                basemapLoadSerial: 0
+                basemapCachedType: null   // tracks which basemap was last fetched (esri/google/osm)
             };
 
             function open3DViewer() {
                 if (!terrain3DState.gridData) {
                     showToast('Please generate DTM first', 'error');
                     return;
-                }
-                if (typeof syncActiveBasemapFromMap === 'function') {
-                    syncActiveBasemapFromMap();
                 }
 
                 // Create modal if it doesn't exist
@@ -36893,11 +36790,11 @@ function smoothChaikin(points) {
                 viewer3D.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
                 viewer3D.renderer.setClearColor(0xffffff);
 
+                // Scene
                 viewer3D.scene = new THREE.Scene();
 
-                // No global fog: white FogExp2 was washing out the basemap drape (unlit
-                // textures + fog read as a solid white layer). Lighting still gives depth.
-                viewer3D.scene.fog = null;
+                // Fog for atmosphere
+                viewer3D.scene.fog = new THREE.FogExp2(0xffffff, 0.00015);
 
                 // Camera
                 const gridData = terrain3DState.gridData;
@@ -36974,7 +36871,6 @@ function smoothChaikin(points) {
                 if (viewer3D.basemapMesh) {
                     viewer3D.scene.remove(viewer3D.basemapMesh);
                     viewer3D.basemapMesh.geometry.dispose();
-                    detachBasemapMapFromMaterial(viewer3D.basemapMesh.material);
                     viewer3D.basemapMesh.material.dispose();
                     viewer3D.basemapMesh = null;
                 }
@@ -37003,13 +36899,6 @@ function smoothChaikin(points) {
                 const maxElev = terrain3DState.maxElevation || 100;
                 const elevRange = maxElev - minElev || 1;
 
-                // Geographic span of the DTM in projected CRS (must match basemap WGS84 crop, not (width-1)*cell)
-                const b = gridData.bounds;
-                const geoW = (b && b.maxX != null) ? (b.maxX - b.minX) : totalWidth;
-                const geoH = (b && b.maxY != null) ? (b.maxY - b.minY) : totalHeight;
-                const gwx = Math.max(geoW, 1e-6);
-                const ghy = Math.max(geoH, 1e-6);
-
                 for (let row = 0; row < sampledH; row++) {
                     for (let col = 0; col < sampledW; col++) {
                         const srcRow = Math.min(row * step, height - 1);
@@ -37019,10 +36908,9 @@ function smoothChaikin(points) {
                         const z = (grid[srcRow][srcCol] || minElev) * vExag;
                         positions.push(x, y, z);
 
-                        // UVs: map each vertex to the same real-world position within full raster bounds
-                        // so the stitched WGS84 basemap aligns with the DTM (was wrong when using (width-1)*cell)
-                        const u = x / gwx;
-                        const v = y / ghy;
+                        // UV coordinates: map (0,0) → (1,1) across terrain extent
+                        const u = x / totalWidth;
+                        const v = y / totalHeight;
                         uvs.push(u, v);
 
                         // Hypsometric color
@@ -37074,681 +36962,57 @@ function smoothChaikin(points) {
                 // Re-apply basemap drape if it was active
                 if (viewer3D.showBasemap && viewer3D.basemapTexture) {
                     applyBasemapMesh();
-                    prerender3DBasemapDrape();
-                    setTimeout(function () {
-                        prerender3DBasemapDrape();
-                    }, 0);
                 }
             }
 
             // ========== BASEMAP DRAPING ==========
 
-            /** Reject tiny / HTML responses; “not available” checks only in strict (Esri) mode */
-            const _MIN_MAP_TILE_BYTES_STRICT = 1200;
-            const _MIN_MAP_TILE_BYTES_LOOSE = 200;
-
             /**
-             * Esri/MapServer “data not available” white tiles — only use when strictPlaceholder is on.
-             */
-            function _isEsriStyleDataUnavailableBitmap(bmp) {
-                try {
-                    const w = Math.min(64, bmp.width);
-                    const h = Math.min(64, bmp.height);
-                    if (w < 8 || h < 8) {
-                        return true;
-                    }
-                    const c = document.createElement('canvas');
-                    c.width = w;
-                    c.height = h;
-                    const c2 = c.getContext('2d', { willReadFrequently: true });
-                    c2.drawImage(bmp, 0, 0, w, h);
-                    const d = c2.getImageData(0, 0, w, h).data;
-                    let sum = 0, sum2 = 0, n = 0, bright = 0, ink = 0;
-                    for (let i = 0; i < d.length; i += 4) {
-                        const l = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-                        sum += l;
-                        sum2 += l * l;
-                        n++;
-                        if (l > 244) {
-                            bright++;
-                        }
-                        if (l < 130) {
-                            ink++;
-                        }
-                    }
-                    if (!n) {
-                        return true;
-                    }
-                    const m = sum / n;
-                    const v = Math.max(0, sum2 / n - m * m);
-                    const bRatio = bright / n;
-                    const iRatio = ink / n;
-                    if (m > 245 && bRatio > 0.75 && iRatio > 0.006 && iRatio < 0.14) {
-                        return true;
-                    }
-                    if (m > 250 && v < 20) {
-                        return true;
-                    }
-                    if (m > 252 && v < 12) {
-                        return true;
-                    }
-                    return false;
-                } catch (e) {
-                    return false;
-                }
-            }
-
-            function _sleep3d(ms) {
-                return new Promise((r) => setTimeout(r, ms));
-            }
-
-            function _doubleRaf3d() {
-                return new Promise((resolve) => {
-                    requestAnimationFrame(() => {
-                        requestAnimationFrame(resolve);
-                    });
-                });
-            }
-
-            function prerender3DBasemapDrape() {
-                if (!viewer3D || !viewer3D.renderer || !viewer3D.scene || !viewer3D.camera) {
-                    return;
-                }
-                if (viewer3D.basemapTexture) {
-                    viewer3D.basemapTexture.needsUpdate = true;
-                }
-                try {
-                    viewer3D.renderer.render(viewer3D.scene, viewer3D.camera);
-                } catch (e) {
-                    console.warn('[3D Basemap] prerender', e);
-                }
-            }
-
-            /**
-             * 3D basemap tile templates — keys match OpenLayers layer `title` (layer switcher) and
-             * syncActiveBasemapFromMap() / normalizeLegacyBasemapId().
-             * urlFn(z, y, x) uses Web Mercator / XYZ row index y (OSM “slippy”); Esri may remap via esriTmsProbe.
+             * Get the tile URL template for the currently-selected basemap.
+             * Returns { urlFn(z,y,x)->string, label, maxZoom }
              */
             function getBasemapTileConfig() {
-                const raw = terrain3DState.activeBasemap || 'Esri World Imagery';
-                const bm = normalizeLegacyBasemapId(raw);
-                const sub = ['a', 'b', 'c'];
-                const pickAbc = (x, y, z) => sub[(x + y + (z || 0)) % 3];
-                const gsv = (x, y, z) => ['mt0', 'mt1', 'mt2', 'mt3'][(x + y + z) % 4];
-                const cartoR = '';
+                const bm = terrain3DState.activeBasemap || 'esri';
+                const subdomains = ['a', 'b', 'c'];
+                let idx = 0;
+                const nextSub = () => subdomains[(idx++) % subdomains.length];
 
-                const table = {
-                    'Esri World Imagery': {
-                        label: 'Esri World Imagery',
-                        maxZoom: 18,
-                        esriTmsProbe: true,
-                        strictPlaceholder: true,
-                        urlFn: (z, y, x) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`
-                    },
-                    'Esri World Topo Map': {
-                        label: 'Esri World Topo Map',
-                        maxZoom: 18,
-                        esriTmsProbe: true,
-                        strictPlaceholder: true,
-                        urlFn: (z, y, x) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/${z}/${y}/${x}`
-                    },
-                    'Esri World Terrain + Reference': {
-                        label: 'Esri World Terrain + Reference',
-                        maxZoom: 13,
-                        esriTmsProbe: true,
-                        strictPlaceholder: true,
-                        urlFn: (z, y, x) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/${z}/${y}/${x}`
-                    },
-                    'Google Satellite Hybrid': {
-                        label: 'Google Satellite Hybrid',
-                        maxZoom: 20,
-                        esriTmsProbe: false,
-                        strictPlaceholder: false,
-                        urlFn: (z, y, x) => `https://${gsv(x, y, z)}.google.com/vt/lyrs=y&x=${x}&y=${y}&z=${z}`
-                    },
-                    'OpenStreetMap': {
-                        label: 'OpenStreetMap',
-                        maxZoom: 19,
-                        esriTmsProbe: false,
-                        strictPlaceholder: false,
-                        urlFn: (z, y, x) => `https://${pickAbc(x, y, z)}.tile.openstreetmap.org/${z}/${x}/${y}.png`
-                    },
-                    'OpenStreetMap HOT': {
-                        label: 'OpenStreetMap HOT',
-                        maxZoom: 19,
-                        esriTmsProbe: false,
-                        strictPlaceholder: false,
-                        urlFn: (z, y, x) => `https://${pickAbc(x, y, z)}.tile.openstreetmap.fr/hot/${z}/${x}/${y}.png`
-                    },
-                    'Carto Positron': {
-                        label: 'Carto Positron',
-                        maxZoom: 20,
-                        esriTmsProbe: false,
-                        strictPlaceholder: false,
-                        urlFn: (z, y, x) => `https://${pickAbc(x, y, z)}.basemaps.cartocdn.com/light_all/${z}/${x}/${y}${cartoR}.png`
-                    },
-                    'Carto Voyager': {
-                        label: 'Carto Voyager',
-                        maxZoom: 20,
-                        esriTmsProbe: false,
-                        strictPlaceholder: false,
-                        urlFn: (z, y, x) => `https://${pickAbc(x, y, z)}.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}${cartoR}.png`
-                    },
-                    'Carto Dark Matter': {
-                        label: 'Carto Dark Matter',
-                        maxZoom: 20,
-                        esriTmsProbe: false,
-                        strictPlaceholder: false,
-                        urlFn: (z, y, x) => `https://${pickAbc(x, y, z)}.basemaps.cartocdn.com/dark_all/${z}/${x}/${y}${cartoR}.png`
-                    },
-                    'OpenTopoMap': {
-                        label: 'OpenTopoMap',
-                        maxZoom: 17,
-                        esriTmsProbe: false,
-                        strictPlaceholder: false,
-                        urlFn: (z, y, x) => `https://${pickAbc(x, y, z)}.tile.opentopomap.org/${z}/${x}/${y}.png`
-                    },
-                    'OpenMapSurfer Hillshade': {
-                        label: 'OpenMapSurfer Hillshade',
-                        maxZoom: 19,
-                        esriTmsProbe: false,
-                        strictPlaceholder: false,
-                        urlFn: (z, y, x) => `https://maps.heigit.org/openmapsurfer/tiles/roads/webmercator/${z}/${x}/${y}.png`
-                    }
-                };
-
-                if (table[bm]) {
-                    return table[bm];
-                }
-                console.warn('[3D Basemap] Unknown activeBasemap "' + bm + '", using Esri World Imagery');
-                return table['Esri World Imagery'];
-            }
-
-            /**
-             * Load one map tile. fetch + createImageBitmap is CORS-safe. Uses timeout + 1
-             * retry (slow / saturated connections often fail all-at-once parallel fetches).
-             */
-            async function _fetchImageBitmapOrHtmlImage(url, timeoutMs, opts) {
-                const o = opts || {};
-                const strict = o.strictPlaceholder === true;
-                const minB = typeof o.minBytes === 'number' ? o.minBytes : (strict ? _MIN_MAP_TILE_BYTES_STRICT : _MIN_MAP_TILE_BYTES_LOOSE);
-                const t = timeoutMs > 0 ? timeoutMs : 30000;
-                const ac = new AbortController();
-                const to = setTimeout(() => { try { ac.abort(); } catch (e) { } }, t);
-                try {
-                    const res = await fetch(url, { mode: 'cors', credentials: 'omit', signal: ac.signal, cache: 'default' });
-                    if (!res || !res.ok) {
-                        throw new Error('HTTP ' + (res ? res.status : 0));
-                    }
-                    const ct = (res.headers.get('content-type') || '').toLowerCase();
-                    if (ct && ct.indexOf('text/html') >= 0) {
-                        throw new Error('Server returned HTML instead of an image (tile URL may be wrong)');
-                    }
-                    const blob = await res.blob();
-                    if (!blob || blob.size < minB) {
-                        throw new Error('Tile response too small');
-                    }
-                    if (typeof createImageBitmap === 'function') {
-                        const bitmap = await createImageBitmap(blob);
-                        if (strict && _isEsriStyleDataUnavailableBitmap(bitmap)) {
-                            if (typeof bitmap.close === 'function') {
-                                try { bitmap.close(); } catch (e) { }
-                            }
-                            throw new Error('Esri/MapServer “not available” placeholder tile');
-                        }
-                        return bitmap;
-                    }
-                    return await new Promise((ok, no) => {
-                        const im = new Image();
-                        const u = URL.createObjectURL(blob);
-                        im.crossOrigin = 'anonymous';
-                        im.onload = () => {
-                            URL.revokeObjectURL(u);
-                            ok(im);
+                switch (bm) {
+                    case 'google':
+                        return {
+                            urlFn: (z, y, x) => {
+                                const s = ['mt0', 'mt1', 'mt2', 'mt3'][(x + y) % 4];
+                                return `https://${s}.google.com/vt/lyrs=s&x=${x}&y=${y}&z=${z}`;
+                            },
+                            label: 'Google Satellite',
+                            maxZoom: 20
                         };
-                        im.onerror = () => {
-                            URL.revokeObjectURL(u);
-                            no(new Error('decode tile'));
+                    case 'osm':
+                        return {
+                            urlFn: (z, y, x) => {
+                                const s = nextSub();
+                                return `https://${s}.tile.openstreetmap.org/${z}/${x}/${y}.png`;
+                            },
+                            label: 'OpenStreetMap',
+                            maxZoom: 19
                         };
-                        im.src = u;
-                    });
-                } catch (e) {
-                    if (e && e.name === 'AbortError') {
-                        throw new Error('Tile fetch timeout');
-                    }
-                    throw e;
-                } finally {
-                    clearTimeout(to);
+                    case 'esri':
+                    default:
+                        return {
+                            urlFn: (z, y, x) =>
+                                `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`,
+                            label: 'Esri World Imagery',
+                            maxZoom: 18
+                        };
                 }
             }
 
             /**
-             * Google (and similar) tile servers often block fetch() CORS but allow <img crossorigin>
-             * like OpenLayers — use this for 3D stitching so hybrid tiles actually load.
+             * Fetch basemap tiles for the terrain extent, stitch into a single texture.
+             * Respects terrain3DState.activeBasemap (esri / google / osm).
+             * Reprojects DTM bounds from the project CRS to WGS84 via proj4.
              */
-            async function loadMapTileViaImageElement(url, timeoutMs) {
-                const t = timeoutMs > 0 ? timeoutMs : 30000;
-                return new Promise((resolve, reject) => {
-                    const timer = setTimeout(() => {
-                        reject(new Error('Image tile timeout'));
-                    }, t);
-                    const im = new Image();
-                    im.crossOrigin = 'anonymous';
-                    im.onload = () => {
-                        clearTimeout(timer);
-                        try {
-                            const w = im.naturalWidth || 256;
-                            const h = im.naturalHeight || 256;
-                            const c = document.createElement('canvas');
-                            c.width = w;
-                            c.height = h;
-                            c.getContext('2d', { willReadFrequently: true }).drawImage(im, 0, 0);
-                            if (typeof createImageBitmap === 'function') {
-                                createImageBitmap(c).then(resolve, function () { resolve(im); });
-                            } else {
-                                resolve(im);
-                            }
-                        } catch (e) {
-                            resolve(im);
-                        }
-                    };
-                    im.onerror = () => {
-                        clearTimeout(timer);
-                        reject(new Error('Image tile error'));
-                    };
-                    im.src = url;
-                });
-            }
-
-            function _loadMapTileWithImgFallback(url, timeoutMs) {
-                return new Promise((resolve, reject) => {
-                    const t = setTimeout(() => { reject(new Error('Image tile timeout')); }, timeoutMs);
-                    const im = new Image();
-                    im.crossOrigin = 'anonymous';
-                    im.onload = () => {
-                        clearTimeout(t);
-                        resolve(im);
-                    };
-                    im.onerror = () => {
-                        clearTimeout(t);
-                        reject(new Error('Image tile error'));
-                    };
-                    im.src = url;
-                });
-            }
-
-            async function loadMapTileFor3DBasemap(url, tileConfig) {
-                const T = 30000;
-                const cfg = tileConfig || {};
-                const strict = cfg.strictPlaceholder === true;
-                const googleLike = url.indexOf('google.com') >= 0 || url.indexOf('kh.google.com') >= 0 || url.indexOf('gstatic') >= 0;
-
-                if (googleLike) {
-                    for (let a = 0; a < 3; a++) {
-                        try {
-                            return await loadMapTileViaImageElement(url, T);
-                        } catch (e) {
-                            if (a >= 2) {
-                                break;
-                            }
-                            await _sleep3d(400 + Math.random() * 250);
-                        }
-                    }
-                }
-
-                for (let a = 0; a < 2; a++) {
-                    try {
-                        return await _fetchImageBitmapOrHtmlImage(url, T, {
-                            strictPlaceholder: strict,
-                            minBytes: strict ? _MIN_MAP_TILE_BYTES_STRICT : _MIN_MAP_TILE_BYTES_LOOSE
-                        });
-                    } catch (e) {
-                        if (a) {
-                            break;
-                        }
-                        await _sleep3d(400 + Math.random() * 200);
-                    }
-                }
-                for (let a = 0; a < 2; a++) {
-                    try {
-                        return await _loadMapTileWithImgFallback(url, T);
-                    } catch (e) {
-                        if (a) {
-                            break;
-                        }
-                        await _sleep3d(400);
-                    }
-                }
-                throw new Error('Tile load failed: ' + url);
-            }
-
-            /**
-             * Detach the shared basemap from a material so Material.dispose() does not
-             * call Texture.dispose() on the CPU/GPU object we keep in viewer3D.basemapTexture
-             * (re-applying a disposed texture appears as a solid white drape in WebGL).
-             */
-            function detachBasemapMapFromMaterial(material) {
-                if (material && material.map) {
-                    material.map = null;
-                }
-            }
-
-            /**
-             * Free basemap WebGL memory and ImageBitmaps / blob side channels.
-             */
-            function dispose3DBasemapTexture(tex) {
-                if (!tex) {
-                    return;
-                }
-                if (tex.userData) {
-                    if (tex.userData._bitmap && typeof tex.userData._bitmap.close === 'function') {
-                        try { tex.userData._bitmap.close(); } catch (e) { }
-                        tex.userData._bitmap = null;
-                    }
-                }
-                try { tex.dispose(); } catch (e) { }
-            }
-
-            /**
-             * Build THREE.Texture for the drape. Prefer createImageBitmap(canvas) (native
-             * WebGL upload). Fallback: canvas.toBlob() + Image (avoids getImageData/DataTexture).
-             */
-            async function buildBasemapGLTexture(croppedCanvas) {
-                if (typeof createImageBitmap === 'function') {
-                    try {
-                        const bitmap = await createImageBitmap(croppedCanvas);
-                        const tex = new THREE.Texture(bitmap);
-                        tex.userData = { _bitmap: bitmap };
-                        tex.minFilter = THREE.LinearFilter;
-                        tex.magFilter = THREE.LinearFilter;
-                        tex.wrapS = THREE.ClampToEdgeWrapping;
-                        tex.wrapT = THREE.ClampToEdgeWrapping;
-                        tex.generateMipmaps = false;
-                        tex.flipY = false;
-                        tex.needsUpdate = true;
-                        return tex;
-                    } catch (e) {
-                        console.warn('[3D Basemap] createImageBitmap path failed, using toBlob + Image', e);
-                    }
-                }
-                return new Promise((resolve, reject) => {
-                    croppedCanvas.toBlob(
-                        (blob) => {
-                            if (!blob) {
-                                reject(new Error('toBlob failed (canvas tainted? use Esri/OSM, serve over http(s))'));
-                                return;
-                            }
-                            const u = URL.createObjectURL(blob);
-                            const img = new Image();
-                            img.onload = function () {
-                                URL.revokeObjectURL(u);
-                                const tex = new THREE.Texture(img);
-                                tex.userData = { _img: img };
-                                tex.minFilter = THREE.LinearFilter;
-                                tex.magFilter = THREE.LinearFilter;
-                                tex.wrapS = THREE.ClampToEdgeWrapping;
-                                tex.wrapT = THREE.ClampToEdgeWrapping;
-                                tex.generateMipmaps = false;
-                                tex.flipY = false;
-                                tex.needsUpdate = true;
-                                resolve(tex);
-                            };
-                            img.onerror = function () {
-                                URL.revokeObjectURL(u);
-                                reject(new Error('Could not decode basemap from canvas blob'));
-                            };
-                            img.src = u;
-                        },
-                        'image/png',
-                        0.95
-                    );
-                });
-            }
-
-            /** DTM bbox → EPSG:3857 (Web Mercator) for tiling identical to Base Maps. */
-            function extent3857FromGridBounds(gridBounds, srcCRS) {
-                if (typeof ol !== 'undefined' && ol.proj) {
-                    try {
-                        var ex3857 = ol.proj.transformExtent(
-                            [gridBounds.minX, gridBounds.minY, gridBounds.maxX, gridBounds.maxY],
-                            srcCRS,
-                            'EPSG:3857'
-                        );
-                        if (ex3857 && ex3857.every(function (v) { return isFinite(v); })) {
-                            return ex3857;
-                        }
-                    } catch (e0) {
-                        try {
-                            var minXm = Infinity, minYm = Infinity, maxXm = -Infinity, maxYm = -Infinity;
-                            var corners = [[gridBounds.minX, gridBounds.minY], [gridBounds.maxX, gridBounds.minY],
-                                [gridBounds.minX, gridBounds.maxY], [gridBounds.maxX, gridBounds.maxY]];
-                            for (var ci = 0; ci < corners.length; ci++) {
-                                var m = ol.proj.transform(corners[ci], srcCRS, 'EPSG:3857');
-                                if (!m || !isFinite(m[0]) || !isFinite(m[1])) {
-                                    throw new Error('corner');
-                                }
-                                if (m[0] < minXm) minXm = m[0];
-                                if (m[0] > maxXm) maxXm = m[0];
-                                if (m[1] < minYm) minYm = m[1];
-                                if (m[1] > maxYm) maxYm = m[1];
-                            }
-                            return [minXm, minYm, maxXm, maxYm];
-                        } catch (e1) {
-                            console.warn('[3D Basemap] extent3857:', e1.message);
-                        }
-                    }
-                }
-                return null;
-            }
-
-            /** Main tile fetch — EPSG:3857 + ol.tilegrid (same as OpenLayers map). Falls back if unavailable. */
             async function fetchBasemapTiles() {
-                var gridData = terrain3DState.gridData;
-                if (!gridData) throw new Error('No grid data available');
-                var gdBounds = gridData.bounds;
-                if (!gdBounds || gdBounds.minX == null) throw new Error('Grid data has no bounds');
-                var dataCRS = terrain3DState.coordinateSystem || 'EPSG:32636';
-                var ext3857 = extent3857FromGridBounds(gdBounds, dataCRS);
-                var olTg = (typeof ol !== 'undefined' && ol.tilegrid && typeof ol.tilegrid.createXYZ === 'function')
-                    ? ol.tilegrid.createXYZ()
-                    : null;
-                if (ext3857 && olTg) {
-                    try {
-                        var out = await fetchBasemapEPSG3857Core(ext3857, olTg);
-                        return out;
-                    } catch (e2) {
-                        console.warn('[3D Basemap] EPSG:3857 path failed:', e2.message || e2);
-                    }
-                }
-                return fetchBasemapTilesLegacyLonLat();
-            }
-
-            async function fetchBasemapEPSG3857Core(extent3857, olTg) {
-                var tileConfig = getBasemapTileConfig();
-                var widthM = typeof ol.extent.getWidth === 'function'
-                    ? ol.extent.getWidth(extent3857)
-                    : Math.abs(extent3857[2] - extent3857[0]);
-                var heightM = typeof ol.extent.getHeight === 'function'
-                    ? ol.extent.getHeight(extent3857)
-                    : Math.abs(extent3857[3] - extent3857[1]);
-                var spanDegLike = Math.max(widthM / 111319, heightM / 111319);
-                var zoom = Math.min(16, tileConfig.maxZoom);
-                if (spanDegLike > 0.5) zoom = Math.min(12, tileConfig.maxZoom);
-                else if (spanDegLike > 0.1) zoom = Math.min(13, tileConfig.maxZoom);
-                else if (spanDegLike > 0.05) zoom = Math.min(14, tileConfig.maxZoom);
-                else if (spanDegLike > 0.01) zoom = Math.min(15, tileConfig.maxZoom);
-                else if (spanDegLike > 0.005) zoom = Math.min(16, tileConfig.maxZoom);
-                if (tileConfig.esriTmsProbe) zoom = Math.min(zoom, 17);
-
-                function tcRange(ext3857, z) {
-                    var corners = [[ext3857[0], ext3857[1]], [ext3857[2], ext3857[1]],
-                        [ext3857[2], ext3857[3]], [ext3857[0], ext3857[3]]];
-                    var mnX = Infinity, mxX = -Infinity, mnY = Infinity, mxY = -Infinity;
-                    for (var qi = 0; qi < corners.length; qi++) {
-                        var tc = olTg.getTileCoordForCoordAndZ(corners[qi], z);
-                        var tx = tc[1], ty = tc[2];
-                        mnX = Math.min(mnX, tx); mxX = Math.max(mxX, tx);
-                        mnY = Math.min(mnY, ty); mxY = Math.max(mxY, ty);
-                    }
-                    return { txMin: mnX, txMax: mxX, tyMin: mnY, tyMax: mxY };
-                }
-
-                var r = tcRange(extent3857, zoom);
-                var xMin = r.txMin, xMax = r.txMax, yMin = r.tyMin, yMax = r.tyMax;
-                var tilesX = xMax - xMin + 1;
-                var tilesY = yMax - yMin + 1;
-                var maxTiles = 64;
-                while (tilesX * tilesY > maxTiles && zoom > 8) {
-                    zoom--;
-                    r = tcRange(extent3857, zoom);
-                    xMin = r.txMin; xMax = r.txMax; yMin = r.tyMin; yMax = r.tyMax;
-                    tilesX = xMax - xMin + 1; tilesY = yMax - yMin + 1;
-                }
-
-                console.log('[3D Basemap] EPSG:3857', tileConfig.label, ' z=' + zoom,
-                    tilesX + '×' + tilesY + '=' + tilesX * tilesY);
-
-                var esriUseTmsYInPath = false;
-                var isEsri3D = tileConfig.esriTmsProbe === true;
-                if (isEsri3D) {
-                    var cx = (extent3857[0] + extent3857[2]) / 2;
-                    var cy = (extent3857[1] + extent3857[3]) / 2;
-                    var tcp = olTg.getTileCoordForCoordAndZ([cx, cy], zoom);
-                    var yOsm = tcp[2];
-                    var x0 = tcp[1];
-                    var uOsm = tileConfig.urlFn(zoom, yOsm, x0);
-                    var yTms = Math.pow(2, zoom) - 1 - yOsm;
-                    var uTms = tileConfig.urlFn(zoom, yTms, x0);
-
-                    async function esriPb(u) {
-                        var a = new AbortController();
-                        var tmr = setTimeout(function () { try { a.abort(); } catch (e) {} }, 12000);
-                        try {
-                            var rsp = await fetch(u, { mode: 'cors', credentials: 'omit', cache: 'default', signal: a.signal });
-                            if (!rsp.ok) return true;
-                            var blob = await rsp.blob();
-                            if (!blob || blob.size < 400) return true;
-                            if (typeof createImageBitmap !== 'function') return false;
-                            var bmp = await createImageBitmap(blob);
-                            var bad = _isEsriStyleDataUnavailableBitmap(bmp);
-                            if (typeof bmp.close === 'function') try { bmp.close(); } catch (e3) {}
-                            return bad;
-                        } catch (ee) {
-                            return true;
-                        } finally {
-                            clearTimeout(tmr);
-                        }
-                    }
-                    var bO = await esriPb(uOsm), bT = await esriPb(uTms);
-                    esriUseTmsYInPath = !!(bO && !bT);
-                }
-
-                var tileSize = 256;
-                var canvas = document.createElement('canvas');
-                canvas.width = tilesX * tileSize;
-                canvas.height = tilesY * tileSize;
-                var ctx = canvas.getContext('2d', { willReadFrequently: true });
-                ctx.fillStyle = '#2a3746';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                var stitchedMinX = Infinity, stitchedMaxX = -Infinity,
-                    stitchedMinY = Infinity, stitchedMaxY = -Infinity;
-                for (var tyi = yMin; tyi <= yMax; tyi++) {
-                    for (var txi = xMin; txi <= xMax; txi++) {
-                        var rex = olTg.getTileCoordExtent([zoom, txi, tyi]);
-                        stitchedMinX = Math.min(stitchedMinX, rex[0]);
-                        stitchedMinY = Math.min(stitchedMinY, rex[1]);
-                        stitchedMaxX = Math.max(stitchedMaxX, rex[2]);
-                        stitchedMaxY = Math.max(stitchedMaxY, rex[3]);
-                    }
-                }
-                var loadingSubEl = document.getElementById('viewer3dLoadingSub');
-                var loaded = 0, failed = 0, totalTiles = tilesX * tilesY;
-                var tileJobs = [];
-                for (var ty = yMin; ty <= yMax; ty++) {
-                    for (var tx = xMin; tx <= xMax; tx++) {
-                        var yFp = isEsri3D && esriUseTmsYInPath ? (Math.pow(2, zoom) - 1 - ty) : ty;
-                        tileJobs.push({
-                            url: tileConfig.urlFn(zoom, yFp, tx),
-                            px: (tx - xMin) * tileSize,
-                            py: (ty - yMin) * tileSize
-                        });
-                    }
-                }
-                var batchSize = 6;
-                for (var bi = 0; bi < tileJobs.length; bi += batchSize) {
-                    var chunk = tileJobs.slice(bi, bi + batchSize);
-                    await Promise.all(chunk.map(function (job) {
-                        return loadMapTileFor3DBasemap(job.url, tileConfig).then(function (source) {
-                            try {
-                                ctx.drawImage(source, job.px, job.py, tileSize, tileSize);
-                            } finally {
-                                if (source && typeof source.close === 'function') {
-                                    try { source.close(); } catch (dc) {}
-                                }
-                            }
-                            loaded++;
-                            if (loadingSubEl) {
-                                loadingSubEl.textContent = tileConfig.label + ' — ' + loaded + '/' + totalTiles +
-                                    ' (z' + zoom + ')';
-                            }
-                            return true;
-                        }).catch(function () {
-                            failed++;
-                            loaded++;
-                            if (loadingSubEl) {
-                                loadingSubEl.textContent = tileConfig.label + ' — ' + loaded + '/' + totalTiles +
-                                    ' (z' + zoom + ')';
-                            }
-                            return false;
-                        });
-                    }));
-                    if (bi + batchSize < tileJobs.length) {
-                        await new Promise(function (rw) { setTimeout(rw, 0); });
-                    }
-                }
-                if (failed === totalTiles) {
-                    throw new Error('All ' + totalTiles + ' tiles failed.');
-                }
-
-                var wMerc = stitchedMaxX - stitchedMinX;
-                var hMercSpan = stitchedMaxY - stitchedMinY;
-                if (wMerc <= 1e-6 || hMercSpan <= 1e-6) {
-                    throw new Error('Degenerate Mercator stitched extent');
-                }
-                var cw = canvas.width;
-                var ch = canvas.height;
-                var cx0 = ((extent3857[0] - stitchedMinX) / wMerc) * cw;
-                var cx1 = ((extent3857[2] - stitchedMinX) / wMerc) * cw;
-                if (cx0 > cx1) {
-                    var _sw = cx0; cx0 = cx1; cx1 = _sw;
-                }
-                var cropX = cx0;
-                var cropW = cx1 - cx0;
-
-                var cn = ((stitchedMaxY - extent3857[3]) / hMercSpan) * ch;
-                var cs = ((stitchedMaxY - extent3857[1]) / hMercSpan) * ch;
-                if (cn > cs) {
-                    var _sy = cn; cn = cs; cs = _sy;
-                }
-                var cropY = cn;
-                var cropH = cs - cn;
-
-                var croppedCanvas = document.createElement('canvas');
-                croppedCanvas.width = Math.max(1, Math.round(cropW));
-                croppedCanvas.height = Math.max(1, Math.round(cropH));
-                var croppedCtx = croppedCanvas.getContext('2d', { willReadFrequently: true });
-                croppedCtx.drawImage(canvas,
-                    Math.round(cropX), Math.round(cropY), Math.round(cropW), Math.round(cropH),
-                    0, 0, croppedCanvas.width, croppedCanvas.height
-                );
-                var texture = await buildBasemapGLTexture(croppedCanvas);
-                await _doubleRaf3d();
-                return { texture: texture, zoom: zoom, tilesX: tilesX, tilesY: tilesY, label: tileConfig.label };
-            }
-
-            /** Legacy XYZ via lon/lat (fallback only). */
-            async function fetchBasemapTilesLegacyLonLat() {
                 const gridData = terrain3DState.gridData;
                 if (!gridData) throw new Error('No grid data available');
 
@@ -37756,47 +37020,30 @@ function smoothChaikin(points) {
                 if (!bounds || bounds.minX == null) throw new Error('Grid data has no bounds');
 
                 // ── Resolve source projection from the actual data CRS ──
-                //    terrain3DState.coordinateSystem holds the EPSG code the survey data is in
-                //    (e.g. "EPSG:32736", "EPSG:32636", "EPSG:21096", etc.).
-                //    The DTM bounds (minX/minY/maxX/maxY) are easting/northing in that CRS.
-                //    We must reproject those coords to WGS84 to pick the correct tile coverage.
-                const dataCRS = terrain3DState.coordinateSystem || 'EPSG:32636';
-                // proj4 accepts EPSG codes if they have been pre-registered via proj4.defs()
-                const srcProj = dataCRS;
+                // terrain3DState.coordinateSystem holds the CRS of the uploaded survey data.
+                // proj4.defs() was called at startup for all supported EPSG codes.
+                const dataCRS = (terrain3DState.coordinateSystem || 'EPSG:32636').toUpperCase();
                 const proj4WGS84 = '+proj=longlat +datum=WGS84 +no_defs';
 
-                // ── Reproject all four axis-aligned bounds corners to WGS84 (avoids basemap/DTM
-                //     skew that occurs when reprojecting only [min, min] and [max, max]).
-                function transformPointTo4326(pt) {
-                    if (typeof ol !== 'undefined' && ol.proj) {
-                        try {
-                            return ol.proj.transform(pt, srcProj, 'EPSG:4326');
-                        } catch (e) { /* fall through to proj4 */ }
+                // ── Reproject corners to WGS84 ──
+                let lonMin, latMin, lonMax, latMax;
+                if (dataCRS === 'EPSG:4326') {
+                    // Already in WGS84 — bounds are lon/lat directly
+                    lonMin = bounds.minX; latMin = bounds.minY;
+                    lonMax = bounds.maxX; latMax = bounds.maxY;
+                } else {
+                    // Use proj4 with the registered EPSG code (all Uganda CRSes are pre-registered)
+                    const srcProjStr = proj4.defs(dataCRS);
+                    if (!srcProjStr) {
+                        throw new Error(`proj4 definition not found for CRS "${dataCRS}". Cannot reproject DTM bounds to WGS84.`);
                     }
-                    try {
-                        return proj4(srcProj, proj4WGS84, pt);
-                    } catch (e2) {
-                        const wm = '+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs';
-                        return proj4(wm, proj4WGS84, pt);
-                    }
-                }
-                const cornerPts = [
-                    [bounds.minX, bounds.minY],
-                    [bounds.maxX, bounds.minY],
-                    [bounds.minX, bounds.maxY],
-                    [bounds.maxX, bounds.maxY]
-                ];
-                let lonMin = Infinity, lonMax = -Infinity, latMin = Infinity, latMax = -Infinity;
-                for (const c of cornerPts) {
-                    const ll = transformPointTo4326(c);
-                    const lo = ll[0], la = ll[1];
-                    if (lo < lonMin) lonMin = lo;
-                    if (lo > lonMax) lonMax = lo;
-                    if (la < latMin) latMin = la;
-                    if (la > latMax) latMax = la;
+                    const sw = proj4(dataCRS, proj4WGS84, [bounds.minX, bounds.minY]);
+                    const ne = proj4(dataCRS, proj4WGS84, [bounds.maxX, bounds.maxY]);
+                    lonMin = sw[0]; latMin = sw[1];
+                    lonMax = ne[0]; latMax = ne[1];
                 }
 
-                console.log(`[3D Basemap] DTM extent WGS84: lon ${lonMin.toFixed(6)}..${lonMax.toFixed(6)}, lat ${latMin.toFixed(6)}..${latMax.toFixed(6)}`);
+                console.log(`[3D Basemap] CRS: ${dataCRS} → WGS84 extent: lon ${lonMin.toFixed(6)}..${lonMax.toFixed(6)}, lat ${latMin.toFixed(6)}..${latMax.toFixed(6)}`);
 
                 // ── Basemap tile config ──
                 const tileConfig = getBasemapTileConfig();
@@ -37809,9 +37056,6 @@ function smoothChaikin(points) {
                 else if (span > 0.05) zoom = Math.min(14, tileConfig.maxZoom);
                 else if (span > 0.01) zoom = Math.min(15, tileConfig.maxZoom);
                 else if (span > 0.005) zoom = Math.min(16, tileConfig.maxZoom);
-                if (tileConfig.esriTmsProbe) {
-                    zoom = Math.min(zoom, 17);
-                }
 
                 // ── Tile math helpers ──
                 function lonToTileX(lon, z) { return Math.floor((lon + 180) / 360 * Math.pow(2, z)); }
@@ -37847,68 +37091,12 @@ function smoothChaikin(points) {
 
                 console.log(`[3D Basemap] Using "${tileConfig.label}" z=${zoom}, ${tilesX}×${tilesY} = ${tilesX * tilesY} tiles`);
 
-                // Esri: pick slippy vs TMS Y by which probe returns a real image (not “data not available”).
-                let esriUseTmsYInPath = false;
-                if (tileConfig.esriTmsProbe) {
-                    try {
-                        const z0 = zoom;
-                        const yOsm = yMin;
-                        const x0 = xMin;
-                        const uOsm = tileConfig.urlFn(z0, yOsm, x0);
-                        const yTms = Math.pow(2, z0) - 1 - yOsm;
-                        const uTms = tileConfig.urlFn(z0, yTms, x0);
-
-                        async function esriProbeBad(u) {
-                            const a = new AbortController();
-                            const t = setTimeout(() => { try { a.abort(); } catch (e) { } }, 12000);
-                            try {
-                                const r = await fetch(u, { mode: 'cors', credentials: 'omit', cache: 'default', signal: a.signal });
-                                if (!r.ok) {
-                                    return true;
-                                }
-                                const blob = await r.blob();
-                                if (!blob || blob.size < 400) {
-                                    return true;
-                                }
-                                if (typeof createImageBitmap !== 'function') {
-                                    return false;
-                                }
-                                const bitmap = await createImageBitmap(blob);
-                                const bad = _isEsriStyleDataUnavailableBitmap(bitmap);
-                                if (typeof bitmap.close === 'function') {
-                                    try { bitmap.close(); } catch (e) { }
-                                }
-                                return bad;
-                            } catch (e) {
-                                return true;
-                            } finally {
-                                clearTimeout(t);
-                            }
-                        }
-
-                        const badO = await esriProbeBad(uOsm);
-                        const badT = await esriProbeBad(uTms);
-                        if (badO && !badT) {
-                            esriUseTmsYInPath = true;
-                            console.log('[3D Basemap] Esri: using TMS Y (slippy tile was a “not available” placeholder).');
-                        } else {
-                            esriUseTmsYInPath = false;
-                            console.log('[3D Basemap] Esri: using slippy Y (matches OpenLayers XYZ).');
-                        }
-                        if (badO && badT) {
-                            console.warn('[3D Basemap] Esri: both Y orders looked like placeholders at probe — try a lower zoom if the drape looks wrong.');
-                        }
-                    } catch (e) {
-                        console.warn('[3D Basemap] Esri Y order probe failed; using slippy Y.', e);
-                    }
-                }
-
                 // ── Stitch tiles ──
                 const tileSize = 256;
                 const canvas = document.createElement('canvas');
                 canvas.width = tilesX * tileSize;
                 canvas.height = tilesY * tileSize;
-                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                const ctx = canvas.getContext('2d');
 
                 // Fill with a dark background so failed tiles aren't transparent
                 ctx.fillStyle = '#1e293b';
@@ -37917,61 +37105,41 @@ function smoothChaikin(points) {
                 const loadingSubEl = document.getElementById('viewer3dLoadingSub');
                 let loaded = 0, failed = 0;
                 const totalTiles = tilesX * tilesY;
-                const isEsri3D = tileConfig.esriTmsProbe === true;
 
-                // Batched fetches: browsers only run ~6 concurrent connections per host; firing
-                // 64 fetches at once can stall or get slow responses. Small gaps between batches
-                // let tiles finish and reduce white/partial mosaics on slow links.
-                const tileJobs = [];
+                // Fetch all tiles in parallel (batched to avoid overwhelming the browser)
+                const promises = [];
                 for (let ty = yMin; ty <= yMax; ty++) {
                     for (let tx = xMin; tx <= xMax; tx++) {
-                        const yForPath = (isEsri3D && esriUseTmsYInPath)
-                            ? (Math.pow(2, zoom) - 1 - ty)
-                            : ty;
-                        tileJobs.push({
-                            url: tileConfig.urlFn(zoom, yForPath, tx),
-                            px: (tx - xMin) * tileSize,
-                            py: (ty - yMin) * tileSize
-                        });
-                    }
-                }
-                const batchSize = 6;
-                for (let i = 0; i < tileJobs.length; i += batchSize) {
-                    const chunk = tileJobs.slice(i, i + batchSize);
-                    await Promise.all(
-                        chunk.map((job) =>
-                            loadMapTileFor3DBasemap(job.url, tileConfig).then((source) => {
-                                try {
-                                    ctx.drawImage(source, job.px, job.py, tileSize, tileSize);
-                                } finally {
-                                    if (source && typeof source.close === 'function') {
-                                        try { source.close(); } catch (e) { }
-                                    }
-                                }
-                                loaded++;
-                                if (loadingSubEl) {
-                                    loadingSubEl.textContent =
+                        const url = tileConfig.urlFn(zoom, ty, tx);
+                        const px = (tx - xMin) * tileSize;
+                        const py = (ty - yMin) * tileSize;
+
+                        promises.push(
+                            new Promise((resolve) => {
+                                const img = new Image();
+                                img.crossOrigin = 'anonymous';
+                                img.onload = () => {
+                                    ctx.drawImage(img, px, py, tileSize, tileSize);
+                                    loaded++;
+                                    if (loadingSubEl) loadingSubEl.textContent =
                                         `${tileConfig.label} — ${loaded}/${totalTiles} tiles (z${zoom})`;
-                                }
-                                return true;
-                            }).catch((err) => {
-                                failed++;
-                                loaded++;
-                                if (typeof console !== 'undefined' && console.debug) {
-                                    console.debug('[3D Basemap] tile miss', err && err.message, job.url);
-                                }
-                                if (loadingSubEl) {
-                                    loadingSubEl.textContent =
+                                    resolve(true);
+                                };
+                                img.onerror = () => {
+                                    // Keep the dark fill for failed tiles
+                                    failed++;
+                                    loaded++;
+                                    if (loadingSubEl) loadingSubEl.textContent =
                                         `${tileConfig.label} — ${loaded}/${totalTiles} tiles (z${zoom})`;
-                                }
-                                return false;
+                                    resolve(false);
+                                };
+                                img.src = url;
                             })
-                        )
-                    );
-                    if (i + batchSize < tileJobs.length) {
-                        await new Promise((r) => setTimeout(r, 0));
+                        );
                     }
                 }
+
+                await Promise.all(promises);
 
                 if (failed === totalTiles) {
                     throw new Error(`All ${totalTiles} tiles failed to load for "${tileConfig.label}". Check network / CORS.`);
@@ -37997,24 +37165,28 @@ function smoothChaikin(points) {
                     return ((yTop - yPt) / (yTop - yBot)) * canvas.height;
                 }
 
-                let cropX = lonToPixel(lonMin);
-                let cropY = latToPixel(latMax);
-                let cropW = lonToPixel(lonMax) - cropX;
-                let cropH = latToPixel(latMin) - cropY;
-                if (cropW < 0) { cropX += cropW; cropW = Math.abs(cropW); }
-                if (cropH < 0) { cropY += cropH; cropH = Math.abs(cropH); }
+                const cropX = lonToPixel(lonMin);
+                const cropY = latToPixel(latMax);
+                const cropW = lonToPixel(lonMax) - cropX;
+                const cropH = latToPixel(latMin) - cropY;
 
                 const croppedCanvas = document.createElement('canvas');
                 croppedCanvas.width = Math.max(1, Math.round(cropW));
                 croppedCanvas.height = Math.max(1, Math.round(cropH));
-                const croppedCtx = croppedCanvas.getContext('2d', { willReadFrequently: true });
+                const croppedCtx = croppedCanvas.getContext('2d');
                 croppedCtx.drawImage(canvas,
                     Math.round(cropX), Math.round(cropY), Math.round(cropW), Math.round(cropH),
                     0, 0, croppedCanvas.width, croppedCanvas.height
                 );
 
-                const texture = await buildBasemapGLTexture(croppedCanvas);
-                await _doubleRaf3d();
+                // ── Create THREE.js texture ──
+                const texture = new THREE.CanvasTexture(croppedCanvas);
+                texture.minFilter = THREE.LinearFilter;
+                texture.magFilter = THREE.LinearFilter;
+                texture.wrapS = THREE.ClampToEdgeWrapping;
+                texture.wrapT = THREE.ClampToEdgeWrapping;
+                texture.needsUpdate = true;
+
                 return { texture, zoom, tilesX, tilesY, label: tileConfig.label };
             }
 
@@ -38029,40 +37201,29 @@ function smoothChaikin(points) {
                 if (viewer3D.basemapMesh) {
                     viewer3D.scene.remove(viewer3D.basemapMesh);
                     viewer3D.basemapMesh.geometry.dispose();
-                    detachBasemapMapFromMaterial(viewer3D.basemapMesh.material);
                     viewer3D.basemapMesh.material.dispose();
-                    viewer3D.basemapMesh = null;
                 }
 
-                // Clone terrain geometry and lift mesh slightly above the surface so the basemap
-                // drapes visibly (terrain + basemap previously shared identical z = unreadable blending).
+                // Clone the terrain geometry (it already has UVs)
                 const geo = viewer3D.terrainMesh.geometry.clone();
-                try {
-                    const pos = geo.attributes.position;
-                    const arr = pos.array.slice();
-                    const rg = terrain3DState.gridData;
-                    let elevSpan = Math.abs((terrain3DState.maxElevation || 100) -
-                        (terrain3DState.minElevation || 0));
-                    if (rg && rg.grid) elevSpan *= viewer3D.verticalExag || 1;
-                    const epsilon = Math.max(elevSpan * 0.0025, rg ? rg.cellSize * 0.15 : 0.15);
-                    for (let pi = 2; pi < arr.length; pi += 3) {
-                        arr[pi] += epsilon;
-                    }
-                    geo.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
-                } catch (_zOff) {}
+
+                // Flip V coordinate because the basemap image Y-axis is top-down
+                // but the terrain's Y-axis (row 0 = south) grows upward.
+                const uvAttr = geo.getAttribute('uv');
+                for (let i = 0; i < uvAttr.count; i++) {
+                    uvAttr.setY(i, 1.0 - uvAttr.getY(i));
+                }
+                uvAttr.needsUpdate = true;
 
                 const mat = new THREE.MeshBasicMaterial({
                     map: viewer3D.basemapTexture,
-                    color: 0xffffff,
                     transparent: true,
                     opacity: viewer3D.basemapBlend,
                     side: THREE.DoubleSide,
                     depthWrite: false,
                     polygonOffset: true,
                     polygonOffsetFactor: -1,
-                    polygonOffsetUnits: -1,
-                    // Exp2 white fog (scene.fog) was washing the drape to a solid white haze
-                    fog: false
+                    polygonOffsetUnits: -1
                 });
 
                 viewer3D.basemapMesh = new THREE.Mesh(geo, mat);
@@ -38075,18 +37236,15 @@ function smoothChaikin(points) {
              * Automatically re-fetches if the basemap type has changed since last load.
              */
             async function toggleBasemapDrape(enable) {
-                const mySerial = ++viewer3D.basemapLoadSerial;
                 const loadingEl = document.getElementById('viewer3dBasemapLoading');
                 const badgeEl = document.getElementById('viewer3dBasemapBadge');
                 const badgeNameEl = document.getElementById('viewer3dBasemapName');
-                if (typeof syncActiveBasemapFromMap === 'function') {
-                    syncActiveBasemapFromMap();
-                }
-                const currentBm = normalizeLegacyBasemapId(terrain3DState.activeBasemap) || 'Esri World Imagery';
+                const currentBm = terrain3DState.activeBasemap || 'esri';
 
                 if (enable) {
-                    if (currentBm === 'No Basemap' || currentBm === 'none') {
-                        showToast('No basemap selected. Choose a basemap in the layer switcher first.', 'warning');
+                    // "none" basemap — nothing to drape
+                    if (currentBm === 'none') {
+                        showToast('No basemap selected. Choose a basemap first.', 'warning');
                         const chk = document.getElementById('viewer3dShowBasemap');
                         if (chk) { chk.checked = false; viewer3D.showBasemap = false; }
                         document.getElementById('viewer3dBlendGroup').classList.remove('active');
@@ -38094,7 +37252,6 @@ function smoothChaikin(points) {
                         if (viewer3D.basemapMesh) {
                             viewer3D.scene.remove(viewer3D.basemapMesh);
                             viewer3D.basemapMesh.geometry.dispose();
-                            detachBasemapMapFromMaterial(viewer3D.basemapMesh.material);
                             viewer3D.basemapMesh.material.dispose();
                             viewer3D.basemapMesh = null;
                         }
@@ -38106,66 +37263,44 @@ function smoothChaikin(points) {
                     const needsRefetch = !viewer3D.basemapTexture || viewer3D.basemapCachedType !== currentBm;
 
                     if (needsRefetch) {
+                        // Dispose old texture
+                        if (viewer3D.basemapTexture) {
+                            viewer3D.basemapTexture.dispose();
+                            viewer3D.basemapTexture = null;
+                        }
                         if (viewer3D.basemapMesh) {
                             viewer3D.scene.remove(viewer3D.basemapMesh);
                             viewer3D.basemapMesh.geometry.dispose();
-                            detachBasemapMapFromMaterial(viewer3D.basemapMesh.material);
                             viewer3D.basemapMesh.material.dispose();
                             viewer3D.basemapMesh = null;
                         }
-                        if (viewer3D.basemapTexture) {
-                            dispose3DBasemapTexture(viewer3D.basemapTexture);
-                            viewer3D.basemapTexture = null;
-                        }
 
                         loadingEl.classList.remove('hidden');
-                        await _sleep3d(50);
-                        if (mySerial !== viewer3D.basemapLoadSerial) {
-                            loadingEl.classList.add('hidden');
-                            return;
-                        }
                         try {
                             const result = await fetchBasemapTiles();
-                            if (mySerial !== viewer3D.basemapLoadSerial) {
-                                dispose3DBasemapTexture(result.texture);
-                                loadingEl.classList.add('hidden');
-                                return;
-                            }
                             viewer3D.basemapTexture = result.texture;
                             viewer3D.basemapCachedType = currentBm;
-                            if (badgeNameEl) {
-                                badgeNameEl.textContent = result.label || currentBm;
-                            }
+                            // Update badge label
+                            if (badgeNameEl) badgeNameEl.textContent = result.label || currentBm;
                         } catch (err) {
                             console.error('Failed to load basemap:', err);
-                            if (mySerial === viewer3D.basemapLoadSerial) {
-                                showToast('Basemap loading failed: ' + err.message, 'error');
-                            }
+                            showToast('Basemap loading failed: ' + err.message, 'error');
                             loadingEl.classList.add('hidden');
                             const chk = document.getElementById('viewer3dShowBasemap');
                             if (chk) { chk.checked = false; viewer3D.showBasemap = false; }
                             document.getElementById('viewer3dBlendGroup').classList.remove('active');
                             return;
                         }
-                        if (mySerial === viewer3D.basemapLoadSerial) {
-                            loadingEl.classList.add('hidden');
-                        }
+                        loadingEl.classList.add('hidden');
                     }
 
-                    if (mySerial !== viewer3D.basemapLoadSerial) {
-                        return;
-                    }
                     applyBasemapMesh();
-                    prerender3DBasemapDrape();
-                    await _doubleRaf3d();
-                    prerender3DBasemapDrape();
                     badgeEl.classList.add('visible');
                 } else {
                     // Hide basemap mesh
                     if (viewer3D.basemapMesh) {
                         viewer3D.scene.remove(viewer3D.basemapMesh);
                         viewer3D.basemapMesh.geometry.dispose();
-                        detachBasemapMapFromMaterial(viewer3D.basemapMesh.material);
                         viewer3D.basemapMesh.material.dispose();
                         viewer3D.basemapMesh = null;
                     }
@@ -38732,19 +37867,17 @@ function smoothChaikin(points) {
             }
 
             function close3DViewer() {
-                viewer3D.basemapLoadSerial++;
                 viewer3D.isOpen = false;
                 if (viewer3D.animationId) cancelAnimationFrame(viewer3D.animationId);
                 // Clean up basemap resources
                 if (viewer3D.basemapMesh) {
                     viewer3D.scene.remove(viewer3D.basemapMesh);
                     viewer3D.basemapMesh.geometry.dispose();
-                    detachBasemapMapFromMaterial(viewer3D.basemapMesh.material);
                     viewer3D.basemapMesh.material.dispose();
                     viewer3D.basemapMesh = null;
                 }
                 if (viewer3D.basemapTexture) {
-                    dispose3DBasemapTexture(viewer3D.basemapTexture);
+                    viewer3D.basemapTexture.dispose();
                     viewer3D.basemapTexture = null;
                 }
                 viewer3D.showBasemap = false;
@@ -41147,7 +40280,39 @@ function smoothChaikin(points) {
                 document.getElementById('simplifyToleranceValue').textContent = parseFloat(this.value).toFixed(1) + 'm';
             });
 
-            // Basemap: opacity only (which basemap is active comes from the layer switcher + syncActiveBasemapFromMap)
+            // Basemap handlers
+            document.querySelectorAll('input[name="basemap"]').forEach(radio => {
+                radio.addEventListener('change', function () {
+                    terrain3DState.activeBasemap = this.value;
+
+                    // Update basemap styling
+                    document.querySelectorAll('.basemap-option').forEach(opt => {
+                        opt.classList.remove('selected');
+                    });
+                    this.closest('.basemap-option').classList.add('selected');
+
+                    // Apply basemap visibility
+                    if (googleHybrid) googleHybrid.setVisible(this.value === 'google');
+                    if (esriSatellite) esriSatellite.setVisible(this.value === 'esri');
+                    if (osmLayer) osmLayer.setVisible(this.value === 'osm');
+
+                    // Enable/disable opacity slider
+                    const opacityWrapper = document.getElementById('basemapOpacityWrapper');
+                    if (opacityWrapper) {
+                        opacityWrapper.style.opacity = this.value === 'none' ? '0.5' : '1';
+                    }
+
+                    if (typeof refreshSurveyPolygonFeatureStyles === 'function') {
+                        refreshSurveyPolygonFeatureStyles();
+                    }
+
+                    // If 3D basemap drape is currently active, re-fetch with the new basemap
+                    if (viewer3D.showBasemap && viewer3D.basemapMesh) {
+                        toggleBasemapDrape(true);
+                    }
+                });
+            });
+
             document.getElementById('basemapOpacity')?.addEventListener('input', function () {
                 terrain3DState.basemapOpacity = parseFloat(this.value) / 100;
                 document.getElementById('basemapOpacityValue').textContent = this.value + '%';
