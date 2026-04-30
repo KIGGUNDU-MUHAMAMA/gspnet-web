@@ -40225,385 +40225,700 @@ function smoothChaikin(points) {
                     }
                 });
             });
-            // ─── DEM Controller ──────────────────────────────────────────────
+            // DEM Controller - Full Wizard
             const demController = (() => {
-                // Internal state
-                let _currentMode = null; // 'dem' | 'demcsv'
-                let _extentWatcher = null; // interval id
+                let _mode = null; // 'dem' | 'demcsv'
+                let _demExtent = null; // OL Feature
+                let _demExtentLayer = null;
+                let _csvLayer = null;
+                let _csvPoints = []; // [{lat,lon,elev,desc}]
+                let _demGrid = null;
+                let _drawInteraction = null;
+                let _selectInteraction = null;
+                let _snapInteractions = [];
 
-                // ---- UI helpers ------------------------------------------------
-                function _elById(id) { return document.getElementById(id); }
+                const _el = id => document.getElementById(id);
+                const _show = (id, v) => { const e = _el(id); if(e) e.style.display = v ? 'block' : 'none'; };
+                const _cls = (id, cls, add) => { const e = _el(id); if(e) { add ? e.classList.add(cls) : e.classList.remove(cls); }};
+                const _txt = (id, t) => { const e = _el(id); if(e) e.textContent = t; };
 
-                function _setFetchEnabled(enabled) {
-                    const btn = _elById('fetchDEMBtn');
-                    const hint = _elById('demFetchHint');
-                    if (!btn) return;
-                    btn.disabled = !enabled;
-                    if (hint) {
-                        hint.textContent = enabled
-                            ? 'Click to download elevation data for the drawn extent'
-                            : 'Draw an extent polygon to enable this button';
+                // Step management
+                function _setStep(stepId, state) { // state: 'active','done','locked',''
+                    const el = _el(stepId);
+                    if (!el) return;
+                    el.classList.remove('step-active','step-done','step-locked');
+                    if (state) el.classList.add('step-' + state);
+                }
+
+                function _showWizard(mode) {
+                    _show('demWizardA', mode === 'dem');
+                    _show('demWizardB', mode === 'demcsv');
+                }
+
+                // Area calc
+                function _areaKm2(s,w,n,e) {
+                    const R=6371; const lat=(s+n)/2*Math.PI/180;
+                    return Math.abs((e-w)*Math.PI/180*R*Math.cos(lat)*(n-s)*Math.PI/180*R);
+                }
+                function _fmtArea(km2) { return km2 < 1 ? (km2*1e6).toFixed(0)+' m²' : km2.toFixed(3)+' km²'; }
+                function _dimKm(s,w,n,e) {
+                    const R=6371; const lat=(s+n)/2*Math.PI/180;
+                    const ww=Math.abs(e-w)*Math.PI/180*R*Math.cos(lat);
+                    const hh=Math.abs(n-s)*Math.PI/180*R;
+                    return {w:ww,h:hh};
+                }
+
+                // DEM Extent Layer (blue dashed, separate from processing extent)
+                function _initDemExtentLayer() {
+                    if (_demExtentLayer) return;
+                    _demExtentLayer = new ol.layer.Vector({
+                        title: 'DEM Extent',
+                        source: new ol.source.Vector(),
+                        style: new ol.style.Style({
+                            stroke: new ol.style.Stroke({ color: '#3b82f6', width: 2, lineDash: [8,4] }),
+                            fill: new ol.style.Fill({ color: 'rgba(59,130,246,0.08)' }),
+                            image: new ol.style.Circle({ radius: 4, fill: new ol.style.Fill({ color: '#3b82f6' }) })
+                        }),
+                        zIndex: 998
+                    });
+                    map.addLayer(_demExtentLayer);
+                }
+
+                function _getDemExtentBounds() {
+                    if (!_demExtent) return null;
+                    const geom = _demExtent.getGeometry();
+                    if (!geom) return null;
+                    const ext = geom.getExtent();
+                    const sw = ol.proj.transform([ext[0],ext[1]],'EPSG:3857','EPSG:4326');
+                    const ne = ol.proj.transform([ext[2],ext[3]],'EPSG:3857','EPSG:4326');
+                    return { south:sw[1], west:sw[0], north:ne[1], east:ne[0] };
+                }
+
+                function _updateExtentUI(suffix) {
+                    const bounds = _getDemExtentBounds();
+                    if (!bounds) return;
+                    const km2 = _areaKm2(bounds.south, bounds.west, bounds.north, bounds.east);
+                    const dim = _dimKm(bounds.south, bounds.west, bounds.north, bounds.east);
+                    _txt('demExtArea'+suffix, _fmtArea(km2));
+                    _txt('demExtWidth'+suffix, dim.w.toFixed(2)+' km');
+                    _txt('demExtHeight'+suffix, dim.h.toFixed(2)+' km');
+                    _cls('demExtentInfo'+suffix, 'visible', true);
+                    // Check 25km2 limit
+                    const overLimit = km2 > 25;
+                    _cls('demAreaWarning'+suffix, 'visible', overLimit);
+                    return !overLimit;
+                }
+
+                function _clearDemExtent() {
+                    if (_demExtentLayer) _demExtentLayer.getSource().clear();
+                    _demExtent = null;
+                    _removeDrawInteractions();
+                }
+
+                function _removeDrawInteractions() {
+                    if (_drawInteraction) { map.removeInteraction(_drawInteraction); _drawInteraction = null; }
+                    if (_selectInteraction) { map.removeInteraction(_selectInteraction); _selectInteraction = null; }
+                    _snapInteractions.forEach(s => map.removeInteraction(s));
+                    _snapInteractions = [];
+                }
+
+                function _addSnapInteractions(snapCsv, snapLayers) {
+                    // Snap to CSV points
+                    if (snapCsv && _csvLayer && _csvLayer.getVisible()) {
+                        const s = new ol.interaction.Snap({ source: _csvLayer.getSource(), pixelTolerance: 20 });
+                        map.addInteraction(s); _snapInteractions.push(s);
                     }
-                }
-
-                function _showBanner(id, show) {
-                    const el = _elById(id);
-                    if (el) el.style.display = show ? 'flex' : 'none';
-                }
-
-                function _setProgress(show, text) {
-                    const el = _elById('demFetchProgress');
-                    const txt = _elById('demProgressText');
-                    if (el) el.style.display = show ? 'block' : 'none';
-                    if (txt && text !== undefined) txt.textContent = text;
-                }
-
-                function _showResultCard(show) {
-                    const el = _elById('demResultCard');
-                    if (el) el.style.display = show ? 'block' : 'none';
-                }
-
-                function _showExtentNotice(show) {
-                    const el = _elById('demExtentNotice');
-                    if (el) el.style.display = show ? 'block' : 'none';
-                }
-
-                function _showCalibrationInfo(show) {
-                    const el = _elById('demCalibrationInfo');
-                    if (el) el.style.display = show ? 'block' : 'none';
-                }
-
-                function _setStat(id, val) {
-                    const el = _elById(id);
-                    if (el) el.textContent = val;
-                }
-
-                function _populateResultCard(info) {
-                    _setStat('demStatRes', info.resolution || '~30m');
-                    _setStat('demStatArea', info.area || '—');
-                    _setStat('demStatMin', info.minElev !== undefined ? info.minElev.toFixed(2) + ' m' : '—');
-                    _setStat('demStatMax', info.maxElev !== undefined ? info.maxElev.toFixed(2) + ' m' : '—');
-                    _setStat('demStatPoints', info.points ? info.points.toLocaleString() : '—');
-                    _setStat('demStatSource', info.source || '—');
-                    const badge = _elById('demResultSourceBadge');
-                    if (badge) {
-                        badge.textContent = info.source || 'Unknown';
-                        badge.style.cssText = 'background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;';
+                    // Snap to terrain points
+                    if (snapLayers && terrain3DState.pointsLayer && terrain3DState.pointsLayer.getVisible()) {
+                        const s = new ol.interaction.Snap({ source: terrain3DState.pointsLayer.getSource(), pixelTolerance: 20 });
+                        map.addInteraction(s); _snapInteractions.push(s);
                     }
-                }
-
-                // ---- Extent helper ------------------------------------------------
-                function _getProcessingExtentBounds() {
-                    // Try terrain3DState processingExtent layer first
-                    if (window.terrain3DState && terrain3DState.processingExtentLayer) {
-                        const src = terrain3DState.processingExtentLayer.getSource();
-                        if (src && src.getFeatures().length > 0) {
-                            const ext = src.getExtent(); // [minX, minY, maxX, maxY] in map proj
-                            // Convert OL extent to WGS-84 BBOX
-                            const ol = window.ol;
-                            if (ol && ol.proj) {
-                                const sw = ol.proj.transform([ext[0], ext[1]], 'EPSG:3857', 'EPSG:4326');
-                                const ne = ol.proj.transform([ext[2], ext[3]], 'EPSG:3857', 'EPSG:4326');
-                                return { south: sw[1], west: sw[0], north: ne[1], east: ne[0] };
+                    // Snap to GSPNET layers
+                    if (snapLayers && typeof gspnetLayers !== 'undefined') {
+                        gspnetLayers.filter(l => l.getVisible()).forEach(layer => {
+                            if (layer.getSource && layer.getSource()) {
+                                const s = new ol.interaction.Snap({ source: layer.getSource(), pixelTolerance: 20 });
+                                map.addInteraction(s); _snapInteractions.push(s);
                             }
-                        }
+                        });
                     }
-                    return null;
+                    // Snap to survey polygons
+                    if (snapLayers && typeof polygonLayers !== 'undefined') {
+                        Object.values(polygonLayers).filter(l => l.getVisible()).forEach(layer => {
+                            if (layer.getSource && layer.getSource()) {
+                                const s = new ol.interaction.Snap({ source: layer.getSource(), pixelTolerance: 20 });
+                                map.addInteraction(s); _snapInteractions.push(s);
+                            }
+                        });
+                    }
                 }
 
-                function _startExtentWatcher() {
-                    if (_extentWatcher) clearInterval(_extentWatcher);
-                    _extentWatcher = setInterval(() => {
-                        const bounds = _getProcessingExtentBounds();
-                        const hasExtent = bounds !== null;
-                        _setFetchEnabled(hasExtent);
-                        _showExtentNotice(!hasExtent);
-                    }, 1000);
-                }
-
-                function _stopExtentWatcher() {
-                    if (_extentWatcher) { clearInterval(_extentWatcher); _extentWatcher = null; }
-                }
-
-                // ---- Area helper ------------------------------------------------
-                function _formatArea(south, west, north, east) {
-                    const R = 6371000;
-                    const lat = (south + north) / 2 * Math.PI / 180;
-                    const w = Math.abs(east - west) * Math.PI / 180 * R * Math.cos(lat);
-                    const h = Math.abs(north - south) * Math.PI / 180 * R;
-                    const m2 = w * h;
-                    return m2 < 1e6 ? m2.toFixed(0) + ' m²' : (m2 / 1e6).toFixed(3) + ' km²';
-                }
-
-                // ---- DEM fetch via Supabase edge function (key never exposed to browser) ----
-                async function _fetchViaEdgeFunction(demtype, south, west, north, east) {
-                    const edgeUrl = `${window.supabaseUrl}/functions/v1/terrain-processor`;
-                    const anonKey = window.supabaseAnonKey || (window.supabase && window.supabase.supabaseKey) || '';
-                    const resp = await fetch(edgeUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'apikey': anonKey,
-                            'Authorization': `Bearer ${anonKey}`
-                        },
-                        body: JSON.stringify({
-                            bbox: { minLat: south, maxLat: north, minLon: west, maxLon: east },
-                            demtype
+                // Draw extent
+                function _startDemDraw(suffix) {
+                    _initDemExtentLayer();
+                    _clearDemExtent();
+                    const snapCsv = _el('demSnapCsvPoints' + (suffix==='B'?'B':'')); 
+                    const snapLay = _el('demSnapActiveLayers') || _el('demSnapLayersB');
+                    _drawInteraction = new ol.interaction.Draw({
+                        source: _demExtentLayer.getSource(),
+                        type: 'Polygon',
+                        style: new ol.style.Style({
+                            stroke: new ol.style.Stroke({ color: '#3b82f6', width: 2, lineDash: [8,4] }),
+                            fill: new ol.style.Fill({ color: 'rgba(59,130,246,0.08)' }),
+                            image: new ol.style.Circle({ radius: 5, fill: new ol.style.Fill({ color: '#3b82f6' }) })
                         })
                     });
-
-                    if (resp.status === 503) {
-                        // Edge function signals all OT sources exhausted — use OTD fallback
-                        throw new Error('all_sources_unavailable');
-                    }
-
-                    if (!resp.ok) {
-                        const txt = await resp.text().catch(() => '');
-                        throw new Error(`Edge function HTTP ${resp.status}: ${txt.substring(0, 150)}`);
-                    }
-
-                    // Read metadata headers
-                    const sourceType  = resp.headers.get('X-DEM-Source') || demtype;
-                    const sourceLabel = resp.headers.get('X-DEM-Source-Label') || sourceType;
-                    const isFallback  = resp.headers.get('X-DEM-Fallback') === 'true';
-                    const buf = await resp.arrayBuffer();
-
-                    return { buf, sourceType, sourceLabel, isFallback };
+                    map.addInteraction(_drawInteraction);
+                    _addSnapInteractions(
+                        snapCsv ? snapCsv.checked : true,
+                        snapLay ? snapLay.checked : true
+                    );
+                    _drawInteraction.on('drawend', function(evt) {
+                        _demExtent = evt.feature;
+                        _demExtent.set('type','dem_extent');
+                        _removeDrawInteractions();
+                        const withinLimit = _updateExtentUI(suffix);
+                        _onExtentSet(suffix, withinLimit);
+                        showToast('DEM extent defined.', 'success');
+                    });
+                    showToast('Click map to draw DEM extent polygon. Double-click to finish.', 'info');
                 }
 
-                // ---- OpenTopoData point sampling (last-resort fallback) ----------
-                async function _fetchOpenTopoDataPoints(south, west, north, east) {
-                    const step = 0.0002694; // ~30m in degrees at equator
-                    const lats = [], lons = [], elevs = [];
-                    for (let lat = south; lat <= north; lat += step * 3) { // coarser grid for speed
-                        for (let lon = west; lon <= east; lon += step * 3) {
-                            lats.push(lat); lons.push(lon);
-                        }
+                // Select extent from layer
+                function _startDemSelect(suffix) {
+                    _initDemExtentLayer();
+                    _clearDemExtent();
+                    const selectableLayers = [];
+                    if (typeof gspnetLayers !== 'undefined') gspnetLayers.forEach(l => { if(l.getVisible()) selectableLayers.push(l); });
+                    if (typeof polygonLayers !== 'undefined') Object.values(polygonLayers).forEach(l => { if(l.getVisible()) selectableLayers.push(l); });
+                    if (selectableLayers.length === 0) { showToast('No visible polygon layers to select from.','warning'); return; }
+                    _selectInteraction = new ol.interaction.Select({
+                        layers: selectableLayers,
+                        toggleCondition: ol.events.condition.click,
+                        style: null,
+                        filter: f => { const g=f.getGeometry(); return g && (g.getType()==='Polygon'||g.getType()==='MultiPolygon'); }
+                    });
+                    _selectInteraction.getFeatures().on('add', function() {
+                        const sel = _selectInteraction.getFeatures().getArray();
+                        if (sel.length === 0) return;
+                        _demExtentLayer.getSource().clear();
+                        const feat = sel[sel.length-1];
+                        const clone = feat.clone();
+                        clone.set('type','dem_extent');
+                        clone.setStyle(new ol.style.Style({
+                            stroke: new ol.style.Stroke({ color: '#3b82f6', width: 2, lineDash: [8,4] }),
+                            fill: new ol.style.Fill({ color: 'rgba(59,130,246,0.08)' })
+                        }));
+                        _demExtentLayer.getSource().addFeature(clone);
+                        _demExtent = clone;
+                        map.removeInteraction(_selectInteraction); _selectInteraction = null;
+                        const withinLimit = _updateExtentUI(suffix);
+                        _onExtentSet(suffix, withinLimit);
+                        showToast('DEM extent selected from layer.', 'success');
+                    });
+                    map.addInteraction(_selectInteraction);
+                    showToast('Click a polygon on the map to use as DEM extent.', 'info');
+                }
+
+                // Step flow callbacks
+                function _onExtentSet(suffix, withinLimit) {
+                    const clearBtn = _el('demClearExtentBtn' + (suffix==='B'?'B':''));
+                    if (clearBtn) { clearBtn.disabled = false; }
+                    if (suffix === 'A') {
+                        _setStep('demStepA2','done');
+                        if (withinLimit) { _setStep('demStepA3','active'); _el('fetchDEMBtn').disabled = false; }
+                        else { _setStep('demStepA3','locked'); }
+                    } else {
+                        _setStep('demStepB3','done');
+                        if (withinLimit) { _setStep('demStepB4','active'); _el('fetchCalibrateDEMBtn').disabled = false; }
+                        else { _setStep('demStepB4','locked'); }
                     }
-                    // OpenTopoData allows 100 points per call
-                    const chunkSize = 100;
-                    for (let i = 0; i < lats.length; i += chunkSize) {
-                        const chunk = [];
-                        for (let j = i; j < Math.min(i + chunkSize, lats.length); j++) {
-                            chunk.push({ latitude: lats[j], longitude: lons[j] });
-                        }
-                        const resp = await fetch('https://api.opentopodata.org/v1/srtm30m', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ locations: chunk })
+                    // Also set as processing extent for DTM generation
+                    if (_demExtent && terrain3DState) {
+                        terrain3DState.customExtent = _demExtent;
+                        terrain3DState.useCustomExtent = true;
+                    }
+                }
+
+                function _onClearExtent(suffix) {
+                    _clearDemExtent();
+                    _cls('demExtentInfo'+suffix, 'visible', false);
+                    _cls('demAreaWarning'+suffix, 'visible', false);
+                    const clearBtn = _el('demClearExtentBtn' + (suffix==='B'?'B':''));
+                    if (clearBtn) clearBtn.disabled = true;
+                    if (suffix === 'A') {
+                        _setStep('demStepA2','');
+                        _setStep('demStepA3','locked');
+                        _el('fetchDEMBtn').disabled = true;
+                        _show('demResultCard', false);
+                        _cls('demProceedBtnA','visible', false);
+                    } else {
+                        _setStep('demStepB3','');
+                        _setStep('demStepB4','locked');
+                        _el('fetchCalibrateDEMBtn').disabled = true;
+                        _show('demResultCardB', false);
+                        _cls('demProceedBtnB','visible', false);
+                    }
+                }
+
+                // CSV Layer for Mode B
+                function _renderCsvLayer() {
+                    if (_csvLayer) { map.removeLayer(_csvLayer); _csvLayer = null; }
+                    if (_csvPoints.length === 0) return;
+                    const src = new ol.source.Vector();
+                    _csvPoints.forEach((pt, i) => {
+                        const f = new ol.Feature({
+                            geometry: new ol.geom.Point(ol.proj.fromLonLat([pt.lon, pt.lat])),
+                            name: pt.desc || ('P'+(i+1)),
+                            elev: pt.elev
                         });
-                        if (!resp.ok) throw new Error(`OTD HTTP ${resp.status}`);
-                        const data = await resp.json();
-                        data.results.forEach((r, ri) => {
-                            if (r.elevation !== null) {
-                                elevs.push({ lat: lats[i + ri], lon: lons[i + ri], elev: r.elevation });
+                        src.addFeature(f);
+                    });
+                    _csvLayer = new ol.layer.Vector({
+                        title: 'DEM Calibration Points',
+                        source: src,
+                        zIndex: 999,
+                        style: function(feature, res) {
+                            const styles = [new ol.style.Style({
+                                image: new ol.style.Circle({
+                                    radius: 5,
+                                    fill: new ol.style.Fill({ color: '#f97316' }),
+                                    stroke: new ol.style.Stroke({ color: '#000', width: 1 })
+                                })
+                            })];
+                            if (res < 10) { // show labels at high zoom
+                                styles.push(new ol.style.Style({
+                                    text: new ol.style.Text({
+                                        text: (feature.get('name')||'') + ' ' + (feature.get('elev')||'').toString().substring(0,7) + 'm',
+                                        offsetY: -14, font: '11px sans-serif',
+                                        fill: new ol.style.Fill({ color: '#7c2d12' }),
+                                        stroke: new ol.style.Stroke({ color: '#fff', width: 3 })
+                                    })
+                                }));
                             }
+                            return styles;
+                        }
+                    });
+                    map.addLayer(_csvLayer);
+                    // Zoom to points
+                    const ext = src.getExtent();
+                    if (ext && isFinite(ext[0])) map.getView().fit(ext, { padding: [60,60,60,60], maxZoom: 17 });
+                }
+
+                function _toggleCsvLayer() {
+                    if (!_csvLayer) return;
+                    const vis = _csvLayer.getVisible();
+                    _csvLayer.setVisible(!vis);
+                    const btn = _el('demCsvLayerToggleBtn');
+                    if (btn) {
+                        btn.innerHTML = vis ? '<i class="fas fa-eye-slash"></i> Show CSV Preview Layer' : '<i class="fas fa-eye"></i> Hide CSV Preview Layer';
+                        btn.classList.toggle('layer-hidden', vis);
+                    }
+                }
+
+                // CSV parsing
+                function _parseCsv(text, crs) {
+                    const lines = text.trim().split(/\r?\n/);
+                    if (lines.length < 2) throw new Error('CSV has no data rows');
+                    const hdr = lines[0].split(',').map(h => h.trim().toLowerCase());
+                    // Find columns
+                    const eiE = hdr.findIndex(h => h.includes('easting') || h === 'e' || h === 'x');
+                    const eiN = hdr.findIndex(h => h.includes('northing') || h === 'n' || h === 'y');
+                    let eiZ = hdr.findIndex(h => h === 'elevation' || h === 'elev' || h === 'z' || h === 'height');
+                    const eiD = hdr.findIndex(h => h === 'description' || h === 'desc' || h === 'name' || h === 'point');
+                    // Ambiguous elevation columns
+                    const zCandidates = hdr.map((h,i) => ({h,i})).filter(x => ['elevation','elev','z','height'].includes(x.h));
+                    return { hdr, eiE, eiN, eiZ, eiD, zCandidates, lines };
+                }
+
+                function _buildCsvPoints(parsed, elevIdx, crs) {
+                    const { lines, hdr, eiE, eiN, eiD } = parsed;
+                    if (eiE < 0 || eiN < 0 || elevIdx < 0) throw new Error('Cannot find Easting/Northing/Elevation columns');
+                    const pts = [];
+                    const isLatLon = crs === 'EPSG:4326';
+                    for (let i = 1; i < lines.length; i++) {
+                        const cols = lines[i].split(',').map(c => c.trim());
+                        const e = parseFloat(cols[eiE]), n = parseFloat(cols[eiN]), z = parseFloat(cols[elevIdx]);
+                        if (isNaN(e) || isNaN(n) || isNaN(z)) continue;
+                        let lat, lon;
+                        if (isLatLon) { lat = n; lon = e; }
+                        else {
+                            // Project UTM to WGS84 via OL
+                            const wgs = ol.proj.transform([e, n], crs, 'EPSG:4326');
+                            lon = wgs[0]; lat = wgs[1];
+                        }
+                        pts.push({ lat, lon, elev: z, desc: eiD >= 0 ? cols[eiD] : ('P'+(i)) });
+                    }
+                    return pts;
+                }
+
+                function _handleCsvUpload(file) {
+                    const reader = new FileReader();
+                    reader.onload = function(evt) {
+                        try {
+                            const crs = (_el('demCsvCoordSystem') || {}).value || 'EPSG:32636';
+                            const parsed = _parseCsv(evt.target.result, crs);
+                            // Auto-detect elev column
+                            let elevIdx = parsed.eiZ;
+                            if (parsed.zCandidates.length > 1) {
+                                // Show picker
+                                const sel = _el('demCsvElevCol');
+                                sel.innerHTML = '';
+                                parsed.zCandidates.forEach(c => {
+                                    const o = document.createElement('option');
+                                    o.value = c.i; o.textContent = parsed.hdr[c.i];
+                                    sel.appendChild(o);
+                                });
+                                _el('demCsvElevColRow').style.display = 'block';
+                                sel.onchange = function() {
+                                    _rebuildFromCsv(parsed, parseInt(this.value), crs, file.name);
+                                };
+                                elevIdx = parsed.zCandidates[0].i;
+                            } else {
+                                _el('demCsvElevColRow').style.display = 'none';
+                            }
+                            _rebuildFromCsv(parsed, elevIdx, crs, file.name);
+                        } catch (err) {
+                            showToast('CSV parse error: ' + err.message, 'error');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+
+                function _rebuildFromCsv(parsed, elevIdx, crs, fname) {
+                    _csvPoints = _buildCsvPoints(parsed, elevIdx, crs);
+                    if (_csvPoints.length === 0) { showToast('No valid points found in CSV', 'error'); return; }
+                    // Update info card
+                    _txt('demCsvFileName', fname);
+                    _txt('demCsvPointCount', _csvPoints.length.toLocaleString());
+                    const elevs = _csvPoints.map(p => p.elev);
+                    _txt('demCsvElevRange', Math.min(...elevs).toFixed(2) + ' - ' + Math.max(...elevs).toFixed(2) + ' m');
+                    _txt('demCsvCols', parsed.hdr.join(', '));
+                    _cls('demCsvInfoCard', 'visible', true);
+                    _cls('demCsvLayerToggleBtn', 'visible', true);
+                    // Render on map
+                    _renderCsvLayer();
+                    // Store for calibration
+                    terrain3DState.csvPoints = _csvPoints;
+                    // Unlock step B2
+                    _setStep('demStepB1', 'done');
+                    _setStep('demStepB2', 'active');
+                    showToast(_csvPoints.length + ' control points loaded and plotted.', 'success');
+                }
+
+                // Edge function fetch
+                async function _fetchViaEdge(demtype, s, w, n, e) {
+                    const url = `${window.supabaseUrl}/functions/v1/terrain-processor`;
+                    const key = window.supabaseAnonKey || (window.supabase && window.supabase.supabaseKey) || '';
+                    const resp = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type':'application/json', 'apikey':key, 'Authorization':'Bearer '+key },
+                        body: JSON.stringify({ bbox:{minLat:s,maxLat:n,minLon:w,maxLon:e}, demtype })
+                    });
+                    if (resp.status === 503) throw new Error('all_sources_unavailable');
+                    if (!resp.ok) { const t = await resp.text().catch(()=>''); throw new Error('HTTP '+resp.status+': '+t.substring(0,120)); }
+                    return {
+                        buf: await resp.arrayBuffer(),
+                        srcType: resp.headers.get('X-DEM-Source') || demtype,
+                        srcLabel: resp.headers.get('X-DEM-Source-Label') || demtype,
+                        fallback: resp.headers.get('X-DEM-Fallback') === 'true'
+                    };
+                }
+
+                // Parse GeoTIFF
+                async function _parseGeoTiff(buffer) {
+                    if (!window.GeoTIFF) {
+                        await new Promise((res,rej) => {
+                            const s = document.createElement('script');
+                            s.src = 'https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js';
+                            s.onload = res; s.onerror = rej; document.head.appendChild(s);
                         });
-                        _setProgress(true, `Point sampling… ${Math.min(i + chunkSize, lats.length)}/${lats.length} pts`);
-                        await new Promise(r => setTimeout(r, 300)); // rate-limit
+                    }
+                    const tiff = await GeoTIFF.fromArrayBuffer(buffer);
+                    const img = await tiff.getImage();
+                    const data = await img.readRasters();
+                    return { width: img.getWidth(), height: img.getHeight(), bbox: img.getBoundingBox(), elevData: data[0] };
+                }
+
+                function _buildGrid(width, height, bbox, elevData) {
+                    const grid = [];
+                    const lonStep = (bbox[2]-bbox[0])/width, latStep = (bbox[3]-bbox[1])/height;
+                    for (let r=0;r<height;r++) for (let c=0;c<width;c++) {
+                        const e = elevData[r*width+c];
+                        if (e > -9000) grid.push({ lat:bbox[3]-latStep*(r+0.5), lon:bbox[0]+lonStep*(c+0.5), elev:e });
+                    }
+                    return grid;
+                }
+
+                // OpenTopoData fallback
+                async function _fetchOTD(s,w,n,e, progressId) {
+                    const step=0.0002694*3, lats=[], lons=[], elevs=[];
+                    for (let la=s;la<=n;la+=step) for (let lo=w;lo<=e;lo+=step) { lats.push(la); lons.push(lo); }
+                    for (let i=0;i<lats.length;i+=100) {
+                        const chunk = [];
+                        for (let j=i;j<Math.min(i+100,lats.length);j++) chunk.push({latitude:lats[j],longitude:lons[j]});
+                        const r = await fetch('https://api.opentopodata.org/v1/srtm30m', {
+                            method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({locations:chunk})
+                        });
+                        if (!r.ok) throw new Error('OTD HTTP '+r.status);
+                        const d = await r.json();
+                        d.results.forEach((v,ri) => { if(v.elevation!==null) elevs.push({lat:lats[i+ri],lon:lons[i+ri],elev:v.elevation}); });
+                        _txt(progressId, 'Point sampling: '+Math.min(i+100,lats.length)+'/'+lats.length+' pts');
+                        await new Promise(r=>setTimeout(r,300));
                     }
                     return elevs;
                 }
 
-                // ---- Parse GeoTIFF via geotiff.js (CDN loaded lazily) -----------
-                async function _parseGeoTiff(buffer) {
-                    // Ensure geotiff.js is available
-                    if (!window.GeoTIFF) {
-                        await new Promise((resolve, reject) => {
-                            const s = document.createElement('script');
-                            s.src = 'https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js';
-                            s.onload = resolve; s.onerror = reject;
-                            document.head.appendChild(s);
-                        });
-                    }
-                    const tiff = await GeoTIFF.fromArrayBuffer(buffer);
-                    const image = await tiff.getImage();
-                    const data = await image.readRasters();
-                    const width = image.getWidth();
-                    const height = image.getHeight();
-                    const bbox = image.getBoundingBox(); // [west, south, east, north]
-                    const elevData = data[0]; // Float32 or Int16
-                    return { width, height, bbox, elevData };
-                }
-
-                // ---- IDW Residual Correction (DEM+CSV calibration) --------------
-                function _idwResidualCorrection(demGrid, csvPoints, power) {
-                    power = power || 2;
-                    // demGrid: array of {lat, lon, elev}, csvPoints: array of {lat, lon, elev}
-                    if (!csvPoints || csvPoints.length === 0) return demGrid;
-
-                    // For each DEM point, interpolate the residual from CSV control points
-                    return demGrid.map(pt => {
-                        // Find DEM elevation at each CSV point via nearest-neighbor
-                        // Build residuals: residual = survey_elev - dem_elev at control pt
-                        const residuals = csvPoints.map(cp => {
-                            // Find nearest DEM point
-                            let best = demGrid[0], bestD = Infinity;
-                            demGrid.forEach(dp => {
-                                const d = (dp.lat - cp.lat) ** 2 + (dp.lon - cp.lon) ** 2;
-                                if (d < bestD) { bestD = d; best = dp; }
-                            });
-                            return { lat: cp.lat, lon: cp.lon, res: cp.elev - best.elev };
-                        });
-
-                        // IDW interpolation of residuals
-                        let wSum = 0, resSum = 0;
+                // IDW correction
+                function _idwCorrect(demGrid, csvPts, power) {
+                    power = power||2;
+                    if (!csvPts || csvPts.length===0) return { grid: demGrid, stats: null };
+                    const residuals = csvPts.map(cp => {
+                        let best=demGrid[0], bestD=Infinity;
+                        demGrid.forEach(dp => { const d=(dp.lat-cp.lat)**2+(dp.lon-cp.lon)**2; if(d<bestD){bestD=d;best=dp;} });
+                        return { lat:cp.lat, lon:cp.lon, res:cp.elev-best.elev };
+                    });
+                    const corrected = demGrid.map(pt => {
+                        let wS=0, rS=0;
                         residuals.forEach(r => {
-                            const d2 = (pt.lat - r.lat) ** 2 + (pt.lon - r.lon) ** 2;
-                            if (d2 < 1e-12) { resSum = r.res; wSum = 1; return; }
-                            const w = 1 / Math.pow(d2, power / 2);
-                            wSum += w;
-                            resSum += w * r.res;
+                            const d2=(pt.lat-r.lat)**2+(pt.lon-r.lon)**2;
+                            if(d2<1e-12){rS=r.res;wS=1;return;}
+                            const w=1/Math.pow(d2,power/2); wS+=w; rS+=w*r.res;
                         });
-                        return { ...pt, elev: pt.elev + (wSum > 0 ? resSum / wSum : 0) };
+                        return {...pt, elev: pt.elev+(wS>0?rS/wS:0)};
                     });
+                    // Calc stats
+                    const absRes = residuals.map(r => Math.abs(r.res));
+                    const meanRes = absRes.reduce((a,b)=>a+b,0)/absRes.length;
+                    const maxRes = Math.max(...absRes);
+                    const rmse = Math.sqrt(residuals.map(r=>r.res**2).reduce((a,b)=>a+b,0)/residuals.length);
+                    return { grid: corrected, stats: { count: csvPts.length, mean: meanRes, max: maxRes, rmse } };
                 }
 
-                // ---- Main fetch orchestration ------------------------------------
-                async function _fetchDEM() {
-                    const bounds = _getProcessingExtentBounds();
-                    if (!bounds) { showToast('Draw a processing extent first', 'warning'); return; }
+                // Populate result card
+                function _fillResult(sfx, info) {
+                    _txt('demStatRes'+sfx, info.res||'~30m');
+                    _txt('demStatArea'+sfx, info.area||'--');
+                    _txt('demStatMin'+sfx, info.min!==undefined?info.min.toFixed(2)+' m':'--');
+                    _txt('demStatMax'+sfx, info.max!==undefined?info.max.toFixed(2)+' m':'--');
+                    _txt('demStatPoints'+sfx, info.pts?info.pts.toLocaleString():'--');
+                    _txt('demStatSource'+sfx, info.src||'--');
+                    const badge = _el('demResultSourceBadge'+sfx);
+                    if (badge) { badge.textContent=info.src||'Unknown'; badge.style.cssText='background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;'; }
+                }
 
-                    const { south, west, north, east } = bounds;
-                    const dataset = (_elById('demDatasetSelect') || {}).value || 'COP30';
+                function _calBadge(val, g, a) {
+                    if (val < g) return { cls:'cal-green', icon:'checkmark' };
+                    if (val < a) return { cls:'cal-amber', icon:'warning' };
+                    return { cls:'cal-red', icon:'error' };
+                }
 
-                    _showBanner('demFallbackBanner', false);
-                    _showBanner('demOTDBanner', false);
-                    _showResultCard(false);
-                    _setFetchEnabled(false);
-                    _setProgress(true, 'Contacting DEM service…');
+                function _showCalQuality(stats) {
+                    _txt('demCalCtrlPts', stats.count);
+                    const rmseB = _calBadge(stats.rmse, 0.5, 1.5);
+                    const meanB = _calBadge(stats.mean, 0.3, 1.0);
+                    const maxB  = _calBadge(stats.max,  1.0, 3.0);
+                    const rEl = _el('demCalRmse'); if(rEl){ rEl.textContent=stats.rmse.toFixed(3)+' m'; rEl.className='dem-cal-badge '+rmseB.cls; }
+                    const mEl = _el('demCalMean'); if(mEl){ mEl.textContent=stats.mean.toFixed(3)+' m'; mEl.className='dem-cal-badge '+meanB.cls; }
+                    const xEl = _el('demCalMax');  if(xEl){ xEl.textContent=stats.max.toFixed(3)+' m';  xEl.className='dem-cal-badge '+maxB.cls;  }
+                    _cls('demCalQuality','visible',true);
+                }
 
-                    let demGrid = null;
-                    let usedSource = null;
+                // Proceed button - scroll to generate section
+                function _scrollToGenerate() {
+                    const genSection = document.querySelector('[data-section="generation"]') ||
+                                       document.getElementById('generation-content');
+                    if (genSection) {
+                        genSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        // Try to expand the section
+                        const parent = genSection.closest('.terrain-3d-section');
+                        if (parent) {
+                            const content = parent.querySelector('.terrain-3d-section-content');
+                            const icon = parent.querySelector('.toggle-icon');
+                            if (content && !content.classList.contains('expanded')) {
+                                content.classList.add('expanded');
+                                if (icon) icon.classList.add('expanded');
+                            }
+                        }
+                    }
+                }
 
-                    // ── Route through Supabase edge function (API key stays server-side) ──
+                // Main fetch - Mode A
+                async function _fetchDEMA() {
+                    const bounds = _getDemExtentBounds();
+                    if (!bounds) { showToast('Define DEM extent first','warning'); return; }
+                    const {south,west,north,east} = bounds;
+                    const dataset = document.querySelector('input[name="demDataset"]:checked')?.value || 'COP30';
+                    _el('fetchDEMBtn').disabled = true;
+                    _show('demFallbackBanner',false); _show('demOTDBanner',false);
+                    _show('demResultCard',false); _cls('demProceedBtnA','visible',false);
+                    const prog = _el('demFetchProgress');
+                    if(prog) prog.style.display='block';
+                    _txt('demProgressText','Requesting '+dataset+' via secure proxy...');
+                    let grid=null, src=null;
                     try {
-                        _setProgress(true, `Requesting ${dataset} via secure proxy…`);
-                        const { buf, sourceType, sourceLabel, isFallback } =
-                            await _fetchViaEdgeFunction(dataset, south, west, north, east);
-
-                        const { width, height, bbox, elevData } = await _parseGeoTiff(buf);
-                        demGrid = [];
-                        const lonStep = (bbox[2] - bbox[0]) / width;
-                        const latStep = (bbox[3] - bbox[1]) / height;
-                        for (let row = 0; row < height; row++) {
-                            for (let col = 0; col < width; col++) {
-                                const e = elevData[row * width + col];
-                                if (e > -9000) {
-                                    demGrid.push({
-                                        lat: bbox[3] - latStep * (row + 0.5),
-                                        lon: bbox[0] + lonStep * (col + 0.5),
-                                        elev: e
-                                    });
-                                }
-                            }
+                        const r = await _fetchViaEdge(dataset, south, west, north, east);
+                        const p = await _parseGeoTiff(r.buf);
+                        grid = _buildGrid(p.width, p.height, p.bbox, p.elevData);
+                        src = r.srcLabel || r.srcType;
+                        if (r.fallback) {
+                            _txt('demFallbackText', dataset+' unavailable - using '+r.srcLabel+'. Results may differ slightly.');
+                            _show('demFallbackBanner',true);
                         }
-                        usedSource = sourceLabel || sourceType;
-
-                        if (isFallback) {
-                            const fbText = _elById('demFallbackText');
-                            if (fbText) fbText.textContent =
-                                `${dataset} unavailable — using ${sourceLabel}. Results may differ slightly in vegetated or built-up areas.`;
-                            _showBanner('demFallbackBanner', true);
-                        }
-
-                    } catch (err) {
-                        const isAllFailed = err.message === 'all_sources_unavailable';
-                        if (isAllFailed) {
-                            // Edge function exhausted all OT sources — try OpenTopoData point-sampling
+                    } catch(err) {
+                        if (err.message==='all_sources_unavailable') {
                             try {
-                                _showBanner('demOTDBanner', true);
-                                _setProgress(true, 'Switching to OpenTopoData point sampling…');
-                                const pts = await _fetchOpenTopoDataPoints(south, west, north, east);
-                                demGrid = pts;
-                                usedSource = 'OpenTopoData (SRTM30m)';
-                            } catch (otdErr) {
-                                _setProgress(false);
-                                _setFetchEnabled(true);
-                                showToast('All DEM sources failed. Check your internet connection and try again.', 'error');
-                                return;
-                            }
-                        } else {
-                            console.error('DEM edge function error:', err);
-                            _setProgress(false);
-                            _setFetchEnabled(true);
-                            showToast(`DEM fetch failed: ${err.message}`, 'error');
-                            return;
-                        }
+                                _show('demOTDBanner',true);
+                                _txt('demProgressText','Switching to OpenTopoData...');
+                                grid = await _fetchOTD(south,west,north,east,'demProgressText');
+                                src = 'OpenTopoData (SRTM30m)';
+                            } catch(e2) { if(prog)prog.style.display='none'; _el('fetchDEMBtn').disabled=false; showToast('All DEM sources failed.','error'); return; }
+                        } else { if(prog)prog.style.display='none'; _el('fetchDEMBtn').disabled=false; showToast('DEM fetch failed: '+err.message,'error'); return; }
                     }
-
-
-                    if (!demGrid || demGrid.length === 0) {
-                        _setProgress(false);
-                        _setFetchEnabled(true);
-                        showToast('DEM fetch returned no valid elevation data for this extent.', 'error');
-                        return;
-                    }
-
-                    // DEM+CSV calibration
-                    if (_currentMode === 'demcsv' && terrain3DState.csvPoints && terrain3DState.csvPoints.length > 0) {
-                        _setProgress(true, 'Applying IDW residual correction…');
-                        demGrid = _idwResidualCorrection(demGrid, terrain3DState.csvPoints, 2);
-                        _showCalibrationInfo(true);
-                    } else {
-                        _showCalibrationInfo(false);
-                    }
-
-                    // Store on terrain3DState for DTM generation
-                    terrain3DState.demGrid = demGrid;
-                    terrain3DState.demSource = usedSource;
-
-                    // Stats
-                    const elevs = demGrid.map(p => p.elev);
-                    const minElev = Math.min(...elevs);
-                    const maxElev = Math.max(...elevs);
-                    const area = _formatArea(south, west, north, east);
-
-                    _populateResultCard({
-                        resolution: '~30m',
-                        area,
-                        minElev,
-                        maxElev,
-                        points: demGrid.length,
-                        source: usedSource
-                    });
-
-                    _setProgress(false);
-                    _setFetchEnabled(true);
-                    _showResultCard(true);
-
-                    showToast(`DEM fetched from ${usedSource} — ${demGrid.length.toLocaleString()} points. Click Generate DTM to render.`, 'success');
+                    if (!grid||grid.length===0) { if(prog)prog.style.display='none'; _el('fetchDEMBtn').disabled=false; showToast('No elevation data for this extent.','error'); return; }
+                    terrain3DState.demGrid = grid; terrain3DState.demSource = src;
+                    const elevs = grid.map(p=>p.elev);
+                    _fillResult('', { res:'~30m', area:_fmtArea(_areaKm2(south,west,north,east)), min:Math.min(...elevs), max:Math.max(...elevs), pts:grid.length, src });
+                    if(prog) prog.style.display='none';
+                    _show('demResultCard',true);
+                    _setStep('demStepA3','done');
+                    _cls('demProceedBtnA','visible',true);
+                    _el('fetchDEMBtn').disabled = false;
+                    showToast('DEM fetched: '+grid.length.toLocaleString()+' points from '+src+'. Click Generate DTM to proceed.','success');
                 }
 
-                // ---- Public API ------------------------------------------------
+                // Main fetch - Mode B (with calibration)
+                async function _fetchDEMB() {
+                    const bounds = _getDemExtentBounds();
+                    if (!bounds) { showToast('Define DEM extent first','warning'); return; }
+                    const {south,west,north,east} = bounds;
+                    const dataset = document.querySelector('input[name="demDatasetB"]:checked')?.value || 'COP30';
+                    _el('fetchCalibrateDEMBtn').disabled = true;
+                    _show('demFallbackBannerB',false); _show('demOTDBannerB',false);
+                    _show('demResultCardB',false); _cls('demProceedBtnB','visible',false); _cls('demCalQuality','visible',false);
+                    const prog = _el('demFetchProgressB');
+                    if(prog) prog.style.display='block';
+                    _txt('demProgressTextB','Requesting '+dataset+' via secure proxy...');
+                    let grid=null, src=null;
+                    try {
+                        const r = await _fetchViaEdge(dataset, south, west, north, east);
+                        const p = await _parseGeoTiff(r.buf);
+                        grid = _buildGrid(p.width, p.height, p.bbox, p.elevData);
+                        src = r.srcLabel || r.srcType;
+                        if (r.fallback) {
+                            _txt('demFallbackTextB', dataset+' unavailable - using '+r.srcLabel+'.');
+                            _show('demFallbackBannerB',true);
+                        }
+                    } catch(err) {
+                        if (err.message==='all_sources_unavailable') {
+                            try {
+                                _show('demOTDBannerB',true);
+                                _txt('demProgressTextB','Switching to OpenTopoData...');
+                                grid = await _fetchOTD(south,west,north,east,'demProgressTextB');
+                                src = 'OpenTopoData (SRTM30m)';
+                            } catch(e2) { if(prog)prog.style.display='none'; _el('fetchCalibrateDEMBtn').disabled=false; showToast('All DEM sources failed.','error'); return; }
+                        } else { if(prog)prog.style.display='none'; _el('fetchCalibrateDEMBtn').disabled=false; showToast('DEM fetch failed: '+err.message,'error'); return; }
+                    }
+                    if (!grid||grid.length===0) { if(prog)prog.style.display='none'; _el('fetchCalibrateDEMBtn').disabled=false; showToast('No elevation data.','error'); return; }
+                    // Calibrate
+                    _txt('demProgressTextB','Applying IDW residual correction...');
+                    const { grid: corrected, stats } = _idwCorrect(grid, _csvPoints, 2);
+                    grid = corrected;
+                    terrain3DState.demGrid = grid; terrain3DState.demSource = src + ' (IDW Calibrated)';
+                    const elevs = grid.map(p=>p.elev);
+                    _fillResult('B', { res:'~30m', area:_fmtArea(_areaKm2(south,west,north,east)), min:Math.min(...elevs), max:Math.max(...elevs), pts:grid.length, src: src+' (Calibrated)' });
+                    if (stats) _showCalQuality(stats);
+                    if(prog) prog.style.display='none';
+                    _show('demResultCardB',true);
+                    _setStep('demStepB4','done');
+                    _cls('demProceedBtnB','visible',true);
+                    _el('fetchCalibrateDEMBtn').disabled = false;
+                    showToast('DEM calibrated: '+grid.length.toLocaleString()+' points, RMSE '+(stats?stats.rmse.toFixed(3):'--')+'m. Click Generate DTM.','success');
+                }
+
+                // Reset all state
+                function _resetAll() {
+                    _clearDemExtent();
+                    if (_csvLayer) { map.removeLayer(_csvLayer); _csvLayer = null; }
+                    _csvPoints = []; _demGrid = null;
+                    terrain3DState.demGrid = null; terrain3DState.demSource = null;
+                    // Hide all result cards and proceed buttons
+                    _show('demResultCard',false); _show('demResultCardB',false);
+                    _cls('demProceedBtnA','visible',false); _cls('demProceedBtnB','visible',false);
+                    _cls('demCalQuality','visible',false);
+                    _show('demFallbackBanner',false); _show('demOTDBanner',false);
+                    _show('demFallbackBannerB',false); _show('demOTDBannerB',false);
+                    _show('demFetchProgress',false); _show('demFetchProgressB',false);
+                    _cls('demCsvInfoCard','visible',false); _cls('demCsvLayerToggleBtn','visible',false);
+                    _cls('demExtentInfoA','visible',false); _cls('demExtentInfoB','visible',false);
+                    _cls('demAreaWarningA','visible',false); _cls('demAreaWarningB','visible',false);
+                }
+
+                // Public: called when data source radio changes
                 function onSourceChanged(mode) {
-                    _currentMode = mode;
-                    _showResultCard(false);
-                    _showBanner('demFallbackBanner', false);
-                    _showBanner('demOTDBanner', false);
-                    _setProgress(false);
-                    _startExtentWatcher();
+                    _resetAll();
+                    _mode = mode;
+                    _showWizard(mode);
+                    if (mode === 'dem') {
+                        _setStep('demStepA1','done'); // source already selected
+                        _setStep('demStepA2','active');
+                        _setStep('demStepA3','locked');
+                    } else {
+                        _setStep('demStepB1','active');
+                        _setStep('demStepB2','locked');
+                        _setStep('demStepB3','locked');
+                        _setStep('demStepB4','locked');
+                    }
                 }
 
                 function init() {
-                    // Hide dem-fetch-section initially (it's shown by radio handler)
-                    const demSec = _elById('dem-fetch-section');
-                    if (demSec) demSec.style.display = 'none';
-
-                    // Also hide banners and result card by default
-                    _showBanner('demFallbackBanner', false);
-                    _showBanner('demOTDBanner', false);
-                    _setProgress(false);
-                    _showResultCard(false);
-                    _showCalibrationInfo(false);
-
-                    // Fetch button click
-                    const fetchBtn = _elById('fetchDEMBtn');
-                    if (fetchBtn) fetchBtn.addEventListener('click', _fetchDEM);
+                    const sec = _el('dem-fetch-section');
+                    if (sec) sec.style.display = 'none';
+                    // Mode A buttons
+                    _el('demDrawExtentBtn')?.addEventListener('click', () => _startDemDraw('A'));
+                    _el('demSelectExtentBtn')?.addEventListener('click', () => _startDemSelect('A'));
+                    _el('demClearExtentBtn')?.addEventListener('click', () => _onClearExtent('A'));
+                    _el('fetchDEMBtn')?.addEventListener('click', _fetchDEMA);
+                    _el('demProceedBtnA')?.addEventListener('click', _scrollToGenerate);
+                    // Mode A source radios - mark step done on change
+                    document.querySelectorAll('input[name="demDataset"]').forEach(r => {
+                        r.addEventListener('change', () => _setStep('demStepA1','done'));
+                    });
+                    // Mode B buttons
+                    _el('demDrawExtentBtnB')?.addEventListener('click', () => _startDemDraw('B'));
+                    _el('demSelectExtentBtnB')?.addEventListener('click', () => _startDemSelect('B'));
+                    _el('demClearExtentBtnB')?.addEventListener('click', () => _onClearExtent('B'));
+                    _el('fetchCalibrateDEMBtn')?.addEventListener('click', _fetchDEMB);
+                    _el('demProceedBtnB')?.addEventListener('click', _scrollToGenerate);
+                    // Mode B source radios - mark step done, unlock extent
+                    document.querySelectorAll('input[name="demDatasetB"]').forEach(r => {
+                        r.addEventListener('change', () => {
+                            _setStep('demStepB2','done');
+                            _setStep('demStepB3','active');
+                        });
+                    });
+                    // CSV upload
+                    const csvInput = _el('demCsvFileInput');
+                    const csvBrowse = _el('demCsvBrowseBtn');
+                    const csvDrop = _el('demCsvDropZone');
+                    if (csvBrowse && csvInput) csvBrowse.addEventListener('click', (e) => { e.stopPropagation(); csvInput.click(); });
+                    if (csvDrop && csvInput) csvDrop.addEventListener('click', () => csvInput.click());
+                    if (csvInput) csvInput.addEventListener('change', (e) => { if(e.target.files[0]) _handleCsvUpload(e.target.files[0]); });
+                    if (csvDrop) {
+                        csvDrop.addEventListener('dragover', (e) => { e.preventDefault(); csvDrop.style.borderColor='#22c55e'; });
+                        csvDrop.addEventListener('dragleave', () => { csvDrop.style.borderColor='#f97316'; });
+                        csvDrop.addEventListener('drop', (e) => {
+                            e.preventDefault(); csvDrop.style.borderColor='#f97316';
+                            if(e.dataTransfer.files[0]) _handleCsvUpload(e.dataTransfer.files[0]);
+                        });
+                    }
+                    // CSV layer toggle
+                    _el('demCsvLayerToggleBtn')?.addEventListener('click', _toggleCsvLayer);
                 }
 
                 return { init, onSourceChanged };
             })();
+
 
             // Initialize DEM controller
             demController.init();
@@ -40638,7 +40953,6 @@ function smoothChaikin(points) {
                         demSection.style.display = 'block';
                         demController.onSourceChanged('dem');
                     } else if (this.value === 'demcsv') {
-                        csvSection.style.display = 'block';
                         demSection.style.display = 'block';
                         demController.onSourceChanged('demcsv');
                     }
