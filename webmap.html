@@ -16644,15 +16644,11 @@
                 ]
             });
 
-            // Create the map view
+            // Create the map view — default to Kampala city centre
             const view = new ol.View({
-                center: ol.proj.fromLonLat([32.0, 1.0]),
-                zoom: 7
+                center: ol.proj.fromLonLat([32.5825, 0.3476]),
+                zoom: 13
             });
-
-            // Fit view to Uganda extent
-            const ugandaExtent = ol.proj.transformExtent([29.5, -1.5, 35.0, 4.5], 'EPSG:4326', 'EPSG:3857');
-            view.fit(ugandaExtent, { size: [window.innerWidth, window.innerHeight], maxZoom: 8 });
 
             // Define controls
             const controls = [
