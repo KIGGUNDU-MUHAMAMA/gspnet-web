@@ -177,37 +177,56 @@
         }
     }
 
-    // ========== Add vector layers (ALL visible WMS + vector) ==========
+    // ========== Add ALL visible vector layers (recursive, handles Groups) ==========
     function addVectorLayers() {
         if (!viewer || typeof map === 'undefined') return;
 
-        let wmsCount = 0, vecCount = 0;
+        let vecCount = 0, featCount = 0;
         try {
-            const layers = map.getLayers().getArray();
-            layers.forEach(layer => {
-                if (!layer.getVisible()) return;
+            // Recursively collect all leaf layers (handles ol.layer.Group nesting)
+            function collectLeafLayers(layerOrGroup) {
+                const results = [];
+                if (typeof layerOrGroup.getLayers === 'function') {
+                    // It's a Group — recurse into children
+                    layerOrGroup.getLayers().getArray().forEach(child => {
+                        results.push(...collectLeafLayers(child));
+                    });
+                } else {
+                    results.push(layerOrGroup);
+                }
+                return results;
+            }
+
+            const allLeafLayers = [];
+            map.getLayers().getArray().forEach(l => {
+                allLeafLayers.push(...collectLeafLayers(l));
+            });
+
+            console.log(`[Cesium3D] Found ${allLeafLayers.length} total leaf layers`);
+
+            allLeafLayers.forEach(layer => {
+                // Skip invisible layers but include layers whose parent group is visible
+                // (layer.getVisible() checks own visibility, not parent)
                 const title = (layer.get('title') || layer.get('name') || '').toLowerCase();
                 const source = layer.getSource && layer.getSource();
                 if (!source) return;
 
-                // Add ALL WMS / TileWMS layers (NLIS, Blocks, Forests, etc.)
-                const hasParams = typeof source.getParams === 'function';
-                if (hasParams) {
-                    addWmsLayerToCesium(layer);
-                    wmsCount++;
-                    return; // skip vector check for WMS layers
+                // Skip basemap tile layers (XYZ, OSM, etc.)
+                if (typeof source.getFeatures !== 'function') return;
+
+                const features = source.getFeatures();
+                if (features.length === 0) {
+                    if (title) console.log(`[Cesium3D] Layer "${title}": 0 features loaded (deferred/not in viewport)`);
+                    return;
                 }
 
-                // Add ALL vector layers (survey polygons, points, etc.)
-                if (typeof source.getFeatures === 'function') {
-                    const features = source.getFeatures();
-                    if (features.length > 0) {
-                        addVectorFeaturesToCesium(features, title);
-                        vecCount++;
-                    }
-                }
+                console.log(`[Cesium3D] Layer "${title}": adding ${features.length} features`);
+                addVectorFeaturesToCesium(features, title);
+                vecCount++;
+                featCount += features.length;
             });
-            console.log(`[Cesium3D] Added ${wmsCount} WMS layers, ${vecCount} vector layers`);
+
+            console.log(`[Cesium3D] Total: ${vecCount} vector layers, ${featCount} features added`);
         } catch (e) {
             console.warn('Error adding vector layers:', e);
         }
@@ -235,16 +254,37 @@
     }
 
     function addVectorFeaturesToCesium(features, layerTitle) {
+        const titleLower = (layerTitle || '').toLowerCase();
+        // Determine layerType based on title pattern
+        const isGspnet = titleLower.includes('nlis') || titleLower.includes('nlsi') ||
+                         titleLower.includes('blocks') || titleLower.includes('block') ||
+                         titleLower.includes('forest') || titleLower.includes('protected');
+        const layerType = isGspnet ? 'gspnet-layer' : 'survey-polygon';
+
+        // Choose colors based on layer type
+        const fillColor = isGspnet
+            ? Cesium.Color.fromCssColorString('#22c55e').withAlpha(0.25)  // green for GSPNET
+            : Cesium.Color.fromCssColorString('#3b82f6').withAlpha(0.35); // blue for survey
+        const lineColor = isGspnet
+            ? Cesium.Color.fromCssColorString('#16a34a')
+            : Cesium.Color.fromCssColorString('#2563eb');
+        const pointColor = isGspnet
+            ? Cesium.Color.fromCssColorString('#ef4444')
+            : Cesium.Color.fromCssColorString('#f59e0b');
+
+        let added = 0;
         try {
             features.forEach(feature => {
                 const geom = feature.getGeometry();
                 if (!geom) return;
 
                 const type = geom.getType();
+
                 if (type === 'Polygon' || type === 'MultiPolygon') {
-                    const coords = type === 'Polygon' ? [geom.getCoordinates()] : geom.getCoordinates();
-                    coords.forEach(polygonCoords => {
+                    const polys = type === 'Polygon' ? [geom.getCoordinates()] : geom.getCoordinates();
+                    polys.forEach(polygonCoords => {
                         const ring = polygonCoords[0];
+                        if (!ring || ring.length < 3) return;
                         const positions = ring.map(c => {
                             const ll = ol.proj.transform(c, 'EPSG:3857', 'EPSG:4326');
                             return Cesium.Cartesian3.fromDegrees(ll[0], ll[1]);
@@ -253,16 +293,43 @@
                         viewer.entities.add({
                             polygon: {
                                 hierarchy: new Cesium.PolygonHierarchy(positions),
-                                material: Cesium.Color.fromCssColorString('#3b82f6').withAlpha(0.35),
+                                material: fillColor,
                                 height: 0,
                                 classificationType: Cesium.ClassificationType.BOTH
                             },
                             properties: {
-                                title: feature.get('name') || feature.get('title') || layerTitle,
-                                layerType: 'survey-polygon'
+                                title: feature.get('name') || feature.get('title') ||
+                                       feature.get('PlotNumber') || feature.get('BLOCK NO.') || layerTitle,
+                                layerType: layerType
                             }
                         });
+                        added++;
                     });
+
+                } else if (type === 'LineString' || type === 'MultiLineString') {
+                    const lines = type === 'LineString' ? [geom.getCoordinates()] : geom.getCoordinates();
+                    lines.forEach(lineCoords => {
+                        if (!lineCoords || lineCoords.length < 2) return;
+                        const positions = lineCoords.map(c => {
+                            const ll = ol.proj.transform(c, 'EPSG:3857', 'EPSG:4326');
+                            return Cesium.Cartesian3.fromDegrees(ll[0], ll[1]);
+                        });
+
+                        viewer.entities.add({
+                            polyline: {
+                                positions: positions,
+                                material: lineColor,
+                                width: 2,
+                                clampToGround: true
+                            },
+                            properties: {
+                                title: feature.get('name') || feature.get('title') || layerTitle,
+                                layerType: layerType
+                            }
+                        });
+                        added++;
+                    });
+
                 } else if (type === 'Point') {
                     const coords = geom.getCoordinates();
                     const ll = ol.proj.transform(coords, 'EPSG:3857', 'EPSG:4326');
@@ -270,20 +337,24 @@
                         position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1]),
                         point: {
                             pixelSize: 8,
-                            color: Cesium.Color.fromCssColorString('#ef4444'),
+                            color: pointColor,
                             outlineColor: Cesium.Color.WHITE,
                             outlineWidth: 2,
                             heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
                         },
                         properties: {
                             title: feature.get('name') || feature.get('point_id') || layerTitle,
-                            layerType: 'gspnet-point'
+                            layerType: layerType
                         }
                     });
+                    added++;
                 }
             });
+            if (added > 0) {
+                console.log(`[Cesium3D] "${layerTitle}": ${added} entities added (${layerType})`);
+            }
         } catch (e) {
-            console.warn('Could not add vector features:', e);
+            console.warn('Could not add vector features from "' + layerTitle + '":', e);
         }
     }
 
@@ -541,7 +612,7 @@
         // Layer toggles
         const gspnetToggle = document.getElementById('cesium3dGspnetLayers');
         if (gspnetToggle) gspnetToggle.addEventListener('change', () =>
-            toggleLayerVisibility('gspnet-point', gspnetToggle.checked));
+            toggleLayerVisibility('gspnet-layer', gspnetToggle.checked));
 
         const polyToggle = document.getElementById('cesium3dSurveyPolygons');
         if (polyToggle) polyToggle.addEventListener('change', () =>
