@@ -177,31 +177,37 @@
         }
     }
 
-    // ========== Add vector layers (GSPNET, survey polygons) ==========
+    // ========== Add vector layers (ALL visible WMS + vector) ==========
     function addVectorLayers() {
         if (!viewer || typeof map === 'undefined') return;
 
+        let wmsCount = 0, vecCount = 0;
         try {
             const layers = map.getLayers().getArray();
             layers.forEach(layer => {
                 if (!layer.getVisible()) return;
                 const title = (layer.get('title') || layer.get('name') || '').toLowerCase();
                 const source = layer.getSource && layer.getSource();
+                if (!source) return;
 
-                // Look for WMS/tile layers (GSPNET/NLIS)
-                if (source && (title.includes('gspnet') || title.includes('nlis') ||
-                    title.includes('control') || title.includes('cadastr'))) {
+                // Add ALL WMS / TileWMS layers (NLIS, Blocks, Forests, etc.)
+                const hasParams = typeof source.getParams === 'function';
+                if (hasParams) {
                     addWmsLayerToCesium(layer);
+                    wmsCount++;
+                    return; // skip vector check for WMS layers
                 }
 
-                // Look for vector layers (survey polygons)
-                if (source && typeof source.getFeatures === 'function') {
+                // Add ALL vector layers (survey polygons, points, etc.)
+                if (typeof source.getFeatures === 'function') {
                     const features = source.getFeatures();
                     if (features.length > 0) {
                         addVectorFeaturesToCesium(features, title);
+                        vecCount++;
                     }
                 }
             });
+            console.log(`[Cesium3D] Added ${wmsCount} WMS layers, ${vecCount} vector layers`);
         } catch (e) {
             console.warn('Error adding vector layers:', e);
         }
@@ -248,11 +254,8 @@
                             polygon: {
                                 hierarchy: new Cesium.PolygonHierarchy(positions),
                                 material: Cesium.Color.fromCssColorString('#3b82f6').withAlpha(0.35),
-                                outline: true,
-                                outlineColor: Cesium.Color.fromCssColorString('#1d4ed8'),
-                                outlineWidth: 2,
-                                classificationType: Cesium.ClassificationType.TERRAIN,
-                                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+                                height: 0,
+                                classificationType: Cesium.ClassificationType.BOTH
                             },
                             properties: {
                                 title: feature.get('name') || feature.get('title') || layerTitle,
