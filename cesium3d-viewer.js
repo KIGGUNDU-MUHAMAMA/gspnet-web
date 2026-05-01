@@ -191,7 +191,10 @@
         return results;
     }
 
-    // ========== Add ALL vector layers — reads already-loaded features from ANY layer ==========
+    // Tracks sources already wired with reactive addfeature listeners
+    const _reactiveSourceKeys = new WeakSet();
+
+    // ========== Add ALL vector layers + attach reactive listeners ==========
     function addVectorLayers() {
         if (!viewer || typeof map === 'undefined') return;
 
@@ -207,20 +210,30 @@
                 const source = layer.getSource && layer.getSource();
                 if (!source || typeof source.getFeatures !== 'function') return;
 
-                const features = source.getFeatures();
-                if (features.length === 0) return; // deferred layers — nothing loaded yet
+                // --- Reactive listener: pick up features as they stream in from FGB/Supabase ---
+                if (!_reactiveSourceKeys.has(source)) {
+                    _reactiveSourceKeys.add(source);
+                    source.on('addfeature', function (evt) {
+                        if (!viewer) return;
+                        addVectorFeaturesToCesium([evt.feature], title);
+                    });
+                    console.log(`[Cesium3D] Reactive listener registered for "${title}"`);
+                }
 
-                console.log(`[Cesium3D] "${title}": ${features.length} features found`);
+                // --- Snapshot: add whatever is already loaded right now ---
+                const features = source.getFeatures();
+                if (features.length === 0) return;
+
+                console.log(`[Cesium3D] "${title}": ${features.length} features (snapshot)`);
                 addVectorFeaturesToCesium(features, title);
                 vecCount++;
                 featCount += features.length;
             });
 
             if (featCount === 0) {
-                console.warn('[Cesium3D] No features found. Layers may not have loaded yet.' +
-                    ' Turn on a GSPNET layer in the 2D map first, then reopen the 3D viewer.');
+                console.warn('[Cesium3D] Snapshot empty — waiting for reactive listeners to pick up features as they load.');
             }
-            console.log(`[Cesium3D] Done: ${vecCount} layers, ${featCount} total features`);
+            console.log(`[Cesium3D] Done: ${vecCount} snapshot layers, ${featCount} features. Reactive listeners active.`);
         } catch (e) {
             console.warn('Error in addVectorLayers:', e);
         }
@@ -229,10 +242,10 @@
     // ========== Reload layers from map into Cesium on demand ==========
     window.cesium3dReloadLayers = function () {
         if (!viewer) return;
-        // Remove old vector entities
+        // Remove old vector entities, keep listeners
         const toRemove = viewer.entities.values.filter(e => {
             const p = e.properties;
-            return p && (p.layerType);
+            return p && p.layerType;
         });
         toRemove.forEach(e => viewer.entities.remove(e));
         addVectorLayers();
@@ -297,11 +310,12 @@
                             return Cesium.Cartesian3.fromDegrees(ll[0], ll[1]);
                         });
 
+                        // NOTE: height must NOT be set when using classificationType —
+                        // Cesium silently drops polygons that mix height with classification.
                         viewer.entities.add({
                             polygon: {
                                 hierarchy: new Cesium.PolygonHierarchy(positions),
                                 material: fillColor,
-                                height: 0,
                                 classificationType: Cesium.ClassificationType.BOTH
                             },
                             properties: {
