@@ -11,7 +11,7 @@
     let captures = [];
     let osmBuildingsTileset = null;
     let currentImageryLayer = null;
-    const CESIUM_ION_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI2ZjBiZjk2OC1mMDM2LTRkNTktODcxMi01MGEzMWYyNDNkZDAiLCJpZCI6MjkwMTYwLCJpYXQiOjE3NDYxMjcwNTl9.GJTNeQr1r6yOVfByD-YkbEiQOKH1drdHyi-UrMed0Qs';
+    const CESIUM_ION_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxMzJhN2ZkMi0wNmUxLTQ1MWMtOTRkZS0xZjA0OTYxMDg4NTEiLCJpZCI6NDI2MjM2LCJzdWIiOiJraWdndW5kdSBtdWhhbWFkIiwiaXNzIjoiaHR0cHM6Ly9pb24uY2VzaXVtLmNvbSIsImF1ZCI6Imdlb3NwYXRpYWwtbmV0d29rIiwiaWF0IjoxNzc3NjY0Mzk5fQ.NBpX1C09suQ4A2p6OiOqgEHQc2YYPTLTKp4FUF17sOc';
 
     // --- Basemap providers ---
     const BASEMAPS = {
