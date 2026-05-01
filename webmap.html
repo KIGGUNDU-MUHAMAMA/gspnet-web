@@ -38265,11 +38265,12 @@ function smoothChaikin(points) {
                 texture.magFilter = THREE.LinearFilter;
                 texture.wrapS = THREE.ClampToEdgeWrapping;
                 texture.wrapT = THREE.ClampToEdgeWrapping;
-                // flipY=false: canvas is already in the correct orientation (north at top).
-                // Three.js default flipY=true would invert Y, and then the manual loop
-                // below would invert again — double-flip = wrong position (shifted north).
-                // With flipY=false: terrain UV V=0 (south) samples canvas bottom (south). Correct.
-                texture.flipY = false;
+                // Use Three.js default flipY=true.
+                // This maps canvas y=0 (top = NORTH) → GPU V=1.
+                // Terrain UVs: V=0 at south row, V=1 at north row.
+                // So: north terrain (V=1) → samples NORTH canvas pixels. ✓
+                //     south terrain (V=0) → samples SOUTH canvas pixels. ✓
+                // The old manual UV flip loop in applyBasemapMesh was the only bug — it has been removed.
                 texture.needsUpdate = true;
 
                 return { texture, label };
