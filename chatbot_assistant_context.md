@@ -87,9 +87,53 @@ A: Areas are computed using **UTM Projection + Shoelace Formula** (geodesic area
 **Q: How do I generate a DTM (Digital Terrain Model)?**
 A:
 1. Open **3D Terrain & Contours** from the left dock.
-2. Import a CSV with X, Y, Z (Easting, Northing, Elevation) or use existing saved data.
+2. Choose your data source: Import CSV, Use Existing Data, Combine Both, **Use DEM** (cloud fetch), or **DEM + CSV (Calibrate)**.
 3. Set grid resolution (default: 5m), interpolation method (TIN or IDW), and color ramp.
 4. Click **DTM** to generate. Toggle visibility with "Show DTM Layer".
+
+**Q: How do I fetch DEM elevation data from the cloud (no CSV needed)?**
+A:
+1. Open **3D Terrain & Contours** → set Data Source to **"Use DEM"**.
+2. Select a DEM source: **Copernicus GLO-30** (best accuracy), **NASADEM**, or **SRTM 1-Arc-Second**.
+3. Draw or select your area of interest (max 25 km²) using **Draw Extent** or **Select from Layer**.
+4. Click **"Fetch DEM via Secure Proxy"** — the system fetches elevation data from space-agency servers through GSP.NET's secure Supabase edge function.
+5. After fetch completes, a result card shows resolution, area, min/max elevation, and grid points.
+6. Click **"DEM Ready — Click to Generate DTM & Contours"** to proceed to DTM generation.
+If the primary DEM source is unavailable, the system automatically falls back to the next source.
+
+**Q: What is DEM + CSV Calibration mode?**
+A: This mode combines satellite DEM elevation with your own survey CSV control points. The DEM provides the base terrain surface, and your CSV points calibrate/correct it for higher local accuracy. Workflow:
+1. Select **"DEM + CSV (Calibrate)"** as data source.
+2. Import your CSV control points first.
+3. Select the DEM source and draw your extent.
+4. Click **"Fetch & Calibrate DEM"** — the system merges DEM grid data with your CSV points.
+5. Proceed to generate DTM & contours from the calibrated dataset.
+
+**Q: What DEM sources are available and what is the difference?**
+A:
+- **Copernicus DEM GLO-30:** Best global accuracy, ~30m resolution, from ESA Copernicus programme. *Recommended first choice.*
+- **NASADEM:** SRTM-derived with improved void filling, ~30m resolution. *Good fallback.*
+- **SRTM 1-Arc-Second:** Original Shuttle Radar Topography Mission, ~30m. *Last resort.*
+The system tries them in order if the selected source is unavailable.
+
+**Q: How do I open the interactive 3D Terrain Viewer?**
+A: After generating a DTM, click the **"3D"** button in the 3D Terrain toolbox action buttons. A fullscreen modal opens with an interactive Three.js-powered 3D visualization of your terrain. Controls:
+- **Drag** to rotate the terrain
+- **Scroll wheel** to zoom in/out
+- **Right-click drag** to pan
+- Use the **Vertical Exaggeration** slider (1x–10x) to enhance terrain features
+- Toggle **Contours** and **Grid** overlays on/off
+- Click **Reset** to restore the default camera angle
+
+**Q: How do I drape a satellite basemap over the 3D terrain?**
+A: In the 3D Viewer, tick the **"Basemap"** checkbox in the bottom control bar. The system automatically fetches tiles from your currently active 2D basemap (e.g., Esri World Imagery, Google Satellite) and drapes them over the 3D terrain mesh. Use the **Blend** slider (0–100%) to adjust the transparency of the satellite imagery over the elevation colors.
+
+**Q: How do I capture and export 3D terrain views as PDF?**
+A:
+1. In the 3D Viewer, orient your view using drag/zoom/pan.
+2. Click **"Capture View"** to take a high-resolution snapshot of the current 3D perspective.
+3. Capture up to 4 different viewpoints.
+4. Click **"Export 3D PDF"** to generate a professional multi-page PDF report with all captured views.
 
 **Q: How do I generate contour lines?**
 A: Generate a DTM first, then click **Contours**. Set contour interval (default: 5m), major interval (25m), styling, and smoothing (Chaikin + Catmull-Rom). Contours appear as a vector layer.
@@ -208,7 +252,7 @@ For the Ugandan surveying community, a centralized data sharing and storing plat
 ## Platform Features & Toolkit
 
 - **Interactive WebMap:** Powered by OpenLayers with multiple base maps (Satellite, Topo, OSM, Terrain), drawing tools, coordinate search (UTM, Lat/Lng), and high-res exporting.
-- **Terrain Intelligence:** DTM Generation (IDW/TIN), Contour Lines, 3D Visualization, and advanced analysis (slope, aspect, volume).
+- **Terrain Intelligence:** DTM Generation (IDW/TIN) from CSV or **cloud DEM fetch** (Copernicus, NASADEM, SRTM), Contour Lines, interactive **3D Terrain Viewer** with satellite basemap draping and 3D PDF export, and advanced analysis (slope, aspect, volume, profile cross-sections, terrain classification).
 - **Property Valuation:** Automated valuation engine using comparable sales, statistical charts, risk indicators, and professional PDF reports.
 - **Data Import & Export:** Supports CSV, DWG, DXF, and GeoJSON with automatic coordinate system detection.
 - **Measurement & Polygon Tools:** Parcel creation with area calculation, profile cross-sections, and distance measurements.
@@ -591,6 +635,8 @@ STEP 1: DATA PREPARATION
     - Import New CSV: Upload a CSV file with X, Y, Z coordinates
     - Use Existing Data: Search and select from previously saved datasets
     - Combine Both: Merge imported CSV with existing database points
+    - Use DEM: Fetch elevation data from cloud DEM sources (Copernicus, NASADEM, SRTM) — no CSV needed
+    - DEM + CSV (Calibrate): Combine cloud DEM with your own CSV points for higher local accuracy
 
 1.3. If importing CSV:
     - Click "Browse Files" or drag-drop your CSV file
@@ -1481,8 +1527,220 @@ This guide covers all major aspects of the 3D Terrain & Contours toolbox. For
 additional support or feature requests, refer to the system documentation or
 contact the development team.
 
-Last Updated: 2024
-Version: 1.0
+Last Updated: May 2026
+Version: 2.0
+
+## DEM Cloud Fetch, 3D Interactive Viewer & Basemap Draping (May 2026)
+
+This section documents the latest additions to the 3D Terrain & Contours toolbox, including cloud-based DEM data fetching, the interactive 3D Terrain Viewer, satellite basemap draping, and 3D view capture/export.
+
+### Overview of New Capabilities
+
+GSP.NET now supports **five data source modes** for terrain analysis:
+
+| # | Data Source | Description |
+|---|---|---|
+| 1 | **Import New CSV** | Upload a CSV file with X, Y, Z (Easting, Northing, Elevation) columns |
+| 2 | **Use Existing Data** | Search and select from previously saved datasets in the GSP.NET database |
+| 3 | **Combine Both** | Merge imported CSV with existing database points |
+| 4 | **Use DEM** *(NEW)* | Fetch elevation data from global satellite DEM datasets via secure cloud proxy — **no CSV or field data needed** |
+| 5 | **DEM + CSV (Calibrate)** *(NEW)* | Combine satellite DEM with your own CSV control points for improved local accuracy |
+
+After generating a DTM from any source, users can now:
+- View terrain in an **interactive 3D Viewer** (Three.js) with rotation, zoom, and pan
+- **Drape satellite basemap imagery** (Esri, Google, OSM, etc.) over the 3D terrain
+- **Capture up to 4 viewpoint snapshots** and export as a professional **3D PDF report**
+- **Export terrain** in STL, OBJ, GeoTIFF, and LAS formats
+
+### Available DEM Sources
+
+| DEM Source | Resolution | Provider | Notes |
+|---|---|---|---|
+| **Copernicus DEM GLO-30** | ~30m | ESA Copernicus Programme | Best global accuracy — recommended first choice |
+| **NASADEM** | ~30m | NASA (SRTM-derived) | Improved void filling — good fallback |
+| **SRTM 1-Arc-Second** | ~30m | NASA Shuttle Radar Topography Mission | Original mission data — last resort |
+
+- **Automatic fallback:** If the selected DEM source is unavailable, the system automatically tries the next source server-side.
+- **Maximum fetch area:** 25 km² per request (enforced to keep processing fast).
+- **Secure proxy:** All DEM data is fetched through GSP.NET's Supabase edge function (`fetch-dem`), which handles authentication, CORS, and rate limiting.
+
+### Step-by-Step Guide: Fetch DEM from Cloud (Mode: Use DEM)
+
+This is the simplest way to generate terrain — no CSV or field survey data needed.
+
+**Step 1: Open the Terrain Toolbox**
+1. Open `webmap.html` and sign in.
+2. Click the **"3D Terrain & Contours"** button in the left dock panel.
+
+**Step 2: Select "Use DEM" Data Source**
+1. In the **Data Source** section, select **"Use DEM"** (satellite dish icon).
+2. The DEM Elevation Fetch wizard will appear with 3 steps.
+
+**Step 3: Choose DEM Source (Step 1 of wizard)**
+1. Select your preferred DEM source:
+   - **Copernicus DEM GLO-30** (recommended — best accuracy)
+   - **NASADEM** (good fallback)
+   - **SRTM 1-Arc-Second** (last resort)
+2. Note: If the selected source is unavailable, the system falls back automatically.
+
+**Step 4: Define DEM Extent (Step 2 of wizard)**
+1. Click **"Draw Extent"** to draw a polygon boundary on the map, OR
+2. Click **"Select from Layer"** to use an existing polygon from a loaded layer.
+3. The extent info card will show: Area, Width, Height.
+4. ⚠️ If the area exceeds 25 km², a warning appears — draw a smaller extent.
+5. Optional: Enable **"Snap to CSV Points"** or **"Snap to Active Layers"** for precise boundary drawing.
+6. Use **"Clear DEM Extent"** to start over.
+
+**Step 5: Fetch DEM Data (Step 3 of wizard)**
+1. The **"Fetch DEM via Secure Proxy"** button becomes enabled after defining the extent.
+2. Click it. A progress indicator shows the fetch status.
+3. The system contacts the DEM server through GSP.NET's secure Supabase edge function.
+4. On success, a **DEM Result Card** appears showing:
+   - Resolution (e.g., ~30m)
+   - Area covered
+   - Min / Max Elevation
+   - Grid Points count
+   - Data Source used
+5. If the primary source fails, the system automatically retries with fallback sources.
+
+**Step 6: Generate DTM & Contours**
+1. Click the green **"DEM Ready — Click to Generate DTM & Contours"** button.
+2. The DEM elevation data flows into the standard DTM generation pipeline.
+3. Configure DTM settings (grid resolution, interpolation, color ramp) in the Settings section.
+4. Click **DTM** to generate the Digital Terrain Model.
+5. Click **Contours** to generate contour lines.
+
+### Step-by-Step Guide: DEM + CSV Calibration (Mode: DEM + CSV)
+
+This mode merges satellite DEM with your own survey CSV control points for higher local accuracy.
+
+**Step 1: Select "DEM + CSV (Calibrate)" Data Source**
+1. In the Data Source section, select **"DEM + CSV (Calibrate)"** (layer group icon).
+
+**Step 2: Import Your CSV Control Points (Step B1)**
+1. Click **"Browse Files"** or drag-drop your CSV file.
+2. Select the correct coordinate system (e.g., WGS84 UTM Zone 36N).
+3. Ensure CSV has columns: X/Easting, Y/Northing, Z/Elevation.
+4. Points load onto the map.
+
+**Step 3: Select DEM Source (Step B2)**
+1. Choose from Copernicus GLO-30, NASADEM, or SRTM (same as Mode A).
+
+**Step 4: Define DEM Extent (Step B3)**
+1. Draw or select your extent boundary (max 25 km²).
+2. The extent should cover the area around your CSV points.
+
+**Step 5: Fetch & Calibrate (Step B4)**
+1. Click **"Fetch & Calibrate DEM"**.
+2. The system fetches DEM data and merges it with your CSV elevations.
+3. Where CSV control points exist, their more accurate elevations take priority.
+4. A calibrated result card shows the merged dataset statistics.
+
+**Step 6: Generate DTM & Contours**
+1. Click the green proceed button to use the calibrated dataset.
+2. Generate DTM and contours as usual.
+
+### Step-by-Step Guide: Interactive 3D Terrain Viewer
+
+The 3D Viewer is available after generating a DTM from any data source.
+
+**Step 1: Open the 3D Viewer**
+1. After generating a DTM, locate the action buttons row in the 3D Terrain toolbox.
+2. Click the **"3D"** button.
+3. A fullscreen modal opens with a Three.js-powered 3D visualization.
+
+**Step 2: Navigate the 3D Scene**
+- **Rotate terrain:** Click and drag with the left mouse button.
+- **Zoom in/out:** Scroll the mouse wheel.
+- **Pan the view:** Right-click and drag.
+- The info bar reads: *"Drag to rotate · Scroll to zoom · Right-drag to pan"*.
+
+**Step 3: Adjust Vertical Exaggeration**
+1. Use the **"Vertical Exag"** slider at the bottom of the viewer.
+2. Range: 1x (true scale) to 10x (10× elevation exaggeration).
+3. The current value displays next to the slider (e.g., "2x").
+4. Higher values make subtle terrain features more visible but distort true proportions.
+
+**Step 4: Toggle Overlays**
+- **Contours:** Tick/untick the **"Contours"** checkbox to show/hide contour lines draped over the 3D terrain.
+- **Grid:** Tick/untick the **"Grid"** checkbox to show/hide the reference grid.
+
+**Step 5: Drape Satellite Basemap**
+1. Tick the **"Basemap"** checkbox (satellite icon) in the control bar.
+2. The system fetches tiles from your currently active 2D basemap (from the Layer Switcher).
+3. A loading spinner appears: *"Loading basemap tiles… Fetching satellite imagery for DTM extent"*.
+4. Once loaded, a badge appears showing the basemap name (e.g., "Esri World Imagery").
+5. Use the **"Blend"** slider (0–100%) to adjust transparency:
+   - 100% = fully opaque satellite imagery
+   - 50% = semi-transparent, showing elevation colors underneath
+   - 0% = fully transparent (elevation colors only)
+6. To change the basemap: close the 3D Viewer, switch basemap in the 2D Layer Switcher, then reopen 3D and toggle Basemap again.
+7. **Supported basemaps:** Esri World Imagery, Google Satellite, Esri Topo, Carto, OSM, and all basemaps from the Layer Switcher.
+8. **Note:** Google basemap tiles may not load due to CORS restrictions — use Esri or OSM for best results.
+
+**Step 6: Capture Views for PDF Export**
+1. Orient the 3D scene to your desired viewpoint.
+2. Click **"Capture View"** (camera icon) to take a high-resolution snapshot.
+3. Thumbnails appear in the captures bar.
+4. Repeat for up to **4 different viewpoints** (e.g., bird's-eye, side profile, close-up, panoramic).
+5. Once at least one capture exists, the **"Export 3D PDF"** button becomes active.
+
+**Step 7: Export 3D PDF Report**
+1. Click **"Export 3D PDF"** (file-pdf icon).
+2. A professional multi-page PDF is generated containing:
+   - All captured 3D viewpoint images
+   - Terrain metadata (elevation range, exaggeration, data source)
+   - Project information
+3. The PDF downloads automatically.
+
+**Step 8: Reset or Close**
+- Click **"Reset"** (sync icon) to restore the default camera position.
+- Click **"Close"** (X icon) to exit the 3D Viewer and return to the 2D map.
+
+### Elevation Color Ramps Available
+
+| Color Ramp | Description | Best For |
+|---|---|---|
+| **Elevation** | Blue → Cyan → Green → Yellow → Red → White | Standard elevation visualization |
+| **Terrain** | Green → Brown → White | Natural terrain appearance |
+| **Grayscale** | Black → White | Clean 3D shading effect |
+| **Viridis** | Dark purple → Teal → Yellow | Perceptually uniform, colorblind-safe |
+| **Spectral** | Red → Orange → Yellow → Green → Blue | Multi-class distinction |
+| **Plasma** | Dark purple → Magenta → Orange → Yellow | High contrast, perceptually uniform |
+
+### Frequently Asked Questions (DEM & 3D Viewer)
+
+**Q: Do I need survey data / a CSV file to use the DEM feature?**
+A: No! The **"Use DEM"** mode fetches elevation data entirely from satellite-based global DEM datasets. You only need to draw your area of interest on the map. This is ideal for preliminary terrain assessments, site reconnaissance, and areas where no field survey exists.
+
+**Q: How accurate is the DEM data compared to my survey CSV?**
+A: Satellite DEM data (Copernicus/NASADEM) has approximately ±2–5m vertical accuracy depending on terrain and land cover. Your survey CSV points with GPS/total station measurements are typically ±0.01–0.1m accurate. For critical work, use **"DEM + CSV (Calibrate)"** mode to combine DEM with your control points — the CSV elevations take priority where they exist.
+
+**Q: What happens if the DEM server is down?**
+A: The system has triple-fallback logic: Copernicus → NASADEM → SRTM. If all raster sources are offline, it switches to OpenTopoData point-sampling as a last resort. The user is notified of any fallback through banner messages.
+
+**Q: Why is the maximum DEM area limited to 25 km²?**
+A: The 25 km² limit keeps server processing fast and prevents memory overload. For larger areas, split the work into multiple extents, generate DTMs separately, and use them for different zones of your project.
+
+**Q: Can I use the 3D Viewer without basemap draping?**
+A: Yes! The basemap is optional. By default, the 3D Viewer shows the terrain colored by the selected elevation color ramp (with optional hillshading). The basemap checkbox is unchecked by default.
+
+**Q: Why does the Google Satellite basemap not load in 3D?**
+A: Google's tile servers block cross-origin (CORS) requests from web applications. Use **Esri World Imagery** or **OpenStreetMap** basemaps instead — they fully support CORS and load reliably in the 3D Viewer.
+
+**Q: Can I export the 3D terrain to other software?**
+A: Yes! Use the export buttons in the 3D Terrain toolbox:
+- **STL** → for 3D printing (Cura, PrusaSlicer)
+- **OBJ** → for 3D modeling (Blender, SketchUp, Civil 3D)
+- **GeoTIFF** → for GIS software (QGIS, ArcGIS Pro)
+- **LAS** → for point cloud software (CloudCompare, LAStools)
+
+**Q: What is the vertical exaggeration and when should I use it?**
+A: Vertical exaggeration multiplies elevation values by a factor (1x–10x) to make terrain features more visible. Use 1x for true-scale representation, 2–3x for general terrain visualization, and 5–10x for very flat areas where subtle features need to be visible. Note: exaggerated terrain distorts true proportions.
+
+**Q: Can I change which basemap is draped in 3D?**
+A: Yes. Close the 3D Viewer, switch to a different basemap in the 2D Layer Switcher (e.g., from Esri Imagery to Carto Voyager), then reopen the 3D Viewer and toggle the Basemap checkbox. The system re-fetches tiles from the newly active basemap.
+
 
 ## Chat_Guide.txt
 
