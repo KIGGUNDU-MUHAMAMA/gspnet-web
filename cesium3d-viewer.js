@@ -273,101 +273,190 @@
         }
     }
 
+    // ========== Per-layer label field lookup (mirrors 2D style functions) ==========
+    // Sources: getFlatGeobufParcelStyle → nlis_id, getBlockBoundaryStyle → nlis_id,
+    //          getMukonoBlocksStyle → Number_, getProtectedAreasStyle → nlis_id,
+    //          getForestReservesStyle → Name/name, survey polygons → unique_id
+    function getLabelText(feature, layerTitle) {
+        const t = (layerTitle || '').toLowerCase();
+
+        // Forest reserves — Name field
+        if (t.includes('forest')) {
+            return feature.get('Name') || feature.get('name') || null;
+        }
+        // Mukono Blocks — unique Number_ field
+        if (t === 'mukono blocks') {
+            return feature.get('Number_') != null ? String(feature.get('Number_')) : null;
+        }
+        // Survey polygons — unique_id only
+        if (!t.includes('nlis') && !t.includes('nlsi') && !t.includes('block') &&
+            !t.includes('forest') && !t.includes('protected')) {
+            return feature.get('unique_id') != null ? String(feature.get('unique_id')) : null;
+        }
+        // All other NLIS / Block / Protected layers → nlis_id
+        const id = feature.get('nlis_id');
+        return id != null ? String(id) : null;
+    }
+
+    // ========== Compute polygon centroid in lon/lat degrees ==========
+    function getRingCentroidLL(ring) {
+        // Simple bounding-box centroid (fast, good enough for label placement)
+        let sumX = 0, sumY = 0;
+        const n = ring.length - 1; // last point == first for closed ring
+        for (let i = 0; i < n; i++) { sumX += ring[i][0]; sumY += ring[i][1]; }
+        const ll = ol.proj.transform([sumX / n, sumY / n], 'EPSG:3857', 'EPSG:4326');
+        return ll; // [lon, lat]
+    }
+
     function addVectorFeaturesToCesium(features, layerTitle) {
         const titleLower = (layerTitle || '').toLowerCase();
-        // Determine layerType based on title pattern
-        const isGspnet = titleLower.includes('nlis') || titleLower.includes('nlsi') ||
-                         titleLower.includes('blocks') || titleLower.includes('block') ||
-                         titleLower.includes('forest') || titleLower.includes('protected');
-        const layerType = isGspnet ? 'gspnet-layer' : 'survey-polygon';
 
-        // Choose colors based on layer type
-        const fillColor = isGspnet
-            ? Cesium.Color.fromCssColorString('#22c55e').withAlpha(0.25)  // green for GSPNET
-            : Cesium.Color.fromCssColorString('#3b82f6').withAlpha(0.35); // blue for survey
-        const lineColor = isGspnet
-            ? Cesium.Color.fromCssColorString('#16a34a')
-            : Cesium.Color.fromCssColorString('#2563eb');
-        const pointColor = isGspnet
-            ? Cesium.Color.fromCssColorString('#ef4444')
-            : Cesium.Color.fromCssColorString('#f59e0b');
+        // ── Layer classification ──────────────────────────────────────────────
+        const isMukonoBlock  = titleLower === 'mukono blocks';
+        const isForest       = titleLower.includes('forest');
+        const isProtected    = titleLower.includes('protected');
+        const isBlock        = titleLower.includes('block');  // includes mukono
+        const isNlis         = titleLower.includes('nlis') || titleLower.includes('nlsi');
+        const isGspnet       = isNlis || isBlock || isForest || isProtected;
+        const layerType      = isGspnet ? 'gspnet-layer' : 'survey-polygon';
+
+        // ── Outline colours ───────────────────────────────────────────────────
+        // GSPNET layers → red  |  Survey polygons → yellow
+        const outlineColorCss = isGspnet ? '#ef4444' : '#facc15';
+
+        // ── Label colour (white text, dark shadow for terrain readability) ────
+        const labelFillCss   = isGspnet ? '#ffffff' : '#ffffff';
+        const labelOutlineCss = isGspnet ? '#7f1d1d' : '#713f12';  // deep red / amber
+
+        // Cesium distanceDisplayCondition — labels only below 2 000 m camera height
+        const LABEL_MAX_DIST = 2000.0;
 
         let added = 0;
         try {
             features.forEach(feature => {
                 const geom = feature.getGeometry();
                 if (!geom) return;
-
                 const type = geom.getType();
 
+                // ── Polygon / MultiPolygon ────────────────────────────────────
                 if (type === 'Polygon' || type === 'MultiPolygon') {
-                    const polys = type === 'Polygon' ? [geom.getCoordinates()] : geom.getCoordinates();
+                    const polys = type === 'Polygon'
+                        ? [geom.getCoordinates()]
+                        : geom.getCoordinates();
+
                     polys.forEach(polygonCoords => {
                         const ring = polygonCoords[0];
                         if (!ring || ring.length < 3) return;
+
+                        // Convert ring to Cesium Cartesian3 positions
                         const positions = ring.map(c => {
                             const ll = ol.proj.transform(c, 'EPSG:3857', 'EPSG:4326');
                             return Cesium.Cartesian3.fromDegrees(ll[0], ll[1]);
                         });
 
-                        // NOTE: height must NOT be set when using classificationType —
-                        // Cesium silently drops polygons that mix height with classification.
+                        // ── Outline as a ground-clamped polyline (no fill) ──
+                        // Cesium classification polygons cannot have outlines,
+                        // so we draw a clampToGround polyline for the border.
+                        // Close the ring: last point = first point
+                        const outlinePositions = [...positions, positions[0]];
                         viewer.entities.add({
-                            polygon: {
-                                hierarchy: new Cesium.PolygonHierarchy(positions),
-                                material: fillColor,
-                                classificationType: Cesium.ClassificationType.BOTH
+                            polyline: {
+                                positions: outlinePositions,
+                                width: isBlock ? 1.5 : 1.5,
+                                material: Cesium.Color.fromCssColorString(outlineColorCss),
+                                clampToGround: true
                             },
-                            properties: {
-                                title: feature.get('name') || feature.get('title') ||
-                                       feature.get('PlotNumber') || feature.get('BLOCK NO.') || layerTitle,
-                                layerType: layerType
-                            }
+                            properties: { layerType }
                         });
+
+                        // ── Centroid label (visible only when zoomed close) ──
+                        const labelText = getLabelText(feature, layerTitle);
+                        if (labelText) {
+                            const centLL = getRingCentroidLL(ring);
+                            viewer.entities.add({
+                                position: Cesium.Cartesian3.fromDegrees(centLL[0], centLL[1]),
+                                label: {
+                                    text: labelText,
+                                    font: isBlock || isForest || isProtected
+                                        ? 'bold 11px sans-serif'
+                                        : '10px sans-serif',
+                                    fillColor: Cesium.Color.fromCssColorString(labelFillCss),
+                                    outlineColor: Cesium.Color.fromCssColorString(labelOutlineCss),
+                                    outlineWidth: 2,
+                                    style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                                    verticalOrigin: Cesium.VerticalOrigin.CENTER,
+                                    horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+                                    heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                                    distanceDisplayCondition:
+                                        new Cesium.DistanceDisplayCondition(0, LABEL_MAX_DIST),
+                                    disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                                    pixelOffset: new Cesium.Cartesian2(0, 0),
+                                    scale: 1.0
+                                },
+                                properties: { layerType }
+                            });
+                        }
+
                         added++;
                     });
 
+                // ── LineString / MultiLineString ──────────────────────────────
                 } else if (type === 'LineString' || type === 'MultiLineString') {
-                    const lines = type === 'LineString' ? [geom.getCoordinates()] : geom.getCoordinates();
+                    const lines = type === 'LineString'
+                        ? [geom.getCoordinates()]
+                        : geom.getCoordinates();
+
                     lines.forEach(lineCoords => {
                         if (!lineCoords || lineCoords.length < 2) return;
                         const positions = lineCoords.map(c => {
                             const ll = ol.proj.transform(c, 'EPSG:3857', 'EPSG:4326');
                             return Cesium.Cartesian3.fromDegrees(ll[0], ll[1]);
                         });
-
                         viewer.entities.add({
                             polyline: {
-                                positions: positions,
-                                material: lineColor,
-                                width: 2,
+                                positions,
+                                width: 1.5,
+                                material: Cesium.Color.fromCssColorString(outlineColorCss),
                                 clampToGround: true
                             },
-                            properties: {
-                                title: feature.get('name') || feature.get('title') || layerTitle,
-                                layerType: layerType
-                            }
+                            properties: { layerType }
                         });
                         added++;
                     });
 
+                // ── Point ─────────────────────────────────────────────────────
                 } else if (type === 'Point') {
                     const coords = geom.getCoordinates();
                     const ll = ol.proj.transform(coords, 'EPSG:3857', 'EPSG:4326');
-                    viewer.entities.add({
+                    const labelText = getLabelText(feature, layerTitle);
+                    const entity = {
                         position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1]),
                         point: {
-                            pixelSize: 8,
-                            color: pointColor,
+                            pixelSize: 6,
+                            color: Cesium.Color.fromCssColorString(outlineColorCss),
                             outlineColor: Cesium.Color.WHITE,
-                            outlineWidth: 2,
+                            outlineWidth: 1,
                             heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
                         },
-                        properties: {
-                            title: feature.get('name') || feature.get('point_id') || layerTitle,
-                            layerType: layerType
-                        }
-                    });
+                        properties: { layerType }
+                    };
+                    if (labelText) {
+                        entity.label = {
+                            text: labelText,
+                            font: '10px sans-serif',
+                            fillColor: Cesium.Color.fromCssColorString(labelFillCss),
+                            outlineColor: Cesium.Color.fromCssColorString(labelOutlineCss),
+                            outlineWidth: 2,
+                            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                            distanceDisplayCondition:
+                                new Cesium.DistanceDisplayCondition(0, LABEL_MAX_DIST),
+                            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                            pixelOffset: new Cesium.Cartesian2(0, -10)
+                        };
+                    }
+                    viewer.entities.add(entity);
                     added++;
                 }
             });
