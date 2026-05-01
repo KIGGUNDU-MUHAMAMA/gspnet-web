@@ -33609,14 +33609,19 @@
 
                 updateLoadingProgress(`Creating ${width}x${height} elevation grid using ${method.toUpperCase()}...`);
 
-                // Create elevation grid - interpolate ALL cells (even in buffer zone)
+                // Create elevation grid — NaN outside clip polygon for proper 3D clipping
                 for (let row = 0; row < height; row++) {
                     grid[row] = [];
                     for (let col = 0; col < width; col++) {
                         const x = bounds.minX + (col * cellSize) + (cellSize / 2);
                         const y = bounds.minY + (row * cellSize) + (cellSize / 2);
 
-                        // ALWAYS interpolate - never skip cells
+                        // Mark cells outside clip polygon as NaN (skipped in 3D mesh)
+                        if (extentPolygon && !extentPolygon.intersectsCoordinate([x, y])) {
+                            grid[row][col] = NaN;
+                            continue;
+                        }
+
                         let elevation = null;
 
                         // Select interpolation method
@@ -34375,7 +34380,7 @@
                 for (let row = 0; row < gridData.height; row++) {
                     for (let col = 0; col < gridData.width; col++) {
                         const elevation = gridData.grid[row][col];
-                        if (elevation === null) continue;
+                        if (elevation === null || Number.isNaN(elevation)) continue;
 
                         // Check if cell is outside clip polygon (hard clip)
                         if (gridData.clipPolygon) {
@@ -37041,6 +37046,9 @@ function smoothChaikin(points) {
                             const z01 = gridData.grid[row + 1][col] * vertExag;
                             const z11 = gridData.grid[row + 1][col + 1] * vertExag;
 
+                            // Skip cells outside clip polygon (NaN)
+                            if (isNaN(z00) || isNaN(z10) || isNaN(z01) || isNaN(z11)) continue;
+
                             // Triangle 1
                             stl += writeSTLTriangle(
                                 [x0, y0, z00],
@@ -37120,8 +37128,9 @@ function smoothChaikin(points) {
                         for (let col = 0; col < gridData.width; col++) {
                             const x = col * gridData.cellSize;
                             const y = row * gridData.cellSize;
-                            const z = gridData.grid[row][col] * vertExag;
-                            obj += `v ${x.toFixed(3)} ${y.toFixed(3)} ${z.toFixed(3)}\n`;
+                            const rawZ = gridData.grid[row][col];
+                            const z = isNaN(rawZ) ? NaN : rawZ * vertExag;
+                            obj += `v ${x.toFixed(3)} ${y.toFixed(3)} ${(isNaN(z) ? 0 : z).toFixed(3)}\n`;
                         }
                     }
 
@@ -37134,6 +37143,10 @@ function smoothChaikin(points) {
                             const v2 = row * gridData.width + col + 2;
                             const v3 = (row + 1) * gridData.width + col + 1;
                             const v4 = (row + 1) * gridData.width + col + 2;
+
+                            // Skip faces where any vertex has NaN elevation
+                            const g = gridData.grid;
+                            if (isNaN(g[row][col]) || isNaN(g[row][col+1]) || isNaN(g[row+1][col]) || isNaN(g[row+1][col+1])) continue;
 
                             obj += `f ${v1} ${v2} ${v3}\n`;
                             obj += `f ${v2} ${v4} ${v3}\n`;
@@ -37576,32 +37589,56 @@ function smoothChaikin(points) {
                 const maxElev = terrain3DState.maxElevation || 100;
                 const elevRange = maxElev - minElev || 1;
 
+                // Build vertex index map — NaN cells get -1 (no vertex)
+                const vertexIndex = new Int32Array(sampledH * sampledW).fill(-1);
+                let vertCount = 0;
+
                 for (let row = 0; row < sampledH; row++) {
                     for (let col = 0; col < sampledW; col++) {
                         const srcRow = Math.min(row * step, height - 1);
                         const srcCol = Math.min(col * step, width - 1);
+                        const val = grid[srcRow][srcCol];
+
+                        // Skip NaN / null cells (outside clip polygon)
+                        if (val === null || val === undefined || Number.isNaN(val)) continue;
+
                         const x = srcCol * cellSize;
                         const y = srcRow * cellSize;
-                        const z = (grid[srcRow][srcCol] || minElev) * vExag;
+                        const z = val * vExag;
                         positions.push(x, y, z);
 
-                        // UV coordinates: map (0,0) → (1,1) across terrain extent
-                        const u = x / totalWidth;
-                        const v = y / totalHeight;
-                        uvs.push(u, v);
+                        // UV coordinates
+                        uvs.push(x / totalWidth, y / totalHeight);
 
                         // Hypsometric color
-                        const t = Math.max(0, Math.min(1, (grid[srcRow][srcCol] - minElev) / elevRange));
+                        const t = Math.max(0, Math.min(1, (val - minElev) / elevRange));
                         const rgb = elevationToColor(t);
                         colors.push(rgb[0], rgb[1], rgb[2]);
+
+                        vertexIndex[row * sampledW + col] = vertCount++;
                     }
                 }
 
+                // Build triangle indices — only where quad corners are valid
                 for (let row = 0; row < sampledH - 1; row++) {
                     for (let col = 0; col < sampledW - 1; col++) {
-                        const i = row * sampledW + col;
-                        indices.push(i, i + 1, i + sampledW);
-                        indices.push(i + 1, i + sampledW + 1, i + sampledW);
+                        const i00 = vertexIndex[row * sampledW + col];
+                        const i10 = vertexIndex[row * sampledW + col + 1];
+                        const i01 = vertexIndex[(row + 1) * sampledW + col];
+                        const i11 = vertexIndex[(row + 1) * sampledW + col + 1];
+
+                        if (i00 >= 0 && i10 >= 0 && i01 >= 0 && i11 >= 0) {
+                            indices.push(i00, i10, i01);
+                            indices.push(i10, i11, i01);
+                        } else if (i00 >= 0 && i10 >= 0 && i01 >= 0) {
+                            indices.push(i00, i10, i01);
+                        } else if (i10 >= 0 && i11 >= 0 && i01 >= 0) {
+                            indices.push(i10, i11, i01);
+                        } else if (i00 >= 0 && i10 >= 0 && i11 >= 0) {
+                            indices.push(i00, i10, i11);
+                        } else if (i00 >= 0 && i11 >= 0 && i01 >= 0) {
+                            indices.push(i00, i11, i01);
+                        }
                     }
                 }
 
@@ -37979,7 +38016,8 @@ function smoothChaikin(points) {
                             const z01 = grid[Math.min(row + step, height - 1)][col];
                             const z11 = grid[Math.min(row + step, height - 1)][Math.min(col + step, width - 1)];
 
-                            if (z00 == null || z10 == null || z01 == null || z11 == null) continue;
+                            if (z00 == null || z10 == null || z01 == null || z11 == null ||
+                                Number.isNaN(z00) || Number.isNaN(z10) || Number.isNaN(z01) || Number.isNaN(z11)) continue;
 
                             const x0 = col * cellSize;
                             const y0 = row * cellSize;
