@@ -33410,6 +33410,17 @@
                         }));
                         combined = combined.concat(demPoints);
                         console.log(`[DEM] getCombinedData: ${demPoints.length} DEM grid points added (EPSG:4326)`);
+
+                        // Auto-link DEM extent polygon to customExtent for proper
+                        // grid clipping (prevents triangular shapes in 3D view)
+                        if (typeof demController !== 'undefined' && demController.getExtent) {
+                            const demExtentFeature = demController.getExtent();
+                            if (demExtentFeature) {
+                                terrain3DState.customExtent = demExtentFeature;
+                                terrain3DState.useCustomExtent = true;
+                                console.log('[DEM] Auto-linked DEM extent polygon to customExtent for grid clipping');
+                            }
+                        }
                     } else {
                         console.warn('[DEM] getCombinedData: No DEM grid available. Run Fetch DEM first.');
                     }
@@ -37680,21 +37691,16 @@ function smoothChaikin(points) {
                     throw new Error(`Basemap "${label}" does not support tile URL export.`);
                 }
 
-                // ── Reproject DTM bounds → WGS84 for tile math ──
-                const dataCRS = (terrain3DState.coordinateSystem || 'EPSG:32636').toUpperCase();
-                const proj4WGS84 = '+proj=longlat +datum=WGS84 +no_defs';
+                // â”€â”€ Reproject DTM bounds â†’ WGS84 for tile math â”€â”€
+                // gridData.bounds are ALWAYS in EPSG:3857 (data is transformed
+                // to EPSG:3857 before createRasterGrid, regardless of input CRS)
                 let lonMin, latMin, lonMax, latMax;
-                if (dataCRS === 'EPSG:4326') {
-                    lonMin = bounds.minX; latMin = bounds.minY;
-                    lonMax = bounds.maxX; latMax = bounds.maxY;
-                } else {
-                    const srcProjStr = proj4.defs(dataCRS);
-                    if (!srcProjStr) throw new Error(`proj4 definition not found for CRS "${dataCRS}".`);
-                    const sw = proj4(dataCRS, proj4WGS84, [bounds.minX, bounds.minY]);
-                    const ne = proj4(dataCRS, proj4WGS84, [bounds.maxX, bounds.maxY]);
+                {
+                    const sw = ol.proj.transform([bounds.minX, bounds.minY], 'EPSG:3857', 'EPSG:4326');
+                    const ne = ol.proj.transform([bounds.maxX, bounds.maxY], 'EPSG:3857', 'EPSG:4326');
                     lonMin = sw[0]; latMin = sw[1]; lonMax = ne[0]; latMax = ne[1];
                 }
-                console.log(`[3D Basemap] "${label}" CRS:${dataCRS} → WGS84: lon ${lonMin.toFixed(5)}..${lonMax.toFixed(5)}, lat ${latMin.toFixed(5)}..${latMax.toFixed(5)}`);
+                console.log(`[3D Basemap] "${label}" bounds(3857) â†’ WGS84: lon ${lonMin.toFixed(5)}..${lonMax.toFixed(5)}, lat ${latMin.toFixed(5)}..${latMax.toFixed(5)}`);
 
                 // ── Tile math (standard Web Mercator XYZ) ──
                 const lonToTile = (lon, z) => Math.floor((lon + 180) / 360 * (1 << z));
@@ -40943,7 +40949,7 @@ function smoothChaikin(points) {
                     _el('demCsvLayerToggleBtn')?.addEventListener('click', _toggleCsvLayer);
                 }
 
-                return { init, onSourceChanged };
+                return { init, onSourceChanged, getExtent: () => _demExtent };
             })();
 
 
