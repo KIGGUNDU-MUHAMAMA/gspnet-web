@@ -38265,6 +38265,11 @@ function smoothChaikin(points) {
                 texture.magFilter = THREE.LinearFilter;
                 texture.wrapS = THREE.ClampToEdgeWrapping;
                 texture.wrapT = THREE.ClampToEdgeWrapping;
+                // flipY=false: canvas is already in the correct orientation (north at top).
+                // Three.js default flipY=true would invert Y, and then the manual loop
+                // below would invert again — double-flip = wrong position (shifted north).
+                // With flipY=false: terrain UV V=0 (south) samples canvas bottom (south). Correct.
+                texture.flipY = false;
                 texture.needsUpdate = true;
 
                 return { texture, label };
@@ -38288,14 +38293,10 @@ function smoothChaikin(points) {
 
                 // Clone the terrain geometry (it already has UVs)
                 const geo = viewer3D.terrainMesh.geometry.clone();
-
-                // Flip V coordinate because the basemap image Y-axis is top-down
-                // but the terrain's Y-axis (row 0 = south) grows upward.
-                const uvAttr = geo.getAttribute('uv');
-                for (let i = 0; i < uvAttr.count; i++) {
-                    uvAttr.setY(i, 1.0 - uvAttr.getY(i));
-                }
-                uvAttr.needsUpdate = true;
+                // NOTE: No UV V-flip needed here.
+                // The terrain UVs are built as V=0 at south, V=1 at north.
+                // The canvas texture has north at top (y=0) and south at bottom.
+                // With texture.flipY=false, canvas y=0 (north) → GPU V=1 (north) — correct.
 
                 const mat = new THREE.MeshBasicMaterial({
                     map: viewer3D.basemapTexture,
