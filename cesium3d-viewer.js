@@ -35,9 +35,10 @@
             url: 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
             maximumLevel: 19, credit: new Cesium.Credit('CARTO')
         }),
-        'bing-aerial': () => Cesium.BingMapsImageryProvider.fromUrl(
-            'https://dev.virtualearth.net', { mapStyle: Cesium.BingMapsStyle.AERIAL_WITH_LABELS }
-        )
+        'esri-streets': () => new Cesium.UrlTemplateImageryProvider({
+            url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+            maximumLevel: 19, credit: new Cesium.Credit('Esri')
+        })
     };
 
     // ========== PUBLIC: Launch 3D Globe ==========
@@ -177,60 +178,66 @@
         }
     }
 
-    // ========== Add ALL visible vector layers (recursive, handles Groups) ==========
+    // ========== Collect all leaf OL layers recursively (handles LayerGroups) ==========
+    function collectLeafLayers(layerOrGroup) {
+        const results = [];
+        if (typeof layerOrGroup.getLayers === 'function') {
+            layerOrGroup.getLayers().getArray().forEach(child => {
+                results.push(...collectLeafLayers(child));
+            });
+        } else {
+            results.push(layerOrGroup);
+        }
+        return results;
+    }
+
+    // ========== Add ALL vector layers — reads already-loaded features from ANY layer ==========
     function addVectorLayers() {
         if (!viewer || typeof map === 'undefined') return;
 
         let vecCount = 0, featCount = 0;
         try {
-            // Recursively collect all leaf layers (handles ol.layer.Group nesting)
-            function collectLeafLayers(layerOrGroup) {
-                const results = [];
-                if (typeof layerOrGroup.getLayers === 'function') {
-                    // It's a Group — recurse into children
-                    layerOrGroup.getLayers().getArray().forEach(child => {
-                        results.push(...collectLeafLayers(child));
-                    });
-                } else {
-                    results.push(layerOrGroup);
-                }
-                return results;
-            }
-
             const allLeafLayers = [];
-            map.getLayers().getArray().forEach(l => {
-                allLeafLayers.push(...collectLeafLayers(l));
-            });
+            map.getLayers().getArray().forEach(l => allLeafLayers.push(...collectLeafLayers(l)));
 
-            console.log(`[Cesium3D] Found ${allLeafLayers.length} total leaf layers`);
+            console.log(`[Cesium3D] Scanning ${allLeafLayers.length} layers for features`);
 
             allLeafLayers.forEach(layer => {
-                // Skip invisible layers but include layers whose parent group is visible
-                // (layer.getVisible() checks own visibility, not parent)
-                const title = (layer.get('title') || layer.get('name') || '').toLowerCase();
+                const title = (layer.get('title') || layer.get('name') || '');
                 const source = layer.getSource && layer.getSource();
-                if (!source) return;
-
-                // Skip basemap tile layers (XYZ, OSM, etc.)
-                if (typeof source.getFeatures !== 'function') return;
+                if (!source || typeof source.getFeatures !== 'function') return;
 
                 const features = source.getFeatures();
-                if (features.length === 0) {
-                    if (title) console.log(`[Cesium3D] Layer "${title}": 0 features loaded (deferred/not in viewport)`);
-                    return;
-                }
+                if (features.length === 0) return; // deferred layers — nothing loaded yet
 
-                console.log(`[Cesium3D] Layer "${title}": adding ${features.length} features`);
+                console.log(`[Cesium3D] "${title}": ${features.length} features found`);
                 addVectorFeaturesToCesium(features, title);
                 vecCount++;
                 featCount += features.length;
             });
 
-            console.log(`[Cesium3D] Total: ${vecCount} vector layers, ${featCount} features added`);
+            if (featCount === 0) {
+                console.warn('[Cesium3D] No features found. Layers may not have loaded yet.' +
+                    ' Turn on a GSPNET layer in the 2D map first, then reopen the 3D viewer.');
+            }
+            console.log(`[Cesium3D] Done: ${vecCount} layers, ${featCount} total features`);
         } catch (e) {
-            console.warn('Error adding vector layers:', e);
+            console.warn('Error in addVectorLayers:', e);
         }
     }
+
+    // ========== Reload layers from map into Cesium on demand ==========
+    window.cesium3dReloadLayers = function () {
+        if (!viewer) return;
+        // Remove old vector entities
+        const toRemove = viewer.entities.values.filter(e => {
+            const p = e.properties;
+            return p && (p.layerType);
+        });
+        toRemove.forEach(e => viewer.entities.remove(e));
+        addVectorLayers();
+        if (typeof showToast === 'function') showToast('Layers refreshed from 2D map', 'success');
+    };
 
     function addWmsLayerToCesium(olLayer) {
         try {
@@ -669,6 +676,10 @@
                 });
             }
         };
+
+        // Reload Layers button
+        const reloadLayersBtn = document.getElementById('cesium3dReloadLayersBtn');
+        if (reloadLayersBtn) reloadLayersBtn.onclick = () => window.cesium3dReloadLayers();
 
         // Close
         const closeBtn = document.getElementById('cesium3dCloseBtn');
