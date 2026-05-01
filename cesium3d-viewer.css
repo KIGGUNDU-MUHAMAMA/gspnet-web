@@ -1,0 +1,499 @@
+/* ============================================================
+   CESIUM 3D GLOBE VIEWER STYLES  (cesium3d-viewer.css)
+   GSP.NET Platform
+   ============================================================ */
+
+/* ---------- Modal Two-Card Layout ---------- */
+.terrain-modal-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 24px;
+}
+
+.terrain-modal-card {
+    padding: 24px;
+    border-radius: 12px;
+    text-align: center;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    transition: all 0.25s ease;
+}
+
+.terrain-modal-card:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+}
+
+.terrain-modal-card h4 {
+    margin: 12px 0 6px;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.terrain-modal-card p {
+    margin: 0 0 14px;
+    font-size: 0.82rem;
+    color: #64748b;
+    line-height: 1.45;
+}
+
+.terrain-modal-card-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: #fff;
+}
+
+.terrain-modal-card-icon.globe {
+    background: linear-gradient(135deg, #0ea5e9, #0284c7);
+}
+
+.terrain-modal-card-icon.project {
+    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+}
+
+.tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+
+.tag-row .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.terrain-modal-card-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 28px;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.terrain-modal-card-btn.globe-btn {
+    background: linear-gradient(135deg, #0ea5e9, #0284c7);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35);
+}
+
+.terrain-modal-card-btn.globe-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 22px rgba(14, 165, 233, 0.45);
+}
+
+.terrain-modal-divider {
+    text-align: center;
+    padding: 12px 0;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #94a3b8;
+    letter-spacing: 2px;
+}
+
+/* Widen modal for two cards */
+.terrain-project-modal-content {
+    max-width: 560px !important;
+}
+
+/* ---------- Fullscreen Cesium Overlay ---------- */
+.cesium3d-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    background: #0f172a;
+    flex-direction: column;
+}
+
+.cesium3d-overlay.active {
+    display: flex;
+}
+
+#cesium3dContainer {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+#cesium3dContainer .cesium-viewer {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Loading */
+.cesium3d-loading {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(8px);
+    color: #e2e8f0;
+    gap: 12px;
+    font-size: 0.95rem;
+}
+
+.cesium3d-loading.hidden {
+    display: none;
+}
+
+.cesium3d-loading-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(255, 255, 255, 0.15);
+    border-top-color: #38bdf8;
+    border-radius: 50%;
+    animation: cesiumSpin 0.8s linear infinite;
+}
+
+@keyframes cesiumSpin {
+    to { transform: rotate(360deg); }
+}
+
+#cesium3dLoadingStatus {
+    font-size: 0.8rem;
+    color: #94a3b8;
+}
+
+/* Info bar (top-left) */
+.cesium3d-info {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 5;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(8px);
+    color: #cbd5e1;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 0.72rem;
+    line-height: 1.5;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    pointer-events: none;
+}
+
+.cesium3d-info b {
+    color: #38bdf8;
+    font-size: 0.82rem;
+}
+
+/* Settings toggle */
+.cesium3d-settings-toggle {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 6;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(8px);
+    color: #e2e8f0;
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.cesium3d-settings-toggle:hover {
+    background: rgba(56, 189, 248, 0.25);
+    border-color: #38bdf8;
+}
+
+/* Settings panel */
+.cesium3d-panel {
+    position: absolute;
+    top: 60px;
+    right: 12px;
+    z-index: 7;
+    width: 280px;
+    max-height: calc(100% - 130px);
+    overflow-y: auto;
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    color: #e2e8f0;
+    display: none;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.cesium3d-panel.visible {
+    display: block;
+    animation: panelSlide 0.25s ease;
+}
+
+@keyframes panelSlide {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.cesium3d-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cesium3d-panel-header h4 {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cesium3d-panel-close {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 1.3rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.cesium3d-panel-close:hover {
+    color: #f87171;
+}
+
+.cesium3d-panel-section {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cesium3d-panel-section h5 {
+    margin: 0 0 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.cesium3d-basemap-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    font-size: 0.8rem;
+    cursor: pointer;
+    color: #cbd5e1;
+    transition: color 0.15s;
+}
+
+.cesium3d-basemap-option:hover {
+    color: #38bdf8;
+}
+
+.cesium3d-layer-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    font-size: 0.8rem;
+    cursor: pointer;
+    color: #cbd5e1;
+}
+
+/* Slider rows */
+.cesium3d-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    font-size: 0.78rem;
+}
+
+.cesium3d-slider-row label {
+    min-width: 65px;
+    color: #94a3b8;
+}
+
+.cesium3d-slider-row input[type="range"] {
+    flex: 1;
+    height: 4px;
+    accent-color: #38bdf8;
+}
+
+.cesium3d-slider-row .val {
+    min-width: 36px;
+    text-align: right;
+    font-weight: 600;
+    color: #38bdf8;
+    font-size: 0.72rem;
+}
+
+/* ---------- Bottom Control Bar ---------- */
+.cesium3d-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: rgba(15, 23, 42, 0.95);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+    font-size: 0.78rem;
+    flex-shrink: 0;
+}
+
+.cesium3d-controls input[type="range"] {
+    width: 80px;
+    height: 4px;
+    accent-color: #38bdf8;
+}
+
+.cesium3d-ctrl-val {
+    font-weight: 600;
+    color: #38bdf8;
+    min-width: 30px;
+}
+
+.cesium3d-sep {
+    width: 1px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.cesium3d-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #e2e8f0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.cesium3d-btn:hover {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: #38bdf8;
+}
+
+.cesium3d-btn.capture-btn {
+    background: rgba(34, 197, 94, 0.15);
+    border-color: rgba(34, 197, 94, 0.3);
+    color: #4ade80;
+}
+
+.cesium3d-btn.capture-btn:hover {
+    background: rgba(34, 197, 94, 0.25);
+}
+
+.cesium3d-btn.pdf-btn {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.25);
+    color: #f87171;
+}
+
+.cesium3d-btn.pdf-btn:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.22);
+}
+
+.cesium3d-btn.pdf-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.cesium3d-btn.close-btn {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.25);
+    color: #f87171;
+}
+
+.cesium3d-btn.close-btn:hover {
+    background: rgba(239, 68, 68, 0.3);
+}
+
+/* Capture thumbnails */
+.cesium3d-captures {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    max-width: 200px;
+}
+
+.cesium3d-cap-thumb {
+    width: 40px;
+    height: 28px;
+    border-radius: 4px;
+    object-fit: cover;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s;
+}
+
+.cesium3d-cap-thumb:hover {
+    border-color: #38bdf8;
+    transform: scale(1.15);
+}
+
+/* Override Cesium default widget sizing conflicts */
+.cesium3d-overlay .cesium-widget,
+.cesium3d-overlay .cesium-widget canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Mobile adjustments */
+@media (max-width: 640px) {
+    .cesium3d-controls {
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 6px 10px;
+    }
+
+    .cesium3d-panel {
+        width: calc(100% - 24px);
+        right: 12px;
+        left: 12px;
+    }
+
+    .cesium3d-info {
+        display: none;
+    }
+
+    .terrain-modal-cards {
+        padding: 16px;
+    }
+}

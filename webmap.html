@@ -21,6 +21,11 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <!-- GeoTIFF.js — parse DEM rasters in-browser (for DEM data source feature) -->
     <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
+    <!-- CesiumJS — 3D globe engine for OL-Cesium terrain viewer -->
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.123/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <link href="cesium3d-viewer.css" rel="stylesheet">
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.123/Build/Cesium/Cesium.js"></script>
+    <script src="cesium3d-viewer.js" defer></script>
     <script src="condo-viewer.js"></script>
     <script>
         // ============================================
@@ -9799,6 +9804,242 @@
             }
         }
 
+        /* ========================================
+           OL-CESIUM 3D GLOBE VIEWER STYLES
+           ======================================== */
+
+        /* --- Restructured Project Modal: Two-card layout --- */
+        .terrain-modal-cards {
+            display: flex; flex-direction: column; gap: 16px; padding: 20px;
+        }
+        .terrain-modal-card {
+            border: 2px solid #e5e7eb; border-radius: 12px; padding: 20px;
+            transition: all 0.3s ease; cursor: default; position: relative;
+            overflow: hidden;
+        }
+        .terrain-modal-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6); opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .terrain-modal-card:hover { border-color: #93c5fd; box-shadow: 0 4px 20px rgba(59,130,246,0.12); }
+        .terrain-modal-card:hover::before { opacity: 1; }
+        .terrain-modal-card-icon {
+            width: 48px; height: 48px; border-radius: 12px; display: flex;
+            align-items: center; justify-content: center; font-size: 1.3rem;
+            margin-bottom: 12px; color: white;
+        }
+        .terrain-modal-card-icon.globe { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+        .terrain-modal-card-icon.project { background: linear-gradient(135deg, #10b981, #059669); }
+        .terrain-modal-card h4 { margin: 0 0 6px; font-size: 1.05rem; color: #1e293b; }
+        .terrain-modal-card p { margin: 0 0 14px; font-size: 0.82rem; color: #64748b; line-height: 1.4; }
+        .terrain-modal-card-btn {
+            display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px;
+            border: none; border-radius: 8px; font-size: 0.88rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s; width: 100%; justify-content: center;
+        }
+        .terrain-modal-card-btn.globe-btn {
+            background: linear-gradient(135deg, #3b82f6, #2563eb); color: white;
+        }
+        .terrain-modal-card-btn.globe-btn:hover {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8); transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(37,99,235,0.35);
+        }
+        .terrain-modal-card-btn.project-btn {
+            background: linear-gradient(135deg, #10b981, #059669); color: white;
+        }
+        .terrain-modal-card-btn.project-btn:hover {
+            background: linear-gradient(135deg, #059669, #047857); transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(5,150,105,0.35);
+        }
+        .terrain-modal-divider {
+            display: flex; align-items: center; gap: 12px; color: #94a3b8;
+            font-size: 0.78rem; font-weight: 600; letter-spacing: 0.5px;
+        }
+        .terrain-modal-divider::before, .terrain-modal-divider::after {
+            content: ''; flex: 1; height: 1px; background: #e5e7eb;
+        }
+        .terrain-modal-card .tag-row {
+            display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;
+        }
+        .terrain-modal-card .tag {
+            background: #f0f9ff; color: #2563eb; font-size: 0.7rem; font-weight: 600;
+            padding: 3px 8px; border-radius: 4px; border: 1px solid #bfdbfe;
+        }
+
+        /* --- Fullscreen Cesium 3D Viewer Modal --- */
+        .cesium3d-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 20000; background: #0a0a0a;
+        }
+        .cesium3d-overlay.active { display: flex; flex-direction: column; }
+        #cesium3dContainer {
+            flex: 1; position: relative; overflow: hidden;
+        }
+        #cesium3dContainer .cesium-viewer { width: 100% !important; height: 100% !important; }
+        #cesium3dContainer .cesium-viewer-bottom { display: none !important; }
+
+        /* --- Cesium 3D Control Bar --- */
+        .cesium3d-controls {
+            display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+            background: linear-gradient(180deg, rgba(15,23,42,0.95), rgba(15,23,42,0.98));
+            backdrop-filter: blur(12px); flex-wrap: wrap;
+            border-top: 1px solid rgba(255,255,255,0.08); min-height: 52px;
+        }
+        .cesium3d-controls label {
+            color: #94a3b8; font-size: 0.75rem; font-weight: 600; white-space: nowrap;
+        }
+        .cesium3d-controls input[type="range"] {
+            width: 80px; accent-color: #3b82f6; height: 4px;
+        }
+        .cesium3d-ctrl-val {
+            color: #e2e8f0; font-size: 0.78rem; font-weight: 600; min-width: 28px;
+        }
+        .cesium3d-sep {
+            width: 1px; height: 26px; background: rgba(255,255,255,0.12); flex-shrink: 0;
+        }
+        .cesium3d-btn {
+            display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px;
+            border: 1px solid rgba(255,255,255,0.12); border-radius: 6px;
+            background: rgba(255,255,255,0.06); color: #e2e8f0; font-size: 0.78rem;
+            font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+        }
+        .cesium3d-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); }
+        .cesium3d-btn.capture-btn {
+            background: linear-gradient(135deg, rgba(59,130,246,0.3), rgba(139,92,246,0.3));
+            border-color: rgba(59,130,246,0.4);
+        }
+        .cesium3d-btn.capture-btn:hover {
+            background: linear-gradient(135deg, rgba(59,130,246,0.5), rgba(139,92,246,0.5));
+        }
+        .cesium3d-btn.pdf-btn {
+            background: linear-gradient(135deg, rgba(220,38,38,0.3), rgba(249,115,22,0.3));
+            border-color: rgba(220,38,38,0.4);
+        }
+        .cesium3d-btn.pdf-btn:hover {
+            background: linear-gradient(135deg, rgba(220,38,38,0.5), rgba(249,115,22,0.5));
+        }
+        .cesium3d-btn.close-btn {
+            background: rgba(220,38,38,0.15); border-color: rgba(220,38,38,0.3); color: #fca5a5;
+        }
+        .cesium3d-btn.close-btn:hover { background: rgba(220,38,38,0.3); }
+        .cesium3d-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* --- Cesium Controls Panel (expandable sidebar) --- */
+        .cesium3d-panel {
+            position: absolute; top: 12px; right: 12px; width: 260px;
+            background: rgba(15,23,42,0.92); backdrop-filter: blur(16px);
+            border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4); z-index: 10;
+            max-height: calc(100% - 80px); overflow-y: auto;
+            display: none;
+        }
+        .cesium3d-panel.visible { display: block; animation: cesiumPanelIn 0.3s ease; }
+        @keyframes cesiumPanelIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .cesium3d-panel-header {
+            padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.08);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .cesium3d-panel-header h4 {
+            margin: 0; color: #e2e8f0; font-size: 0.85rem; font-weight: 700;
+        }
+        .cesium3d-panel-close {
+            background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1rem;
+        }
+        .cesium3d-panel-section {
+            padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .cesium3d-panel-section h5 {
+            margin: 0 0 8px; color: #94a3b8; font-size: 0.72rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.8px;
+        }
+        .cesium3d-basemap-option {
+            display: flex; align-items: center; gap: 8px; padding: 5px 0;
+            color: #cbd5e1; font-size: 0.8rem; cursor: pointer;
+        }
+        .cesium3d-basemap-option input[type="radio"] { accent-color: #3b82f6; }
+        .cesium3d-basemap-option:hover { color: #f1f5f9; }
+        .cesium3d-layer-toggle {
+            display: flex; align-items: center; gap: 8px; padding: 4px 0;
+            color: #cbd5e1; font-size: 0.8rem;
+        }
+        .cesium3d-layer-toggle input[type="checkbox"] { accent-color: #10b981; }
+        .cesium3d-slider-row {
+            display: flex; align-items: center; gap: 8px; padding: 4px 0;
+        }
+        .cesium3d-slider-row label {
+            color: #94a3b8; font-size: 0.75rem; min-width: 65px;
+        }
+        .cesium3d-slider-row input[type="range"] {
+            flex: 1; accent-color: #3b82f6;
+        }
+        .cesium3d-slider-row .val {
+            color: #e2e8f0; font-size: 0.75rem; font-weight: 600; min-width: 30px;
+            text-align: right;
+        }
+
+        /* --- Capture thumbnails strip --- */
+        .cesium3d-captures {
+            display: flex; gap: 6px; align-items: center; overflow-x: auto; max-width: 200px;
+        }
+        .cesium3d-cap-thumb {
+            width: 36px; height: 24px; border-radius: 4px; border: 2px solid rgba(255,255,255,0.2);
+            object-fit: cover; cursor: pointer; transition: all 0.2s; flex-shrink: 0;
+        }
+        .cesium3d-cap-thumb:hover { border-color: #3b82f6; transform: scale(1.15); }
+
+        /* --- Settings toggle button (gear icon) --- */
+        .cesium3d-settings-toggle {
+            position: absolute; top: 12px; right: 12px; z-index: 5;
+            background: rgba(15,23,42,0.8); backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.15); border-radius: 8px;
+            color: #e2e8f0; width: 38px; height: 38px; display: flex;
+            align-items: center; justify-content: center; cursor: pointer;
+            font-size: 1rem; transition: all 0.2s;
+        }
+        .cesium3d-settings-toggle:hover { background: rgba(59,130,246,0.3); }
+
+        /* --- Loading overlay for Cesium --- */
+        .cesium3d-loading {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(10,10,10,0.85); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 15;
+        }
+        .cesium3d-loading.hidden { display: none; }
+        .cesium3d-loading-spinner {
+            width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.1);
+            border-top: 4px solid #3b82f6; border-radius: 50%;
+            animation: spin 0.8s linear infinite; margin-bottom: 16px;
+        }
+        .cesium3d-loading p { color: #94a3b8; font-size: 0.9rem; margin: 4px 0; }
+        .cesium3d-loading p:first-of-type { color: #e2e8f0; font-weight: 600; }
+
+        /* --- Info bar at top --- */
+        .cesium3d-info {
+            position: absolute; top: 12px; left: 12px; z-index: 5;
+            background: rgba(15,23,42,0.75); backdrop-filter: blur(8px);
+            padding: 8px 14px; border-radius: 8px; color: #94a3b8;
+            font-size: 0.75rem; border: 1px solid rgba(255,255,255,0.08);
+            pointer-events: none;
+        }
+        .cesium3d-info b { color: #e2e8f0; }
+
+        /* --- Basemap badge --- */
+        .cesium3d-basemap-badge {
+            position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+            background: linear-gradient(135deg, rgba(59,130,246,0.85), rgba(139,92,246,0.85));
+            color: white; padding: 6px 14px; border-radius: 20px; font-size: 0.72rem;
+            font-weight: 600; backdrop-filter: blur(8px); pointer-events: none; z-index: 5;
+            box-shadow: 0 4px 15px rgba(59,130,246,0.3); display: none;
+            align-items: center; gap: 6px;
+        }
+        .cesium3d-basemap-badge.visible { display: flex; }
+
+
+
         .feature-info {
             position: absolute;
             top: 20px;
@@ -14730,70 +14971,254 @@
                 </div>
             </div>
 
-            <!-- Project Information Modal for 3D Terrain -->
+            <!-- Project Information Modal for 3D Terrain (Restructured: Two-card layout) -->
             <div id="terrainProjectModal" class="terrain-project-modal">
                 <div class="terrain-project-modal-content">
                     <div class="terrain-project-modal-header">
-                        <h3><i class="fas fa-project-diagram"></i> Project Information</h3>
+                        <h3><i class="fas fa-mountain"></i> 3D Terrain & Contours</h3>
                         <button type="button" class="modal-close" id="terrainProjectModalClose"
                             aria-label="Close modal">&times;</button>
                     </div>
-                    <form id="terrainProjectForm">
-                        <div class="form-group">
-                            <label for="terrainProjectClient">Client *</label>
-                            <input type="text" id="terrainProjectClient" class="form-input" required
-                                placeholder="Enter client name" autocomplete="off">
-                        </div>
 
-                        <div class="form-group">
-                            <label for="terrainProjectName">Project Name *</label>
-                            <input type="text" id="terrainProjectName" class="form-input" required
-                                placeholder="Enter project name" autocomplete="off">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="terrainProjectCRS">Coordinate System *</label>
-                            <select id="terrainProjectCRS" class="form-select" required>
-                                <option value="">Select coordinate system...</option>
-                                <option value="EPSG:32636">WGS84 UTM Zone 36N (EPSG:32636)</option>
-                                <option value="EPSG:32736">WGS84 UTM Zone 36S (EPSG:32736)</option>
-                                <option value="EPSG:21096">Arc1960 UTM Zone 36N (EPSG:21096)</option>
-                                <option value="EPSG:21036">Arc1960 UTM Zone 36S (EPSG:21036)</option>
-                                <option value="EPSG:4326">WGS84 Geographic (EPSG:4326)</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="terrainProjectDistrict">District *</label>
-                            <select id="terrainProjectDistrict" class="form-select" required>
-                                <option value="">Select district...</option>
-                                <!-- Populated dynamically -->
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="terrainProjectSurveyor">Surveyor *</label>
-                            <input type="text" id="terrainProjectSurveyor" class="form-input" required
-                                placeholder="Enter surveyor name" autocomplete="off">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="terrainProjectSupervisor">Supervisor *</label>
-                            <input type="text" id="terrainProjectSupervisor" class="form-input" required
-                                placeholder="Enter supervisor name" autocomplete="off">
-                        </div>
-
-                        <div class="form-actions">
-                            <button type="submit" class="terrain-btn terrain-btn-primary">
-                                <i class="fas fa-check"></i> Continue
-                            </button>
-                            <button type="button" class="terrain-btn terrain-btn-secondary" id="terrainProjectCancel">
-                                <i class="fas fa-times"></i> Cancel
+                    <div class="terrain-modal-cards">
+                        <!-- CARD 1: Current Map 3D View -->
+                        <div class="terrain-modal-card">
+                            <div class="terrain-modal-card-icon globe">
+                                <i class="fas fa-globe-africa"></i>
+                            </div>
+                            <h4>Current Map 3D View</h4>
+                            <p>Instantly view your current map extent as an interactive 3D globe with real terrain, satellite imagery, and all active layers.</p>
+                            <div class="tag-row">
+                                <span class="tag"><i class="fas fa-mountain"></i> Cesium World Terrain</span>
+                                <span class="tag"><i class="fas fa-satellite"></i> Live Basemap</span>
+                                <span class="tag"><i class="fas fa-layer-group"></i> Ground-Clamped Layers</span>
+                            </div>
+                            <button type="button" class="terrain-modal-card-btn globe-btn" id="launchCesium3DBtn">
+                                <i class="fas fa-globe-africa"></i> Launch 3D Globe View
                             </button>
                         </div>
-                    </form>
+
+                        <div class="terrain-modal-divider">OR</div>
+
+                        <!-- CARD 2: New Terrain Project -->
+                        <div class="terrain-modal-card">
+                            <div class="terrain-modal-card-icon project">
+                                <i class="fas fa-project-diagram"></i>
+                            </div>
+                            <h4>New Terrain Project</h4>
+                            <p>Create a professional terrain analysis project with DTM generation, contour mapping, profiles, and volume calculations.</p>
+                            <div class="tag-row">
+                                <span class="tag"><i class="fas fa-file-csv"></i> CSV / DEM Import</span>
+                                <span class="tag"><i class="fas fa-chart-area"></i> DTM & Contours</span>
+                                <span class="tag"><i class="fas fa-cube"></i> 3D Visualization</span>
+                            </div>
+                            <!-- Existing Project Form (preserved) -->
+                            <form id="terrainProjectForm">
+                                <div class="form-group">
+                                    <label for="terrainProjectClient">Client *</label>
+                                    <input type="text" id="terrainProjectClient" class="form-input" required
+                                        placeholder="Enter client name" autocomplete="off">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="terrainProjectName">Project Name *</label>
+                                    <input type="text" id="terrainProjectName" class="form-input" required
+                                        placeholder="Enter project name" autocomplete="off">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="terrainProjectCRS">Coordinate System *</label>
+                                    <select id="terrainProjectCRS" class="form-select" required>
+                                        <option value="">Select coordinate system...</option>
+                                        <option value="EPSG:32636">WGS84 UTM Zone 36N (EPSG:32636)</option>
+                                        <option value="EPSG:32736">WGS84 UTM Zone 36S (EPSG:32736)</option>
+                                        <option value="EPSG:21096">Arc1960 UTM Zone 36N (EPSG:21096)</option>
+                                        <option value="EPSG:21036">Arc1960 UTM Zone 36S (EPSG:21036)</option>
+                                        <option value="EPSG:4326">WGS84 Geographic (EPSG:4326)</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="terrainProjectDistrict">District *</label>
+                                    <select id="terrainProjectDistrict" class="form-select" required>
+                                        <option value="">Select district...</option>
+                                        <!-- Populated dynamically -->
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="terrainProjectSurveyor">Surveyor *</label>
+                                    <input type="text" id="terrainProjectSurveyor" class="form-input" required
+                                        placeholder="Enter surveyor name" autocomplete="off">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="terrainProjectSupervisor">Supervisor *</label>
+                                    <input type="text" id="terrainProjectSupervisor" class="form-input" required
+                                        placeholder="Enter supervisor name" autocomplete="off">
+                                </div>
+
+                                <div class="form-actions">
+                                    <button type="submit" class="terrain-btn terrain-btn-primary">
+                                        <i class="fas fa-check"></i> Continue
+                                    </button>
+                                    <button type="button" class="terrain-btn terrain-btn-secondary" id="terrainProjectCancel">
+                                        <i class="fas fa-times"></i> Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            <!-- ========================================
+                 OL-CESIUM FULLSCREEN 3D GLOBE VIEWER
+                 ======================================== -->
+            <div class="cesium3d-overlay" id="cesium3dOverlay">
+                <div id="cesium3dContainer">
+                    <!-- Cesium Viewer will be created here -->
+
+                    <!-- Loading overlay -->
+                    <div class="cesium3d-loading" id="cesium3dLoading">
+                        <div class="cesium3d-loading-spinner"></div>
+                        <p>Initializing 3D Globe…</p>
+                        <p id="cesium3dLoadingStatus">Loading Cesium World Terrain</p>
+                    </div>
+
+                    <!-- Info bar (top-left) -->
+                    <div class="cesium3d-info" id="cesium3dInfo">
+                        <b>3D Globe Viewer</b><br>
+                        Left-drag: rotate · Right-drag: pan · Scroll: zoom · Middle-click: tilt
+                    </div>
+
+                    <!-- Settings toggle (top-right) -->
+                    <button class="cesium3d-settings-toggle" id="cesium3dSettingsBtn" title="Settings & Controls">
+                        <i class="fas fa-sliders-h"></i>
+                    </button>
+
+                    <!-- Settings panel (expandable, top-right) -->
+                    <div class="cesium3d-panel" id="cesium3dPanel">
+                        <div class="cesium3d-panel-header">
+                            <h4><i class="fas fa-sliders-h"></i> Controls</h4>
+                            <button class="cesium3d-panel-close" id="cesium3dPanelClose">&times;</button>
+                        </div>
+
+                        <!-- Basemaps -->
+                        <div class="cesium3d-panel-section">
+                            <h5><i class="fas fa-map"></i> Basemaps</h5>
+                            <label class="cesium3d-basemap-option">
+                                <input type="radio" name="cesium3dBasemap" value="esri-satellite" checked> Esri Satellite
+                            </label>
+                            <label class="cesium3d-basemap-option">
+                                <input type="radio" name="cesium3dBasemap" value="esri-topo"> Esri World Topo
+                            </label>
+                            <label class="cesium3d-basemap-option">
+                                <input type="radio" name="cesium3dBasemap" value="osm"> OpenStreetMap
+                            </label>
+                            <label class="cesium3d-basemap-option">
+                                <input type="radio" name="cesium3dBasemap" value="carto-voyager"> Carto Voyager
+                            </label>
+                            <label class="cesium3d-basemap-option">
+                                <input type="radio" name="cesium3dBasemap" value="carto-dark"> Carto Dark Matter
+                            </label>
+                            <label class="cesium3d-basemap-option">
+                                <input type="radio" name="cesium3dBasemap" value="bing-aerial"> Bing Aerial (Cesium)
+                            </label>
+                        </div>
+
+                        <!-- Cesium Extras -->
+                        <div class="cesium3d-panel-section">
+                            <h5><i class="fas fa-building"></i> Cesium Assets</h5>
+                            <label class="cesium3d-layer-toggle">
+                                <input type="checkbox" id="cesium3dOsmBuildings"> OSM 3D Buildings
+                            </label>
+                        </div>
+
+                        <!-- Layers -->
+                        <div class="cesium3d-panel-section">
+                            <h5><i class="fas fa-layer-group"></i> Map Layers</h5>
+                            <label class="cesium3d-layer-toggle">
+                                <input type="checkbox" id="cesium3dGspnetLayers" checked> GSPNET / NLIS Layers
+                            </label>
+                            <label class="cesium3d-layer-toggle">
+                                <input type="checkbox" id="cesium3dSurveyPolygons" checked> Survey Polygons
+                            </label>
+                        </div>
+
+                        <!-- Visual Controls -->
+                        <div class="cesium3d-panel-section">
+                            <h5><i class="fas fa-adjust"></i> Visual Controls</h5>
+                            <div class="cesium3d-slider-row">
+                                <label>Vert. Exag:</label>
+                                <input type="range" id="cesium3dVertExag" min="1" max="5" step="0.5" value="1">
+                                <span class="val" id="cesium3dVertExagVal">1.0×</span>
+                            </div>
+                            <div class="cesium3d-slider-row">
+                                <label>Brightness:</label>
+                                <input type="range" id="cesium3dBrightness" min="0" max="200" step="5" value="100">
+                                <span class="val" id="cesium3dBrightnessVal">100%</span>
+                            </div>
+                            <div class="cesium3d-slider-row">
+                                <label>Contrast:</label>
+                                <input type="range" id="cesium3dContrast" min="0" max="200" step="5" value="100">
+                                <span class="val" id="cesium3dContrastVal">100%</span>
+                            </div>
+                            <div class="cesium3d-slider-row">
+                                <label>Saturation:</label>
+                                <input type="range" id="cesium3dSaturation" min="0" max="200" step="5" value="100">
+                                <span class="val" id="cesium3dSaturationVal">100%</span>
+                            </div>
+                        </div>
+
+                        <!-- Project Info for PDF export -->
+                        <div class="cesium3d-panel-section">
+                            <h5><i class="fas fa-file-pdf"></i> PDF Report Info</h5>
+                            <div style="display:flex;flex-direction:column;gap:6px;">
+                                <input type="text" id="cesium3dProjectName" placeholder="Project Name"
+                                    style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:6px 10px;color:#e2e8f0;font-size:0.8rem;">
+                                <input type="text" id="cesium3dLocation" placeholder="Location"
+                                    style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:6px 10px;color:#e2e8f0;font-size:0.8rem;">
+                                <input type="text" id="cesium3dSupervisor" placeholder="Supervisor"
+                                    style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:6px 10px;color:#e2e8f0;font-size:0.8rem;">
+                                <input type="text" id="cesium3dSurveyor" placeholder="Surveyor/User"
+                                    style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:6px 10px;color:#e2e8f0;font-size:0.8rem;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom control bar -->
+                <div class="cesium3d-controls">
+                    <label>Exag:</label>
+                    <input type="range" id="cesium3dVertExagBar" min="1" max="5" step="0.5" value="1">
+                    <span class="cesium3d-ctrl-val" id="cesium3dVertExagBarVal">1.0×</span>
+
+                    <div class="cesium3d-sep"></div>
+
+                    <button class="cesium3d-btn capture-btn" id="cesium3dCaptureBtn" title="Capture current viewpoint with note">
+                        <i class="fas fa-camera"></i> Capture View
+                    </button>
+                    <div class="cesium3d-captures" id="cesium3dCaptures"></div>
+
+                    <button class="cesium3d-btn pdf-btn" id="cesium3dPdfBtn" disabled title="Export captured views as 3D PDF report">
+                        <i class="fas fa-file-pdf"></i> Export 3D PDF
+                    </button>
+
+                    <div style="flex:1;"></div>
+
+                    <button class="cesium3d-btn" id="cesium3dResetBtn" title="Reset camera to initial view">
+                        <i class="fas fa-sync-alt"></i> Reset
+                    </button>
+                    <button class="cesium3d-btn" id="cesium3dSettingsBarBtn" title="Open settings panel">
+                        <i class="fas fa-sliders-h"></i>
+                    </button>
+                    <button class="cesium3d-btn close-btn" id="cesium3dCloseBtn">
+                        <i class="fas fa-times"></i> Close
+                    </button>
+                </div>
+            </div>
+
 
             <!-- 3D TERRAIN DTM & CONTOURS Left-Side Dock -->
             <aside id="terrain-3d-dock" class="terrain-3d-dock">
