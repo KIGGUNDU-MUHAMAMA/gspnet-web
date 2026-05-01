@@ -33390,6 +33390,31 @@
                     }
                 }
 
+                // ── DEM / DEM+CSV modes ────────────────────────────────────
+                // demGrid stores {lat, lon, elev} in WGS84.
+                // The DTM pipeline expects {easting, northing, elevation} with
+                // coordinateSystem set so transformCoordinates can project to EPSG:3857.
+                if (dataSource === 'dem' || dataSource === 'demcsv') {
+                    const demGrid = terrain3DState.demGrid;
+                    if (demGrid && demGrid.length > 0) {
+                        // Set coordinate system to WGS84 so transformCoordinates
+                        // projects lon/lat → EPSG:3857 correctly
+                        terrain3DState.coordinateSystem = 'EPSG:4326';
+
+                        const demPoints = demGrid.map((pt, i) => ({
+                            easting: pt.lon,
+                            northing: pt.lat,
+                            elevation: pt.elev,
+                            point: `DEM-${i + 1}`,
+                            description: terrain3DState.demSource || 'DEM'
+                        }));
+                        combined = combined.concat(demPoints);
+                        console.log(`[DEM] getCombinedData: ${demPoints.length} DEM grid points added (EPSG:4326)`);
+                    } else {
+                        console.warn('[DEM] getCombinedData: No DEM grid available. Run Fetch DEM first.');
+                    }
+                }
+
                 // Filter by custom extent if enabled
                 if (terrain3DState.useCustomExtent && terrain3DState.customExtent) {
                     const polygon = terrain3DState.customExtent.getGeometry();
