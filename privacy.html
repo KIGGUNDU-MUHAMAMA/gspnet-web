@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy — Geospatial Network Uganda</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png?v=3">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1e40af;
+            --primary-dark: #172554;
+            --primary-light: #3b82f6;
+            --bg-gradient-start: #64748b;
+            --bg-gradient-end: #1e3a8a;
+            --panel-bg: rgba(15, 23, 42, 0.78);
+            --heading-on-panel: #ffffff;
+            --text-on-panel: #e2e8f0;
+            --text-muted-on-panel: #94a3b8;
+            --link-on-panel: #7dd3fc;
+            --link-hover-on-panel: #bae6fd;
+            --callout-bg: rgba(56, 189, 248, 0.12);
+            --callout-border: #38bdf8;
+            --border: rgba(147, 197, 253, 0.28);
+            --toc-bg: rgba(255, 255, 255, 0.06);
+        }
+
+        [data-theme="dark"] {
+            --bg-gradient-start: #0f172a;
+            --bg-gradient-end: #1e3a5f;
+            --panel-bg: rgba(2, 6, 23, 0.88);
+            --text-on-panel: #f1f5f9;
+            --text-muted-on-panel: #94a3b8;
+            --callout-bg: rgba(56, 189, 248, 0.1);
+            --toc-bg: rgba(255, 255, 255, 0.05);
+            --border: rgba(96, 165, 250, 0.22);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Poppins', system-ui, sans-serif;
+            color: var(--text-on-panel);
+            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+            min-height: 100vh;
+            line-height: 1.65;
+            padding: 24px 16px 48px;
+        }
+
+        .wrap {
+            max-width: 860px;
+            margin: 0 auto;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 20px;
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.28);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        header.doc-head {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: #ffffff;
+            padding: 28px 32px;
+            border-bottom: 3px solid rgba(125, 211, 252, 0.45);
+        }
+
+        header.doc-head h1 {
+            font-size: 1.55rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #ffffff;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        header.doc-head .meta {
+            font-size: 0.9rem;
+            opacity: 0.96;
+            line-height: 1.55;
+            color: #ffffff;
+        }
+
+        header.doc-head .meta strong {
+            color: #ffffff;
+            font-weight: 700;
+        }
+
+        .doc-body {
+            padding: 28px 32px 36px;
+            color: var(--text-on-panel);
+        }
+
+        .back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            color: var(--link-on-panel);
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .back:hover {
+            color: var(--link-hover-on-panel);
+        }
+
+        .callout {
+            background: var(--callout-bg);
+            border-left: 4px solid var(--callout-border);
+            padding: 16px 18px;
+            border-radius: 0 12px 12px 0;
+            margin: 20px 0;
+            font-size: 0.92rem;
+            color: var(--text-on-panel);
+        }
+
+        .callout strong {
+            color: #ffffff;
+        }
+
+        h2 {
+            font-size: 1.15rem;
+            margin: 28px 0 12px;
+            color: #ffffff;
+            font-weight: 700;
+        }
+
+        h2:first-of-type {
+            margin-top: 0;
+        }
+
+        p,
+        li {
+            font-size: 0.94rem;
+            color: var(--text-on-panel);
+            margin-bottom: 12px;
+        }
+
+        ul {
+            padding-left: 1.25rem;
+            margin-bottom: 16px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        a {
+            color: var(--link-on-panel);
+            font-weight: 600;
+        }
+
+        a:hover {
+            color: var(--link-hover-on-panel);
+        }
+
+        .toc {
+            font-size: 0.88rem;
+            background: var(--toc-bg);
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+        }
+
+        .toc strong {
+            display: block;
+            margin-bottom: 10px;
+            color: #ffffff;
+        }
+
+        .toc a {
+            display: block;
+            margin: 6px 0;
+            text-decoration: none;
+            color: var(--link-on-panel);
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+            color: var(--link-hover-on-panel);
+        }
+
+        footer.doc-foot {
+            padding: 0 32px 28px;
+            font-size: 0.85rem;
+            color: var(--text-muted-on-panel);
+            border-top: 1px solid var(--border);
+            margin: 0;
+            padding-top: 20px;
+        }
+
+        footer.doc-foot a {
+            color: var(--link-on-panel);
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #ffffff;
+            z-index: 10;
+        }
+    </style>
+</head>
+
+<body>
+    <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">Dark mode</button>
+
+    <div class="wrap">
+        <header class="doc-head">
+            <h1>Privacy &amp; Data Protection Notice</h1>
+            <p class="meta">
+                <strong>GEOSPATIAL NETWORK UGANDA</strong> (operated by <strong>NAS SURVEYORS LTD</strong>)<br>
+                Platform: <strong>webmap.geospatialnetworkug.xyz</strong><br>
+                Effective date: <strong>May 2026</strong> &nbsp;|&nbsp; Document version: 1.0
+            </p>
+        </header>
+
+        <div class="doc-body">
+            <a class="back" href="index.html">← Back to login</a>
+
+            <div class="callout">
+                <strong>Data minimisation.</strong> We expect every professional user to collect and enter only the
+                <strong>minimum personal information</strong> needed for legitimate surveying and valuation work. Avoid
+                national ID numbers, medical records, bank statements, and any data not strictly necessary—consistent
+                with the principles of the <em>Data Protection and Privacy Act, 2019</em> (the “Act”).
+            </div>
+
+            <nav class="toc" aria-label="Sections">
+                <strong>Contents</strong>
+                <a href="#framework">1. Legal framework &amp; our role</a>
+                <a href="#personal-data">2. What counts as personal data</a>
+                <a href="#collect">3. What we collect and why</a>
+                <a href="#bases">4. Lawful bases for processing (Section 7)</a>
+                <a href="#sensitive">5. Sensitive data &amp; prohibited uploads (Section 9)</a>
+                <a href="#children">6. Children (Section 8)</a>
+                <a href="#rights">7. Your rights (Section 16)</a>
+                <a href="#security">8. Security (Sections 20 &amp; 22)</a>
+                <a href="#transfers">9. Storage, cross-border processing &amp; subprocessors</a>
+                <a href="#ai">10. Assistant chat</a>
+                <a href="#retention">11. Retention</a>
+                <a href="#isu">12. Professional standards</a>
+                <a href="#contact">13. Contact</a>
+            </nav>
+
+            <h2 id="framework">1. Legal framework &amp; our role</h2>
+            <p>
+                This notice explains how <strong>GEOSPATIAL NETWORK UGANDA</strong>, operated by <strong>NAS SURVEYORS LTD</strong>,
+                collects, uses, stores, and protects personal data when you use our professional GIS web mapping platform.
+                We align our practices with the <strong>Data Protection and Privacy Act, 2019</strong> of Uganda, including its
+                principles of <strong>accountability</strong>, <strong>fair and lawful processing</strong>,
+                <strong>relevance and necessity</strong>, <strong>limited retention</strong>, <strong>data quality</strong>,
+                <strong>transparency</strong>, and <strong>security safeguards</strong>.
+            </p>
+            <p>
+                For personal data processed through this platform, we generally act as a <strong>data controller</strong> in
+                respect of account, infrastructure, and service operation. Where you upload third-party personal data (for
+                example property owner names in private valuation workspaces), you remain responsible for ensuring your
+                own lawful grounds and professional duties toward those data subjects, as described in our
+                <a href="terms.html">Terms of Use</a>.
+            </p>
+
+            <h2 id="personal-data">2. What counts as personal data</h2>
+            <p>
+                Under the Act, <strong>personal data</strong> means information relating to an <strong>identified or identifiable
+                    natural person</strong> (a “data subject”). This includes identifiers such as <strong>names</strong>,
+                <strong>location data</strong> (which may identify individuals or households when combined with other
+                fields), and <strong>online identifiers</strong> tied to an account. Personal data must be handled
+                lawfully and kept confidential; unauthorised disclosure can carry serious consequences under the Act and
+                related laws, including the <em>Computer Misuse Act, 2011</em>, where applicable.
+            </p>
+
+            <h2 id="collect">3. What we collect and why</h2>
+            <ul>
+                <li><strong>Account &amp; authentication:</strong> Email address and credentials managed through our
+                    authentication provider; passwords are not stored in plain text.</li>
+                <li><strong>Profile &amp; subscription metadata:</strong> Information needed to operate roles (such as
+                    valuer workspace access), subscription status, and support.</li>
+                <li><strong>Private valuation comparables (valuers):</strong> Comparable attributes you choose to enter—
+                    for example map location, owner name, administrative location (district through village level),
+                    proximity notes (schools, roads, markets), and value. <strong>Textual comparable data</strong> is
+                    stored in <strong>Supabase</strong>. <strong>Reference images</strong> linked to comparables may be
+                    stored in <strong>Cloudflare R2</strong>. Access to each valuer’s vault is <strong>logically
+                        restricted</strong> to that account; we do not publish vault contents on shared map layers.</li>
+                <li><strong>Technical &amp; security data:</strong> Typical server, application, and edge logs (e.g. IP
+                    addresses, timestamps) via infrastructure providers, used for security, reliability, and abuse
+                    prevention.</li>
+            </ul>
+            <p>
+                <strong>We do not</strong> deliberately collect national ID cards, medical notes, or bank statements.
+                You must not upload such documents or data unless your lawyer confirms another lawful pathway applies—
+                Section 9 of the Act restricts certain categories of sensitive information except where the law expressly
+                permits.
+            </p>
+
+            <h2 id="bases">4. Lawful bases for processing (Section 7)</h2>
+            <p>
+                Processing is permitted under the Act where the law allows it or where an appropriate basis exists.
+                Depending on the activity, we rely on grounds that commonly include: <strong>performance of a contract</strong>
+                with you (Section 7(1)(d)), <strong>compliance with legal obligations</strong> (Section 7(1)(f)), and where
+                relevant, <strong>your consent</strong> for specific optional processing. The Act also recognises other
+                statutory grounds (such as certain public-sector or security contexts) that typically do not apply to
+                routine commercial map accounts.
+            </p>
+            <p>
+                Where consent is the basis (for example, where you agree to this notice and optional communications),
+                consent must be <strong>informed</strong> and you may <strong>withdraw</strong> it subject to technical
+                and legal constraints. Withdrawing consent may limit our ability to provide certain features.
+            </p>
+
+            <h2 id="sensitive">5. Sensitive data &amp; prohibited uploads (Section 9)</h2>
+            <p>
+                The Act identifies categories of information that require heightened care—including, among others,
+                certain <strong>financial</strong>, <strong>health</strong>, and related data—where collection and
+                processing are restricted save for specific exceptions (such as consent by the data subject, statistical
+                use by designated bodies, or legal mandate).
+            </p>
+            <p>
+                Valuation work may involve <strong>economic attributes</strong> (for example property values). Enter only
+                what is <strong>professionally necessary</strong>; do not upload full bank statements, medical records, or
+                similar materials. If you are unsure, seek guidance from a qualified Ugandan lawyer or your professional
+                body before processing.
+            </p>
+
+            <h2 id="children">6. Children (Section 8)</h2>
+            <p>
+                This platform is intended for <strong>adult professional users</strong>. We do not market accounts to
+                children. If you believe we have inadvertently collected a minor’s data, contact us promptly so we can
+                address the matter.
+            </p>
+
+            <h2 id="rights">7. Your rights (Section 16)</h2>
+            <p>
+                Subject to the Act and applicable exceptions, a data subject may request that a controller
+                <strong>correct</strong>, <strong>update</strong>, or <strong>delete</strong> personal data that is
+                inaccurate, irrelevant, excessive, out of date, incomplete, misleading, or unlawfully obtained.
+            </p>
+            <p>
+                To exercise these rights with respect to platform-held data, contact us using the details below. We may
+                need to verify your identity. Where account deletion is requested and approved, we will delete or
+                anonymise personal data <strong>within a reasonable period</strong> (our standard target is
+                <strong>30 days</strong> from verification unless a longer retention is legally required). Residual
+                copies in encrypted backups may persist for a limited technical period before automatic rotation.
+            </p>
+
+            <h2 id="security">8. Security (Sections 20 &amp; 22)</h2>
+            <p>
+                In line with <strong>Section 20</strong> of the Act, we work to: identify reasonably foreseeable risks to
+                personal data; establish and maintain appropriate safeguards; verify effectiveness; and update controls
+                as risks evolve. Under <strong>Section 22</strong>, we observe generally accepted information security
+                practices and respect professional norms applicable to surveying and valuation where relevant.
+            </p>
+            <p>
+                <strong>Authorised personnel</strong> may access data when strictly necessary for security, support,
+                incident response, backup recovery, or compliance with law. We apply role-based and contractual
+                confidentiality expectations.
+            </p>
+
+            <h2 id="transfers">9. Storage, cross-border processing &amp; subprocessors</h2>
+            <p>
+                We use reputable infrastructure providers, which may process or store data <strong>outside Uganda</strong>,
+                including but not limited to <strong>Supabase</strong> (database and authentication),
+                <strong>Cloudflare</strong> (network, R2 object storage), and <strong>Amazon Web Services (AWS)</strong>
+                where applicable. By using the platform you acknowledge this international dimension; we rely on
+                contractual and technical measures offered by such providers and limit sharing to what is needed to
+                operate the service.
+            </p>
+
+            <h2 id="ai">10. Assistant chat</h2>
+            <p>
+                The optional assistant on this site answers <strong>general</strong> questions about using the platform.
+                Conversations are <strong>not stored on our servers</strong> for profiling or model training; chat history
+                you see is kept <strong>locally in your browser</strong> unless you clear it. Do not paste sensitive
+                personal data into the assistant.
+            </p>
+
+            <h2 id="retention">11. Retention</h2>
+            <p>
+                We retain personal data only as long as needed for the purposes above, including legal, tax, and
+                legitimate security needs. Aggregated or de-identified analytics, if used in future, will be governed by
+                an updated notice.
+            </p>
+
+            <h2 id="isu">12. Professional standards</h2>
+            <p>
+                We are <strong>exploring cooperation</strong> with <strong>the Institution of Surveyors of Uganda (ISU)</strong>
+                and similar institutions regarding <strong>identity and professional verification</strong> of members.
+                Until a formal programme is published, verification and account approval remain with the platform
+                operator under current procedures. <strong>Listing on this platform does not imply ISU endorsement</strong>
+                or confirmation of licence status.
+            </p>
+
+            <h2 id="contact">13. Contact</h2>
+            <p>
+                Privacy and data-protection enquiries (including Section 16 requests):<br>
+                <strong>Email:</strong> <a href="mailto:admin@geospatialnetworkug.xyz">admin@geospatialnetworkug.xyz</a><br>
+                <strong>Phone:</strong> <a href="tel:+256753771256">+256 753 771 256</a>
+            </p>
+            <p>
+                You may also reach us through the in-platform channels described in the <a href="terms.html">Terms of
+                    Use</a>. We intend to designate a dedicated <strong>data protection contact</strong> as our
+                organisation grows.
+            </p>
+            <p>
+                We may update this notice from time to time. The “Effective date” at the top reflects the latest material
+                revision. Continued use after changes constitutes acknowledgement of the updated notice, subject to
+                mandatory rights under the Act.
+            </p>
+        </div>
+
+        <footer class="doc-foot">
+            <p>This notice is provided for transparency and does not constitute legal advice. Obtain independent Ugandan
+                counsel for matters affecting your practice or legal exposure.</p>
+            <p style="margin-top:8px;"><a href="terms.html">Terms of Use</a> · <a href="index.html">Login</a></p>
+        </footer>
+    </div>
+
+    <script>
+        (function () {
+            const t = document.getElementById('themeToggle');
+            const root = document.documentElement;
+            const saved = localStorage.getItem('gspnet_legal_theme');
+            if (saved === 'dark') root.setAttribute('data-theme', 'dark');
+            t.addEventListener('click', function () {
+                if (root.getAttribute('data-theme') === 'dark') {
+                    root.removeAttribute('data-theme');
+                    localStorage.setItem('gspnet_legal_theme', 'light');
+                    t.textContent = 'Dark mode';
+                } else {
+                    root.setAttribute('data-theme', 'dark');
+                    localStorage.setItem('gspnet_legal_theme', 'dark');
+                    t.textContent = 'Light mode';
+                }
+            });
+            if (root.getAttribute('data-theme') === 'dark') t.textContent = 'Light mode';
+        })();
+    </script>
+</body>
+
+</html>

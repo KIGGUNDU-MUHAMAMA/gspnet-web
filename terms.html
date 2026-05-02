@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terms of Use — Geospatial Network Uganda</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png?v=3">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1e40af;
+            --primary-dark: #172554;
+            --primary-light: #3b82f6;
+            --bg-gradient-start: #64748b;
+            --bg-gradient-end: #1e3a8a;
+            --panel-bg: rgba(15, 23, 42, 0.78);
+            --heading-on-panel: #ffffff;
+            --text-on-panel: #e2e8f0;
+            --text-muted-on-panel: #94a3b8;
+            --link-on-panel: #7dd3fc;
+            --link-hover-on-panel: #bae6fd;
+            --callout-bg: rgba(56, 189, 248, 0.12);
+            --callout-border: #38bdf8;
+            --border: rgba(147, 197, 253, 0.28);
+            --toc-bg: rgba(255, 255, 255, 0.06);
+        }
+
+        [data-theme="dark"] {
+            --bg-gradient-start: #0f172a;
+            --bg-gradient-end: #1e3a5f;
+            --panel-bg: rgba(2, 6, 23, 0.88);
+            --text-on-panel: #f1f5f9;
+            --text-muted-on-panel: #94a3b8;
+            --callout-bg: rgba(56, 189, 248, 0.1);
+            --toc-bg: rgba(255, 255, 255, 0.05);
+            --border: rgba(96, 165, 250, 0.22);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Poppins', system-ui, sans-serif;
+            color: var(--text-on-panel);
+            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+            min-height: 100vh;
+            line-height: 1.65;
+            padding: 24px 16px 48px;
+        }
+
+        .wrap {
+            max-width: 860px;
+            margin: 0 auto;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 20px;
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.28);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        header.doc-head {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: #ffffff;
+            padding: 28px 32px;
+            border-bottom: 3px solid rgba(125, 211, 252, 0.45);
+        }
+
+        header.doc-head h1 {
+            font-size: 1.55rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #ffffff;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        header.doc-head .meta {
+            font-size: 0.9rem;
+            opacity: 0.96;
+            line-height: 1.55;
+            color: #ffffff;
+        }
+
+        header.doc-head .meta strong {
+            color: #ffffff;
+            font-weight: 700;
+        }
+
+        .doc-body {
+            padding: 28px 32px 36px;
+            color: var(--text-on-panel);
+        }
+
+        .back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            color: var(--link-on-panel);
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .back:hover {
+            color: var(--link-hover-on-panel);
+        }
+
+        .callout {
+            background: var(--callout-bg);
+            border-left: 4px solid var(--callout-border);
+            padding: 16px 18px;
+            border-radius: 0 12px 12px 0;
+            margin: 20px 0;
+            font-size: 0.92rem;
+            color: var(--text-on-panel);
+        }
+
+        .callout strong {
+            color: #ffffff;
+        }
+
+        h2 {
+            font-size: 1.15rem;
+            margin: 28px 0 12px;
+            color: #ffffff;
+            font-weight: 700;
+        }
+
+        h2:first-of-type {
+            margin-top: 0;
+        }
+
+        p,
+        li {
+            font-size: 0.94rem;
+            color: var(--text-on-panel);
+            margin-bottom: 12px;
+        }
+
+        ul {
+            padding-left: 1.25rem;
+            margin-bottom: 16px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        a {
+            color: var(--link-on-panel);
+            font-weight: 600;
+        }
+
+        a:hover {
+            color: var(--link-hover-on-panel);
+        }
+
+        .toc {
+            font-size: 0.88rem;
+            background: var(--toc-bg);
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+        }
+
+        .toc strong {
+            display: block;
+            margin-bottom: 10px;
+            color: #ffffff;
+        }
+
+        .toc a {
+            display: block;
+            margin: 6px 0;
+            text-decoration: none;
+            color: var(--link-on-panel);
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+            color: var(--link-hover-on-panel);
+        }
+
+        footer.doc-foot {
+            padding: 0 32px 28px;
+            font-size: 0.85rem;
+            color: var(--text-muted-on-panel);
+            border-top: 1px solid var(--border);
+            margin: 0;
+            padding-top: 20px;
+        }
+
+        footer.doc-foot a {
+            color: var(--link-on-panel);
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #ffffff;
+            z-index: 10;
+        }
+    </style>
+</head>
+
+<body>
+    <button type="button" class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode">Dark mode</button>
+
+    <div class="wrap">
+        <header class="doc-head">
+            <h1>Terms of Use</h1>
+            <p class="meta">
+                <strong>GEOSPATIAL NETWORK UGANDA</strong> (operated by <strong>NAS SURVEYORS LTD</strong>)<br>
+                Platform: <strong>webmap.geospatialnetworkug.xyz</strong><br>
+                Effective date: <strong>May 2026</strong> &nbsp;|&nbsp; Document version: 1.0
+            </p>
+        </header>
+
+        <div class="doc-body">
+            <a class="back" href="index.html">← Back to login</a>
+
+            <div class="callout">
+                <strong>Professional tool; share minimally.</strong> By creating an account you confirm that you will
+                comply with Ugandan law, including the <em>Data Protection and Privacy Act, 2019</em>, your professional
+                codes of conduct, and this platform’s rule that you upload <strong>only the minimum personal information</strong>
+                required for legitimate work.
+            </div>
+
+            <nav class="toc" aria-label="Sections">
+                <strong>Contents</strong>
+                <a href="#acceptance">1. Acceptance</a>
+                <a href="#eligibility">2. Eligibility &amp; account security</a>
+                <a href="#privacy">3. Privacy</a>
+                <a href="#user-content">4. Your data, uploads &amp; warranties</a>
+                <a href="#acceptable">5. Acceptable use</a>
+                <a href="#takedown">6. Notice, review &amp; removal</a>
+                <a href="#disclaimer">7. Disclaimers</a>
+                <a href="#liability">8. Limitation of liability</a>
+                <a href="#indemnity">9. Indemnity</a>
+                <a href="#law">10. Governing law</a>
+                <a href="#contact">11. Contact</a>
+            </nav>
+
+            <h2 id="acceptance">1. Acceptance</h2>
+            <p>
+                These Terms of Use (“Terms”) govern access to and use of the <strong>GEOSPATIAL NETWORK UGANDA</strong>
+                web mapping service operated by <strong>NAS SURVEYORS LTD</strong> (“we”, “us”, “our”). By registering,
+                logging in, or using the platform—including associated storage for valuation comparables—you agree to
+                these Terms and our <a target="_blank" rel="noopener noreferrer" href="privacy.html">Privacy &
+                    Data Protection Notice</a>. If you do not agree, do not use the service.
+            </p>
+
+            <h2 id="eligibility">2. Eligibility &amp; account security</h2>
+            <p>
+                The platform is offered to <strong>professional users</strong> who can lawfully enter into binding
+                obligations. You are responsible for safeguarding your credentials and for all activity under your
+                account. Subscription activation and role verification (including valuer and cadastral-related roles)
+                may require separate approval by our administrators.
+            </p>
+            <p>
+                To request <strong>closure of your account</strong> and deletion of personal data, contact us through the
+                in-platform assistant where available, or by email or telephone listed below. We may verify your identity
+                before processing a request.
+            </p>
+
+            <h2 id="privacy">3. Privacy</h2>
+            <p>
+                Our processing of personal data is described in the <a target="_blank" rel="noopener noreferrer"
+                    href="privacy.html">Privacy &amp; Data Protection Notice</a>, which aligns with the
+                <strong>Data Protection and Privacy Act, 2019</strong>, including principles of lawfulness, necessity,
+                transparency, security, and data-subject rights under <strong>Section 16</strong> of the Act where they
+                apply.
+            </p>
+
+            <h2 id="user-content">4. Your data, uploads &amp; warranties</h2>
+            <p>
+                You retain ownership of professional content you submit. You grant us a limited licence to host, encrypt,
+                back up, display to you, and otherwise process that content solely to operate and secure the platform.
+            </p>
+            <p>
+                Where your uploads contain personal data about <strong>third parties</strong> (for example property
+                owners named in comparables), you represent and warrant that:
+            </p>
+            <ul>
+                <li>You have a <strong>lawful basis</strong> under the Act and professional rules (which may include
+                    consent, contractual necessity, statutory authority, or another recognised ground);</li>
+                <li>You have applied <strong>data minimisation</strong>: you store <strong>only fields that are
+                        necessary</strong> and avoid identifiers and documents (such as national ID scans, medical
+                    records, or bank statements) unless separately cleared by law;</li>
+                <li>Your comparables and reference images uploaded to <strong>Supabase</strong> and <strong>Cloudflare
+                        R2</strong> do not unlawfully infringe third-party rights.</li>
+            </ul>
+            <p>
+                You understand that <strong>public or shared map layers</strong> must not be used to disclose owner phone
+                numbers, ID numbers, or similar data unless a future feature expressly documents lawful publication and
+                you comply with it.
+            </p>
+
+            <h2 id="acceptable">5. Acceptable use</h2>
+            <p>You agree not to:</p>
+            <ul>
+                <li>Upload malware, attempt unauthorised access, or interfere with platform security;</li>
+                <li>Use the service for fraud, harassment, or unlawful surveillance;</li>
+                <li>Misrepresent professional credentials or impersonate others;</li>
+                <li>Circumvent technical restrictions on private vaults or other users’ workspaces.</li>
+            </ul>
+
+            <h2 id="takedown">6. Notice, review &amp; removal</h2>
+            <p>
+                We may <strong>investigate</strong> reports of inaccurate, unlawful, or excessively intrusive data.
+                Where appropriate we may <strong>remove or restrict</strong> content, suspend accounts, or cooperate with
+                regulators or law enforcement when legally required. We are <strong>not a court</strong> and cannot
+                adjudicate property disputes; users remain responsible for professional verification of boundaries,
+                values, and ownership facts.
+            </p>
+
+            <h2 id="disclaimer">7. Disclaimers</h2>
+            <p>
+                The platform and all content are provided <strong>“as is”</strong> and <strong>“as available”</strong>.
+                We do not warrant uninterrupted or error-free operation. Cadastral depictions, valuations, and
+                comparables supplied by users are <strong>not verified</strong> by us for legal accuracy. You must
+                perform independent checks before relying on data in legal, financial, or administrative proceedings.
+            </p>
+            <p>
+                Optional assistant tools provide <strong>general information only</strong> and are not legal or
+                surveying advice.
+            </p>
+
+            <h2 id="liability">8. Limitation of liability</h2>
+            <p>
+                To the maximum extent permitted by <strong>Ugandan law</strong>, NAS SURVEYORS LTD and GEOSPATIAL
+                NETWORK UGANDA (including their directors, staff, and contractors) are not liable for indirect, incidental,
+                special, consequential, or punitive damages, or for loss of profits, data, or goodwill, arising from
+                your use of the platform or reliance on user-generated content.
+            </p>
+            <p>
+                Nothing in these Terms excludes or limits liability that <strong>cannot</strong> lawfully be excluded or
+                limited. Consumers and professionals with mandatory statutory protections retain those protections.
+            </p>
+
+            <h2 id="indemnity">9. Indemnity</h2>
+            <p>
+                You agree to indemnify and hold harmless NAS SURVEYORS LTD, GEOSPATIAL NETWORK UGANDA, and their
+                personnel against claims, losses, and reasonable expenses (including legal fees) arising from your
+                breaches of these Terms, your unlawful processing of personal data, or your violation of third-party
+                rights, <strong>except</strong> to the extent caused by our wilful misconduct as finally determined by a
+                competent authority.
+            </p>
+
+            <h2 id="law">10. Governing law</h2>
+            <p>
+                These Terms are governed by the laws of <strong>Uganda</strong>. Courts of Uganda shall have exclusive
+                jurisdiction, subject to applicable consumer or professional protections.
+            </p>
+
+            <h2 id="contact">11. Contact</h2>
+            <p>
+                <strong>Email:</strong> <a href="mailto:admin@geospatialnetworkug.xyz">admin@geospatialnetworkug.xyz</a><br>
+                <strong>Phone:</strong> <a href="tel:+256753771256">+256 753 771 256</a>
+            </p>
+            <p>
+                We may amend these Terms; material changes will be reflected in the effective date above. Continued use
+                after update constitutes acceptance of the revised Terms where the law permits.
+            </p>
+        </div>
+
+        <footer class="doc-foot">
+            <p>These Terms are not a substitute for legal advice. Consult a qualified Ugandan advocate about your
+                specific risks.</p>
+            <p style="margin-top:8px;"><a href="privacy.html">Privacy Policy</a> · <a href="index.html">Login</a></p>
+        </footer>
+    </div>
+
+    <script>
+        (function () {
+            const t = document.getElementById('themeToggle');
+            const root = document.documentElement;
+            const saved = localStorage.getItem('gspnet_legal_theme');
+            if (saved === 'dark') root.setAttribute('data-theme', 'dark');
+            t.addEventListener('click', function () {
+                if (root.getAttribute('data-theme') === 'dark') {
+                    root.removeAttribute('data-theme');
+                    localStorage.setItem('gspnet_legal_theme', 'light');
+                    t.textContent = 'Dark mode';
+                } else {
+                    root.setAttribute('data-theme', 'dark');
+                    localStorage.setItem('gspnet_legal_theme', 'dark');
+                    t.textContent = 'Light mode';
+                }
+            });
+            if (root.getAttribute('data-theme') === 'dark') t.textContent = 'Light mode';
+        })();
+    </script>
+</body>
+
+</html>
