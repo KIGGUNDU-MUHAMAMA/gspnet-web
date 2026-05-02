@@ -37608,26 +37608,29 @@ function smoothChaikin(points) {
             terrain3DState.captured3DViews = [];
 
             let viewer3D = {
-                scene: null,
-                camera: null,
-                renderer: null,
-                controls: null,
-                terrainMesh: null,
-                contourGroup: null,
-                gridGroup: null,
-                animationId: null,
-                isOpen: false,
-                showContours: true,
-                showGrid: true,
-                verticalExag: 2.0,
-                // Basemap texture draping
-                showBasemap: false,
-                basemapBlend: 0.85,
-                basemapTexture: null,
-                basemapMesh: null,
-                basemapLoading: false,
-                basemapCachedUrl: null,   // legacy key (unused)
-                basemapCachedType: null   // tracks which basemap was last fetched (esri/google/osm)
+                scene: null, camera: null, renderer: null, controls: null,
+                terrainMesh: null, contourGroup: null, gridGroup: null,
+                animationId: null, isOpen: false,
+                showContours: true, showGrid: true, verticalExag: 2.0,
+                // Lighting
+                sunLight: null, ambientLight: null,
+                sunAzimuth: 225, sunAltitude: 45,
+                // Basemap
+                showBasemap: false, basemapBlend: 0.85,
+                basemapTexture: null, basemapMesh: null,
+                basemapLoading: false, basemapCachedUrl: null, basemapCachedType: null,
+                // Vector overlays
+                gspnetGroup: null, surveyGroup: null,
+                showGspnet: true, showSurvey: true,
+                // Terrain coloring mode: 'hypsometric' | 'hillshade' | 'slope'
+                terrainMode: 'hypsometric', originalColors: null,
+                // Measurement tool
+                measureMode: false, measurePoints: [], measureObjects: [],
+                // Annotation pins
+                pinMode: false, pins: [], pinGroup: null,
+                // Section clip
+                clipEnabled: false, clipPlanes: [],
+                SIDEBAR_W: 268
             };
 
             function open3DViewer() {
@@ -37644,196 +37647,206 @@ function smoothChaikin(points) {
                     modal.innerHTML = `
                         <style>
                             #terrain3DViewerModal {
-                                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-                                background: #000; z-index: 10000; display: flex; flex-direction: column;
+                                position:fixed;top:0;left:0;width:100vw;height:100vh;
+                                background:#000;z-index:10000;display:flex;flex-direction:column;font-family:'Inter',sans-serif;
                             }
-                            #terrain3DCanvas {
-                                flex: 1; width: 100%; cursor: grab;
-                            }
-                            #terrain3DCanvas:active { cursor: grabbing; }
-                            .viewer3d-controls {
-                                background: rgba(20, 25, 45, 0.92); backdrop-filter: blur(12px);
-                                padding: 10px 16px; display: flex; align-items: center; gap: 16px;
-                                border-top: 1px solid rgba(255,255,255,0.1); flex-wrap: wrap;
-                            }
-                            .viewer3d-controls label {
-                                color: #94a3b8; font-size: 0.8rem; white-space: nowrap;
-                            }
-                            .viewer3d-controls input[type="range"] {
-                                width: 100px; accent-color: #3b82f6;
-                            }
-                            .viewer3d-btn {
-                                background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
-                                color: #e2e8f0; padding: 6px 14px; border-radius: 6px; cursor: pointer;
-                                font-size: 0.82rem; transition: all 0.2s; white-space: nowrap;
-                            }
-                            .viewer3d-btn:hover { background: rgba(59,130,246,0.3); border-color: #3b82f6; }
-                            .viewer3d-btn-capture {
-                                background: linear-gradient(135deg, #059669, #10b981); border: none;
-                                color: white; font-weight: 600;
-                            }
-                            .viewer3d-btn-capture:hover { background: linear-gradient(135deg, #047857, #059669); }
-                            .viewer3d-btn-close {
-                                background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.4);
-                                color: #fca5a5;
-                            }
-                            .viewer3d-btn-close:hover { background: rgba(239,68,68,0.4); }
-                            .viewer3d-toggle { display: flex; align-items: center; gap: 6px; }
-                            .viewer3d-toggle input[type="checkbox"] { accent-color: #3b82f6; }
-                            .viewer3d-info {
-                                position: absolute; top: 12px; left: 12px; background: rgba(0,0,0,0.7);
-                                color: #94a3b8; padding: 8px 12px; border-radius: 6px; font-size: 0.75rem;
-                                pointer-events: none; line-height: 1.5;
-                            }
-                            .viewer3d-captures {
-                                display: flex; gap: 6px; align-items: center; overflow-x: auto;
-                                max-width: 300px; padding: 2px;
-                            }
-                            .viewer3d-captures img {
-                                width: 60px; height: 40px; object-fit: cover; border-radius: 4px;
-                                border: 2px solid rgba(255,255,255,0.2); cursor: pointer;
-                            }
-                            .viewer3d-captures img:hover { border-color: #3b82f6; }
-                            .viewer3d-legend {
-                                position: absolute; bottom: 70px; right: 12px;
-                                background: rgba(0,0,0,0.75); border-radius: 8px;
-                                padding: 8px 10px; pointer-events: none;
-                            }
-                            .viewer3d-legend-bar {
-                                width: 16px; height: 120px; border-radius: 3px;
-                                background: linear-gradient(to top, #2d5a27, #4a8c3f, #a8c256, #e8d44d, #d4a037, #b87333, #a0522d, #8b4513, #d2b48c, #f5f5dc, #ffffff);
-                            }
-                            .viewer3d-legend label { color: #94a3b8; font-size: 0.65rem; white-space: nowrap; }
-                            /* === Basemap Drape Styles === */
-                            .viewer3d-basemap-loading {
-                                position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-                                background: rgba(0,0,0,0.6); display: flex; flex-direction: column;
-                                align-items: center; justify-content: center; z-index: 20;
-                                backdrop-filter: blur(4px); transition: opacity 0.4s;
-                            }
-                            .viewer3d-basemap-loading.hidden { opacity: 0; pointer-events: none; }
-                            .viewer3d-basemap-spinner {
-                                width: 56px; height: 56px; border-radius: 50%;
-                                border: 4px solid rgba(255,255,255,0.15);
-                                border-top-color: #3b82f6; border-right-color: #8b5cf6;
-                                animation: viewer3dSpin 0.8s linear infinite;
-                            }
-                            @keyframes viewer3dSpin { to { transform: rotate(360deg); } }
-                            .viewer3d-basemap-loading p {
-                                color: #e2e8f0; font-size: 0.85rem; margin-top: 14px;
-                                font-weight: 500; letter-spacing: 0.3px;
-                            }
-                            .viewer3d-basemap-loading .loading-sub {
-                                color: #94a3b8; font-size: 0.72rem; margin-top: 4px; font-weight: 400;
-                            }
-                            .viewer3d-basemap-badge {
-                                position: absolute; top: 12px; right: 12px;
-                                background: linear-gradient(135deg, rgba(59,130,246,0.85), rgba(139,92,246,0.85));
-                                color: white; padding: 6px 14px; border-radius: 20px;
-                                font-size: 0.72rem; font-weight: 600; letter-spacing: 0.5px;
-                                backdrop-filter: blur(8px); pointer-events: none;
-                                box-shadow: 0 4px 15px rgba(59,130,246,0.3);
-                                display: none; align-items: center; gap: 6px;
-                                animation: viewer3dBadgeIn 0.4s ease-out;
-                            }
-                            .viewer3d-basemap-badge.visible { display: flex; }
-                            @keyframes viewer3dBadgeIn {
-                                from { opacity: 0; transform: translateY(-8px); }
-                                to { opacity: 1; transform: translateY(0); }
-                            }
-                            .viewer3d-basemap-badge i { font-size: 0.7rem; }
-                            .viewer3d-blend-group {
-                                display: flex; align-items: center; gap: 8px;
-                                opacity: 0; max-width: 0; overflow: hidden;
-                                transition: all 0.35s ease; pointer-events: none;
-                            }
-                            .viewer3d-blend-group.active {
-                                opacity: 1; max-width: 240px; pointer-events: auto;
-                            }
-                            .viewer3d-blend-group input[type="range"] {
-                                width: 90px; accent-color: #8b5cf6;
-                            }
-                            .viewer3d-blend-val {
-                                color: #c4b5fd; font-size: 0.75rem; min-width: 30px;
-                                font-weight: 600;
-                            }
-                            .viewer3d-sep {
-                                width: 1px; height: 24px; background: rgba(255,255,255,0.15);
-                                flex-shrink: 0;
-                            }
+                            .v3d-main{display:flex;flex:1;overflow:hidden;position:relative;}
+                            .v3d-sidebar{width:268px;min-width:268px;background:rgba(13,17,35,0.97);border-right:1px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(59,130,246,0.3) transparent;}
+                            .v3d-sidebar::-webkit-scrollbar{width:4px}.v3d-sidebar::-webkit-scrollbar-thumb{background:rgba(59,130,246,0.3);border-radius:2px}
+                            .v3d-sidebar-title{padding:13px 15px 10px;font-size:0.7rem;font-weight:700;color:#3b82f6;letter-spacing:1.4px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:7px;}
+                            .v3d-section{border-bottom:1px solid rgba(255,255,255,0.06);}
+                            .v3d-section-hdr{padding:9px 13px;cursor:pointer;display:flex;align-items:center;gap:7px;color:#cbd5e1;font-size:0.78rem;font-weight:600;user-select:none;transition:background 0.2s;}
+                            .v3d-section-hdr:hover{background:rgba(255,255,255,0.04)}
+                            .v3d-section-hdr .chev{margin-left:auto;font-size:0.62rem;transition:transform 0.25s;color:#64748b}
+                            .v3d-section-hdr.open .chev{transform:rotate(180deg)}
+                            .v3d-section-body{padding:9px 13px 11px;display:none;flex-direction:column;gap:8px;}
+                            .v3d-section-body.open{display:flex}
+                            .v3d-row{display:flex;align-items:center;gap:7px;justify-content:space-between}
+                            .v3d-lbl{color:#94a3b8;font-size:0.73rem;white-space:nowrap}
+                            .v3d-val{color:#e2e8f0;font-size:0.73rem;font-weight:600;min-width:34px;text-align:right}
+                            .v3d-slider{flex:1;accent-color:#3b82f6;cursor:pointer}
+                            .v3d-btn-sm{width:100%;padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.11);background:rgba(255,255,255,0.05);color:#e2e8f0;cursor:pointer;font-size:0.75rem;display:flex;align-items:center;justify-content:center;gap:5px;transition:all 0.2s;}
+                            .v3d-btn-sm:hover{background:rgba(59,130,246,0.2);border-color:#3b82f6}
+                            .v3d-btn-sm.active{background:rgba(59,130,246,0.28);border-color:#3b82f6;color:#93c5fd}
+                            .v3d-btn-sm.danger{background:rgba(239,68,68,0.12);border-color:rgba(239,68,68,0.35);color:#fca5a5}
+                            .v3d-btn-row{display:flex;gap:5px}
+                            .v3d-btn-row .v3d-btn-sm{flex:1}
+                            .v3d-toggle-row{display:flex;align-items:center;gap:7px}
+                            .v3d-toggle-row input[type=checkbox]{accent-color:#3b82f6;cursor:pointer}
+                            .v3d-sep-h{height:1px;background:rgba(255,255,255,0.06);margin:1px 0}
+                            .v3d-mresult{background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.22);border-radius:6px;padding:8px;font-size:0.7rem;color:#93c5fd;line-height:1.75;display:none;}
+                            .v3d-mresult.show{display:block}
+                            .v3d-pin-list{display:flex;flex-direction:column;gap:3px;max-height:130px;overflow-y:auto}
+                            .v3d-pin-item{display:flex;align-items:center;gap:5px;padding:4px 7px;background:rgba(255,255,255,0.04);border-radius:5px;font-size:0.7rem;color:#cbd5e1;}
+                            .v3d-pin-item button{margin-left:auto;background:none;border:none;color:#ef4444;cursor:pointer;font-size:0.73rem;padding:0 2px;}
+                            .v3d-clip-grid{display:grid;grid-template-columns:auto 1fr auto;gap:4px 7px;align-items:center;margin-top:3px;}
+                            .v3d-clip-grid label{color:#94a3b8;font-size:0.7rem}
+                            .v3d-clip-grid input[type=range]{accent-color:#8b5cf6}
+                            .v3d-clip-grid span{color:#c4b5fd;font-size:0.68rem;font-weight:600;min-width:32px;text-align:right}
+                            .v3d-slope-legend{display:flex;flex-direction:column;gap:2px;margin-top:3px}
+                            .v3d-slope-swatch{display:flex;align-items:center;gap:5px;font-size:0.67rem;color:#94a3b8}
+                            .v3d-slope-swatch span:first-child{width:13px;height:9px;border-radius:2px;flex-shrink:0;display:inline-block}
+                            #terrain3DCanvas{flex:1;cursor:grab;}
+                            #terrain3DCanvas:active{cursor:grabbing;}
+                            .viewer3d-controls{background:rgba(20,25,45,0.95);backdrop-filter:blur(12px);padding:7px 13px;display:flex;align-items:center;gap:12px;border-top:1px solid rgba(255,255,255,0.08);flex-wrap:wrap;flex-shrink:0;}
+                            .viewer3d-controls label{color:#94a3b8;font-size:0.77rem;white-space:nowrap}
+                            .viewer3d-controls input[type=range]{width:86px;accent-color:#3b82f6}
+                            .viewer3d-btn{background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.13);color:#e2e8f0;padding:5px 11px;border-radius:6px;cursor:pointer;font-size:0.77rem;transition:all 0.2s;white-space:nowrap;}
+                            .viewer3d-btn:hover{background:rgba(59,130,246,0.25);border-color:#3b82f6}
+                            .viewer3d-btn-capture{background:linear-gradient(135deg,#059669,#10b981);border:none;color:#fff;font-weight:600}
+                            .viewer3d-btn-capture:hover{background:linear-gradient(135deg,#047857,#059669)}
+                            .viewer3d-btn-close{background:rgba(239,68,68,0.18);border-color:rgba(239,68,68,0.35);color:#fca5a5}
+                            .viewer3d-btn-close:hover{background:rgba(239,68,68,0.35)}
+                            .viewer3d-toggle{display:flex;align-items:center;gap:5px}
+                            .viewer3d-toggle input[type=checkbox]{accent-color:#3b82f6}
+                            .viewer3d-blend-group{display:flex;align-items:center;gap:6px;opacity:0;max-width:0;overflow:hidden;transition:all 0.3s;pointer-events:none}
+                            .viewer3d-blend-group.active{opacity:1;max-width:200px;pointer-events:auto}
+                            .viewer3d-blend-group input[type=range]{width:75px;accent-color:#8b5cf6}
+                            .viewer3d-blend-val{color:#c4b5fd;font-size:0.72rem;min-width:26px;font-weight:600}
+                            .viewer3d-sep{width:1px;height:20px;background:rgba(255,255,255,0.12);flex-shrink:0}
+                            .viewer3d-captures{display:flex;gap:4px;align-items:center;overflow-x:auto;max-width:240px;padding:1px}
+                            .viewer3d-captures img{width:50px;height:34px;object-fit:cover;border-radius:4px;border:2px solid rgba(255,255,255,0.18);cursor:pointer}
+                            .viewer3d-captures img:hover{border-color:#3b82f6}
+                            .viewer3d-info{position:absolute;top:12px;left:calc(268px + 12px);background:rgba(0,0,0,0.72);color:#94a3b8;padding:7px 11px;border-radius:6px;font-size:0.72rem;pointer-events:none;line-height:1.5;}
+                            .viewer3d-legend{position:absolute;bottom:12px;right:12px;background:rgba(0,0,0,0.72);border-radius:8px;padding:7px 9px;pointer-events:none}
+                            .viewer3d-legend-bar{width:13px;height:106px;border-radius:3px;background:linear-gradient(to top,#2d5a27,#4a8c3f,#a8c256,#e8d44d,#d4a037,#b87333,#a0522d,#8b4513,#d2b48c,#f5f5dc,#fff)}
+                            .viewer3d-legend label{color:#94a3b8;font-size:0.62rem;white-space:nowrap}
+                            .viewer3d-basemap-loading{position:absolute;top:0;left:268px;right:0;bottom:0;background:rgba(0,0,0,0.6);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20;backdrop-filter:blur(4px);transition:opacity 0.4s}
+                            .viewer3d-basemap-loading.hidden{opacity:0;pointer-events:none}
+                            .viewer3d-basemap-spinner{width:48px;height:48px;border-radius:50%;border:4px solid rgba(255,255,255,0.12);border-top-color:#3b82f6;border-right-color:#8b5cf6;animation:v3dSpin 0.8s linear infinite}
+                            @keyframes v3dSpin{to{transform:rotate(360deg)}}
+                            .viewer3d-basemap-loading p{color:#e2e8f0;font-size:0.82rem;margin-top:12px;font-weight:500}
+                            .viewer3d-basemap-loading .loading-sub{color:#94a3b8;font-size:0.68rem;margin-top:4px}
+                            .viewer3d-basemap-badge{position:absolute;top:12px;right:12px;background:linear-gradient(135deg,rgba(59,130,246,0.85),rgba(139,92,246,0.85));color:#fff;padding:5px 12px;border-radius:18px;font-size:0.68rem;font-weight:600;letter-spacing:0.4px;backdrop-filter:blur(8px);pointer-events:none;box-shadow:0 4px 12px rgba(59,130,246,0.3);display:none;align-items:center;gap:5px}
+                            .viewer3d-basemap-badge.visible{display:flex}
                         </style>
-                        <canvas id="terrain3DCanvas"></canvas>
-                        <div class="viewer3d-info" id="viewer3dInfo">
-                            <b style="color:#e2e8f0;">3D Terrain Viewer</b><br>
-                            Drag to rotate · Scroll to zoom · Right-drag to pan
+
+                        <div class="v3d-main">
+                            <div class="v3d-sidebar" id="viewer3dSidebar">
+                                <div class="v3d-sidebar-title"><i class="fas fa-layer-group"></i>3D Analysis Tools</div>
+
+                                <!-- LAYERS -->
+                                <div class="v3d-section">
+                                    <div class="v3d-section-hdr open" id="v3dHdrLayers"><i class="fas fa-vector-square" style="color:#8b5cf6;width:14px"></i>Vector Layers<span class="chev"><i class="fas fa-chevron-down"></i></span></div>
+                                    <div class="v3d-section-body open" id="v3dBodyLayers">
+                                        <div class="v3d-toggle-row"><input type="checkbox" id="v3dShowGspnet" checked><label for="v3dShowGspnet" class="v3d-lbl" style="color:#f87171"><i class="fas fa-draw-polygon" style="margin-right:3px"></i>GSPNET / NLIS</label></div>
+                                        <div class="v3d-toggle-row"><input type="checkbox" id="v3dShowSurvey" checked><label for="v3dShowSurvey" class="v3d-lbl" style="color:#fde047"><i class="fas fa-border-all" style="margin-right:3px"></i>Survey Polygons</label></div>
+                                        <button class="v3d-btn-sm" id="v3dLoadVectors"><i class="fas fa-sync-alt"></i>Load / Refresh Layers</button>
+                                        <div id="v3dVectorStatus" style="font-size:0.67rem;color:#64748b;text-align:center;min-height:14px"></div>
+                                    </div>
+                                </div>
+
+                                <!-- LIGHTING -->
+                                <div class="v3d-section">
+                                    <div class="v3d-section-hdr open" id="v3dHdrLight"><i class="fas fa-sun" style="color:#fbbf24;width:14px"></i>Sun Lighting<span class="chev"><i class="fas fa-chevron-down"></i></span></div>
+                                    <div class="v3d-section-body open" id="v3dBodyLight">
+                                        <div class="v3d-row"><span class="v3d-lbl">Azimuth</span><input type="range" class="v3d-slider" id="v3dSunAz" min="0" max="360" value="225"><span class="v3d-val" id="v3dSunAzVal">225°</span></div>
+                                        <div class="v3d-row"><span class="v3d-lbl">Altitude</span><input type="range" class="v3d-slider" id="v3dSunAlt" min="5" max="90" value="45"><span class="v3d-val" id="v3dSunAltVal">45°</span></div>
+                                        <div class="v3d-row"><span class="v3d-lbl">Intensity</span><input type="range" class="v3d-slider" id="v3dSunInt" min="0" max="200" value="100"><span class="v3d-val" id="v3dSunIntVal">1.0</span></div>
+                                        <div class="v3d-row"><span class="v3d-lbl">Ambient</span><input type="range" class="v3d-slider" id="v3dAmbInt" min="0" max="100" value="40"><span class="v3d-val" id="v3dAmbIntVal">0.4</span></div>
+                                    </div>
+                                </div>
+
+                                <!-- ANALYSIS -->
+                                <div class="v3d-section">
+                                    <div class="v3d-section-hdr open" id="v3dHdrAnalysis"><i class="fas fa-mountain" style="color:#34d399;width:14px"></i>Analysis<span class="chev"><i class="fas fa-chevron-down"></i></span></div>
+                                    <div class="v3d-section-body open" id="v3dBodyAnalysis">
+                                        <div class="v3d-btn-row">
+                                            <button class="v3d-btn-sm active" id="v3dModeHypso"><i class="fas fa-palette"></i>Hypsometric</button>
+                                            <button class="v3d-btn-sm" id="v3dModeHillshade"><i class="fas fa-adjust"></i>Hillshade</button>
+                                        </div>
+                                        <button class="v3d-btn-sm" id="v3dModeSlope" style="margin-top:-3px"><i class="fas fa-angle-double-up"></i>Slope Analysis</button>
+                                        <div class="v3d-slope-legend" id="v3dSlopeLegend" style="display:none">
+                                            <div class="v3d-slope-swatch"><span style="background:#33b255"></span>0–5° Flat</div>
+                                            <div class="v3d-slope-swatch"><span style="background:#99da33"></span>5–15° Gentle</div>
+                                            <div class="v3d-slope-swatch"><span style="background:#f2cc1a"></span>15–25° Moderate</div>
+                                            <div class="v3d-slope-swatch"><span style="background:#f28020"></span>25–35° Steep</div>
+                                            <div class="v3d-slope-swatch"><span style="background:#da291c"></span>35–45° Very steep</div>
+                                            <div class="v3d-slope-swatch"><span style="background:#991ab3"></span>45°+ Extreme</div>
+                                        </div>
+                                        <div class="v3d-sep-h"></div>
+                                        <div class="v3d-toggle-row"><input type="checkbox" id="v3dClipEnable"><label for="v3dClipEnable" class="v3d-lbl"><i class="fas fa-cut" style="margin-right:4px;color:#a78bfa"></i>Section Clip Box</label></div>
+                                        <div id="v3dClipPanel" style="display:none">
+                                            <div class="v3d-clip-grid">
+                                                <label>X min</label><input type="range" id="v3dClipXMin" min="0" max="100" value="0"><span id="v3dClipXMinV">0%</span>
+                                                <label>X max</label><input type="range" id="v3dClipXMax" min="0" max="100" value="100"><span id="v3dClipXMaxV">100%</span>
+                                                <label>Y min</label><input type="range" id="v3dClipYMin" min="0" max="100" value="0"><span id="v3dClipYMinV">0%</span>
+                                                <label>Y max</label><input type="range" id="v3dClipYMax" min="0" max="100" value="100"><span id="v3dClipYMaxV">100%</span>
+                                                <label>Z min</label><input type="range" id="v3dClipZMin" min="0" max="100" value="0"><span id="v3dClipZMinV">0%</span>
+                                                <label>Z max</label><input type="range" id="v3dClipZMax" min="0" max="100" value="100"><span id="v3dClipZMaxV">100%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- MEASURE -->
+                                <div class="v3d-section">
+                                    <div class="v3d-section-hdr" id="v3dHdrMeasure"><i class="fas fa-ruler-combined" style="color:#38bdf8;width:14px"></i>3D Measure<span class="chev"><i class="fas fa-chevron-down"></i></span></div>
+                                    <div class="v3d-section-body" id="v3dBodyMeasure">
+                                        <button class="v3d-btn-sm" id="v3dMeasureStart"><i class="fas fa-crosshairs"></i>Click two terrain points</button>
+                                        <div class="v3d-mresult" id="v3dMeasureResult"></div>
+                                        <button class="v3d-btn-sm danger" id="v3dMeasureClear"><i class="fas fa-trash"></i>Clear Measurements</button>
+                                    </div>
+                                </div>
+
+                                <!-- ANNOTATIONS -->
+                                <div class="v3d-section">
+                                    <div class="v3d-section-hdr" id="v3dHdrPins"><i class="fas fa-map-pin" style="color:#fb923c;width:14px"></i>Annotations<span class="chev"><i class="fas fa-chevron-down"></i></span></div>
+                                    <div class="v3d-section-body" id="v3dBodyPins">
+                                        <button class="v3d-btn-sm" id="v3dAddPin"><i class="fas fa-thumbtack"></i>Place Pin on Terrain</button>
+                                        <div class="v3d-pin-list" id="v3dPinList"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <canvas id="terrain3DCanvas"></canvas>
                         </div>
+
+                        <!-- floating overlays -->
+                        <div class="viewer3d-info" id="viewer3dInfo"><b style="color:#e2e8f0">3D Terrain Viewer</b><br>Drag · Scroll · Right-drag pan</div>
                         <div class="viewer3d-legend" id="viewer3dLegend">
-                            <label id="viewer3dLegendMax" style="display:block;text-align:center;margin-bottom:3px;"></label>
+                            <label id="viewer3dLegendMax" style="display:block;text-align:center;margin-bottom:3px"></label>
                             <div class="viewer3d-legend-bar"></div>
-                            <label id="viewer3dLegendMin" style="display:block;text-align:center;margin-top:3px;"></label>
+                            <label id="viewer3dLegendMin" style="display:block;text-align:center;margin-top:3px"></label>
                         </div>
                         <div class="viewer3d-basemap-loading hidden" id="viewer3dBasemapLoading">
                             <div class="viewer3d-basemap-spinner"></div>
                             <p>Loading basemap tiles…</p>
-                            <p class="loading-sub" id="viewer3dLoadingSub">Fetching satellite imagery for DTM extent</p>
+                            <p class="loading-sub" id="viewer3dLoadingSub">Fetching satellite imagery</p>
                         </div>
                         <div class="viewer3d-basemap-badge" id="viewer3dBasemapBadge">
-                            <i class="fas fa-satellite"></i>
-                            <span id="viewer3dBasemapName">Esri World Imagery</span>
+                            <i class="fas fa-satellite"></i><span id="viewer3dBasemapName">Esri World Imagery</span>
                         </div>
+
+                        <!-- bottom controls -->
                         <div class="viewer3d-controls">
-                            <label>Vertical Exag:</label>
+                            <label>Vert Exag:</label>
                             <input type="range" id="viewer3dVertExag" min="1" max="10" step="0.5" value="2">
-                            <span id="viewer3dVertExagVal" style="color:#e2e8f0;font-size:0.8rem;min-width:25px;">2x</span>
-
-                            <div style="width:1px;height:24px;background:rgba(255,255,255,0.15);"></div>
-
-                            <div class="viewer3d-toggle">
-                                <input type="checkbox" id="viewer3dShowContours" checked>
-                                <label for="viewer3dShowContours">Contours</label>
-                            </div>
-                            <div class="viewer3d-toggle">
-                                <input type="checkbox" id="viewer3dShowGrid" checked>
-                                <label for="viewer3dShowGrid">Grid</label>
-                            </div>
-
+                            <span id="viewer3dVertExagVal" style="color:#e2e8f0;font-size:0.77rem;min-width:22px">2x</span>
                             <div class="viewer3d-sep"></div>
-
+                            <div class="viewer3d-toggle"><input type="checkbox" id="viewer3dShowContours" checked><label for="viewer3dShowContours">Contours</label></div>
+                            <div class="viewer3d-toggle"><input type="checkbox" id="viewer3dShowGrid" checked><label for="viewer3dShowGrid">Grid</label></div>
+                            <div class="viewer3d-sep"></div>
                             <div class="viewer3d-toggle">
                                 <input type="checkbox" id="viewer3dShowBasemap">
-                                <label for="viewer3dShowBasemap" style="display:flex;align-items:center;gap:5px;">
-                                    <i class="fas fa-satellite" style="font-size:0.7rem;color:#8b5cf6;"></i> Basemap
-                                </label>
+                                <label for="viewer3dShowBasemap" style="display:flex;align-items:center;gap:4px"><i class="fas fa-satellite" style="font-size:0.65rem;color:#8b5cf6"></i>Basemap</label>
                             </div>
                             <div class="viewer3d-blend-group" id="viewer3dBlendGroup">
-                                <label style="color:#c4b5fd;">Blend:</label>
+                                <label style="color:#c4b5fd">Blend:</label>
                                 <input type="range" id="viewer3dBasemapBlend" min="0" max="100" step="5" value="85">
                                 <span class="viewer3d-blend-val" id="viewer3dBlendVal">85%</span>
                             </div>
-
                             <div class="viewer3d-sep"></div>
-
-                            <button class="viewer3d-btn viewer3d-btn-capture" id="viewer3dCaptureBtn"
-                                title="Capture current view for PDF report">
-                                <i class="fas fa-camera"></i> Capture View
-                            </button>
+                            <button class="viewer3d-btn viewer3d-btn-capture" id="viewer3dCaptureBtn"><i class="fas fa-camera"></i> Capture</button>
                             <div class="viewer3d-captures" id="viewer3dCaptures"></div>
-                            <button class="viewer3d-btn" id="export3DPdfBtn" disabled
-                                style="background:linear-gradient(135deg,#e53935,#ff7043);color:#fff;opacity:0.5;cursor:not-allowed;"
-                                title="Export captured views as PDF report">
-                                <i class="fas fa-file-pdf"></i> Export 3D PDF
-                            </button>
-
-                            <div style="flex:1;"></div>
-
-                            <button class="viewer3d-btn" id="viewer3dResetBtn" title="Reset camera view">
-                                <i class="fas fa-sync-alt"></i> Reset
-                            </button>
-                            <button class="viewer3d-btn viewer3d-btn-close" id="viewer3dCloseBtn">
-                                <i class="fas fa-times"></i> Close
-                            </button>
+                            <button class="viewer3d-btn" id="export3DPdfBtn" disabled style="background:linear-gradient(135deg,#e53935,#ff7043);color:#fff;opacity:0.5;cursor:not-allowed"><i class="fas fa-file-pdf"></i> PDF</button>
+                            <div style="flex:1"></div>
+                            <button class="viewer3d-btn" id="viewer3dResetBtn"><i class="fas fa-sync-alt"></i> Reset</button>
+                            <button class="viewer3d-btn viewer3d-btn-close" id="viewer3dCloseBtn"><i class="fas fa-times"></i> Close</button>
                         </div>
                     `;
+
+
                     document.body.appendChild(modal);
 
                     // Wire up controls
@@ -37875,10 +37888,249 @@ function smoothChaikin(points) {
                         }
                     });
 
-                    // ESC key to close
+                    // ── Sidebar collapsible sections ──
+                    ['Layers','Light','Analysis','Measure','Pins'].forEach(function(k) {
+                        var hdr = document.getElementById('v3dHdr' + k);
+                        var body = document.getElementById('v3dBody' + k);
+                        if (!hdr || !body) return;
+                        hdr.addEventListener('click', function() {
+                            var open = body.classList.toggle('open');
+                            hdr.classList.toggle('open', open);
+                        });
+                    });
+
+                    // ── Sun Lighting ──
+                    function applyV3dLighting() {
+                        var az  = parseFloat(document.getElementById('v3dSunAz').value);
+                        var alt = parseFloat(document.getElementById('v3dSunAlt').value);
+                        var intV = parseFloat(document.getElementById('v3dSunInt').value) / 100;
+                        var ambV = parseFloat(document.getElementById('v3dAmbInt').value) / 100;
+                        document.getElementById('v3dSunAzVal').textContent  = az  + '°';
+                        document.getElementById('v3dSunAltVal').textContent = alt + '°';
+                        document.getElementById('v3dSunIntVal').textContent  = intV.toFixed(1);
+                        document.getElementById('v3dAmbIntVal').textContent  = ambV.toFixed(1);
+                        if (viewer3D.dirLight) {
+                            var azRad  = (az - 180) * Math.PI / 180;
+                            var altRad = alt * Math.PI / 180;
+                            var d = 600;
+                            viewer3D.dirLight.position.set(
+                                Math.sin(azRad)  * Math.cos(altRad) * d,
+                                Math.sin(altRad) * d,
+                                Math.cos(azRad)  * Math.cos(altRad) * d
+                            );
+                            viewer3D.dirLight.intensity = intV;
+                        }
+                        if (viewer3D.ambLight) viewer3D.ambLight.intensity = ambV;
+                    }
+                    ['v3dSunAz','v3dSunAlt','v3dSunInt','v3dAmbInt'].forEach(function(id) {
+                        var el = document.getElementById(id);
+                        if (el) el.addEventListener('input', applyV3dLighting);
+                    });
+
+                    // ── Analysis Modes ──
+                    function setV3dAnalysisMode(mode) {
+                        viewer3D.analysisMode = mode;
+                        ['v3dModeHypso','v3dModeHillshade','v3dModeSlope'].forEach(function(id) {
+                            var el = document.getElementById(id);
+                            if (el) el.classList.remove('active');
+                        });
+                        var map = {hypsometric:'v3dModeHypso', hillshade:'v3dModeHillshade', slope:'v3dModeSlope'};
+                        if (map[mode]) document.getElementById(map[mode]).classList.add('active');
+                        var legend = document.getElementById('v3dSlopeLegend');
+                        if (legend) legend.style.display = mode === 'slope' ? '' : 'none';
+                        rebuild3DTerrain();
+                    }
+                    var elHypso = document.getElementById('v3dModeHypso');
+                    var elHill  = document.getElementById('v3dModeHillshade');
+                    var elSlope = document.getElementById('v3dModeSlope');
+                    if (elHypso) elHypso.addEventListener('click', function() { setV3dAnalysisMode('hypsometric'); });
+                    if (elHill)  elHill.addEventListener('click',  function() { setV3dAnalysisMode('hillshade'); });
+                    if (elSlope) elSlope.addEventListener('click', function() { setV3dAnalysisMode('slope'); });
+
+
+                    // ── Section Clip Box ──
+                    function applyV3dClipBox() {
+                        if (!viewer3D.clipEnabled || !viewer3D.terrainMesh) return;
+                        var geo = viewer3D.terrainMesh.geometry;
+                        geo.computeBoundingBox();
+                        var bb = geo.boundingBox;
+                        var xR = bb.max.x - bb.min.x, yR = bb.max.y - bb.min.y, zR = bb.max.z - bb.min.z;
+                        function pct(id) { return parseFloat(document.getElementById(id).value) / 100; }
+                        var xMin = bb.min.x + pct('v3dClipXMin')*xR, xMax = bb.min.x + pct('v3dClipXMax')*xR;
+                        var yMin = bb.min.y + pct('v3dClipYMin')*yR, yMax = bb.min.y + pct('v3dClipYMax')*yR;
+                        var zMin = bb.min.z + pct('v3dClipZMin')*zR, zMax = bb.min.z + pct('v3dClipZMax')*zR;
+                        viewer3D.renderer.clippingPlanes = [
+                            new THREE.Plane(new THREE.Vector3( 1,0,0), -xMin),
+                            new THREE.Plane(new THREE.Vector3(-1,0,0),  xMax),
+                            new THREE.Plane(new THREE.Vector3(0, 1,0), -yMin),
+                            new THREE.Plane(new THREE.Vector3(0,-1,0),  yMax),
+                            new THREE.Plane(new THREE.Vector3(0,0, 1), -zMin),
+                            new THREE.Plane(new THREE.Vector3(0,0,-1),  zMax)
+                        ];
+                        viewer3D.renderer.localClippingEnabled = true;
+                    }
+                    var elClipEnable = document.getElementById('v3dClipEnable');
+                    if (elClipEnable) elClipEnable.addEventListener('change', function() {
+                        var panel = document.getElementById('v3dClipPanel');
+                        if (panel) panel.style.display = this.checked ? '' : 'none';
+                        viewer3D.clipEnabled = this.checked;
+                        if (!this.checked && viewer3D.renderer) { viewer3D.renderer.clippingPlanes = []; }
+                        else applyV3dClipBox();
+                    });
+                    [['v3dClipXMin','v3dClipXMinV'],['v3dClipXMax','v3dClipXMaxV'],
+                     ['v3dClipYMin','v3dClipYMinV'],['v3dClipYMax','v3dClipYMaxV'],
+                     ['v3dClipZMin','v3dClipZMinV'],['v3dClipZMax','v3dClipZMaxV']].forEach(function(pair) {
+                        var el = document.getElementById(pair[0]);
+                        if (!el) return;
+                        el.addEventListener('input', function() {
+                            var lbl = document.getElementById(pair[1]);
+                            if (lbl) lbl.textContent = this.value + '%';
+                            applyV3dClipBox();
+                        });
+                    });
+
+                    // ── 3D Measure Tool ──
+                    viewer3D.measurePoints  = [];
+                    viewer3D.measuringActive = false;
+                    viewer3D.measureMarkers = [];
+                    viewer3D.measureLine    = null;
+                    var v3dCanvas = document.getElementById('terrain3DCanvas');
+                    var elMeasureStart = document.getElementById('v3dMeasureStart');
+                    var elMeasureClear = document.getElementById('v3dMeasureClear');
+                    function cancelV3dMeasure() {
+                        viewer3D.measuringActive = false;
+                        viewer3D.measurePoints = [];
+                        if (elMeasureStart) {
+                            elMeasureStart.classList.remove('active');
+                            elMeasureStart.innerHTML = '<i class="fas fa-crosshairs"></i> Click two terrain points';
+                        }
+                    }
+                    if (elMeasureStart) elMeasureStart.addEventListener('click', function() {
+                        viewer3D.measuringActive = !viewer3D.measuringActive;
+                        this.classList.toggle('active', viewer3D.measuringActive);
+                        this.innerHTML = viewer3D.measuringActive
+                            ? '<i class="fas fa-times"></i> Cancel'
+                            : '<i class="fas fa-crosshairs"></i> Click two terrain points';
+                        if (!viewer3D.measuringActive) viewer3D.measurePoints = [];
+                    });
+                    if (elMeasureClear) elMeasureClear.addEventListener('click', function() {
+                        cancelV3dMeasure();
+                        if (viewer3D.measureLine && viewer3D.scene) { viewer3D.scene.remove(viewer3D.measureLine); viewer3D.measureLine = null; }
+                        viewer3D.measureMarkers.forEach(function(m) { if (viewer3D.scene) viewer3D.scene.remove(m); });
+                        viewer3D.measureMarkers = [];
+                        var res = document.getElementById('v3dMeasureResult');
+                        if (res) res.classList.remove('show');
+                    });
+
+                    // ── Annotation Pins ──
+                    viewer3D.pins = [];
+                    viewer3D.pinningActive = false;
+                    var elAddPin = document.getElementById('v3dAddPin');
+                    if (elAddPin) elAddPin.addEventListener('click', function() {
+                        viewer3D.pinningActive = !viewer3D.pinningActive;
+                        this.classList.toggle('active', viewer3D.pinningActive);
+                        this.innerHTML = viewer3D.pinningActive
+                            ? '<i class="fas fa-times"></i> Cancel Pin'
+                            : '<i class="fas fa-thumbtack"></i> Place Pin on Terrain';
+                    });
+
+                    // Shared canvas raycaster for measure + pins
+                    if (v3dCanvas) v3dCanvas.addEventListener('click', function(e) {
+                        if (!viewer3D.terrainMesh || !viewer3D.camera) return;
+                        if (!viewer3D.measuringActive && !viewer3D.pinningActive) return;
+                        var rect = v3dCanvas.getBoundingClientRect();
+                        var mx = ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+                        var my = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+                        var ray = new THREE.Raycaster();
+                        ray.setFromCamera({x: mx, y: my}, viewer3D.camera);
+                        var hits = ray.intersectObject(viewer3D.terrainMesh);
+                        if (!hits.length) return;
+                        var pt = hits[0].point.clone();
+
+                        if (viewer3D.measuringActive) {
+                            var color = viewer3D.measurePoints.length === 0 ? 0x00ff88 : 0xff4444;
+                            var mkr = new THREE.Mesh(new THREE.SphereGeometry(2,8,8), new THREE.MeshBasicMaterial({color: color}));
+                            mkr.position.copy(pt);
+                            viewer3D.scene.add(mkr);
+                            viewer3D.measureMarkers.push(mkr);
+                            viewer3D.measurePoints.push(pt);
+                            if (viewer3D.measurePoints.length === 2) {
+                                var p1 = viewer3D.measurePoints[0], p2 = viewer3D.measurePoints[1];
+                                if (viewer3D.measureLine) viewer3D.scene.remove(viewer3D.measureLine);
+                                var lg = new THREE.BufferGeometry().setFromPoints([p1, p2]);
+                                viewer3D.measureLine = new THREE.Line(lg, new THREE.LineBasicMaterial({color: 0xffd700}));
+                                viewer3D.scene.add(viewer3D.measureLine);
+                                var dx = p2.x-p1.x, dy = p2.y-p1.y, dz = p2.z-p1.z;
+                                var hz = Math.sqrt(dx*dx + dz*dz);
+                                var d3 = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                                var exg = viewer3D.verticalExag || 2;
+                                var deg = Math.atan2(Math.abs(dy), hz) * 180 / Math.PI;
+                                var pct2 = hz > 0 ? (Math.abs(dy)/hz*100).toFixed(1) : '0.0';
+                                var res = document.getElementById('v3dMeasureResult');
+                                if (res) {
+                                    res.innerHTML = '<b style="color:#e2e8f0">Measurement</b><br>' +
+                                        '📏 Horizontal: <b>' + (hz/exg).toFixed(1) + ' m</b><br>' +
+                                        '⬆ Vert diff: <b>'   + (dy/exg).toFixed(1) + ' m</b><br>' +
+                                        '📐 3D dist: <b>'     + (d3/exg).toFixed(1) + ' m</b><br>' +
+                                        '📉 Slope: <b>'       + deg.toFixed(1) + '° (' + pct2 + '%)</b>';
+                                    res.classList.add('show');
+                                }
+                                cancelV3dMeasure();
+                            }
+                        } else if (viewer3D.pinningActive) {
+                            var label = 'Pin ' + (viewer3D.pins.length + 1);
+                            var cg = new THREE.ConeGeometry(2.5,10,6);
+                            var cm = new THREE.MeshBasicMaterial({color: 0xff6600});
+                            var cone = new THREE.Mesh(cg, cm);
+                            cone.position.set(pt.x, pt.y + 8, pt.z);
+                            cone.rotation.z = Math.PI;
+                            viewer3D.scene.add(cone);
+                            var pinObj = {label: label, pos: pt, mesh: cone, id: Date.now()};
+                            viewer3D.pins.push(pinObj);
+                            var list = document.getElementById('v3dPinList');
+                            if (list) {
+                                var item = document.createElement('div');
+                                item.className = 'v3d-pin-item';
+                                var exg2 = viewer3D.verticalExag || 2;
+                                item.innerHTML = '<i class="fas fa-thumbtack" style="color:#fb923c"></i>' +
+                                    '<span style="flex:1">' + label + '<br><small style="color:#64748b">Elev: ' + (pt.y/exg2).toFixed(1) + 'm</small></span>' +
+                                    '<button title="Remove" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:0.8rem">✕</button>';
+                                item.querySelector('button').addEventListener('click', function() {
+                                    viewer3D.scene.remove(cone);
+                                    viewer3D.pins = viewer3D.pins.filter(function(p) { return p.id !== pinObj.id; });
+                                    item.remove();
+                                });
+                                list.appendChild(item);
+                            }
+                            viewer3D.pinningActive = false;
+                            if (elAddPin) {
+                                elAddPin.classList.remove('active');
+                                elAddPin.innerHTML = '<i class="fas fa-thumbtack"></i> Place Pin on Terrain';
+                            }
+                        }
+                    });
+
+                    // ── Vector Layer Toggles ──
+                    var elGspnet = document.getElementById('v3dShowGspnet');
+                    var elSurvey = document.getElementById('v3dShowSurvey');
+                    if (elGspnet) elGspnet.addEventListener('change', function() {
+                        if (viewer3D.vectorGroups && viewer3D.vectorGroups.gspnet)
+                            viewer3D.vectorGroups.gspnet.visible = this.checked;
+                    });
+                    if (elSurvey) elSurvey.addEventListener('change', function() {
+                        if (viewer3D.vectorGroups && viewer3D.vectorGroups.survey)
+                            viewer3D.vectorGroups.survey.visible = this.checked;
+                    });
+                    var elLoadVec = document.getElementById('v3dLoadVectors');
+                    if (elLoadVec) elLoadVec.addEventListener('click', function() {
+                        if (typeof addVectorLayersTo3D === 'function') addVectorLayersTo3D();
+                    });
+
+                    // ── ESC key to close ──
                     modal.addEventListener('keydown', function (e) {
                         if (e.key === 'Escape') close3DViewer();
                     });
+
                 }
 
                 modal.style.display = 'flex';
@@ -38017,6 +38269,19 @@ function smoothChaikin(points) {
                 const maxElev = terrain3DState.maxElevation || 100;
                 const elevRange = maxElev - minElev || 1;
 
+                // --- Pre-compute sun direction for hillshade mode ---
+                const analysisMode = viewer3D.analysisMode || 'hypsometric';
+                let sunDx = 0, sunDy = 1, sunDz = 0;
+                if (analysisMode === 'hillshade') {
+                    const sunAzEl  = document.getElementById('v3dSunAz');
+                    const sunAltEl = document.getElementById('v3dSunAlt');
+                    const az  = sunAzEl  ? (parseFloat(sunAzEl.value)  - 180) * Math.PI / 180 : 0.785;
+                    const alt = sunAltEl ? parseFloat(sunAltEl.value) * Math.PI / 180 : 0.785;
+                    sunDx = Math.sin(az)  * Math.cos(alt);
+                    sunDy = Math.sin(alt);
+                    sunDz = Math.cos(az)  * Math.cos(alt);
+                }
+
                 // Build vertex index map — NaN cells get -1 (no vertex)
                 const vertexIndex = new Int32Array(sampledH * sampledW).fill(-1);
                 let vertCount = 0;
@@ -38038,9 +38303,40 @@ function smoothChaikin(points) {
                         // UV coordinates
                         uvs.push(x / totalWidth, y / totalHeight);
 
-                        // Hypsometric color
+                        // ── Vertex colour per analysis mode ──
+                        let rgb;
                         const t = Math.max(0, Math.min(1, (val - minElev) / elevRange));
-                        const rgb = elevationToColor(t);
+
+                        if (analysisMode === 'slope') {
+                            // Finite-difference slope from neighbouring grid cells
+                            const r0 = Math.min(srcRow + 1, height - 1), r1 = Math.max(srcRow - 1, 0);
+                            const c0 = Math.min(srcCol + 1, width  - 1), c1 = Math.max(srcCol - 1, 0);
+                            const dzdx = ((grid[srcRow][c0] || 0) - (grid[srcRow][c1] || 0)) / (2 * cellSize);
+                            const dzdy = ((grid[r0][srcCol] || 0) - (grid[r1][srcCol] || 0)) / (2 * cellSize);
+                            const slopeDeg = Math.atan(Math.sqrt(dzdx*dzdx + dzdy*dzdy)) * 180 / Math.PI;
+                            // Map 0-60° to green→yellow→red ramp
+                            const st = Math.min(slopeDeg / 60, 1);
+                            if (st < 0.33)      rgb = [st/0.33 * 0.6 + 0.1, 0.7 + st/0.33 * 0.1, 0.15];
+                            else if (st < 0.66) rgb = [0.95, 0.7 - (st-0.33)/0.33 * 0.45, 0.05];
+                            else                rgb = [0.85 - (st-0.66)/0.34*0.4, 0.08, 0.05];
+
+                        } else if (analysisMode === 'hillshade') {
+                            // Compute face normal via central differences
+                            const r0 = Math.min(srcRow + 1, height - 1), r1 = Math.max(srcRow - 1, 0);
+                            const c0 = Math.min(srcCol + 1, width  - 1), c1 = Math.max(srcCol - 1, 0);
+                            const dzdx = ((grid[srcRow][c0] || 0) - (grid[srcRow][c1] || 0)) / (2 * cellSize);
+                            const dzdy = ((grid[r0][srcCol] || 0) - (grid[r1][srcCol] || 0)) / (2 * cellSize);
+                            const nLen = Math.sqrt(dzdx*dzdx + dzdy*dzdy + 1);
+                            // Lambertian dot product
+                            const shade = Math.max(0.15, (-dzdx*sunDx - dzdy*sunDz + 1*sunDy) / nLen);
+                            const base = elevationToColor(t);
+                            rgb = [base[0]*shade, base[1]*shade, base[2]*shade];
+
+                        } else {
+                            // Hypsometric (default)
+                            rgb = elevationToColor(t);
+                        }
+
                         colors.push(rgb[0], rgb[1], rgb[2]);
 
                         vertexIndex[row * sampledW + col] = vertCount++;
@@ -38846,8 +39142,113 @@ function smoothChaikin(points) {
                 viewer3D.renderer.render(viewer3D.scene, viewer3D.camera);
             }
 
+            // ── Vector Layers → 3D Scene ──────────────────────────────────────────────
+            function addVectorLayersTo3D() {
+                if (!viewer3D.scene || !terrain3DState.gridData) return;
+                if (!viewer3D.vectorGroups) viewer3D.vectorGroups = {};
+
+                var gd = terrain3DState.gridData;
+                // Grid origin in Web Mercator (EPSG:3857)
+                var originX = gd.bounds ? gd.bounds.minX : 0;
+                var originY = gd.bounds ? gd.bounds.minY : 0;
+                var cellSize = gd.cellSize || 1;
+
+                // Helper: lon/lat → scene XZ
+                function lnglat2scene(lon, lat) {
+                    var R = 6378137;
+                    var mx = lon * Math.PI / 180 * R;
+                    var my = Math.log(Math.tan((90 + lat) * Math.PI / 360)) * R;
+                    return { x: (mx - originX) / cellSize, z: (my - originY) / cellSize };
+                }
+                // Helper: scene XZ → approximate Y from grid
+                function elevAt(sx, sz) {
+                    var col = Math.round(sx);
+                    var row = Math.round(sz);
+                    if (!gd.grid || row < 0 || row >= gd.height || col < 0 || col >= gd.width) return 0;
+                    var elev = gd.grid[row] && gd.grid[row][col];
+                    return (elev == null || isNaN(elev)) ? 0 : elev * (viewer3D.verticalExag || 2);
+                }
+
+                // Build line group from a GeoJSON FeatureCollection
+                function buildLineGroup(geojson, color) {
+                    var group = new THREE.Group();
+                    if (!geojson || !geojson.features) return group;
+                    var pts = [];
+                    geojson.features.forEach(function(feat) {
+                        var geom = feat.geometry;
+                        if (!geom) return;
+                        var rings = [];
+                        if (geom.type === 'LineString') rings = [geom.coordinates];
+                        else if (geom.type === 'MultiLineString') rings = geom.coordinates;
+                        else if (geom.type === 'Polygon') rings = geom.coordinates;
+                        else if (geom.type === 'MultiPolygon') geom.coordinates.forEach(function(p) { rings = rings.concat(p); });
+                        rings.forEach(function(ring) {
+                            for (var i = 0; i < ring.length - 1; i++) {
+                                var a = lnglat2scene(ring[i][0],   ring[i][1]);
+                                var b = lnglat2scene(ring[i+1][0], ring[i+1][1]);
+                                pts.push(a.x, elevAt(a.x, a.z) + 1, a.z);
+                                pts.push(b.x, elevAt(b.x, b.z) + 1, b.z);
+                            }
+                        });
+                    });
+                    if (!pts.length) return group;
+                    var geo = new THREE.BufferGeometry();
+                    geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+                    var mat = new THREE.LineBasicMaterial({ color: color, linewidth: 1.5, depthTest: false });
+                    group.add(new THREE.LineSegments(geo, mat));
+                    return group;
+                }
+
+                // Load GSPNET parcels (reuse the existing source URL from the OL layer)
+                var gspnetUrl = null;
+                if (window.gspnetFgbUrl) gspnetUrl = window.gspnetFgbUrl;
+                // Fallback: scan OL map layers for a FlatGeobuf URL
+                if (!gspnetUrl && window.map) {
+                    map.getLayers().forEach(function(l) {
+                        var src = l.getSource && l.getSource();
+                        if (src && src.url_ && src.url_.includes('.fgb') && src.url_.includes('gspnet')) {
+                            gspnetUrl = src.url_;
+                        }
+                    });
+                }
+
+                var loadBtn = document.getElementById('v3dLoadVectors');
+                if (loadBtn) { loadBtn.disabled = true; loadBtn.textContent = 'Loading…'; }
+
+                var pending = 0;
+                function done() {
+                    pending--;
+                    if (pending <= 0 && loadBtn) { loadBtn.disabled = false; loadBtn.textContent = '↻ Reload Vectors'; }
+                }
+
+                // Remove old groups
+                ['gspnet','survey'].forEach(function(k) {
+                    if (viewer3D.vectorGroups[k]) { viewer3D.scene.remove(viewer3D.vectorGroups[k]); }
+                });
+
+                // Fetch and render GSPNET layer
+                if (gspnetUrl) {
+                    pending++;
+                    fetch(gspnetUrl)
+                        .then(function(r) { return r.json(); })
+                        .then(function(gj) {
+                            var grp = buildLineGroup(gj, 0x00e5ff);
+                            viewer3D.vectorGroups.gspnet = grp;
+                            viewer3D.scene.add(grp);
+                            done();
+                        }).catch(function() { done(); });
+                }
+
+                // Placeholder for survey layer (can be wired similarly)
+                // pending++; fetch(surveyUrl).then(...).catch(done);
+
+                if (pending === 0 && loadBtn) { loadBtn.disabled = false; loadBtn.textContent = '↻ Reload Vectors'; }
+            }
+
+
             function reset3DCamera() {
                 if (!terrain3DState.gridData || !viewer3D.camera) return;
+
                 const gridData = terrain3DState.gridData;
                 const tw = (gridData.width - 1) * gridData.cellSize;
                 const th = (gridData.height - 1) * gridData.cellSize;
