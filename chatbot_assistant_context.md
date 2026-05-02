@@ -116,17 +116,20 @@ A:
 - **SRTM 1-Arc-Second:** Original Shuttle Radar Topography Mission, ~30m. *Last resort.*
 The system tries them in order if the selected source is unavailable.
 
-**Q: How do I open the interactive 3D Terrain Viewer?**
-A: After generating a DTM, click the **"3D"** button in the 3D Terrain toolbox action buttons. A fullscreen modal opens with an interactive Three.js-powered 3D visualization of your terrain. Controls:
-- **Drag** to rotate the terrain
-- **Scroll wheel** to zoom in/out
-- **Right-click drag** to pan
-- Use the **Vertical Exaggeration** slider (1x–10x) to enhance terrain features
-- Toggle **Contours** and **Grid** overlays on/off
-- Click **Reset** to restore the default camera angle
+**Q: What features are available in the interactive 3D Terrain Viewer?**
+A: After generating a DTM, click the **"3D"** button to open the professional 3D Analytical Workspace. It features an advanced left-aligned sidebar with several tools:
+- **Vector Layers:** Toggle the display of Survey Polygons and GSPNET overlays directly on the 3D terrain.
+- **Sun Lighting:** Use sliders to adjust Sun Azimuth, Sun Altitude, and Lighting Intensity to visualize shadows and terrain relief in real-time.
+- **Analysis Modes:** Switch between *Hypsometric* (elevation colors), *Hillshade* (Lambertian shading based on sun position), and *Slope* (gradient steepness from green to red).
+- **3D Measure:** A raycaster-based tool to measure distances between points on the 3D terrain.
+- **Annotations:** Drop 3D pins on the terrain to mark points of interest.
+- **Section Clip Box:** Interactively slice the terrain using X, Y, and Z clipping sliders to analyze internal structures or cross-sections.
+- **Basemap Drape:** Toggle and blend your current 2D basemap over the 3D mesh.
+
+Controls: **Drag** to rotate, **Scroll** to zoom, **Right-click drag** to pan, and **ESC** to close the viewer.
 
 **Q: How do I drape a satellite basemap over the 3D terrain?**
-A: In the 3D Viewer, tick the **"Basemap"** checkbox in the bottom control bar. The system automatically fetches tiles from your currently active 2D basemap (e.g., Esri World Imagery, Google Satellite) and drapes them over the 3D terrain mesh. Use the **Blend** slider (0–100%) to adjust the transparency of the satellite imagery over the elevation colors.
+A: In the 3D Viewer sidebar, ensure the **Basemap** toggle is checked. The system automatically fetches tiles from your currently active 2D basemap (e.g., Esri World Imagery, Google Satellite) and drapes them over the 3D terrain mesh. Use the **Opacity / Blend** slider (0–100%) to adjust the transparency. The default is now 100% brightness (true color).
 
 **Q: How do I capture and export 3D terrain views as PDF?**
 A:
@@ -135,8 +138,9 @@ A:
 3. Capture up to 4 different viewpoints.
 4. Click **"Export 3D PDF"** to generate a professional multi-page PDF report with all captured views.
 
-**Q: How do I generate contour lines?**
-A: Generate a DTM first, then click **Contours**. Set contour interval (default: 5m), major interval (25m), styling, and smoothing (Chaikin + Catmull-Rom). Contours appear as a vector layer.
+**Q: How do I generate and style contour lines?**
+A: Generate a DTM first, then click **Contours**. Set contour interval (default: 5m), major interval (25m), and smoothing (Chaikin + Catmull-Rom). 
+*New:* You can now live-edit contour styles (Solid, Dashed, Dotted), line widths, and colors from the UI. These changes take effect **immediately** on the 2D map without needing to regenerate the contours. Solid lines are supported natively and render cleanly.
 
 **Q: What interpolation methods are available for DTM?**
 A:
@@ -889,6 +893,31 @@ STEP 13: CLEAR ALL (IF NEEDED)
 13.1. Click "Clear All" to remove all terrain layers
 13.2. Confirms before clearing
 13.3. Resets all settings to defaults
+
+STEP 14: USING THE 3D ANALYTICAL WORKSPACE
+--------------------------------------------
+
+14.1. Open the 3D Viewer by clicking the "3D" button in the action buttons section.
+14.2. Use the left-aligned sidebar to access advanced 3D tools.
+14.3. Vector Layers:
+     - Toggle "Show GSPNET Overlays" and "Show Survey Polygons" to drape 2D vector data onto the 3D terrain.
+     - Vectors automatically follow the terrain's elevation (Z-axis).
+14.4. Sun Lighting:
+     - Adjust Sun Azimuth (0-360°) and Altitude (0-90°) to change the light direction.
+     - Adjust Sun Intensity and Ambient Intensity. These apply in real-time.
+14.5. Analysis Modes:
+     - Hypsometric: Default elevation-to-color mapping.
+     - Hillshade: Uses your Sun Azimuth/Altitude settings to cast realistic Lambertian shading over the terrain.
+     - Slope: Changes the color ramp to show gradient steepness (Green = flat, Yellow = moderate, Red = steep) with a matching legend.
+14.6. 3D Measure:
+     - Click to enable, then click points on the 3D terrain to measure distances in 3D space.
+14.7. Annotations:
+     - Click to enable, then click on the terrain to drop location pins.
+14.8. Section Clip Box:
+     - Enable the clip box, then use the X, Y, and Z Min/Max sliders to slice the terrain mesh. Useful for viewing cross-sections or isolating specific areas.
+14.9. Basemap Drape:
+     - Toggle the Basemap option to apply the currently active 2D basemap (from the Layer Switcher) onto the 3D terrain.
+     - Adjust the Opacity slider (default is 100% full brightness).
 
 ================================================================================
 3. BUTTON FUNCTIONS & CALCULATIONS
