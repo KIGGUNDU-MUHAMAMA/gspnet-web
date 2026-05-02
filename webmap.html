@@ -37616,7 +37616,7 @@ function smoothChaikin(points) {
                 sunLight: null, ambientLight: null,
                 sunAzimuth: 225, sunAltitude: 45,
                 // Basemap
-                showBasemap: false, basemapBlend: 0.85,
+                showBasemap: false, basemapBlend: 1.0,
                 basemapTexture: null, basemapMesh: null,
                 basemapLoading: false, basemapCachedUrl: null, basemapCachedType: null,
                 // Vector overlays
@@ -37950,32 +37950,41 @@ function smoothChaikin(points) {
 
                     // ── Section Clip Box ──
                     function applyV3dClipBox() {
-                        if (!viewer3D.clipEnabled || !viewer3D.terrainMesh) return;
+                        if (!viewer3D.clipEnabled || !viewer3D.terrainMesh || !viewer3D.renderer) return;
                         var geo = viewer3D.terrainMesh.geometry;
                         geo.computeBoundingBox();
                         var bb = geo.boundingBox;
-                        var xR = bb.max.x - bb.min.x, yR = bb.max.y - bb.min.y, zR = bb.max.z - bb.min.z;
-                        function pct(id) { return parseFloat(document.getElementById(id).value) / 100; }
-                        var xMin = bb.min.x + pct('v3dClipXMin')*xR, xMax = bb.min.x + pct('v3dClipXMax')*xR;
-                        var yMin = bb.min.y + pct('v3dClipYMin')*yR, yMax = bb.min.y + pct('v3dClipYMax')*yR;
-                        var zMin = bb.min.z + pct('v3dClipZMin')*zR, zMax = bb.min.z + pct('v3dClipZMax')*zR;
-                        viewer3D.renderer.clippingPlanes = [
-                            new THREE.Plane(new THREE.Vector3( 1,0,0), -xMin),
-                            new THREE.Plane(new THREE.Vector3(-1,0,0),  xMax),
-                            new THREE.Plane(new THREE.Vector3(0, 1,0), -yMin),
-                            new THREE.Plane(new THREE.Vector3(0,-1,0),  yMax),
-                            new THREE.Plane(new THREE.Vector3(0,0, 1), -zMin),
-                            new THREE.Plane(new THREE.Vector3(0,0,-1),  zMax)
+                        var xR = bb.max.x - bb.min.x;
+                        var yR = bb.max.y - bb.min.y;
+                        var zR = bb.max.z - bb.min.z;
+                        function pct(id) { var el = document.getElementById(id); return el ? parseFloat(el.value) / 100 : 0; }
+                        // scene X = easting (columns), Y = northing (rows), Z = elevation
+                        var x0 = bb.min.x + pct('v3dClipXMin')*xR, x1 = bb.min.x + pct('v3dClipXMax')*xR;
+                        var y0 = bb.min.y + pct('v3dClipYMin')*yR, y1 = bb.min.y + pct('v3dClipYMax')*yR;
+                        var z0 = bb.min.z + pct('v3dClipZMin')*zR, z1 = bb.min.z + pct('v3dClipZMax')*zR;
+                        // Each Plane(normal, constant): keeps points where dot(normal,p)+constant >= 0
+                        viewer3D.terrainMesh.material.clippingPlanes = [
+                            new THREE.Plane(new THREE.Vector3( 1, 0, 0), -x0),  // left
+                            new THREE.Plane(new THREE.Vector3(-1, 0, 0),  x1),  // right
+                            new THREE.Plane(new THREE.Vector3( 0, 1, 0), -y0),  // front
+                            new THREE.Plane(new THREE.Vector3( 0,-1, 0),  y1),  // back
+                            new THREE.Plane(new THREE.Vector3( 0, 0, 1), -z0),  // bottom
+                            new THREE.Plane(new THREE.Vector3( 0, 0,-1),  z1)   // top
                         ];
-                        viewer3D.renderer.localClippingEnabled = true;
+                        viewer3D.terrainMesh.material.clipIntersection = false;
+                        viewer3D.terrainMesh.material.needsUpdate = true;
                     }
                     var elClipEnable = document.getElementById('v3dClipEnable');
                     if (elClipEnable) elClipEnable.addEventListener('change', function() {
                         var panel = document.getElementById('v3dClipPanel');
                         if (panel) panel.style.display = this.checked ? '' : 'none';
                         viewer3D.clipEnabled = this.checked;
-                        if (!this.checked && viewer3D.renderer) { viewer3D.renderer.clippingPlanes = []; }
-                        else applyV3dClipBox();
+                        if (!this.checked && viewer3D.terrainMesh) {
+                            viewer3D.terrainMesh.material.clippingPlanes = [];
+                            viewer3D.terrainMesh.material.needsUpdate = true;
+                        } else {
+                            applyV3dClipBox();
+                        }
                     });
                     [['v3dClipXMin','v3dClipXMinV'],['v3dClipXMax','v3dClipXMaxV'],
                      ['v3dClipYMin','v3dClipYMinV'],['v3dClipYMax','v3dClipYMaxV'],
@@ -38189,17 +38198,16 @@ function smoothChaikin(points) {
                 viewer3D.controls.maxPolarAngle = Math.PI * 0.85;
                 viewer3D.controls.update();
 
-                // Lighting
-                const ambientLight = new THREE.AmbientLight(0x404060, 0.6);
-                viewer3D.scene.add(ambientLight);
+                // Lighting — stored on viewer3D so sidebar sliders can update them live
+                viewer3D.ambLight = new THREE.AmbientLight(0x606880, 0.5);
+                viewer3D.scene.add(viewer3D.ambLight);
 
-                const sunLight = new THREE.DirectionalLight(0xfff4e6, 1.0);
-                sunLight.position.set(-terrainWidth * 0.5, terrainHeight * 0.5, maxDim * 0.8);
-                viewer3D.scene.add(sunLight);
+                viewer3D.dirLight = new THREE.DirectionalLight(0xfff4e6, 1.2);
+                viewer3D.dirLight.position.set(-terrainWidth * 0.5, terrainHeight * 0.5, maxDim * 0.8);
+                viewer3D.scene.add(viewer3D.dirLight);
 
-                const fillLight = new THREE.DirectionalLight(0xb0c4de, 0.3);
-                fillLight.position.set(terrainWidth, -terrainHeight * 0.3, maxDim * 0.4);
-                viewer3D.scene.add(fillLight);
+                // Enable clipping planes (for section box tool)
+                viewer3D.renderer.localClippingEnabled = true;
 
                 // Handle window resize
                 window._viewer3dResize = function () {
@@ -38599,6 +38607,7 @@ function smoothChaikin(points) {
                     map: viewer3D.basemapTexture,
                     transparent: true,
                     opacity: viewer3D.basemapBlend,
+                    color: 0xffffff,  // full white — no tint darkening
                     side: THREE.DoubleSide,
                     depthWrite: false,
                     polygonOffset: true,
@@ -39153,17 +39162,20 @@ function smoothChaikin(points) {
                 var originY = gd.bounds ? gd.bounds.minY : 0;
                 var cellSize = gd.cellSize || 1;
 
-                // Helper: lon/lat → scene XZ
+                // Helper: lon/lat → scene X/Y (scene uses X=column, Y=row, Z=elevation)
                 function lnglat2scene(lon, lat) {
                     var R = 6378137;
                     var mx = lon * Math.PI / 180 * R;
                     var my = Math.log(Math.tan((90 + lat) * Math.PI / 360)) * R;
-                    return { x: (mx - originX) / cellSize, z: (my - originY) / cellSize };
+                    // mx aligns with bounds.minX (easting → columns → scene X)
+                    // my aligns with bounds.minY (northing → rows → scene Y)
+                    return { x: (mx - originX) / cellSize, y: (my - originY) / cellSize };
                 }
-                // Helper: scene XZ → approximate Y from grid
-                function elevAt(sx, sz) {
-                    var col = Math.round(sx);
-                    var row = Math.round(sz);
+                // Helper: scene X/Y → elevation Z from grid
+                function elevAt(sx, sy) {
+                    // sx = col direction (X), sy = row direction (Y)
+                    var col = Math.round(sx / cellSize);
+                    var row = Math.round(sy / cellSize);
                     if (!gd.grid || row < 0 || row >= gd.height || col < 0 || col >= gd.width) return 0;
                     var elev = gd.grid[row] && gd.grid[row][col];
                     return (elev == null || isNaN(elev)) ? 0 : elev * (viewer3D.verticalExag || 2);
@@ -39186,8 +39198,9 @@ function smoothChaikin(points) {
                             for (var i = 0; i < ring.length - 1; i++) {
                                 var a = lnglat2scene(ring[i][0],   ring[i][1]);
                                 var b = lnglat2scene(ring[i+1][0], ring[i+1][1]);
-                                pts.push(a.x, elevAt(a.x, a.z) + 1, a.z);
-                                pts.push(b.x, elevAt(b.x, b.z) + 1, b.z);
+                                // scene: X=col, Y=row, Z=elevation
+                                pts.push(a.x, a.y, elevAt(a.x, a.y) + 2);
+                                pts.push(b.x, b.y, elevAt(b.x, b.y) + 2);
                             }
                         });
                     });
