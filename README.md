@@ -1,6 +1,6 @@
-# Victoria Sugar Webmap
+# GEOSPATIAL NETWORK UGANDA
 
-OpenLayers + Supabase web mapping application for Victoria Sugar Limited.
+OpenLayers + Supabase web mapping application 
 
 ## Features
 
