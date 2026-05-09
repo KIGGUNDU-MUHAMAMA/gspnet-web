@@ -17000,25 +17000,97 @@
                         </div>
                     </section>
 
-                    <!-- 2. CSV Import Section -->
+                    <!-- 2. CSV / DXF Import Section -->
                     <section id="gsp-csv-section" class="dock-section" style="margin-bottom: 20px;">
-                        <h4><i class="fas fa-file-csv"></i> Import CSV</h4>
-                        <div class="csv-drop-area" id="polygon-csv-drop-area"
-                            style="border: 2px dashed #ddd; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 10px; background: #f8f9fa; cursor: pointer;">
-                            <i class="fas fa-cloud-upload-alt"
-                                style="font-size: 2rem; color: #666; margin-bottom: 10px;"></i>
-                            <p style="margin: 5px 0;">Drag & Drop CSV file here</p>
-                            <p style="margin: 5px 0; font-size: 0.9rem; color: #999;">OR</p>
-                            <button type="button" id="polygon-csv-browse-btn" class="btn btn-secondary"
-                                style="margin-top: 10px;">
-                                <i class="fas fa-folder-open"></i> Browse Files
+                        <!-- Sub-tab switcher -->
+                        <div style="display:flex;gap:0;margin-bottom:12px;border-radius:6px;overflow:hidden;border:1px solid #d1d5db;">
+                            <button id="importSubTabCsv" class="import-sub-tab import-sub-tab-active" style="flex:1;padding:9px 0;background:#3b82f6;color:#fff;border:none;font-size:13px;font-weight:600;cursor:pointer;transition:background .2s;">
+                                <i class="fas fa-file-csv"></i> Import CSV
                             </button>
-                            <input id="polygon-csv-file-input" type="file" accept=".csv" style="display: none;" />
+                            <button id="importSubTabDxf" class="import-sub-tab" style="flex:1;padding:9px 0;background:#f3f4f6;color:#374151;border:none;border-left:1px solid #d1d5db;font-size:13px;font-weight:600;cursor:pointer;transition:background .2s;">
+                                <i class="fas fa-drafting-compass"></i> Import DXF
+                            </button>
                         </div>
-                        <div id="polygon-csv-filename"
-                            style="padding: 8px; background: white; border: 1px solid #ddd; border-radius: 4px; font-size: 0.85rem; margin-bottom: 10px; text-align: center; color: #999;">
-                            No file selected</div>
-                        <div id="polygon-csv-status" class="status-message"></div>
+
+                        <!-- CSV Panel -->
+                        <div id="importPanelCsv">
+                            <h4><i class="fas fa-file-csv"></i> Import CSV</h4>
+                            <div class="csv-drop-area" id="polygon-csv-drop-area"
+                                style="border: 2px dashed #ddd; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 10px; background: #f8f9fa; cursor: pointer;">
+                                <i class="fas fa-cloud-upload-alt"
+                                    style="font-size: 2rem; color: #666; margin-bottom: 10px;"></i>
+                                <p style="margin: 5px 0;">Drag &amp; Drop CSV file here</p>
+                                <p style="margin: 5px 0; font-size: 0.9rem; color: #999;">OR</p>
+                                <button type="button" id="polygon-csv-browse-btn" class="btn btn-secondary"
+                                    style="margin-top: 10px;">
+                                    <i class="fas fa-folder-open"></i> Browse Files
+                                </button>
+                                <input id="polygon-csv-file-input" type="file" accept=".csv" style="display: none;" />
+                            </div>
+                            <div id="polygon-csv-filename"
+                                style="padding: 8px; background: white; border: 1px solid #ddd; border-radius: 4px; font-size: 0.85rem; margin-bottom: 10px; text-align: center; color: #999;">
+                                No file selected</div>
+                            <div id="polygon-csv-status" class="status-message"></div>
+                        </div>
+
+                        <!-- DXF Panel -->
+                        <div id="importPanelDxf" style="display:none;">
+                            <h4><i class="fas fa-drafting-compass"></i> Import DXF</h4>
+                            <p style="font-size:12px;color:#6b7280;margin-bottom:10px;line-height:1.5;">
+                                Upload a <strong>.dxf</strong> file. The drawing will render on the map as a reference overlay. Use the digitizing tools below to trace and save clean polygons.
+                            </p>
+                            <div id="dxf-panel-drop-area"
+                                style="border:2px dashed #6366f1;border-radius:8px;padding:20px;text-align:center;margin-bottom:10px;background:#f5f3ff;cursor:pointer;transition:border-color .2s;">
+                                <i class="fas fa-drafting-compass" style="font-size:2rem;color:#6366f1;margin-bottom:8px;display:block;"></i>
+                                <p style="margin:5px 0;font-weight:600;color:#4f46e5;">Drag &amp; Drop DXF file here</p>
+                                <p style="margin:5px 0;font-size:0.85rem;color:#9ca3af;">OR</p>
+                                <button type="button" id="dxf-panel-browse-btn"
+                                    style="margin-top:8px;padding:7px 16px;background:#6366f1;color:#fff;border:none;border-radius:5px;font-size:13px;font-weight:600;cursor:pointer;">
+                                    <i class="fas fa-folder-open"></i> Browse DXF
+                                </button>
+                                <input id="dxf-panel-file-input" type="file" accept=".dxf" style="display:none;" />
+                            </div>
+                            <div id="dxf-panel-filename" style="font-size:12px;color:#6b7280;text-align:center;margin-bottom:8px;">No file selected</div>
+                            <div id="dxf-panel-status" style="font-size:12px;margin-bottom:8px;"></div>
+
+                            <!-- Inspect in CAD Engine button (shown after file selected) -->
+                            <button id="dxf-panel-inspect-btn"
+                                style="display:none;width:100%;margin-bottom:12px;padding:9px 0;background:#0f766e;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">
+                                <i class="fas fa-external-link-alt"></i> Inspect in CAD Engine
+                            </button>
+
+                            <!-- DXF Digitizing Toolbar (shown after DXF is loaded on map) -->
+                            <div id="dxf-digitize-toolbar" style="display:none;">
+                                <div style="background:#1e293b;border-radius:8px;padding:12px;margin-bottom:10px;">
+                                    <p style="color:#94a3b8;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px;">DXF Digitizing Tools</p>
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                                        <button id="dxf-snap-toggle" title="Toggle snap-to-DXF vertices"
+                                            style="padding:8px 4px;background:#334155;color:#e2e8f0;border:2px solid #475569;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;">
+                                            <i class="fas fa-magnet"></i> Snap: ON
+                                        </button>
+                                        <button id="dxf-trace-btn" title="Trace polygon over DXF"
+                                            style="padding:8px 4px;background:#1d4ed8;color:#fff;border:2px solid #2563eb;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;">
+                                            <i class="fas fa-draw-polygon"></i> Trace Polygon
+                                        </button>
+                                        <button id="dxf-clear-trace-btn" title="Clear current drawing"
+                                            style="padding:8px 4px;background:#7f1d1d;color:#fca5a5;border:2px solid #991b1b;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;">
+                                            <i class="fas fa-eraser"></i> Clear Drawing
+                                        </button>
+                                        <button id="dxf-save-traced-btn" title="Save traced polygon to selected layer"
+                                            style="padding:8px 4px;background:#166534;color:#bbf7d0;border:2px solid #15803d;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;" disabled>
+                                            <i class="fas fa-cloud-upload-alt"></i> Save Polygon
+                                        </button>
+                                    </div>
+                                    <div id="dxf-digitize-status" style="margin-top:10px;font-size:12px;color:#94a3b8;text-align:center;min-height:16px;"></div>
+                                </div>
+
+                                <!-- Remove DXF overlay -->
+                                <button id="dxf-remove-overlay-btn"
+                                    style="width:100%;padding:7px 0;background:transparent;color:#ef4444;border:1px solid #ef4444;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;">
+                                    <i class="fas fa-trash-alt"></i> Remove DXF Overlay
+                                </button>
+                            </div>
+                        </div>
                     </section>
 
                     <!-- 3. Batch Preview Section -->
@@ -17405,7 +17477,147 @@
             </div>
         </div>
 
+        <!-- ═══════════════════════════════════════════════════════════════
+             DXF MAP DROP MODAL  – Shown when user drops a .dxf onto the map
+             ═══════════════════════════════════════════════════════════════ -->
+        <div id="dxfDropModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+            <div style="background:#fff;border-radius:16px;padding:32px 28px;width:min(480px,94vw);box-shadow:0 24px 64px rgba(0,0,0,.35);position:relative;font-family:inherit;">
+                <!-- Header -->
+                <button id="dxfDropModalClose" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:22px;color:#6b7280;cursor:pointer;line-height:1;">&times;</button>
+                <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+                    <div style="width:48px;height:48px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i class="fas fa-drafting-compass" style="color:#fff;font-size:22px;"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin:0;font-size:17px;font-weight:700;color:#111827;">DXF Drawing Detected</h3>
+                        <p id="dxfDropModalFilename" style="margin:3px 0 0;font-size:13px;color:#6b7280;">filename.dxf</p>
+                    </div>
+                </div>
+
+                <!-- Coordinate System -->
+                <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">
+                    <i class="fas fa-globe" style="color:#6366f1;margin-right:5px;"></i>Coordinate System *
+                </label>
+                <select id="dxfDropCrsSelect" style="width:100%;padding:10px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;margin-bottom:20px;outline:none;color:#111827;background:#f9fafb;">
+                    <option value="">— Select coordinate system —</option>
+                    <optgroup label="WGS 84">
+                        <option value="EPSG:4326">WGS 84 — Geographic (Lat/Lon) · EPSG:4326</option>
+                        <option value="EPSG:32635">WGS 84 / UTM Zone 35N · EPSG:32635</option>
+                        <option value="EPSG:32636" selected>WGS 84 / UTM Zone 36N · EPSG:32636</option>
+                        <option value="EPSG:32735">WGS 84 / UTM Zone 35S · EPSG:32735</option>
+                        <option value="EPSG:32736">WGS 84 / UTM Zone 36S · EPSG:32736</option>
+                    </optgroup>
+                    <optgroup label="Arc 1960">
+                        <option value="EPSG:21095">Arc 1960 / UTM Zone 35N · EPSG:21095</option>
+                        <option value="EPSG:21096">Arc 1960 / UTM Zone 36N · EPSG:21096</option>
+                        <option value="EPSG:21036">Arc 1960 / UTM Zone 36 South · EPSG:21036</option>
+                    </optgroup>
+                </select>
+
+                <!-- Action Buttons -->
+                <div style="display:grid;gap:10px;">
+                    <button id="dxfDropPreviewBtn"
+                        style="padding:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .2s;">
+                        <i class="fas fa-layer-group"></i> Quick Map Preview
+                    </button>
+                    <button id="dxfDropUpdateBtn"
+                        style="padding:12px;background:linear-gradient(135deg,#0f766e,#0369a1);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .2s;">
+                        <i class="fas fa-database"></i> Update Database Layers
+                    </button>
+                    <button id="dxfDropInspectBtn"
+                        style="padding:12px;background:linear-gradient(135deg,#1e293b,#334155);color:#e2e8f0;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .2s;">
+                        <i class="fas fa-external-link-alt"></i> Inspect in CAD Engine
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- DWG DROP MODAL — for proprietary .dwg files dropped on map -->
+        <div id="dwgDropModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+            <div style="background:#fff;border-radius:16px;padding:32px 28px;width:min(420px,94vw);box-shadow:0 24px 64px rgba(0,0,0,.35);position:relative;font-family:inherit;">
+                <button id="dwgDropModalClose" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:22px;color:#6b7280;cursor:pointer;line-height:1;">&times;</button>
+                <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+                    <div style="width:48px;height:48px;background:linear-gradient(135deg,#d97706,#b45309);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i class="fas fa-file-alt" style="color:#fff;font-size:22px;"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin:0;font-size:17px;font-weight:700;color:#111827;">AutoCAD Drawing Detected</h3>
+                        <p id="dwgDropModalFilename" style="margin:3px 0 0;font-size:13px;color:#6b7280;">filename.dwg</p>
+                    </div>
+                </div>
+                <p style="font-size:13px;color:#6b7280;margin-bottom:20px;line-height:1.55;">
+                    Native <strong>.dwg</strong> files cannot be rendered directly on the map. Opening the <strong>CAD Inspector</strong> for full viewing and measurement.
+                </p>
+                <button id="dwgDropOpenBtn"
+                    style="width:100%;padding:13px;background:linear-gradient(135deg,#d97706,#b45309);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+                    <i class="fas fa-external-link-alt"></i> Open in CAD Inspector
+                </button>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             CAD INSPECTOR PANEL  – Full-screen 3rd-party viewer
+             ═══════════════════════════════════════════════════════════════ -->
+        <div id="cadInspectorPanel" style="display:none;position:fixed;inset:0;z-index:10000;background:#0f172a;flex-direction:column;font-family:inherit;">
+            <!-- Top bar -->
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:#1e293b;border-bottom:1px solid #334155;flex-shrink:0;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width:36px;height:36px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:8px;display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-drafting-compass" style="color:#fff;font-size:16px;"></i>
+                    </div>
+                    <div>
+                        <p style="margin:0;font-size:14px;font-weight:700;color:#f1f5f9;">CAD Inspector</p>
+                        <p id="cadInspectorFilename" style="margin:0;font-size:11px;color:#94a3b8;">—</p>
+                    </div>
+                </div>
+                <div style="display:flex;gap:10px;align-items:center;">
+                    <span id="cadInspectorStatus" style="font-size:12px;color:#94a3b8;padding:4px 10px;background:#334155;border-radius:20px;"></span>
+                    <button id="cadInspectorClose"
+                        style="padding:8px 18px;background:#ef4444;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                        <i class="fas fa-times"></i> Close Inspector
+                    </button>
+                </div>
+            </div>
+            <!-- Viewer area -->
+            <div style="flex:1;position:relative;overflow:hidden;">
+                <iframe id="cadInspectorFrame" src="about:blank" frameborder="0"
+                    style="width:100%;height:100%;background:#0f172a;border:none;"></iframe>
+                <!-- Loading overlay -->
+                <div id="cadInspectorLoading" style="position:absolute;inset:0;background:#0f172a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
+                    <div style="width:52px;height:52px;border:4px solid #334155;border-top-color:#6366f1;border-radius:50%;animation:cadSpin 1s linear infinite;"></div>
+                    <p style="color:#94a3b8;font-size:14px;margin:0;">Loading CAD Engine…</p>
+                    <p id="cadInspectorLoadingMsg" style="color:#64748b;font-size:12px;margin:0;text-align:center;max-width:320px;line-height:1.5;"></p>
+                </div>
+            </div>
+            <style>
+                @keyframes cadSpin { to { transform: rotate(360deg); } }
+                #dxfDropModal { display: none; }
+                #dxfDropModal.is-open { display: flex; }
+                #dwgDropModal { display: none; }
+                #dwgDropModal.is-open { display: flex; }
+                #cadInspectorPanel { display: none; }
+                #cadInspectorPanel.is-open { display: flex; }
+                /* Floating DXF overlay badge */
+                #dxfOverlayBadge {
+                    display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+                    z-index:8000;background:#1e293b;color:#e2e8f0;border-radius:24px;
+                    padding:8px 18px;font-size:13px;font-weight:600;
+                    box-shadow:0 8px 24px rgba(0,0,0,.4);
+                    border:1px solid #6366f1;align-items:center;gap:10px;
+                }
+                #dxfOverlayBadge.is-visible { display:flex; }
+            </style>
+        </div>
+
+        <!-- DXF overlay badge (floating map indicator) -->
+        <div id="dxfOverlayBadge">
+            <i class="fas fa-drafting-compass" style="color:#818cf8;"></i>
+            <span id="dxfOverlayBadgeText">DXF Overlay Active</span>
+            <button id="dxfOverlayBadgeClear" style="background:none;border:1px solid #475569;border-radius:12px;color:#94a3b8;padding:2px 10px;font-size:12px;cursor:pointer;margin-left:4px;">Remove</button>
+        </div>
+
         <!-- OpenLayers 7.3.0 - Standard build for global ol object -->
+
         <script src="https://cdn.jsdelivr.net/npm/ol@7.3.0/dist/ol.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/ol-layerswitcher@4.1.0/dist/ol-layerswitcher.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.0/proj4.js"></script>
@@ -17489,10 +17701,13 @@
             // PATCH: register authoritative proj4 definitions for WGS84 UTM and Arc1960 BEFORE creating the map/view
             proj4.defs("EPSG:32636", "+proj=utm +zone=36 +datum=WGS84 +units=m +no_defs");
             proj4.defs("EPSG:32736", "+proj=utm +zone=36 +south +datum=WGS84 +units=m +no_defs");
+            proj4.defs("EPSG:32635", "+proj=utm +zone=35 +datum=WGS84 +units=m +no_defs");
+            proj4.defs("EPSG:32735", "+proj=utm +zone=35 +south +datum=WGS84 +units=m +no_defs");
 
             // Arc1960 UTM authoritative (include TOWGS84). Use these values from EPSG registry:
             proj4.defs("EPSG:21096", "+proj=utm +zone=36 +a=6378249.145 +rf=293.465 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs +type=crs");
             proj4.defs("EPSG:21036", "+proj=utm +zone=36 +south +a=6378249.145 +rf=293.465 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs +type=crs");
+            proj4.defs("EPSG:21095", "+proj=utm +zone=35 +a=6378249.145 +rf=293.465 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs +type=crs");
 
             if (ol.proj.proj4 && typeof ol.proj.proj4.register === "function") {
                 ol.proj.proj4.register(proj4);
@@ -61579,6 +61794,9 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
         }
         setTimeout(initCondoSystem, 1000);
     </script>
+
+    <!-- GSPNET CAD Integration: DXF/DWG drag-and-drop, rendering & digitizing -->
+    <script src="cad-integration.js"></script>
 
 </body>
 
