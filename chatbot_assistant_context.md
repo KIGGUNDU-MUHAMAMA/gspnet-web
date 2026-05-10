@@ -518,7 +518,7 @@ The GSP.NET Updates polygon workflow now supports **batch parcel processing** fo
 - **What it does:** Allows surveyors to directly drag and drop CAD files (DXF and DWG) onto the web map for instant viewing, offline rendering, and integration with cadastral layers without needing external software.
 - **Key Features:**
   - **Offline Canvas Renderer for DXF:** DXF files are parsed locally in the browser and rendered on a high-performance interactive Canvas. This includes panning (drag), zooming (scroll/pinch), grid overlays, and entity counting. It requires NO internet connection to view DXF.
-  - **DWG Support with ShareCAD:** DWG files are proprietary and difficult to parse client-side. GSP.NET uploads them securely to Supabase and uses the ShareCAD third-party engine to display them. 
+  - **DWG Support with ShareCAD:** DWG files are proprietary and difficult to parse client-side. GSP.NET uploads them securely to Supabase and uses the ShareCAD third-party engine to display them.
   - **Drag-and-Drop:** You can drag any DXF or DWG file directly onto the map screen to instantly open it.
 
 **IMPORTANT NOTE FOR DWG FILES:**
