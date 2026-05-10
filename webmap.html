@@ -27301,7 +27301,8 @@
                 console.warn('Skipping server requests under file://');
             } else {
                 // Call the function to fetch capabilities when the page loads
-                fetchPgfCapabilities();
+                // Disabled because PG features are no longer used (fixes null 'style' error)
+                // fetchPgfCapabilities();
             }
 
             // PGFEATURESERV layer loading function
