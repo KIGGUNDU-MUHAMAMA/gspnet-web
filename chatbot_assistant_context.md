@@ -37,6 +37,12 @@ The GSP.NET Assist button acts as a floating command center. It provides:
 - **Drawing Tools:** Offers point, line, and polygon drawing features. It includes advanced snapping (vertex and edge) to ensure new subdivisions perfectly align with existing boundaries.
 - **Measurement Tools:** Allows you to measure distances and calculate polygon areas on the fly. 
 
+### CAD Integration & DXF Interpolation
+GSP.NET includes a powerful native **CAD Inspector** for working directly with CAD files:
+- **Interpolation:** When uploading DXF files, the system parses the raw CAD entities and interpolates complex geometries (like arcs and splines) into web-compatible Vector geometries (LineStrings/Polygons).
+- **Direct Rendering:** DXF files are rendered locally via a blazing-fast Canvas2D engine, while complex DWG files utilize a secure cloud-based ShareCAD integration via Supabase.
+- **How to Use (Tracing & Digitizing):** Once a DXF/DWG is uploaded, the entities are overlaid onto the map. The system automatically attaches a **Snapping Interaction** to these CAD lines, allowing you to use the Drawing Tools to flawlessly trace survey polygons over the CAD geometry, extract the coordinates, or save them directly into the database.
+
 ### Coordinate Search & Extractor
 - **Coordinate Search:** Navigate to an exact point on Earth. Select your CRS (e.g., Arc 1960 UTM Zone 36N), enter Eastings/Northings, and the map instantly flies to that coordinate.
 - **Coordinate Extractor:** A reverse tool. Click anywhere on the map, or select a drawn polygon, to extract its coordinates into a formatted table (CSV/Excel) for export directly to field controllers or AutoCAD.
