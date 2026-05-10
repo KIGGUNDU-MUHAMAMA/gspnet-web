@@ -43644,7 +43644,42 @@ function smoothChaikin(points) {
                 document.getElementById('polygon-count').textContent = polygons;
             }
 
+            // PATCH: Global Snapping for Assist Tools
+            let globalAssistSnaps = [];
+            function applyGlobalAssistSnapping() {
+                clearGlobalAssistSnapping();
+                let sourcesToSnap = [];
+                if (typeof drawingSource !== 'undefined' && drawingSource) sourcesToSnap.push(drawingSource);
+                if (typeof measurementSource !== 'undefined' && measurementSource) sourcesToSnap.push(measurementSource);
+                if (typeof terrain3DState !== 'undefined' && terrain3DState.pointsLayer && terrain3DState.pointsLayer.getSource()) sourcesToSnap.push(terrain3DState.pointsLayer.getSource());
+                if (typeof _csvLayer !== 'undefined' && _csvLayer && _csvLayer.getSource()) sourcesToSnap.push(_csvLayer.getSource());
+                if (typeof window.S !== 'undefined' && window.S.overlaySource) sourcesToSnap.push(window.S.overlaySource);
+                if (typeof gspnetLayers !== 'undefined') {
+                    gspnetLayers.filter(l => l.getVisible()).forEach(layer => {
+                        if (layer.getSource()) sourcesToSnap.push(layer.getSource());
+                    });
+                }
+                if (typeof polygonLayers !== 'undefined') {
+                    Object.values(polygonLayers).filter(l => l.getVisible()).forEach(layer => {
+                        if (layer.getSource()) sourcesToSnap.push(layer.getSource());
+                    });
+                }
+                sourcesToSnap = [...new Set(sourcesToSnap)];
+                sourcesToSnap.forEach(src => {
+                    try {
+                        const snap = new ol.interaction.Snap({ source: src, pixelTolerance: 15 });
+                        map.addInteraction(snap);
+                        globalAssistSnaps.push(snap);
+                    } catch(e) {}
+                });
+            }
+            function clearGlobalAssistSnapping() {
+                globalAssistSnaps.forEach(snap => map.removeInteraction(snap));
+                globalAssistSnaps = [];
+            }
+
             function clearDrawingInteractions() {
+                clearGlobalAssistSnapping();
                 if (currentDrawInteraction) {
                     map.removeInteraction(currentDrawInteraction);
                     currentDrawInteraction = null;
@@ -43678,6 +43713,7 @@ function smoothChaikin(points) {
                         type: 'Point'
                     });
                     map.addInteraction(currentDrawInteraction);
+                    applyGlobalAssistSnapping();
                     document.getElementById('stopDrawing').style.display = 'inline-block';
 
                     // Enable crosshair cursor
@@ -43694,6 +43730,7 @@ function smoothChaikin(points) {
                         type: 'LineString'
                     });
                     map.addInteraction(currentDrawInteraction);
+                    applyGlobalAssistSnapping();
 
                     // Enable crosshair cursor
                     enableCrosshair();
@@ -43709,6 +43746,7 @@ function smoothChaikin(points) {
                         type: 'Polygon'
                     });
                     map.addInteraction(currentDrawInteraction);
+                    applyGlobalAssistSnapping();
                     document.getElementById('stopDrawing').style.display = 'inline-block';
 
                     // Enable crosshair cursor
@@ -43725,6 +43763,7 @@ function smoothChaikin(points) {
                         type: 'Circle'
                     });
                     map.addInteraction(currentDrawInteraction);
+                    applyGlobalAssistSnapping();
                     document.getElementById('stopDrawing').style.display = 'inline-block';
 
                     // Enable crosshair cursor
@@ -43745,6 +43784,7 @@ function smoothChaikin(points) {
                     });
                     map.addInteraction(selectInteraction);
                     map.addInteraction(drawingModifyInteraction);
+                    applyGlobalAssistSnapping();
                     document.getElementById('stopDrawing').style.display = 'inline-block';
                     showToast('Click features to modify them', 'info');
                 });
@@ -43843,6 +43883,7 @@ function smoothChaikin(points) {
             let measureType = null;
 
             function clearMeasurementInteractions() {
+                clearGlobalAssistSnapping();
                 if (currentMeasureInteraction) {
                     map.removeInteraction(currentMeasureInteraction);
                     currentMeasureInteraction = null;
@@ -43877,6 +43918,7 @@ function smoothChaikin(points) {
                     });
 
                     map.addInteraction(currentMeasureInteraction);
+                    applyGlobalAssistSnapping();
                     document.getElementById('stopMeasurement').style.display = 'inline-block';
 
                     // Enable crosshair cursor
@@ -43930,6 +43972,7 @@ function smoothChaikin(points) {
                     });
 
                     map.addInteraction(currentMeasureInteraction);
+                    applyGlobalAssistSnapping();
                     document.getElementById('stopMeasurement').style.display = 'inline-block';
 
                     // Enable crosshair cursor
@@ -43973,6 +44016,7 @@ function smoothChaikin(points) {
                     });
 
                     map.addInteraction(currentMeasureInteraction);
+                    applyGlobalAssistSnapping();
                     document.getElementById('stopMeasurement').style.display = 'inline-block';
 
                     // Enable crosshair cursor
