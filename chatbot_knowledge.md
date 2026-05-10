@@ -283,6 +283,25 @@ The GSP.NET Updates polygon workflow now supports **batch parcel processing** fo
   - **Premium PDF Layout Aesthetics:** The export module operates on a headless, pixel-perfect renderer. Traditional grids are replaced with softly muted corporate "Data Cards", overlaid with `Slate Blue / Indigo` mastheads, modern clean typography (`Segoe UI`), and high-end geometric dropshadow framing for image appendices.
   - **Authenticity Ribbon:** Every page of the generated PDF perfectly anchors an absolute-positioned corporate tracking ribbon containing automated, API-generated QR codes linking securely back to GSP.NET's core database.
 
+### 11. CAD Inspector & Viewer (DXF & DWG Support)
+
+- **What it does:** Allows surveyors to directly drag and drop CAD files (DXF and DWG) onto the web map for instant viewing, offline rendering, and integration with cadastral layers without needing external software.
+- **Key Features:**
+  - **Offline Canvas Renderer for DXF:** DXF files are parsed locally in the browser and rendered on a high-performance interactive Canvas. This includes panning (drag), zooming (scroll/pinch), grid overlays, and entity counting. It requires NO internet connection to view DXF.
+  - **DWG Support with ShareCAD:** DWG files are proprietary and difficult to parse client-side. GSP.NET uploads them securely to Supabase and uses the ShareCAD third-party engine to display them. 
+  - **Drag-and-Drop:** You can drag any DXF or DWG file directly onto the map screen to instantly open it.
+
+**IMPORTANT NOTE FOR DWG FILES:**
+Because DWG rendering relies on a third-party service (`sharecad.org`), DWG files may occasionally fail to open or time out if the ShareCAD servers are experiencing downtime. This is an external limitation beyond our control. For 100% reliable, instant loading, it is highly recommended to save your CAD drawings as **DXF** before dropping them into GSP.NET.
+
+- **Step-by-step Guide:**
+  1. Open the GSP.NET WebMap.
+  2. Drag your `.dxf` or `.dwg` file from your computer and drop it directly onto the map screen (a dashed visual drop zone will appear).
+  3. The CAD Inspector panel will instantly open.
+  4. If it's a DXF, the drawing will render immediately on the dark-themed Canvas. You can click and drag to pan, and scroll to zoom.
+  5. If it's a DWG, the system will briefly upload it and connect to ShareCAD. Wait a few seconds for the viewer to load.
+  6. Alternatively, you can open CAD files via the **GSP.NET Updates** panel or from the **Project Library** by clicking the "Inspect" icon.
+
 ## How Distances and Areas Are Calculated for GSPNET/NLIS Layers and Survey Polygons
 
 GSP.NET uses **survey-grade geodesic formulas** for all distance and area calculations displayed on the map. These formulas match the results produced by professional surveying software such as AutoCAD and are significantly more accurate than simple spherical (Haversine) calculations.
