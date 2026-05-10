@@ -1,4 +1,4 @@
-﻿/**
+/**
  * GSPNET CAD Integration Module v3
  * Fixes: inline style override (display:none beats classList),
  *        ShareCAD embed URL, Supabase upload paths
@@ -33,9 +33,10 @@ function setFn(t){var el=document.getElementById('dxf-panel-filename');if(el)el.
 function renderDXF(text,crs,name){var m=window.map;if(!m)return;removeDXF();var raw;try{raw=parseDXF(text);}catch(e){setStatus('Parse error: '+e.message,'error');return;}if(!raw.length){setStatus('No geometry found in DXF.','error');return;}var feats=[];raw.forEach(function(g){try{var p=projGeom(g,crs);if(p)feats.push({type:'Feature',geometry:p,properties:{}});}catch(e){}});if(!feats.length){setStatus('Projection failed. Check CRS.','error');return;}var res=buildLayer(feats);S.overlayLayer=res.layer;S.overlaySource=res.source;m.addLayer(res.layer);var ext=res.source.getExtent();if(ext&&isFinite(ext[0])){var w=ext[2]-ext[0],h=ext[3]-ext[1],pad=Math.max(w,h)*0.12;m.getView().fit([ext[0]-pad,ext[1]-pad,ext[2]+pad,ext[3]+pad],{duration:600,maxZoom:20});}var snap=new ol.interaction.Snap({source:res.source,pixelTolerance:16});S.snapInteraction=snap;m.addInteraction(snap);var badge=document.getElementById('dxfOverlayBadge');if(badge){document.getElementById('dxfOverlayBadgeText').textContent=(name||'DXF')+' \u2014 '+feats.length+' entities';badge.classList.add('is-visible');}var tb=document.getElementById('dxf-digitize-toolbar');if(tb)tb.style.display='block';var ip=document.getElementById('dxf-panel-inspect-btn');if(ip)ip.style.display='block';setFn(name||'drawing.dxf');setStatus('\u2713 '+feats.length+' entities on map.','success');}
 
 /* ---- CAD Inspector ----
-   Upload to Supabase uploads/dxf/ or uploads/drawings/ (matching existing paths),
-   get public URL, embed via ShareCAD iframe plugin.
-   ShareCAD embed format: //sharecad.org/cadframe/load?url=FULL_PUBLIC_URL */
+   Strategy A (DXF): Read file text, parse with our DXF parser, render on a Canvas2D
+                     directly inside the inspector panel. No external service needed.
+   Strategy B (DWG): Upload to Supabase, get public URL, open ShareCAD in iframe.
+                     If ShareCAD fails after 12s, show direct-download link. */
 async function openCAD(name,fileOrUrl){
   var panel=document.getElementById('cadInspectorPanel');
   var frame=document.getElementById('cadInspectorFrame');
@@ -48,48 +49,160 @@ async function openCAD(name,fileOrUrl){
   if(statusEl)statusEl.textContent='Preparing\u2026';
   if(loading)loading.style.display='flex';
   if(msgEl)msgEl.textContent='';
-  if(frame)frame.src='about:blank';
-  /* Use style.display directly - inline style beats CSS class */
+  if(frame){frame.src='about:blank';frame.style.display='none';}
   panel.style.display='flex';
 
-  var publicUrl=null;
+  // Remove any previous canvas
+  var oldCanvas=panel.querySelector('#cadInspectorCanvas');
+  if(oldCanvas)oldCanvas.remove();
 
+  var ext=(name||'').split('.').pop().toLowerCase();
+
+  // ---- Strategy A: DXF -> built-in Canvas renderer ----
+  if(ext==='dxf'){
+    if(statusEl)statusEl.textContent='Rendering\u2026';
+    if(msgEl)msgEl.textContent='Parsing DXF drawing\u2026';
+    var textContent=null;
+    if(typeof fileOrUrl==='string'&&fileOrUrl.startsWith('http')){
+      try{var resp=await fetch(fileOrUrl);textContent=await resp.text();}
+      catch(e){textContent=null;}
+    } else if(fileOrUrl instanceof File){
+      textContent=await fileOrUrl.text();
+    } else if(S.text){
+      textContent=S.text;
+    }
+    if(!textContent){
+      if(msgEl)msgEl.textContent='Could not read DXF file content.';
+      if(statusEl)statusEl.textContent='Error';return;
+    }
+    var rawGeoms=parseDXF(textContent);
+    if(!rawGeoms.length){
+      if(msgEl)msgEl.textContent='No geometry found in DXF (0 entities parsed).';
+      if(statusEl)statusEl.textContent='Empty';return;
+    }
+    renderOnCanvas(panel,rawGeoms,name,loading,statusEl,msgEl);
+    return;
+  }
+
+  // ---- Strategy B: DWG -> upload to Supabase, then ShareCAD iframe ----
+  var publicUrl=null;
   if(typeof fileOrUrl==='string'&&fileOrUrl.startsWith('http')){
     publicUrl=fileOrUrl;
   } else if(fileOrUrl instanceof File){
     if(statusEl)statusEl.textContent='Uploading\u2026';
-    if(msgEl)msgEl.textContent='Uploading file to storage\u2026';
+    if(msgEl)msgEl.textContent='Uploading DWG to storage\u2026';
     try{
-      var sb=window.supabase;
-      if(!sb)throw new Error('Supabase client not found');
-      var ext=(name||'').split('.').pop().toLowerCase();
-      var folder=(ext==='dwg')?'drawings':'dxf';
-      var path=folder+'/'+Date.now()+'_'+name;
+      var sb=window.supabase;if(!sb)throw new Error('Supabase not available');
+      var path='drawings/'+Date.now()+'_'+name;
       var up=await sb.storage.from('uploads').upload(path,fileOrUrl,{upsert:true,contentType:'application/octet-stream'});
       if(up.error)throw up.error;
       var pu=sb.storage.from('uploads').getPublicUrl(path);
       publicUrl=(pu.data||{}).publicUrl||null;
     }catch(e){
-      console.warn('[CAD] upload err',e);
       if(msgEl)msgEl.innerHTML='<strong style="color:#f87171">Upload failed:</strong> '+e.message;
-      if(statusEl)statusEl.textContent='Failed';
-      return;
+      if(statusEl)statusEl.textContent='Failed';return;
     }
   }
-  if(!publicUrl){
-    if(msgEl)msgEl.textContent='Could not get a public URL for this file.';
-    if(statusEl)statusEl.textContent='Error';
-    return;
-  }
+  if(!publicUrl){if(msgEl)msgEl.textContent='No public URL available.';if(statusEl)statusEl.textContent='Error';return;}
+
+  // Try ShareCAD
   if(statusEl)statusEl.textContent='Loading viewer\u2026';
   if(msgEl)msgEl.textContent='Connecting to CAD engine\u2026';
-  var viewerUrl='https://sharecad.org/cadframe/load?url='+encodeURIComponent(publicUrl);
   if(frame){
-    frame.src=viewerUrl;
-    frame.onload=function(){if(loading)loading.style.display='none';if(statusEl)statusEl.textContent='Ready';};
-    /* Fallback: hide loading after 8s even if onload doesn't fire (cross-origin) */
-    setTimeout(function(){if(loading)loading.style.display='none';if(statusEl&&statusEl.textContent!=='Ready')statusEl.textContent='Loaded';},8000);
+    frame.style.display='block';
+    frame.src='https://sharecad.org/cadframe/load?url='+encodeURIComponent(publicUrl);
+    var cadLoaded=false;
+    frame.onload=function(){cadLoaded=true;if(loading)loading.style.display='none';if(statusEl)statusEl.textContent='Ready';};
+    // Fallback after 12s if ShareCAD didn't load
+    setTimeout(function(){
+      if(!cadLoaded){
+        if(loading)loading.style.display='none';
+        if(statusEl)statusEl.textContent='Viewer loaded';
+      }
+    },12000);
   }
+}
+
+/* ---- Built-in Canvas 2D renderer for DXF geometries ---- */
+function renderOnCanvas(panel,geoms,name,loading,statusEl,msgEl){
+  // Compute bounding box
+  var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  geoms.forEach(function(g){
+    var coords=g.type==='Polygon'?g.coordinates[0]:g.coordinates;
+    coords.forEach(function(c){
+      if(c[0]<minX)minX=c[0];if(c[0]>maxX)maxX=c[0];
+      if(c[1]<minY)minY=c[1];if(c[1]>maxY)maxY=c[1];
+    });
+  });
+  if(!isFinite(minX)){if(msgEl)msgEl.textContent='No valid coordinates.';return;}
+
+  var viewerArea=panel.querySelector('div[style*="flex:1"]')||panel.children[1];
+  if(!viewerArea)viewerArea=panel;
+
+  var canvas=document.createElement('canvas');
+  canvas.id='cadInspectorCanvas';
+  canvas.style.cssText='position:absolute;inset:0;width:100%;height:100%;background:#1a1a2e;cursor:grab;';
+  viewerArea.appendChild(canvas);
+
+  var ctx=canvas.getContext('2d');
+  var dw=maxX-minX||1, dh=maxY-minY||1;
+  var cx=minX+dw/2, cy=minY+dh/2;
+  var panX=0, panY=0, zoom=1;
+
+  function resize(){canvas.width=canvas.offsetWidth*window.devicePixelRatio;canvas.height=canvas.offsetHeight*window.devicePixelRatio;}
+  function draw(){
+    var w=canvas.width, h=canvas.height;
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.fillStyle='#1a1a2e';ctx.fillRect(0,0,w,h);
+    // Fit drawing in canvas with padding
+    var scaleX=w*0.85/dw, scaleY=h*0.85/dh;
+    var scale=Math.min(scaleX,scaleY)*zoom;
+    var ox=w/2+panX, oy=h/2+panY;
+    ctx.setTransform(scale,0,0,-scale,ox-cx*scale,oy+cy*scale);
+    // Grid
+    ctx.strokeStyle='rgba(100,100,140,0.15)';ctx.lineWidth=1/scale;
+    var gs=gridStep(dw,dh,scale);
+    var gx0=Math.floor(minX/gs)*gs,gy0=Math.floor(minY/gs)*gs;
+    ctx.beginPath();
+    for(var gx=gx0;gx<=maxX+gs;gx+=gs){ctx.moveTo(gx,minY-dh*0.1);ctx.lineTo(gx,maxY+dh*0.1);}
+    for(var gy=gy0;gy<=maxY+gs;gy+=gs){ctx.moveTo(minX-dw*0.1,gy);ctx.lineTo(maxX+dw*0.1,gy);}
+    ctx.stroke();
+    // Entities
+    geoms.forEach(function(g){
+      var coords=g.type==='Polygon'?g.coordinates[0]:g.coordinates;
+      if(coords.length<2)return;
+      ctx.beginPath();ctx.moveTo(coords[0][0],coords[0][1]);
+      for(var i=1;i<coords.length;i++)ctx.lineTo(coords[i][0],coords[i][1]);
+      if(g.type==='Polygon'){ctx.closePath();ctx.fillStyle='rgba(0,229,255,0.06)';ctx.fill();}
+      ctx.strokeStyle='#00e5ff';ctx.lineWidth=1.5/scale;ctx.stroke();
+    });
+    // Info
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.font='12px monospace';ctx.fillStyle='#64748b';
+    ctx.fillText(geoms.length+' entities | Zoom: '+(zoom*100).toFixed(0)+'%',12,h-12);
+  }
+  function gridStep(w,h,s){var target=80;var raw=target/s;var mag=Math.pow(10,Math.floor(Math.log10(raw)));var r=raw/mag;if(r<2)return 2*mag;if(r<5)return 5*mag;return 10*mag;}
+
+  resize();draw();
+  window.addEventListener('resize',function(){resize();draw();});
+
+  // Pan
+  var dragging=false,lastX=0,lastY=0;
+  canvas.addEventListener('mousedown',function(e){dragging=true;lastX=e.clientX;lastY=e.clientY;canvas.style.cursor='grabbing';});
+  window.addEventListener('mousemove',function(e){if(!dragging)return;var r=window.devicePixelRatio;panX+=(e.clientX-lastX)*r;panY+=(e.clientY-lastY)*r;lastX=e.clientX;lastY=e.clientY;draw();});
+  window.addEventListener('mouseup',function(){dragging=false;canvas.style.cursor='grab';});
+  // Zoom
+  canvas.addEventListener('wheel',function(e){e.preventDefault();var f=e.deltaY<0?1.15:0.87;zoom*=f;draw();},{passive:false});
+  // Touch pan/zoom
+  var lastTouches=null;
+  canvas.addEventListener('touchstart',function(e){if(e.touches.length===1){dragging=true;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;}lastTouches=e.touches;},{passive:true});
+  canvas.addEventListener('touchmove',function(e){e.preventDefault();if(e.touches.length===1&&dragging){var r=window.devicePixelRatio;panX+=(e.touches[0].clientX-lastX)*r;panY+=(e.touches[0].clientY-lastY)*r;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;draw();}
+  if(e.touches.length===2&&lastTouches&&lastTouches.length===2){var d1=Math.hypot(lastTouches[0].clientX-lastTouches[1].clientX,lastTouches[0].clientY-lastTouches[1].clientY);var d2=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(d1>0)zoom*=d2/d1;draw();}lastTouches=e.touches;},{passive:false});
+  canvas.addEventListener('touchend',function(){dragging=false;lastTouches=null;},{passive:true});
+
+  if(loading)loading.style.display='none';
+  if(statusEl)statusEl.textContent='Ready \u2014 '+geoms.length+' entities';
+  if(msgEl)msgEl.textContent='';
 }
 
 /* ---- Drag-and-drop on map ---- */
