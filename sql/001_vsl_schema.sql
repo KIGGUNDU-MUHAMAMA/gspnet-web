@@ -1,4 +1,4 @@
--- Victoria Sugar Limited isolated schema for a dedicated Supabase project.
+-- Geospatial Network Uganda isolated schema for a dedicated Supabase project.
 create extension if not exists postgis;
 create extension if not exists pgcrypto;
 
