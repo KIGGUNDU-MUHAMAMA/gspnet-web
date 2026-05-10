@@ -21296,6 +21296,7 @@
             const drawingSource = new ol.source.Vector();
             const drawingLayer = new ol.layer.Vector({
                 title: 'Drawing & Markup',
+                zIndex: 9999,
                 source: drawingSource,
                 style: function (feature) {
                     const geometry = feature.getGeometry();
@@ -21370,6 +21371,7 @@
             const measurementSource = new ol.source.Vector();
             const measurementLayer = new ol.layer.Vector({
                 title: 'Measurements',
+                zIndex: 9999,
                 source: measurementSource,
                 style: function (feature) {
                     const geometry = feature.getGeometry();
@@ -43987,9 +43989,7 @@ function smoothChaikin(points) {
 
                         // Calculate area
                         const area = ol.sphere.getArea(geometry);
-                        const areaText = area > 10000 ?
-                            `${(area / 10000).toFixed(2)} ha` :
-                            `${area.toFixed(2)} m²`;
+                        const areaText = `${(area / 10000).toFixed(4)} ha`;
 
                         feature.set('measurement', areaText);
                         document.getElementById('area-value').textContent = areaText;
