@@ -42517,60 +42517,46 @@ function smoothChaikin(points) {
             document.getElementById('minorContourColor')?.addEventListener('change', function () {
                 terrain3DState.minorContourColor = this.value;
                 if (terrain3DState.contourLayer) {
-                    const fn = terrain3DState.contourLayer.getStyleFunction();
-                    if (fn) terrain3DState.contourLayer.setStyle(fn);
-                    else terrain3DState.contourLayer.changed();
+                    terrain3DState.contourLayer.getSource()?.changed();
                 }
             });
 
             document.getElementById('minorContourWidth')?.addEventListener('change', function () {
                 terrain3DState.minorContourWidth = parseFloat(this.value);
                 if (terrain3DState.contourLayer) {
-                    const fn = terrain3DState.contourLayer.getStyleFunction();
-                    if (fn) terrain3DState.contourLayer.setStyle(fn);
-                    else terrain3DState.contourLayer.changed();
+                    terrain3DState.contourLayer.getSource()?.changed();
                 }
             });
 
             document.getElementById('minorContourStyle')?.addEventListener('change', function () {
                 terrain3DState.minorContourStyle = this.value;
                 console.log('[CONTOUR] Minor style changed to:', this.value);
-                // VectorImage caches its render canvas — .changed() is not enough.
-                // Re-setting the style function forces a full re-render.
+                // source.changed() invalidates the VectorImage offscreen canvas cache
                 if (terrain3DState.contourLayer) {
-                    const fn = terrain3DState.contourLayer.getStyleFunction();
-                    if (fn) terrain3DState.contourLayer.setStyle(fn);
-                    else terrain3DState.contourLayer.changed();
+                    terrain3DState.contourLayer.getSource()?.changed();
                 }
             });
 
             document.getElementById('majorContourColor')?.addEventListener('change', function () {
                 terrain3DState.majorContourColor = this.value;
                 if (terrain3DState.contourLayer) {
-                    const fn = terrain3DState.contourLayer.getStyleFunction();
-                    if (fn) terrain3DState.contourLayer.setStyle(fn);
-                    else terrain3DState.contourLayer.changed();
+                    terrain3DState.contourLayer.getSource()?.changed();
                 }
             });
 
             document.getElementById('majorContourWidth')?.addEventListener('change', function () {
                 terrain3DState.majorContourWidth = parseFloat(this.value);
                 if (terrain3DState.contourLayer) {
-                    const fn = terrain3DState.contourLayer.getStyleFunction();
-                    if (fn) terrain3DState.contourLayer.setStyle(fn);
-                    else terrain3DState.contourLayer.changed();
+                    terrain3DState.contourLayer.getSource()?.changed();
                 }
             });
 
             document.getElementById('majorContourStyle')?.addEventListener('change', function () {
                 terrain3DState.majorContourStyle = this.value;
                 console.log('[CONTOUR] Major style changed to:', this.value);
-                // VectorImage caches its render canvas — .changed() is not enough.
-                // Re-setting the style function forces a full re-render.
+                // source.changed() invalidates the VectorImage offscreen canvas cache
                 if (terrain3DState.contourLayer) {
-                    const fn = terrain3DState.contourLayer.getStyleFunction();
-                    if (fn) terrain3DState.contourLayer.setStyle(fn);
-                    else terrain3DState.contourLayer.changed();
+                    terrain3DState.contourLayer.getSource()?.changed();
                 }
             });
 
