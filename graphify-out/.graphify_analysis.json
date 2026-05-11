@@ -1,0 +1,526 @@
+{
+  "communities": {
+    "0": [
+      "gspnet_web_symbols_library_buildlabeltextstyle",
+      "gspnet_web_symbols_library_cleardrawingsnapping",
+      "gspnet_web_symbols_library_collectpointsnapsources",
+      "gspnet_web_symbols_library_createlinestyle",
+      "gspnet_web_symbols_library_createpointstyle",
+      "gspnet_web_symbols_library_createpolygonstyle",
+      "gspnet_web_symbols_library_deletefeature",
+      "gspnet_web_symbols_library_deletefeatureconfirm",
+      "gspnet_web_symbols_library_disableautoload",
+      "gspnet_web_symbols_library_drawlegendswatchinpdf",
+      "gspnet_web_symbols_library_enableautoload",
+      "gspnet_web_symbols_library_enabledrawingsnapping",
+      "gspnet_web_symbols_library_ensureexpandedcatalogavailable",
+      "gspnet_web_symbols_library_exportlegend",
+      "gspnet_web_symbols_library_featurestylefunction",
+      "gspnet_web_symbols_library_flagselectedfeature",
+      "gspnet_web_symbols_library_getcurrentmapextent",
+      "gspnet_web_symbols_library_getexpandedcatalogseedrows",
+      "gspnet_web_symbols_library_getfeaturedisplayname",
+      "gspnet_web_symbols_library_getlegendentries",
+      "gspnet_web_symbols_library_getlegendfeatures",
+      "gspnet_web_symbols_library_getsymbolslegendforprint",
+      "gspnet_web_symbols_library_handledrawend",
+      "gspnet_web_symbols_library_handlefeatureselect",
+      "gspnet_web_symbols_library_handlemapmove",
+      "gspnet_web_symbols_library_hextorgba",
+      "gspnet_web_symbols_library_hextorgbobject",
+      "gspnet_web_symbols_library_highlightfeature",
+      "gspnet_web_symbols_library_initsymbolslibrary",
+      "gspnet_web_symbols_library_isvectorsourcewithpointfeatures",
+      "gspnet_web_symbols_library_loadfeatures",
+      "gspnet_web_symbols_library_loadmyfeatures",
+      "gspnet_web_symbols_library_loadsymbolcatalog",
+      "gspnet_web_symbols_library_makeautoname",
+      "gspnet_web_symbols_library_makelegendswatchhtml",
+      "gspnet_web_symbols_library_normalizegeomtype",
+      "gspnet_web_symbols_library_populatecatalogui",
+      "gspnet_web_symbols_library_required_expanded_symbol_keys",
+      "gspnet_web_symbols_library_savefeature",
+      "gspnet_web_symbols_library_setupfeatureslayer",
+      "gspnet_web_symbols_library_setupuihandlers",
+      "gspnet_web_symbols_library_showeditform",
+      "gspnet_web_symbols_library_showmessage",
+      "gspnet_web_symbols_library_snapinteractions",
+      "gspnet_web_symbols_library_startdelete",
+      "gspnet_web_symbols_library_startdrawing",
+      "gspnet_web_symbols_library_startmodify",
+      "gspnet_web_symbols_library_stopdrawing",
+      "gspnet_web_symbols_library_stopmodify",
+      "gspnet_web_symbols_library_stylecache",
+      "gspnet_web_symbols_library_symbolcatalog",
+      "gspnet_web_symbols_library_updatefeatureattributes",
+      "gspnet_web_symbols_library_updatefeaturegeometryconfirm",
+      "gspnet_web_symbols_library_updateflagstab",
+      "gspnet_web_symbols_library_updatelegendsummarypanel",
+      "gspnet_web_symbols_library_updatemyfeaturestab",
+      "gspnet_web_symbols_library_zoomtofeature",
+      "js_map_app_submitflag",
+      "symbols_library_js"
+    ],
+    "1": [
+      "js_map_app_baselayers",
+      "js_map_app_basemapselect",
+      "js_map_app_blockslayer",
+      "js_map_app_blockssource",
+      "js_map_app_cfg",
+      "js_map_app_coordlat",
+      "js_map_app_coordlon",
+      "js_map_app_coordsearchbtn",
+      "js_map_app_coordsoutput",
+      "js_map_app_csvinput",
+      "js_map_app_currentuserel",
+      "js_map_app_drawblockbtn",
+      "js_map_app_drawparcelbtn",
+      "js_map_app_drawsource",
+      "js_map_app_extractcoords",
+      "js_map_app_flagfeaturebtn",
+      "js_map_app_flagnoteinput",
+      "js_map_app_fullscreenbtn",
+      "js_map_app_importcsvbtn",
+      "js_map_app_infobtn",
+      "js_map_app_js",
+      "js_map_app_locatebtn",
+      "js_map_app_locateme",
+      "js_map_app_logoutbtn",
+      "js_map_app_measureareabtn",
+      "js_map_app_measurelayer",
+      "js_map_app_measurelinebtn",
+      "js_map_app_parcelslayer",
+      "js_map_app_parcelssource",
+      "js_map_app_printbtn",
+      "js_map_app_searchbtn",
+      "js_map_app_searchfeature",
+      "js_map_app_searchinput",
+      "js_map_app_stopdrawbtn",
+      "js_map_app_toggleblocks",
+      "js_map_app_toggleparcels"
+    ],
+    "2": [
+      "cad_integration_js",
+      "gemini_worker_js",
+      "gspnet_web_cad_integration_boot",
+      "gspnet_web_cad_integration_buildlayer",
+      "gspnet_web_cad_integration_getcadfile",
+      "gspnet_web_cad_integration_handlefile",
+      "gspnet_web_cad_integration_hidemodal",
+      "gspnet_web_cad_integration_initbadge",
+      "gspnet_web_cad_integration_initcadclose",
+      "gspnet_web_cad_integration_initdrop",
+      "gspnet_web_cad_integration_initdwgmodal",
+      "gspnet_web_cad_integration_initdxfmodal",
+      "gspnet_web_cad_integration_initpanel",
+      "gspnet_web_cad_integration_inittoolbar",
+      "gspnet_web_cad_integration_opencad",
+      "gspnet_web_cad_integration_parsedxf",
+      "gspnet_web_cad_integration_projcoord",
+      "gspnet_web_cad_integration_projgeom",
+      "gspnet_web_cad_integration_pushline",
+      "gspnet_web_cad_integration_pushlw",
+      "gspnet_web_cad_integration_pushpl",
+      "gspnet_web_cad_integration_readact",
+      "gspnet_web_cad_integration_regproj",
+      "gspnet_web_cad_integration_removedxf",
+      "gspnet_web_cad_integration_renderdxf",
+      "gspnet_web_cad_integration_renderoncanvas",
+      "gspnet_web_cad_integration_savetraced",
+      "gspnet_web_cad_integration_setfn",
+      "gspnet_web_cad_integration_showmodal",
+      "gspnet_web_condo_viewer_animate",
+      "gspnet_web_gemini_worker_fetch",
+      "js_auth_init",
+      "js_utils_setstatus"
+    ],
+    "3": [
+      "fetch_dem_index_api_key",
+      "fetch_dem_index_area",
+      "fetch_dem_index_areakm2",
+      "fetch_dem_index_bbox_demtype",
+      "fetch_dem_index_cors_headers",
+      "fetch_dem_index_dem_sources",
+      "fetch_dem_index_jsonerror",
+      "fetch_dem_index_triedsources",
+      "polygon_creator_index_admin",
+      "polygon_creator_index_allowed_layers",
+      "polygon_creator_index_areahectares",
+      "polygon_creator_index_baserows",
+      "polygon_creator_index_fail",
+      "polygon_creator_index_generateuniqueids",
+      "polygon_creator_index_getautheduserid",
+      "polygon_creator_index_hasselfintersection",
+      "polygon_creator_index_inputpoint",
+      "polygon_creator_index_insertpolygonrowswithretry",
+      "polygon_creator_index_isvalidlonlat",
+      "polygon_creator_index_layer_prefix",
+      "polygon_creator_index_layername",
+      "polygon_creator_index_ok",
+      "polygon_creator_index_parcelinput",
+      "polygon_creator_index_parcelpreview",
+      "polygon_creator_index_processparcel",
+      "polygon_creator_index_results",
+      "polygon_creator_index_segmentsintersect",
+      "polygon_creator_index_servicerole",
+      "polygon_creator_index_supabaseurl",
+      "polygon_creator_index_toradians",
+      "polygon_creator_index_vincentydistancemeters",
+      "supabase_functions_fetch_dem_index_ts"
+    ],
+    "4": [
+      "cesium3d_viewer_js",
+      "gspnet_web_cesium3d_viewer_addvectorfeaturestocesium",
+      "gspnet_web_cesium3d_viewer_addvectorlayers",
+      "gspnet_web_cesium3d_viewer_addwmslayertocesium",
+      "gspnet_web_cesium3d_viewer_basemaps",
+      "gspnet_web_cesium3d_viewer_captures",
+      "gspnet_web_cesium3d_viewer_captureviewpoint",
+      "gspnet_web_cesium3d_viewer_closeviewer",
+      "gspnet_web_cesium3d_viewer_collectleaflayers",
+      "gspnet_web_cesium3d_viewer_container",
+      "gspnet_web_cesium3d_viewer_existingwidget",
+      "gspnet_web_cesium3d_viewer_exportpdf",
+      "gspnet_web_cesium3d_viewer_flytomapextent",
+      "gspnet_web_cesium3d_viewer_getlabeltext",
+      "gspnet_web_cesium3d_viewer_getringcentroidll",
+      "gspnet_web_cesium3d_viewer_launchbtn",
+      "gspnet_web_cesium3d_viewer_loading",
+      "gspnet_web_cesium3d_viewer_modal",
+      "gspnet_web_cesium3d_viewer_overlay",
+      "gspnet_web_cesium3d_viewer_provider",
+      "gspnet_web_cesium3d_viewer_reactivesourcekeys",
+      "gspnet_web_cesium3d_viewer_setimageryadjustment",
+      "gspnet_web_cesium3d_viewer_setverticalexaggeration",
+      "gspnet_web_cesium3d_viewer_togglelayervisibility",
+      "gspnet_web_cesium3d_viewer_toggleosmbuildings",
+      "gspnet_web_cesium3d_viewer_toremove",
+      "gspnet_web_cesium3d_viewer_updatecapturestrip",
+      "gspnet_web_cesium3d_viewer_wirecontrols",
+      "js_map_app_switchbasemap"
+    ],
+    "5": [
+      "condo_viewer_js",
+      "gspnet_web_condo_viewer_addfloorlabel",
+      "gspnet_web_condo_viewer_addunitlabel",
+      "gspnet_web_condo_viewer_buildfromdata",
+      "gspnet_web_condo_viewer_computeperimeter",
+      "gspnet_web_condo_viewer_dispose",
+      "gspnet_web_condo_viewer_fitcameratobuilding",
+      "gspnet_web_condo_viewer_generateprefix",
+      "gspnet_web_condo_viewer_generateunitid",
+      "gspnet_web_condo_viewer_normalizeforviewer",
+      "gspnet_web_condo_viewer_onclick",
+      "gspnet_web_condo_viewer_onresize",
+      "gspnet_web_condo_viewer_onunitclick",
+      "gspnet_web_condo_viewer_parsefootprintcsv",
+      "gspnet_web_condo_viewer_parseunitcsv",
+      "gspnet_web_condo_viewer_selectunit",
+      "gspnet_web_condo_viewer_showallfloors",
+      "gspnet_web_condo_viewer_showfloorsupto",
+      "gspnet_web_condo_viewer_togeojson",
+      "gspnet_web_condo_viewer_towgs84"
+    ],
+    "6": [
+      "js_auth_email",
+      "js_auth_forgotbtn",
+      "js_auth_handleforgotpassword",
+      "js_auth_handlesignin",
+      "js_auth_handlesignup",
+      "js_auth_js",
+      "js_auth_newemail",
+      "js_auth_newpassword",
+      "js_auth_password",
+      "js_auth_role",
+      "js_auth_signinbtn",
+      "js_auth_signupbtn",
+      "js_auth_statusel",
+      "js_map_app_coordinatesearch",
+      "js_utils_assertrole",
+      "js_utils_clearstatus",
+      "js_utils_js",
+      "js_utils_parsenum"
+    ],
+    "7": [
+      "app_config_js",
+      "auth_js",
+      "cesium_js",
+      "cloudflare_pages",
+      "cloudflare_worker",
+      "csv_template_csv",
+      "deployment_md",
+      "land_registrations_table",
+      "login_html",
+      "logo_png",
+      "styles_css",
+      "supabase_js",
+      "supabase_project",
+      "uganda_admin_boundaries_table",
+      "valuation_dashboard_png",
+      "vsl_schema_sql",
+      "webmap_html"
+    ],
+    "8": [
+      "contour_worker_js",
+      "gspnet_web_contour_worker_blurgrid",
+      "gspnet_web_contour_worker_distance",
+      "gspnet_web_contour_worker_generatecontours",
+      "gspnet_web_contour_worker_getedgekeys",
+      "gspnet_web_contour_worker_mergelineendpoints",
+      "gspnet_web_contour_worker_perpendiculardistance",
+      "gspnet_web_contour_worker_simplifydouglaspeucker",
+      "gspnet_web_contour_worker_smoothchaikin",
+      "gspnet_web_contour_worker_tracecontourfromedge",
+      "gspnet_web_contour_worker_tracecontoursatlevel",
+      "gspnet_web_test_jrj_coords",
+      "gspnet_web_test_jrj_engine",
+      "gspnet_web_test_jrj_result",
+      "test_jrj_js"
+    ],
+    "9": [
+      "gspnet_web_condo_viewer_computearea",
+      "gspnet_web_condo_viewer_constructor",
+      "gspnet_web_jrj_engine_jrjengine_computeall",
+      "gspnet_web_jrj_engine_jrjengine_computedatum",
+      "gspnet_web_jrj_engine_jrjengine_computetraverse",
+      "gspnet_web_jrj_engine_jrjengine_decimaltodms",
+      "gspnet_web_jrj_engine_jrjengine_getbearingdistance",
+      "gspnet_web_jrj_pdf_jrjpdfgenerator",
+      "gspnet_web_jrj_pdf_jrjpdfgenerator_buildhtml",
+      "gspnet_web_jrj_pdf_jrjpdfgenerator_generatepdf",
+      "jrj_engine_js",
+      "jrj_pdf_js"
+    ],
+    "10": [
+      "js_map_app_applyroleui",
+      "js_map_app_bindui",
+      "js_map_app_createbaselayers",
+      "js_map_app_initmap",
+      "js_map_app_inituser",
+      "js_map_app_populatebasemapselect",
+      "js_map_app_setuppopup",
+      "js_map_app_start"
+    ],
+    "11": [
+      "about_gspnet",
+      "chatbot_assistant_context_kb",
+      "chatbot_knowledge_kb",
+      "ffpla_presentation_summary_outline",
+      "index_login",
+      "nas_surveyors_ltd",
+      "privacy_policy",
+      "supabase_smtp_setup"
+    ],
+    "12": [
+      "dump_formulas_js",
+      "gspnet_web_dump_formulas_celladdress",
+      "gspnet_web_dump_formulas_cellref",
+      "gspnet_web_dump_formulas_fs",
+      "gspnet_web_dump_formulas_range",
+      "gspnet_web_dump_formulas_workbook",
+      "gspnet_web_dump_formulas_xlsx"
+    ],
+    "13": [
+      "js_supabase_client_createsupabaseclient",
+      "js_supabase_client_getconfig",
+      "js_supabase_client_js",
+      "user_post_flatgeobuf_performance_2026_04_10_performance_upgrade",
+      "webmap_cloudflare_upload",
+      "webmap_land_clerk_system"
+    ],
+    "14": [
+      "land_admin_png",
+      "realtime_sync_engine",
+      "realtime_sync_png",
+      "terrain_analysis_module",
+      "terrain_analysis_png"
+    ],
+    "15": [
+      "profile_report_2026_02_18_terrain_analysis",
+      "terms_data_protection_act_2019",
+      "terms_geospatial_network_uganda",
+      "terms_nas_surveyors_ltd",
+      "user_post_basemap_updates_2026_04_10_basemap_update"
+    ],
+    "16": [
+      "js_map_app_drawgeometry",
+      "js_map_app_startmeasure",
+      "js_map_app_stopcurrentinteraction"
+    ],
+    "17": [
+      "js_map_app_loadlayersfromdb",
+      "js_map_app_savegeometry",
+      "js_map_app_togeojsonfeature"
+    ],
+    "18": [
+      "login_vsl",
+      "readme_vsl",
+      "victoria_sugar_limited"
+    ],
+    "19": [
+      "js_importer_importattributescsv",
+      "js_importer_js"
+    ],
+    "20": [
+      "extract_excel_tool",
+      "formulas_dump_data"
+    ],
+    "21": [
+      "readme_md",
+      "vsl_profiles_table"
+    ],
+    "22": [
+      "config_app_config_example_js"
+    ],
+    "23": [
+      "crosshair_dot_svg"
+    ],
+    "24": [
+      "favicon_32_png"
+    ],
+    "25": [
+      "favicon_64_png"
+    ]
+  },
+  "cohesion": {
+    "0": 0.07,
+    "1": 0.06,
+    "2": 0.14,
+    "3": 0.08,
+    "4": 0.07,
+    "5": 0.12,
+    "6": 0.15,
+    "7": 0.12,
+    "8": 0.21,
+    "9": 0.29,
+    "10": 0.25,
+    "11": 0.25,
+    "12": 0.29,
+    "13": 0.33,
+    "14": 0.4,
+    "15": 0.4,
+    "16": 0.67,
+    "17": 0.67,
+    "18": 0.67,
+    "19": 1.0,
+    "20": 1.0,
+    "21": 1.0,
+    "22": 1.0,
+    "23": 1.0,
+    "24": 1.0,
+    "25": 1.0
+  },
+  "gods": [
+    {
+      "id": "gspnet_web_symbols_library_showmessage",
+      "label": "showMessage()",
+      "degree": 19
+    },
+    {
+      "id": "js_auth_init",
+      "label": "init()",
+      "degree": 14
+    },
+    {
+      "id": "gspnet_web_cad_integration_renderdxf",
+      "label": "renderDXF()",
+      "degree": 9
+    },
+    {
+      "id": "js_utils_setstatus",
+      "label": "setStatus()",
+      "degree": 9
+    },
+    {
+      "id": "gspnet_web_cad_integration_opencad",
+      "label": "openCAD()",
+      "degree": 8
+    },
+    {
+      "id": "js_map_app_initmap",
+      "label": "initMap()",
+      "degree": 8
+    },
+    {
+      "id": "gspnet_web_symbols_library_initsymbolslibrary",
+      "label": "initSymbolsLibrary()",
+      "degree": 7
+    },
+    {
+      "id": "js_utils_clearstatus",
+      "label": "clearStatus()",
+      "degree": 7
+    },
+    {
+      "id": "deployment_md",
+      "label": "Deployment Documentation",
+      "degree": 7
+    },
+    {
+      "id": "gspnet_web_cad_integration_parsedxf",
+      "label": "parseDXF()",
+      "degree": 6
+    }
+  ],
+  "surprises": [
+    {
+      "source": "Valuation Dashboard Screenshot",
+      "target": "Deployment Documentation",
+      "source_files": [
+        "assets/valuation_dashboard.png",
+        "docs/DEPLOYMENT.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "conceptually_related_to",
+      "why": "inferred connection - not explicitly stated in source; crosses file types (image \u2194 doc); connects across different repos/directories; peripheral node `Valuation Dashboard Screenshot` unexpectedly reaches hub `Deployment Documentation`"
+    },
+    {
+      "source": "Victoria Sugar Logo",
+      "target": "Deployment Documentation",
+      "source_files": [
+        "assets/icons/logo.png",
+        "docs/DEPLOYMENT.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "conceptually_related_to",
+      "why": "inferred connection - not explicitly stated in source; crosses file types (image \u2194 doc); connects across different repos/directories; peripheral node `Victoria Sugar Logo` unexpectedly reaches hub `Deployment Documentation`"
+    },
+    {
+      "source": "Deployment Documentation",
+      "target": "VSL Schema SQL",
+      "source_files": [
+        "docs/DEPLOYMENT.md",
+        "sql/001_vsl_schema.sql"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "crosses file types (doc \u2194 code); connects across different repos/directories; peripheral node `VSL Schema SQL` unexpectedly reaches hub `Deployment Documentation`"
+    },
+    {
+      "source": "Deployment Documentation",
+      "target": "App Configuration",
+      "source_files": [
+        "docs/DEPLOYMENT.md",
+        "config/app-config.js"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "crosses file types (doc \u2194 code); connects across different repos/directories; peripheral node `App Configuration` unexpectedly reaches hub `Deployment Documentation`"
+    },
+    {
+      "source": "FlatGeobuf Performance Upgrade",
+      "target": "Land Clerk System",
+      "source_files": [
+        "USER_POST_FLATGEOBUF_PERFORMANCE_2026-04-10.md",
+        "webmap.html"
+      ],
+      "confidence": "INFERRED",
+      "relation": "semantically_similar_to",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; semantically similar concepts with no structural link"
+    }
+  ],
+  "tokens": {
+    "input": 6155,
+    "output": 1418
+  }
+}

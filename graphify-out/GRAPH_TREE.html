@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GSP.NET Webmap Graph — graphify tree viewer</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f9f9f9;
+      color: #333;
+    }
+    h1 {
+      margin: 20px 0 0 24px;
+      font-size: 2.2rem;
+      font-weight: bold;
+      color: #1e3a56;
+    }
+    .controls {
+      margin: 20px 0 15px 24px;
+    }
+    button {
+      margin-right: 10px;
+      padding: 8px 18px;
+      background: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.2s ease-in-out;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    button:active {
+      background: #004085;
+    }
+    #tree-container {
+      width: calc(100vw - 48px); /* Adjust for body margin/padding */
+      height: 85vh;
+      overflow: auto;
+      border-radius: 8px;
+      background: #fff;
+      margin-left: 24px;
+      margin-right: 24px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      border: 1px solid #ddd;
+    }
+    svg {
+      background: #fff;
+      border-radius: 8px;
+      display: block; /* Important for D3 */
+    }
+    .node circle {
+      stroke-width: 2.5px;
+    }
+    .node text { /* Base style for the <text> container */
+      font: 13px 'Segoe UI', sans-serif;
+      paint-order: stroke fill; /* Ensures text is readable over lines */
+      stroke: #fff; /* White halo */
+      stroke-width: 3px; /* Halo thickness */
+      stroke-linejoin: round;
+      stroke-opacity: 0.85; /* Halo opacity */
+    }
+    .link {
+      fill: none;
+      stroke-opacity: 0.7;
+      stroke-width: 2px;
+    }
+  </style>
+</head>
+<body>
+  <h1>GSP.NET Webmap Graph — Knowledge Graph</h1>
+  <div class="controls">
+    <button onclick="expandAll()">Expand All</button>
+    <button onclick="collapseAll()">Collapse All</button>
+    <button onclick="resetView()">Reset View</button>
+  </div>
+  <div id="tree-container">
+    <svg id="tree-svg" width="6000" height="8000"></svg>
+  </div>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+    const initialJsonData = {"name":"GSP.NET Webmap Graph","total_count":310,"children":[{"name":"about.html","total_count":1,"children":[{"name":"GSP.NET — Geospatial Network Uganda","total_count":1,"children":[]}]},{"name":"assets","total_count":10,"children":[{"name":"icons","total_count":4,"children":[{"name":"crosshair-dot.svg","total_count":1,"children":[{"name":"Crosshair Dot Icon","total_count":1,"children":[]}]},{"name":"favicon-32.png","total_count":1,"children":[{"name":"Favicon 32x32","total_count":1,"children":[]}]},{"name":"favicon-64.png","total_count":1,"children":[{"name":"Favicon 64x64","total_count":1,"children":[]}]},{"name":"logo.png","total_count":1,"children":[{"name":"Victoria Sugar Logo","total_count":1,"children":[]}]}]},{"name":"land_admin.png","total_count":1,"children":[{"name":"Land Administration System Diagram","total_count":1,"children":[]}]},{"name":"realtime_sync.png","total_count":2,"children":[{"name":"Real-time Sync Engine","total_count":1,"children":[]},{"name":"Real-time Synchronization Workflow","total_count":1,"children":[]}]},{"name":"terrain_analysis.png","total_count":2,"children":[{"name":"Terrain Analysis Module","total_count":1,"children":[]},{"name":"Terrain Analysis Visualization","total_count":1,"children":[]}]},{"name":"valuation_dashboard.png","total_count":1,"children":[{"name":"Valuation Dashboard Screenshot","total_count":1,"children":[]}]}]},{"name":"cad-integration.js","total_count":27,"children":[{"name":"boot()","total_count":1,"children":[]},{"name":"buildLayer()","total_count":1,"children":[]},{"name":"getCADFile()","total_count":1,"children":[]},{"name":"handleFile()","total_count":1,"children":[]},{"name":"hideModal()","total_count":1,"children":[]},{"name":"initBadge()","total_count":1,"children":[]},{"name":"initCADClose()","total_count":1,"children":[]},{"name":"initDrop()","total_count":1,"children":[]},{"name":"initDWGModal()","total_count":1,"children":[]},{"name":"initDXFModal()","total_count":1,"children":[]},{"name":"initPanel()","total_count":1,"children":[]},{"name":"initToolbar()","total_count":1,"children":[]},{"name":"openCAD()","total_count":1,"children":[]},{"name":"parseDXF()","total_count":1,"children":[]},{"name":"projCoord()","total_count":1,"children":[]},{"name":"projGeom()","total_count":1,"children":[]},{"name":"pushLine()","total_count":1,"children":[]},{"name":"pushLW()","total_count":1,"children":[]},{"name":"pushPL()","total_count":1,"children":[]},{"name":"readAct()","total_count":1,"children":[]},{"name":"regProj()","total_count":1,"children":[]},{"name":"removeDXF()","total_count":1,"children":[]},{"name":"renderDXF()","total_count":1,"children":[]},{"name":"renderOnCanvas()","total_count":1,"children":[]},{"name":"saveTraced()","total_count":1,"children":[]},{"name":"setFn()","total_count":1,"children":[]},{"name":"showModal()","total_count":1,"children":[]}]},{"name":"cesium3d-viewer.js","total_count":27,"children":[{"name":"_reactiveSourceKeys","total_count":1,"children":[]},{"name":"addVectorFeaturesToCesium()","total_count":1,"children":[]},{"name":"addVectorLayers()","total_count":1,"children":[]},{"name":"addWmsLayerToCesium()","total_count":1,"children":[]},{"name":"BASEMAPS","total_count":1,"children":[]},{"name":"captures","total_count":1,"children":[]},{"name":"captureViewpoint()","total_count":1,"children":[]},{"name":"closeViewer()","total_count":1,"children":[]},{"name":"collectLeafLayers()","total_count":1,"children":[]},{"name":"container","total_count":1,"children":[]},{"name":"existingWidget","total_count":1,"children":[]},{"name":"exportPdf()","total_count":1,"children":[]},{"name":"flyToMapExtent()","total_count":1,"children":[]},{"name":"getLabelText()","total_count":1,"children":[]},{"name":"getRingCentroidLL()","total_count":1,"children":[]},{"name":"launchBtn","total_count":1,"children":[]},{"name":"loading","total_count":1,"children":[]},{"name":"modal","total_count":1,"children":[]},{"name":"overlay","total_count":1,"children":[]},{"name":"provider","total_count":1,"children":[]},{"name":"setImageryAdjustment()","total_count":1,"children":[]},{"name":"setVerticalExaggeration()","total_count":1,"children":[]},{"name":"toggleLayerVisibility()","total_count":1,"children":[]},{"name":"toggleOsmBuildings()","total_count":1,"children":[]},{"name":"toRemove","total_count":1,"children":[]},{"name":"updateCaptureStrip()","total_count":1,"children":[]},{"name":"wireControls()","total_count":1,"children":[]}]},{"name":"chatbot_assistant_context.md","total_count":2,"children":[{"name":"AI Assistant Knowledge Base","total_count":1,"children":[]},{"name":"N.A.S. Surveyors Ltd","total_count":1,"children":[]}]},{"name":"chatbot_knowledge.md","total_count":1,"children":[{"name":"GSP.NET Chatbot Knowledge Base","total_count":1,"children":[]}]},{"name":"condo-viewer.js","total_count":22,"children":[{"name":"_addFloorLabel()","total_count":1,"children":[]},{"name":"_addUnitLabel()","total_count":1,"children":[]},{"name":"_animate()","total_count":1,"children":[]},{"name":"_fitCameraToBuilding()","total_count":1,"children":[]},{"name":"_onClick()","total_count":1,"children":[]},{"name":"_onResize()","total_count":1,"children":[]},{"name":"_selectUnit()","total_count":1,"children":[]},{"name":"buildFromData()","total_count":1,"children":[]},{"name":"computeArea()","total_count":1,"children":[]},{"name":"computePerimeter()","total_count":1,"children":[]},{"name":"constructor()","total_count":1,"children":[]},{"name":"dispose()","total_count":1,"children":[]},{"name":"generatePrefix()","total_count":1,"children":[]},{"name":"generateUnitId()","total_count":1,"children":[]},{"name":"normalizeForViewer()","total_count":1,"children":[]},{"name":"onUnitClick()","total_count":1,"children":[]},{"name":"parseFootprintCSV()","total_count":1,"children":[]},{"name":"parseUnitCSV()","total_count":1,"children":[]},{"name":"showAllFloors()","total_count":1,"children":[]},{"name":"showFloorsUpTo()","total_count":1,"children":[]},{"name":"toGeoJSON()","total_count":1,"children":[]},{"name":"toWGS84()","total_count":1,"children":[]}]},{"name":"config","total_count":2,"children":[{"name":"app-config.js","total_count":1,"children":[{"name":"App Configuration","total_count":1,"children":[]}]},{"name":"app-config.example.js","total_count":1,"children":[]}]},{"name":"contour-worker.js","total_count":10,"children":[{"name":"blurGrid()","total_count":1,"children":[]},{"name":"distance()","total_count":1,"children":[]},{"name":"generateContours()","total_count":1,"children":[]},{"name":"getEdgeKeys()","total_count":1,"children":[]},{"name":"mergeLineEndpoints()","total_count":1,"children":[]},{"name":"perpendicularDistance()","total_count":1,"children":[]},{"name":"simplifyDouglasPeucker()","total_count":1,"children":[]},{"name":"smoothChaikin()","total_count":1,"children":[]},{"name":"traceContourFromEdge()","total_count":1,"children":[]},{"name":"traceContoursAtLevel()","total_count":1,"children":[]}]},{"name":"css","total_count":1,"children":[{"name":"styles.css","total_count":1,"children":[{"name":"Global Styles","total_count":1,"children":[]}]}]},{"name":"docs","total_count":4,"children":[{"name":"csv_template.csv","total_count":1,"children":[{"name":"CSV Template","total_count":1,"children":[]}]},{"name":"DEPLOYMENT.md","total_count":3,"children":[{"name":"Cloudflare Pages Deployment","total_count":1,"children":[]},{"name":"Deployment Documentation","total_count":1,"children":[]},{"name":"Supabase Project (Victoria Sugar)","total_count":1,"children":[]}]}]},{"name":"dump_formulas.js","total_count":6,"children":[{"name":"cellAddress","total_count":1,"children":[]},{"name":"cellRef","total_count":1,"children":[]},{"name":"fs","total_count":1,"children":[]},{"name":"range","total_count":1,"children":[]},{"name":"workbook","total_count":1,"children":[]},{"name":"XLSX","total_count":1,"children":[]}]},{"name":"extract_excel.html","total_count":1,"children":[{"name":"Excel Formula Extractor","total_count":1,"children":[]}]},{"name":"FFPLA_Presentation_Summary.md","total_count":1,"children":[{"name":"FIG FFPLA Report Alignment Outline","total_count":1,"children":[]}]},{"name":"formulas_dump.txt","total_count":1,"children":[{"name":"FORMULAR 233a DUMP","total_count":1,"children":[]}]},{"name":"gemini-worker.js","total_count":1,"children":[{"name":"fetch()","total_count":1,"children":[]}]},{"name":"index.html","total_count":1,"children":[{"name":"GSP.NET Professional GIS Login","total_count":1,"children":[]}]},{"name":"jrj_engine.js","total_count":5,"children":[{"name":".computeAll()","total_count":1,"children":[]},{"name":".computeDatum()","total_count":1,"children":[]},{"name":".computeTraverse()","total_count":1,"children":[]},{"name":".decimalToDMS()","total_count":1,"children":[]},{"name":".getBearingDistance()","total_count":1,"children":[]}]},{"name":"jrj_pdf.js","total_count":3,"children":[{"name":".buildHtml()","total_count":1,"children":[]},{"name":".generatePdf()","total_count":1,"children":[]},{"name":"JRJPdfGenerator","total_count":1,"children":[]}]},{"name":"js","total_count":73,"children":[{"name":"auth.js","total_count":14,"children":[{"name":"Authentication Module","total_count":1,"children":[]},{"name":"email","total_count":1,"children":[]},{"name":"forgotBtn","total_count":1,"children":[]},{"name":"handleForgotPassword()","total_count":1,"children":[]},{"name":"handleSignIn()","total_count":1,"children":[]},{"name":"handleSignUp()","total_count":1,"children":[]},{"name":"init()","total_count":1,"children":[]},{"name":"newEmail","total_count":1,"children":[]},{"name":"newPassword","total_count":1,"children":[]},{"name":"password","total_count":1,"children":[]},{"name":"role","total_count":1,"children":[]},{"name":"signInBtn","total_count":1,"children":[]},{"name":"signUpBtn","total_count":1,"children":[]},{"name":"statusEl","total_count":1,"children":[]}]},{"name":"importer.js","total_count":1,"children":[{"name":"importAttributesCsv()","total_count":1,"children":[]}]},{"name":"map-app.js","total_count":52,"children":[{"name":"applyRoleUi()","total_count":1,"children":[]},{"name":"baseLayers","total_count":1,"children":[]},{"name":"basemapSelect","total_count":1,"children":[]},{"name":"bindUi()","total_count":1,"children":[]},{"name":"blocksLayer","total_count":1,"children":[]},{"name":"blocksSource","total_count":1,"children":[]},{"name":"cfg","total_count":1,"children":[]},{"name":"coordinateSearch()","total_count":1,"children":[]},{"name":"coordLat","total_count":1,"children":[]},{"name":"coordLon","total_count":1,"children":[]},{"name":"coordSearchBtn","total_count":1,"children":[]},{"name":"coordsOutput","total_count":1,"children":[]},{"name":"createBaseLayers()","total_count":1,"children":[]},{"name":"csvInput","total_count":1,"children":[]},{"name":"currentUserEl","total_count":1,"children":[]},{"name":"drawBlockBtn","total_count":1,"children":[]},{"name":"drawGeometry()","total_count":1,"children":[]},{"name":"drawParcelBtn","total_count":1,"children":[]},{"name":"drawSource","total_count":1,"children":[]},{"name":"extractCoords()","total_count":1,"children":[]},{"name":"flagFeatureBtn","total_count":1,"children":[]},{"name":"flagNoteInput","total_count":1,"children":[]},{"name":"fullscreenBtn","total_count":1,"children":[]},{"name":"importCsvBtn","total_count":1,"children":[]},{"name":"infoBtn","total_count":1,"children":[]},{"name":"initMap()","total_count":1,"children":[]},{"name":"initUser()","total_count":1,"children":[]},{"name":"loadLayersFromDb()","total_count":1,"children":[]},{"name":"locateBtn","total_count":1,"children":[]},{"name":"locateMe()","total_count":1,"children":[]},{"name":"logoutBtn","total_count":1,"children":[]},{"name":"measureAreaBtn","total_count":1,"children":[]},{"name":"measureLayer","total_count":1,"children":[]},{"name":"measureLineBtn","total_count":1,"children":[]},{"name":"parcelsLayer","total_count":1,"children":[]},{"name":"parcelsSource","total_count":1,"children":[]},{"name":"populateBasemapSelect()","total_count":1,"children":[]},{"name":"printBtn","total_count":1,"children":[]},{"name":"saveGeometry()","total_count":1,"children":[]},{"name":"searchBtn","total_count":1,"children":[]},{"name":"searchFeature()","total_count":1,"children":[]},{"name":"searchInput","total_count":1,"children":[]},{"name":"setupPopup()","total_count":1,"children":[]},{"name":"start()","total_count":1,"children":[]},{"name":"startMeasure()","total_count":1,"children":[]},{"name":"stopCurrentInteraction()","total_count":1,"children":[]},{"name":"stopDrawBtn","total_count":1,"children":[]},{"name":"submitFlag()","total_count":1,"children":[]},{"name":"switchBasemap()","total_count":1,"children":[]},{"name":"toGeoJsonFeature()","total_count":1,"children":[]},{"name":"toggleBlocks","total_count":1,"children":[]},{"name":"toggleParcels","total_count":1,"children":[]}]},{"name":"supabase-client.js","total_count":2,"children":[{"name":"createSupabaseClient()","total_count":1,"children":[]},{"name":"getConfig()","total_count":1,"children":[]}]},{"name":"utils.js","total_count":4,"children":[{"name":"assertRole()","total_count":1,"children":[]},{"name":"clearStatus()","total_count":1,"children":[]},{"name":"parseNum()","total_count":1,"children":[]},{"name":"setStatus()","total_count":1,"children":[]}]}]},{"name":"login.html","total_count":3,"children":[{"name":"Login Page","total_count":1,"children":[]},{"name":"Victoria Sugar Limited","total_count":1,"children":[]},{"name":"Victoria Sugar Sign In","total_count":1,"children":[]}]},{"name":"privacy.html","total_count":1,"children":[{"name":"Privacy & Data Protection Notice","total_count":1,"children":[]}]},{"name":"Profile_Report_2026-02-18.pdf","total_count":1,"children":[{"name":"Terrain Analysis Report","total_count":1,"children":[]}]},{"name":"README.md","total_count":3,"children":[{"name":"Project Documentation","total_count":1,"children":[]},{"name":"Victoria Sugar Project README","total_count":1,"children":[]},{"name":"VSL Profiles Table","total_count":1,"children":[]}]},{"name":"sql","total_count":1,"children":[{"name":"001_vsl_schema.sql","total_count":1,"children":[{"name":"VSL Schema SQL","total_count":1,"children":[]}]}]},{"name":"supabase","total_count":31,"children":[{"name":"functions","total_count":31,"children":[{"name":"fetch-dem","total_count":8,"children":[{"name":"index.ts","total_count":8,"children":[{"name":"API_KEY","total_count":1,"children":[]},{"name":"area","total_count":1,"children":[]},{"name":"areakm2()","total_count":1,"children":[]},{"name":"CORS_HEADERS","total_count":1,"children":[]},{"name":"DEM_SOURCES","total_count":1,"children":[]},{"name":"jsonError()","total_count":1,"children":[]},{"name":"triedSources","total_count":1,"children":[]},{"name":"{ bbox, demtype }","total_count":1,"children":[]}]}]},{"name":"polygon-creator","total_count":23,"children":[{"name":"index.ts","total_count":23,"children":[{"name":"admin","total_count":1,"children":[]},{"name":"ALLOWED_LAYERS","total_count":1,"children":[]},{"name":"areaHectares()","total_count":1,"children":[]},{"name":"baseRows","total_count":1,"children":[]},{"name":"fail()","total_count":1,"children":[]},{"name":"generateUniqueIds()","total_count":1,"children":[]},{"name":"getAuthedUserId()","total_count":1,"children":[]},{"name":"hasSelfIntersection()","total_count":1,"children":[]},{"name":"InputPoint","total_count":1,"children":[]},{"name":"insertPolygonRowsWithRetry()","total_count":1,"children":[]},{"name":"isValidLonLat()","total_count":1,"children":[]},{"name":"LAYER_PREFIX","total_count":1,"children":[]},{"name":"layerName","total_count":1,"children":[]},{"name":"ok()","total_count":1,"children":[]},{"name":"ParcelInput","total_count":1,"children":[]},{"name":"ParcelPreview","total_count":1,"children":[]},{"name":"processParcel()","total_count":1,"children":[]},{"name":"results","total_count":1,"children":[]},{"name":"segmentsIntersect()","total_count":1,"children":[]},{"name":"serviceRole","total_count":1,"children":[]},{"name":"supabaseUrl","total_count":1,"children":[]},{"name":"toRadians()","total_count":1,"children":[]},{"name":"vincentyDistanceMeters()","total_count":1,"children":[]}]}]}]}]},{"name":"SUPABASE_SMTP_DOMAIN_AUTH_SETUP.md","total_count":1,"children":[{"name":"Supabase SMTP + Domain Auth Setup","total_count":1,"children":[]}]},{"name":"symbols-library.js","total_count":57,"children":[{"name":"buildLabelTextStyle()","total_count":1,"children":[]},{"name":"clearDrawingSnapping()","total_count":1,"children":[]},{"name":"collectPointSnapSources()","total_count":1,"children":[]},{"name":"createLineStyle()","total_count":1,"children":[]},{"name":"createPointStyle()","total_count":1,"children":[]},{"name":"createPolygonStyle()","total_count":1,"children":[]},{"name":"deleteFeature()","total_count":1,"children":[]},{"name":"deleteFeatureConfirm()","total_count":1,"children":[]},{"name":"disableAutoLoad()","total_count":1,"children":[]},{"name":"drawLegendSwatchInPdf()","total_count":1,"children":[]},{"name":"enableAutoLoad()","total_count":1,"children":[]},{"name":"enableDrawingSnapping()","total_count":1,"children":[]},{"name":"ensureExpandedCatalogAvailable()","total_count":1,"children":[]},{"name":"exportLegend()","total_count":1,"children":[]},{"name":"featureStyleFunction()","total_count":1,"children":[]},{"name":"flagSelectedFeature()","total_count":1,"children":[]},{"name":"getCurrentMapExtent()","total_count":1,"children":[]},{"name":"getExpandedCatalogSeedRows()","total_count":1,"children":[]},{"name":"getFeatureDisplayName()","total_count":1,"children":[]},{"name":"getLegendEntries()","total_count":1,"children":[]},{"name":"getLegendFeatures()","total_count":1,"children":[]},{"name":"getSymbolsLegendForPrint()","total_count":1,"children":[]},{"name":"handleDrawEnd()","total_count":1,"children":[]},{"name":"handleFeatureSelect()","total_count":1,"children":[]},{"name":"handleMapMove()","total_count":1,"children":[]},{"name":"hexToRgba()","total_count":1,"children":[]},{"name":"hexToRgbObject()","total_count":1,"children":[]},{"name":"highlightFeature()","total_count":1,"children":[]},{"name":"initSymbolsLibrary()","total_count":1,"children":[]},{"name":"isVectorSourceWithPointFeatures()","total_count":1,"children":[]},{"name":"loadFeatures()","total_count":1,"children":[]},{"name":"loadMyFeatures()","total_count":1,"children":[]},{"name":"loadSymbolCatalog()","total_count":1,"children":[]},{"name":"makeAutoName()","total_count":1,"children":[]},{"name":"makeLegendSwatchHtml()","total_count":1,"children":[]},{"name":"normalizeGeomType()","total_count":1,"children":[]},{"name":"populateCatalogUI()","total_count":1,"children":[]},{"name":"REQUIRED_EXPANDED_SYMBOL_KEYS","total_count":1,"children":[]},{"name":"saveFeature()","total_count":1,"children":[]},{"name":"setupFeaturesLayer()","total_count":1,"children":[]},{"name":"setupUIHandlers()","total_count":1,"children":[]},{"name":"showEditForm()","total_count":1,"children":[]},{"name":"showMessage()","total_count":1,"children":[]},{"name":"snapInteractions","total_count":1,"children":[]},{"name":"startDelete()","total_count":1,"children":[]},{"name":"startDrawing()","total_count":1,"children":[]},{"name":"startModify()","total_count":1,"children":[]},{"name":"stopDrawing()","total_count":1,"children":[]},{"name":"stopModify()","total_count":1,"children":[]},{"name":"styleCache","total_count":1,"children":[]},{"name":"symbolCatalog","total_count":1,"children":[]},{"name":"updateFeatureAttributes()","total_count":1,"children":[]},{"name":"updateFeatureGeometryConfirm()","total_count":1,"children":[]},{"name":"updateFlagsTab()","total_count":1,"children":[]},{"name":"updateLegendSummaryPanel()","total_count":1,"children":[]},{"name":"updateMyFeaturesTab()","total_count":1,"children":[]},{"name":"zoomToFeature()","total_count":1,"children":[]}]},{"name":"terms.html","total_count":3,"children":[{"name":"Data Protection and Privacy Act, 2019 (Uganda)","total_count":1,"children":[]},{"name":"Geospatial Network Uganda","total_count":1,"children":[]},{"name":"NAS Surveyors Ltd","total_count":1,"children":[]}]},{"name":"test_jrj.js","total_count":3,"children":[{"name":"coords","total_count":1,"children":[]},{"name":"engine","total_count":1,"children":[]},{"name":"result","total_count":1,"children":[]}]},{"name":"USER_POST_BASEMAP_UPDATES_2026-04-10.md","total_count":1,"children":[{"name":"Basemap Upgrades 2026-04-10","total_count":1,"children":[]}]},{"name":"USER_POST_FLATGEOBUF_PERFORMANCE_2026-04-10.md","total_count":1,"children":[{"name":"FlatGeobuf Performance Upgrade","total_count":1,"children":[]}]},{"name":"webmap.html","total_count":5,"children":[{"name":"Cloudflare Upload System","total_count":1,"children":[]},{"name":"Land Clerk System","total_count":1,"children":[]},{"name":"Land Registrations Table","total_count":1,"children":[]},{"name":"Uganda Admin Boundaries Table","total_count":1,"children":[]},{"name":"Web Mapping Platform","total_count":1,"children":[]}]}]};
+
+    function transformData(jsonData) {
+        // Helper function to recursively build the children structure
+        function processNode(node, parentL1StageName) {
+            let displayName = node.name;
+            // Append total_count if it exists and is not already in the name
+            if (node.total_count !== undefined) {
+                if (!/\(Total Count: \d+\)$/.test(displayName)) {
+                    displayName += ` (Total Count: ${node.total_count})`;
+                }
+            }
+
+            const newNode = { name: displayName };
+
+            if (parentL1StageName === "Root") {
+                 newNode.originalStageName = node.name;
+            } else {
+                newNode.originalStageName = parentL1StageName;
+            }
+
+            if (node.children && node.children.length > 0) {
+                const stageNameToPass = (parentL1StageName === "Root") ? node.name : parentL1StageName;
+                newNode.children = node.children.map(child => processNode(child, stageNameToPass));
+            }
+
+            return newNode;
+        }
+
+        let rootDisplayName = jsonData.name;
+        if (jsonData.total_count !== undefined && !/\(Total Count: \d+\)$/.test(rootDisplayName)) {
+            rootDisplayName += ` (Total Count: ${jsonData.total_count})`;
+        }
+
+        return {
+            name: rootDisplayName,
+            originalStageName: "Root",
+            children: (jsonData.children || []).map(child => processNode(child, "Root"))
+        };
+    }
+
+    const treeData = transformData(initialJsonData);
+
+    // Auto-populated phaseColors: every depth-1 child of the root gets
+    // a stable colour from a bigger palette so all top-level dirs are
+    // distinguishable.
+    const PALETTE = [
+      ["#3498DB","#2980B9","#AED6F1"], ["#2ECC71","#27AE60","#A9DFBF"],
+      ["#E74C3C","#C0392B","#F5B7B1"], ["#9B59B6","#8E44AD","#D7BDE2"],
+      ["#F39C12","#D68910","#FAD7A0"], ["#1ABC9C","#117864","#A2D9CE"],
+      ["#34495E","#1B2631","#ABB2B9"], ["#E67E22","#BA4A00","#F5CBA7"],
+      ["#16A085","#0E6655","#A2D9CE"], ["#D35400","#A04000","#EDBB99"],
+      ["#7F8C8D","#566573","#D5DBDB"], ["#C0392B","#7B241C","#F5B7B1"],
+      ["#2E86C1","#1B4F72","#A9CCE3"], ["#28B463","#196F3D","#A9DFBF"],
+      ["#AF7AC5","#6C3483","#D2B4DE"],
+    ];
+    const phaseColors = { "Root": { fill: "#4A4A4A", stroke: "#333333", collapsedFill: "#6C757D" },
+                          "Default": { fill: "#BDC3C7", stroke: "#95A5A6", collapsedFill: "#ECF0F1" } };
+    (initialJsonData.children || []).forEach((c, i) => {
+      const pal = PALETTE[i % PALETTE.length];
+      phaseColors[c.name] = { fill: pal[0], stroke: pal[1], collapsedFill: pal[2] };
+    });
+
+    const levelSpecificPalettes = {
+      0: { fill: "#4A4A4A", stroke: "#333333", collapsedFill: "#6C757D" },
+      2: { fill: "#6ab04c", stroke: "#508a38", collapsedFill: "#a3d391" },
+      3: { fill: "#f0932b", stroke: "#d0730f", collapsedFill: "#f6c07e" },
+      4: { fill: "#be2edd", stroke: "#a01cb3", collapsedFill: "#e08bf2" },
+      5: { fill: "#00a8ff", stroke: "#007ac1", collapsedFill: "#74d2ff" },
+      6: { fill: "#e55039", stroke: "#c23620", collapsedFill: "#f09a8d" },
+      default: { fill: "#747d8c", stroke: "#57606f", collapsedFill: "#a4b0be" }
+    };
+
+    const svgElement = d3.select("#tree-svg");
+    const initialSvgWidth = +svgElement.attr("width");
+    const initialSvgHeight = +svgElement.attr("height");
+    const margin = { top: 40, right: 120, bottom: 80, left: 450 };
+    let width = initialSvgWidth - margin.left - margin.right;
+    let height = initialSvgHeight - margin.top - margin.bottom;
+    const duration = 500;
+    let nodeCounter = 0;
+    const g = svgElement.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+    const treemap = d3.tree().nodeSize([40, 0]);
+    let rootNode = d3.hierarchy(treeData, d => d.children);
+    rootNode.x0 = 0;
+    rootNode.y0 = 0;
+
+    if (rootNode.children) {
+      rootNode.children.forEach(d_child => {
+        if (d_child.children) { collapseBranch(d_child); }
+      });
+    }
+    updateTree(rootNode);
+
+    function collapseBranch(d) { if (d.children) { d._children = d.children; d._children.forEach(collapseBranch); d.children = null; } }
+    function expandBranch(d) { if (d._children) { d.children = d._children; d._children = null; } if (d.children) { d.children.forEach(expandBranch); } }
+    window.expandAll = () => { expandBranch(rootNode); updateTree(rootNode); };
+    window.collapseAll = () => { if (rootNode.children) { rootNode.children.forEach(collapseBranch); } updateTree(rootNode); };
+    window.resetView = () => { if (rootNode.children) { rootNode.children.forEach(d_child => { if (d_child.children || d_child._children) { collapseBranch(d_child); } }); } if (rootNode._children && !rootNode.children) { rootNode.children = rootNode._children; rootNode._children = null; } updateTree(rootNode); };
+
+    function updateTree(source) {
+      const treeLayoutData = treemap(rootNode);
+      let nodes = treeLayoutData.descendants();
+      let links = treeLayoutData.descendants().slice(1);
+
+      let minX = 0;
+      let maxX = 0;
+      if (nodes.length > 0) {
+        minX = d3.min(nodes, d => d.x);
+        maxX = d3.max(nodes, d => d.x);
+      }
+
+      let neededHeight = Math.max(initialSvgHeight, maxX - minX + margin.top + margin.bottom + 100);
+      svgElement.transition().duration(duration / 2).attr("height", neededHeight);
+      g.transition().duration(duration / 2).attr("transform", `translate(${margin.left},${margin.top - minX + 40})`);
+
+      nodes.forEach(d => { d.y = d.depth * 400; }); // Adjust horizontal separation if needed
+
+      const node = g.selectAll('g.node').data(nodes, d => d.id || (d.id = ++nodeCounter));
+      const nodeEnter = node.enter().append('g')
+        .attr('class', d => "node" + (d.children || d._children ? " node--internal" : " node--leaf") + (d._children ? " _children" : ""))
+        .attr('transform', d => `translate(${source.y0},${source.x0})`)
+        .on('click', (event, d) => { if (d.children) { d._children = d.children; d.children = null; } else if (d._children) { d.children = d._children; d._children = null; } updateTree(d); })
+        .style('cursor', d => (d.children || d._children) ? 'pointer' : 'default');
+
+      nodeEnter.append('circle').attr('r', 1e-6);
+
+      nodeEnter.append('text')
+        .attr('dy', '.35em')
+        .attr('x', d => d.children || d._children ? -14 : 14)
+        .attr('text-anchor', d => d.children || d._children ? 'end' : 'start')
+        .style("fill-opacity", 1e-6)
+        .call(wrapText, 380);
+
+      const nodeUpdate = nodeEnter.merge(node);
+      nodeUpdate.transition().duration(duration)
+        .attr('transform', d => `translate(${d.y},${d.x})`)
+        .attr('class', d => "node" + (d.children ? " node--internal" : " node--leaf") + (d._children ? " node--internal _children" : ""));
+
+      nodeUpdate.select('circle').attr('r', 8.5)
+        .style('fill', d => {
+            let palette;
+            if (d.depth === 0) {
+                palette = levelSpecificPalettes[0];
+            } else if (d.depth === 1) {
+                palette = phaseColors[d.data.originalStageName] || phaseColors.Default;
+            } else {
+                palette = levelSpecificPalettes[d.depth] || levelSpecificPalettes.default;
+            }
+            if (d._children) return palette.collapsedFill;
+            if (d.children) return palette.fill;
+            return "#fff";
+        })
+        .style('stroke', d => {
+            let palette;
+            if (d.depth === 0) {
+                palette = levelSpecificPalettes[0];
+            } else if (d.depth === 1) {
+                palette = phaseColors[d.data.originalStageName] || phaseColors.Default;
+            } else {
+                palette = levelSpecificPalettes[d.depth] || levelSpecificPalettes.default;
+            }
+            return palette.stroke;
+        });
+      nodeUpdate.select('text').style("fill-opacity", 1).call(wrapText, 380);
+
+      const nodeExit = node.exit().transition().duration(duration).attr('transform', d => `translate(${source.y},${source.x})`).remove();
+      nodeExit.select('circle').attr('r', 1e-6);
+      nodeExit.select('text').style('fill-opacity', 1e-6);
+
+      const link = g.selectAll('path.link').data(links, d => d.id);
+      const linkEnter = link.enter().insert('path', "g").attr('class', 'link').attr('d', d => { const o = { x: source.x0, y: source.y0 }; return diagonal(o, o); });
+
+      linkEnter.merge(link).transition().duration(duration).attr('d', d => diagonal(d, d.parent))
+        .style('stroke', d => {
+            const sourceNode = d.parent;
+            if (!sourceNode) return phaseColors.Default.stroke;
+            const l1AncestorName = sourceNode.data.originalStageName;
+            const colorPalette = phaseColors[l1AncestorName] || phaseColors.Default;
+            return colorPalette.stroke;
+        });
+      link.exit().transition().duration(duration).attr('d', d => { const o = { x: source.x, y: source.y }; return diagonal(o, o); }).remove();
+      nodes.forEach(d => { d.x0 = d.x; d.y0 = d.y; });
+    }
+
+    function diagonal(s, d) { return `M ${s.y} ${s.x} C ${(s.y + d.y) / 2} ${s.x}, ${(s.y + d.y) / 2} ${d.x}, ${d.y} ${d.x}`; }
+
+    function wrapText(textElements, maxWidth) {
+        const textPartColors = {
+            name: '#343a40',
+            count: '#0056b3'
+        };
+        const countRegex = /(\s\(Total Count: \d+\))$/;
+
+        textElements.each(function () {
+            const textD3 = d3.select(this);
+            const originalNodeText = textD3.datum().data.name;
+            const x = parseFloat(textD3.attr("x") || 0);
+            const initialDy = textD3.attr("dy");
+            const textAnchor = textD3.attr("text-anchor");
+            const lineHeight = 1.1;
+
+            textD3.text(null);
+
+            let namePart = originalNodeText;
+            let countPartText = "";
+
+            const countMatch = originalNodeText.match(countRegex);
+            if (countMatch && originalNodeText.endsWith(countMatch[0])) {
+                namePart = originalNodeText.substring(0, originalNodeText.length - countMatch[0].length).trim();
+                countPartText = countMatch[0].trim();
+            }
+
+            const tokens = [];
+            namePart.split(/\s+/).filter(Boolean).forEach(word => {
+                tokens.push({ text: word, type: 'name' });
+            });
+            if (countPartText) {
+                tokens.push({ text: countPartText, type: 'count' });
+            }
+
+            if (tokens.length === 0 && originalNodeText) {
+                tokens.push({ text: originalNodeText, type: 'name' });
+            }
+
+            let currentTspan = textD3.append("tspan").attr("x", x).attr("dy", initialDy);
+            if (textAnchor === "end") currentTspan.attr("text-anchor", "end");
+
+            let lineTokens = [];
+
+            for (let i = 0; i < tokens.length; i++) {
+                const tokenObj = tokens[i];
+
+                lineTokens.push(tokenObj);
+                currentTspan.text(lineTokens.map(t => t.text).join(" "));
+
+                if (currentTspan.node().getComputedTextLength() > maxWidth && lineTokens.length > 1) {
+                    lineTokens.pop();
+
+                    currentTspan.text(null);
+                    lineTokens.forEach((prevToken, idx) => {
+                        currentTspan.append("tspan")
+                            .text((idx > 0 ? " " : "") + prevToken.text)
+                            .style("fill", textPartColors[prevToken.type] || textPartColors.name)
+                            .style("font-weight", prevToken.type === 'count' ? "bold" : "normal");
+                    });
+
+                    lineTokens = [tokenObj];
+                    currentTspan = textD3.append("tspan").attr("x", x).attr("dy", lineHeight + "em");
+                    if (textAnchor === "end") currentTspan.attr("text-anchor", "end");
+                }
+            }
+
+            currentTspan.text(null);
+            lineTokens.forEach((token, idx) => {
+                currentTspan.append("tspan")
+                    .text((idx > 0 ? " " : "") + token.text)
+                    .style("fill", textPartColors[token.type] || textPartColors.name)
+                    .style("font-weight", token.type === 'count' ? "bold" : "normal");
+            });
+
+            if (textD3.selectAll("tspan > tspan").empty() && textD3.select("tspan").text().length === 0 && originalNodeText) {
+                let t = textD3.select("tspan");
+                let displayText = originalNodeText;
+                t.text(displayText).style("fill", textPartColors.name);
+                if (t.node() && t.node().getComputedTextLength() > maxWidth && displayText.length > 20) {
+                    let estimatedChars = Math.floor(maxWidth / (t.node().getComputedTextLength()/displayText.length) );
+                    displayText = displayText.substring(0, Math.max(0, estimatedChars - 3)) + "...";
+                    t.text(displayText);
+                }
+            }
+        });
+    }
+  </script>
+</body>
+</html>

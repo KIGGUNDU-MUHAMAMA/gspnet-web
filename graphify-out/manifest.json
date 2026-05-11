@@ -1,0 +1,214 @@
+{
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\cad-integration.js": {
+    "mtime": 1778371666.621634,
+    "hash": "69b2955dba3bea9a5187a2b7e2f11004"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\cesium3d-viewer.js": {
+    "mtime": 1777673553.6969557,
+    "hash": "f1a0f8c2bccf017f3c6efb88a102ff0c"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\condo-viewer.js": {
+    "mtime": 1775410796.1656966,
+    "hash": "741b5435c1e2e7746d6615a05d4d295e"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\condo_schema.sql": {
+    "mtime": 1773174103.1787434,
+    "hash": "8420231d69ca26ead402dee840e4ea6a"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\contour-worker.js": {
+    "mtime": 1767908933.8614283,
+    "hash": "09f59703ce25be88ffc20e5c071a8b56"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\dump_formulas.js": {
+    "mtime": 1773866387.2222438,
+    "hash": "083d55cc54891b6feaec05bf64e64175"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\gemini-worker.js": {
+    "mtime": 1774727660.653028,
+    "hash": "75e8dac07af2e33cade286094695c520"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\jrj_engine.js": {
+    "mtime": 1773866899.33294,
+    "hash": "ce91f9a3b5f1be39a55dd010873faca6"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\jrj_pdf.js": {
+    "mtime": 1773868257.5938022,
+    "hash": "586c927e611e4ea288936581c08a0080"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\supabase_symbols_schema.sql": {
+    "mtime": 1775774683.0105035,
+    "hash": "fcb6aad0bb638d7c7d54bf781d40fa44"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\symbols-library.js": {
+    "mtime": 1775776414.4147356,
+    "hash": "2332c1a34a2f8050610dc832af97d6bb"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\test_jrj.js": {
+    "mtime": 1773867210.1618836,
+    "hash": "b6290b4edc9c68ba0dcbcd40fb8e878d"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\config\\app-config.example.js": {
+    "mtime": 1776025524.8981678,
+    "hash": "9e76efdd09851056204905c1bfe88bd1"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\js\\auth.js": {
+    "mtime": 1776025524.9016297,
+    "hash": "38485c230691e0005870c475993cd558"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\js\\importer.js": {
+    "mtime": 1776025524.9026313,
+    "hash": "d194829619bd7a207e3918a7f3a7ff44"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\js\\map-app.js": {
+    "mtime": 1776025524.9040964,
+    "hash": "2f9c7977add79f298c0c68df149752b1"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\js\\supabase-client.js": {
+    "mtime": 1776025524.9046261,
+    "hash": "6733940864c290f5b7e6488d668d5adc"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\js\\utils.js": {
+    "mtime": 1776025524.905624,
+    "hash": "11d7f13324165671a6aee384b30f0bee"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\sql\\001_vsl_schema.sql": {
+    "mtime": 1778416902.2230265,
+    "hash": "a5338ee163dbf8aa0c336b76aa596655"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\supabase\\functions\\fetch-dem\\index.ts": {
+    "mtime": 1777575457.754705,
+    "hash": "9d2aebd7488896d2451521a3db25295a"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\supabase\\functions\\polygon-creator\\index.ts": {
+    "mtime": 1775756469.9096906,
+    "hash": "e1594edcc9706e8affc0dbc8468c54f4"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\supabase\\migrations\\20260406120000_parcel_flags_survey_columns.sql": {
+    "mtime": 1775416330.3035128,
+    "hash": "f408866bbbc3f981c999cdab98015368"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\supabase\\migrations\\20260406143000_corroboration_workflow.sql": {
+    "mtime": 1775424523.2431664,
+    "hash": "49532492bf8606422a1654501152454a"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\supabase\\migrations\\20260406191500_chat_read_cursors.sql": {
+    "mtime": 1775434491.1298375,
+    "hash": "76148a20a6c6f7d73c3574d6377213ac"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\supabase\\migrations\\20260406201500_enable_rls_flagged_tables.sql": {
+    "mtime": 1775438960.8133485,
+    "hash": "ed7e170155f491cb1363e06b679c12fc"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\about.html": {
+    "mtime": 1777769131.8106117,
+    "hash": "db6337ccc316085bb33f9946e760d52e"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\chatbot_assistant_context.md": {
+    "mtime": 1778372445.9717114,
+    "hash": "7c7a35eb4b87209c3a73aa8645850372"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\chatbot_knowledge.md": {
+    "mtime": 1778372456.4053164,
+    "hash": "ad57bf972e28c11a08d30d7f4a765d93"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\diff.txt": {
+    "mtime": 1773760734.4849849,
+    "hash": "1a31bb45f866879407ab4c63084fc680"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\extract_excel.html": {
+    "mtime": 1773866446.0976832,
+    "hash": "bc4ae641237a75dbe85aced3e3a1a256"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\FFPLA_Presentation_Summary.md": {
+    "mtime": 1777761322.4715855,
+    "hash": "c74b28c4038f34cd14cdd3f243ec9764"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\formulas_dump.txt": {
+    "mtime": 1773866561.555552,
+    "hash": "7b15d95a4e0b61af62d159389d8310c2"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\index.html": {
+    "mtime": 1777763724.7607038,
+    "hash": "e4d8cdcdd3c94887c04128ed0db65dd8"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\login.html": {
+    "mtime": 1778416896.9478111,
+    "hash": "a3f067dd01bbb4cfb793fed1beebbdbc"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\privacy.html": {
+    "mtime": 1777757668.856832,
+    "hash": "bbe35bd4318697f67aa5cf291f670aec"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\README.md": {
+    "mtime": 1778416879.2678628,
+    "hash": "5cf1379b2f81662b7497d12f83f740d7"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\SUPABASE_SMTP_DOMAIN_AUTH_SETUP.md": {
+    "mtime": 1775753429.5550227,
+    "hash": "2639e772f1434ef33e8f4e619cfe7903"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\terms.html": {
+    "mtime": 1777757681.7730386,
+    "hash": "bbbac4f4d2b50e38d5f68f8bf17ba123"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\USER_POST_BASEMAP_UPDATES_2026-04-10.md": {
+    "mtime": 1775772045.1572485,
+    "hash": "64756899f6fc644f226a2a9fec7d353d"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\USER_POST_FLATGEOBUF_PERFORMANCE_2026-04-10.md": {
+    "mtime": 1775772457.5613847,
+    "hash": "f41cbdb8d2e96f90236c58cf33b08f18"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\webmap.html": {
+    "mtime": 1778416893.9715161,
+    "hash": "778f12780bef5f355ca5a373bd50516e"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\docs\\DEPLOYMENT.md": {
+    "mtime": 1776025524.9001534,
+    "hash": "2d1db8b90f628b070e1b0d0917c533e5"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\Profile_Report_2026-02-18.pdf": {
+    "mtime": 1771411872.5602207,
+    "hash": "3e0ff624c9cdaa81cf5606e7fc93b1f9"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\assets\\collaboration_tools.png": {
+    "mtime": 1772738399.0768168,
+    "hash": "40123c285014d4af8346515bbcc06ed1"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\assets\\hero_terrain.png": {
+    "mtime": 1772738318.2003078,
+    "hash": "84333ffc07acb8977519b398d058cbfe"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\assets\\land_admin.png": {
+    "mtime": 1772738382.6481738,
+    "hash": "f8550705758de07822dacf08ce0340e2"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\assets\\realtime_sync.png": {
+    "mtime": 1777766962.3600621,
+    "hash": "1ed0b212f62ae4d117bb66966e47904e"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\assets\\terrain_analysis.png": {
+    "mtime": 1772738355.2755187,
+    "hash": "2fe0165cb3c787dc3b042f57976e8319"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\assets\\valuation_dashboard.png": {
+    "mtime": 1772738337.7925172,
+    "hash": "a5acdb0ff538bf48185de1d827b2bc29"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\assets\\icons\\crosshair-dot.svg": {
+    "mtime": 1759777981.983603,
+    "hash": "f6680770ab56909245bf45792e403d34"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\assets\\icons\\favicon-32.png": {
+    "mtime": 1777572804.9330814,
+    "hash": "06efb5fe0894cfb084fc039ba2945dbc"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\assets\\icons\\favicon-64.png": {
+    "mtime": 1777572797.0945282,
+    "hash": "ef8b076978183f9e9ed93d1677eb96b2"
+  },
+  "C:\\Users\\ECO\\Desktop\\gspnet-web\\assets\\icons\\logo.png": {
+    "mtime": 1777571653.3897848,
+    "hash": "4de6cbf7067f27c57934c6119d0c7fb8"
+  }
+}
