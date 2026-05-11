@@ -61933,6 +61933,111 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
     <!-- GSPNET CAD Integration: DXF/DWG drag-and-drop, rendering & digitizing -->
     <script src="cad-integration.js"></script>
 
+    <script>
+        // ============================================
+        // GSPSurveySync Realtime Listener
+        // ============================================
+        function initSurveySyncRealtime() {
+            if (!window.supabaseClient || !window.map) {
+                setTimeout(initSurveySyncRealtime, 500);
+                return;
+            }
+
+            const channel = window.supabaseClient.channel('plugin-sync');
+            channel.on('broadcast', { event: 'new_polygon' }, (payload) => {
+                console.log('Received polygon broadcast:', payload);
+                const data = payload.payload;
+                if (!data || !data.geometry) return;
+
+                // 1. Plot temporarily on the map
+                const format = new ol.format.GeoJSON();
+                const feature = format.readFeature(data.geometry, {
+                    dataProjection: 'EPSG:4326',
+                    featureProjection: window.map.getView().getProjection().getCode()
+                });
+
+                // Style for temporary flash
+                const flashStyle = new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: '#ff0000',
+                        width: 4
+                    }),
+                    fill: new ol.style.Fill({
+                        color: 'rgba(255, 0, 0, 0.3)'
+                    })
+                });
+                feature.setStyle(flashStyle);
+
+                // Add to a temporary vector layer if not exists
+                if (!window.surveySyncLayer) {
+                    window.surveySyncLayer = new ol.layer.Vector({
+                        source: new ol.source.Vector(),
+                        zIndex: 9999
+                    });
+                    window.map.addLayer(window.surveySyncLayer);
+                }
+                window.surveySyncLayer.getSource().clear(); // Clear previous
+                window.surveySyncLayer.getSource().addFeature(feature);
+
+                // Zoom to feature
+                window.map.getView().fit(feature.getGeometry(), { padding: [50, 50, 50, 50], duration: 1000 });
+
+                // 2. Show popup to prompt save
+                setTimeout(() => {
+                    if (confirm(`New polygon received from SurveySync (Area: ${data.area_hectares.toFixed(4)} Ha).\nTarget Layer: ${data.layerName}\nDo you want to save this to the database?`)) {
+                        saveBroadcastedPolygon(data);
+                    } else {
+                        window.surveySyncLayer.getSource().clear();
+                    }
+                }, 1000); // Slight delay to let the map zoom finish
+            }).subscribe((status) => {
+                console.log('SurveySync Realtime status:', status);
+            });
+
+            async function saveBroadcastedPolygon(data) {
+                try {
+                    const sessionData = await window.supabaseClient.auth.getSession();
+                    const token = sessionData.data.session?.access_token;
+                    
+                    if (!token) {
+                        alert('You must be logged in to save polygons.');
+                        return;
+                    }
+
+                    const response = await fetch('https://kwssgfanbntfjdclchfi.supabase.co/functions/v1/polygon-creator', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            action: 'commit_batch',
+                            layerName: data.layerName,
+                            parcels: [{
+                                parcelId: 'SYNC-' + Date.now(),
+                                points: data.geometry.coordinates[0].map(coord => ({ x: coord[0], y: coord[1] })),
+                                geometry: data.geometry,
+                                area_hectares: data.area_hectares,
+                                num_vertices: data.num_vertices,
+                                edge_distances: data.edge_distances
+                            }]
+                        })
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        alert('Successfully saved to database!');
+                        window.surveySyncLayer.getSource().clear();
+                        // Optional: trigger refresh of the actual layer if possible
+                    } else {
+                        alert('Failed to save: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error saving polygon: ' + error.message);
+                }
+            }
+        }
+        setTimeout(initSurveySyncRealtime, 1000);
+    </script>
 </body>
 
 </html>

@@ -414,6 +414,45 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === "broadcast_polygon") {
+      const layerName = String(body?.layerName || "");
+      if (!ALLOWED_LAYERS.includes(layerName)) {
+        return fail(400, `Invalid layerName. Allowed: ${ALLOWED_LAYERS.join(", ")}`);
+      }
+      const skip = !!body?.skipSelfIntersectionCheck;
+      const points = Array.isArray(body?.points) ? body.points : [];
+      const result = processParcel("plugin_sync", points, skip);
+      
+      if (!result.success) {
+        return fail(400, "Invalid polygon", { errors: result.errors });
+      }
+
+      const channel = admin.channel('plugin-sync');
+      await new Promise((resolve) => {
+        channel.subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            await channel.send({
+              type: 'broadcast',
+              event: 'new_polygon',
+              payload: {
+                layerName,
+                geometry: result.geometry,
+                area_hectares: result.area_hectares,
+                num_vertices: result.num_vertices,
+                edge_distances: result.edge_distances
+              }
+            });
+            resolve(null);
+          }
+        });
+        // Resolve after timeout in case subscription fails
+        setTimeout(resolve, 3000);
+      });
+      admin.removeChannel(channel);
+
+      return ok({ broadcasted: true, area_hectares: result.area_hectares });
+    }
+
     if (action === "commit_batch") {
       const userId = await getAuthedUserId(req, supabaseUrl, serviceRole);
       if (!userId) return fail(401, "User not authenticated");
