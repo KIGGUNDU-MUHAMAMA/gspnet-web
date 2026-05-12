@@ -61935,10 +61935,10 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
 
     <script>
         // ============================================
-        // GSPSurveySync Realtime Listener v2
-        // Uses the new standalone survey-sync Edge Function.
-        // broadcast_polygon → no auth needed (anyone can send)
-        // save_polygon       → auth required (webmap user saves)
+        // GSPSurveySync Realtime Listener v3.0
+        // Handles batch polygon broadcasts from QGIS/AutoCAD plugins.
+        // broadcast_batch → no auth (field surveyors send)
+        // save_batch      → auth required (webmap reviewer saves all)
         // ============================================
         (function initSurveySyncRealtime() {
             if (!window.supabaseClient || !window.map) {
@@ -61948,29 +61948,63 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
 
             const SURVEY_SYNC_URL = 'https://kwssgfanbntfjdclchfi.supabase.co/functions/v1/survey-sync';
 
+            // ── Pending batch state ────────────────────────────────────────────
+            // All received polygons accumulate here until the reviewer saves.
+            window._ssPending = {
+                polygons:  [],   // [{geometry, area_hectares, num_vertices, edge_distances}]
+                formData:  {},
+                layerName: ''
+            };
+
             // ── Realtime subscription ──────────────────────────────────────────
             const channel = window.supabaseClient.channel('plugin-sync');
+
+            // v3: batch event
+            channel.on('broadcast', { event: 'new_polygon_batch' }, (payload) => {
+                const data = payload.payload;
+                if (!data || !Array.isArray(data.polygons) || data.polygons.length === 0) return;
+                console.log('[SurveySync] Received batch:', data.polygons.length, 'polygons');
+                _receiveBatch(data);
+            });
+
+            // legacy single-polygon event (backward compat)
             channel.on('broadcast', { event: 'new_polygon' }, (payload) => {
                 const data = payload.payload;
                 if (!data || !data.geometry) return;
-                console.log('[SurveySync] Received polygon:', data.layerName);
-                _flashPolygon(data);
-            }).subscribe((status) => {
+                console.log('[SurveySync] Received legacy single polygon');
+                _receiveBatch({
+                    layerName: data.layerName,
+                    polygons: [{
+                        geometry: data.geometry,
+                        area_hectares: data.area_hectares,
+                        num_vertices: data.num_vertices,
+                        edge_distances: data.edge_distances
+                    }],
+                    formData: data.formData || {}
+                });
+            });
+
+            channel.subscribe((status) => {
                 console.log('[SurveySync] Realtime status:', status);
             });
 
-            // ── Flash polygon on map ───────────────────────────────────────────
-            function _flashPolygon(data) {
-                const format = new ol.format.GeoJSON();
-                const feature = format.readFeature(data.geometry, {
-                    dataProjection: 'EPSG:4326',
-                    featureProjection: window.map.getView().getProjection().getCode()
-                });
+            // ── Receive and accumulate a batch ─────────────────────────────────
+            function _receiveBatch(data) {
+                // Accumulate into global pending state
+                window._ssPending.layerName = data.layerName || window._ssPending.layerName;
+                window._ssPending.formData  = data.formData  || window._ssPending.formData;
+                window._ssPending.polygons  = window._ssPending.polygons.concat(data.polygons);
 
-                feature.setStyle(new ol.style.Style({
-                    stroke: new ol.style.Stroke({ color: '#e74c3c', width: 3, lineDash: [8, 4] }),
-                    fill:   new ol.style.Fill({ color: 'rgba(231, 76, 60, 0.25)' })
-                }));
+                // Render all pending polygons on map
+                _renderAllPending();
+
+                // Show / update the batch save panel
+                setTimeout(() => _showBatchPanel(), 900);
+            }
+
+            // ── Render all pending polygons on map ─────────────────────────────
+            function _renderAllPending() {
+                const format = new ol.format.GeoJSON();
 
                 if (!window._surveySyncLayer) {
                     window._surveySyncLayer = new ol.layer.Vector({
@@ -61980,158 +62014,217 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                     window.map.addLayer(window._surveySyncLayer);
                 }
                 window._surveySyncLayer.getSource().clear();
-                window._surveySyncLayer.getSource().addFeature(feature);
-                window.map.getView().fit(feature.getGeometry(), { padding: [60,60,60,60], duration: 800, maxZoom: 18 });
 
-                // Show inline save panel after zoom
-                setTimeout(() => _showSavePanel(data), 900);
+                const features = [];
+                window._ssPending.polygons.forEach((p, i) => {
+                    if (!p.geometry) return;
+                    try {
+                        const feat = format.readFeature(p.geometry, {
+                            dataProjection: 'EPSG:4326',
+                            featureProjection: window.map.getView().getProjection().getCode()
+                        });
+                        feat.setStyle(new ol.style.Style({
+                            stroke: new ol.style.Stroke({ color: '#e74c3c', width: 2.5, lineDash: [8,4] }),
+                            fill:   new ol.style.Fill({ color: 'rgba(231,76,60,0.18)' }),
+                            text:   new ol.style.Text({
+                                text: '#' + (i + 1),
+                                font: 'bold 13px Arial',
+                                fill: new ol.style.Fill({ color: '#fff' }),
+                                stroke: new ol.style.Stroke({ color: '#c0392b', width: 3 })
+                            })
+                        }));
+                        features.push(feat);
+                    } catch(e) { console.warn('[SurveySync] Geometry error:', e); }
+                });
+
+                if (features.length > 0) {
+                    window._surveySyncLayer.getSource().addFeatures(features);
+                    const ext = window._surveySyncLayer.getSource().getExtent();
+                    if (ext && ext[0] !== Infinity) {
+                        window.map.getView().fit(ext, { padding: [80,80,80,80], duration: 800, maxZoom: 18 });
+                    }
+                }
             }
 
-            // ── Save panel (inline, styled) ────────────────────────────────────
-            function _showSavePanel(data) {
-                _removeSavePanel();
+            // ── Batch save panel ───────────────────────────────────────────────
+            function _showBatchPanel() {
+                _removeBatchPanel();
+                const pend = window._ssPending;
+                const n    = pend.polygons.length;
+                if (n === 0) return;
+
+                const fd = pend.formData || {};
+
+                // Build parcel list rows
+                const parcelRows = pend.polygons.map((p, i) =>
+                    `<div style="display:flex;justify-content:space-between;padding:4px 8px;
+                        background:${i%2===0?'rgba(255,255,255,0.04)':'transparent'};border-radius:4px;">
+                        <span style="color:#e74c3c;font-weight:700;">#${i+1}</span>
+                        <span>${Number(p.area_hectares||0).toFixed(4)} ha</span>
+                        <span style="color:#aaa;">${p.num_vertices||'?'} vertices</span>
+                    </div>`
+                ).join('');
+
                 const panel = document.createElement('div');
-                panel.id    = 'surveySyncSavePanel';
+                panel.id = 'surveySyncBatchPanel';
                 panel.style.cssText = [
-                    'position:fixed','bottom:24px','left:50%','transform:translateX(-50%)',
-                    'background:#1a1a2e','color:#eee','border:2px solid #e74c3c',
-                    'border-radius:12px','padding:18px 24px','z-index:99999',
-                    'box-shadow:0 8px 32px rgba(0,0,0,0.6)','min-width:360px',
+                    'position:fixed','bottom:20px','right:24px',
+                    'background:#12122a','color:#eee',
+                    'border:2px solid #e74c3c','border-radius:14px',
+                    'padding:20px 22px','z-index:99999',
+                    'box-shadow:0 12px 40px rgba(0,0,0,0.7)',
+                    'width:420px','max-height:85vh','overflow-y:auto',
                     'font-family:Inter,sans-serif','font-size:13px'
                 ].join(';');
 
                 panel.innerHTML = `
-                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-                        <span style="font-size:22px;">📡</span>
+                    <!-- Header -->
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;
+                                border-bottom:1px solid #2a2a4a;padding-bottom:12px;">
+                        <span style="font-size:26px;">📡</span>
                         <div>
-                            <div style="font-weight:700;font-size:15px;color:#e74c3c;">New Polygon from SurveySync</div>
-                            <div style="color:#aaa;margin-top:2px;">Layer: <b style="color:#fff">${data.layerName}</b>
-                             &nbsp;·&nbsp; Area: <b style="color:#fff">${Number(data.area_hectares).toFixed(4)} ha</b>
-                             &nbsp;·&nbsp; Vertices: <b style="color:#fff">${data.num_vertices}</b></div>
+                            <div style="font-weight:800;font-size:16px;color:#e74c3c;">
+                                ${n} Parcel${n>1?'s':''} from SurveySync
+                            </div>
+                            <div style="color:#aaa;font-size:12px;margin-top:2px;">
+                                Layer: <b style="color:#fff">${pend.layerName}</b>
+                            </div>
                         </div>
                     </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-                        <div>
-                            <label style="display:block;font-size:11px;color:#aaa;margin-bottom:3px;">Client Name *</label>
-                            <input id="ssClientInput" type="text" placeholder="e.g. Uganda Land Commission"
-                                style="width:100%;background:#0d0d1e;border:1px solid #555;color:#fff;
-                                padding:6px 8px;border-radius:5px;font-size:12px;box-sizing:border-box;">
+
+                    <!-- Project details (read-only) -->
+                    <div style="background:rgba(255,255,255,0.04);border-radius:8px;
+                                padding:10px 12px;margin-bottom:12px;font-size:12px;">
+                        <div style="font-size:10px;font-weight:700;letter-spacing:1px;
+                                    color:#888;text-transform:uppercase;margin-bottom:8px;">
+                            📋 Project Details (from field)
                         </div>
-                        <div>
-                            <label style="display:block;font-size:11px;color:#aaa;margin-bottom:3px;">Surveyor</label>
-                            <input id="ssSurveyorInput" type="text" placeholder="Optional"
-                                style="width:100%;background:#0d0d1e;border:1px solid #555;color:#fff;
-                                padding:6px 8px;border-radius:5px;font-size:12px;box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label style="display:block;font-size:11px;color:#aaa;margin-bottom:3px;">District</label>
-                            <input id="ssDistrictInput" type="text" placeholder="Optional"
-                                style="width:100%;background:#0d0d1e;border:1px solid #555;color:#fff;
-                                padding:6px 8px;border-radius:5px;font-size:12px;box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label style="display:block;font-size:11px;color:#aaa;margin-bottom:3px;">Plot Number</label>
-                            <input id="ssPlotInput" type="text" placeholder="Optional"
-                                style="width:100%;background:#0d0d1e;border:1px solid #555;color:#fff;
-                                padding:6px 8px;border-radius:5px;font-size:12px;box-sizing:border-box;">
-                        </div>
+                        ${_attrRow('Client',       fd.client)}
+                        ${_attrRow('Project',      fd.projectName)}
+                        ${_attrRow('CRS',          fd.coordinateSystem)}
+                        ${_attrRow('District',     fd.district)}
+                        ${fd.county      ? _attrRow('County',    fd.county)     : ''}
+                        ${fd.blockNumber ? _attrRow('Block No.', fd.blockNumber) : ''}
+                        ${_attrRow('Surveyor',     fd.surveyor)}
+                        ${_attrRow('Supervisor',   fd.supervisor)}
+                        ${fd.company     ? _attrRow('Company',   fd.company)    : ''}
                     </div>
-                    <div style="display:flex;gap:10px;margin-top:4px;">
-                        <button id="ssBtnSave" style="flex:1;padding:9px;background:#e74c3c;color:#fff;
-                            border:none;border-radius:7px;font-weight:700;cursor:pointer;font-size:13px;">
-                            💾 Save to Database
+
+                    <!-- Parcel list -->
+                    <div style="margin-bottom:12px;">
+                        <div style="font-size:10px;font-weight:700;letter-spacing:1px;
+                                    color:#888;text-transform:uppercase;margin-bottom:6px;">
+                            🗺 Queued Parcels
+                        </div>
+                        ${parcelRows}
+                    </div>
+
+                    <!-- Actions -->
+                    <div style="display:flex;gap:10px;">
+                        <button id="ssBtnSaveAll"
+                            style="flex:1;padding:10px;background:#e74c3c;color:#fff;
+                                   border:none;border-radius:8px;font-weight:800;
+                                   cursor:pointer;font-size:14px;">
+                            💾 Save All ${n} Parcel${n>1?'s':''}
                         </button>
-                        <button id="ssBtnDiscard" style="flex:1;padding:9px;background:#2c2c4a;color:#aaa;
-                            border:1px solid #444;border-radius:7px;cursor:pointer;font-size:13px;">
+                        <button id="ssBtnDiscardAll"
+                            style="padding:10px 16px;background:#1e1e3a;color:#aaa;
+                                   border:1px solid #444;border-radius:8px;
+                                   cursor:pointer;font-size:13px;">
                             ✕ Discard
                         </button>
                     </div>
-                    <div id="ssSaveStatus" style="margin-top:10px;font-size:12px;color:#aaa;min-height:18px;"></div>
+                    <div id="ssBatchStatus"
+                         style="margin-top:10px;font-size:12px;color:#aaa;min-height:16px;"></div>
                 `;
+
                 document.body.appendChild(panel);
 
-                document.getElementById('ssBtnSave').onclick    = () => _savePolygon(data);
-                document.getElementById('ssBtnDiscard').onclick = () => {
-                    _removeSavePanel();
-                    if (window._surveySyncLayer) window._surveySyncLayer.getSource().clear();
-                };
+                document.getElementById('ssBtnSaveAll').onclick   = _saveAll;
+                document.getElementById('ssBtnDiscardAll').onclick = _discardAll;
             }
 
-            function _removeSavePanel() {
-                const el = document.getElementById('surveySyncSavePanel');
+            function _attrRow(label, value) {
+                if (!value) return '';
+                return `<div style="display:flex;gap:6px;margin-bottom:4px;">
+                    <span style="color:#888;min-width:90px;">${label}:</span>
+                    <span style="color:#f0f0f0;font-weight:600;">${value}</span>
+                </div>`;
+            }
+
+            function _removeBatchPanel() {
+                const el = document.getElementById('surveySyncBatchPanel');
                 if (el) el.remove();
             }
 
-            function _setSaveStatus(msg, color) {
-                const el = document.getElementById('ssSaveStatus');
+            function _setBatchStatus(msg, color) {
+                const el = document.getElementById('ssBatchStatus');
                 if (el) { el.textContent = msg; el.style.color = color || '#aaa'; }
             }
 
-            // ── Save polygon via survey-sync save_polygon ──────────────────────
-            async function _savePolygon(data) {
-                // Collect form values
-                const clientVal   = (document.getElementById('ssClientInput')?.value   || '').trim();
-                const surveyorVal = (document.getElementById('ssSurveyorInput')?.value || '').trim();
-                const districtVal = (document.getElementById('ssDistrictInput')?.value || '').trim();
-                const plotVal     = (document.getElementById('ssPlotInput')?.value     || '').trim();
+            function _discardAll() {
+                window._ssPending = { polygons: [], formData: {}, layerName: '' };
+                if (window._surveySyncLayer) window._surveySyncLayer.getSource().clear();
+                _removeBatchPanel();
+            }
 
-                if (!clientVal) {
-                    _setSaveStatus('⚠ Client Name is required before saving.', '#e74c3c');
-                    document.getElementById('ssClientInput')?.focus();
-                    return;
-                }
-
-                _setSaveStatus('Checking login…', '#f39c12');
+            // ── Save All via save_batch ────────────────────────────────────────
+            async function _saveAll() {
+                _setBatchStatus('Checking login…', '#f39c12');
                 const sessionData = await window.supabaseClient.auth.getSession();
-                const token = sessionData.data.session?.access_token;
+                const token = sessionData?.data?.session?.access_token;
 
                 if (!token) {
-                    _setSaveStatus('⚠ You must be logged in to save. Log in and try again.', '#e74c3c');
+                    _setBatchStatus('⚠ You must be logged in to save. Please log in first.', '#e74c3c');
                     return;
                 }
 
-                _setSaveStatus('Saving…', '#f39c12');
-                document.getElementById('ssBtnSave').disabled = true;
+                const pend = window._ssPending;
+                if (pend.polygons.length === 0) {
+                    _setBatchStatus('No polygons to save.', '#e74c3c');
+                    return;
+                }
+
+                _setBatchStatus(`Saving ${pend.polygons.length} parcel(s)…`, '#f39c12');
+                document.getElementById('ssBtnSaveAll').disabled = true;
 
                 try {
-                    const res    = await fetch(SURVEY_SYNC_URL, {
-                        method:  'POST',
+                    const res = await fetch(SURVEY_SYNC_URL, {
+                        method: 'POST',
                         headers: {
                             'Content-Type':  'application/json',
                             'Authorization': `Bearer ${token}`
                         },
                         body: JSON.stringify({
-                            action:         'save_polygon',
-                            layerName:      data.layerName,
-                            geometry:       data.geometry,
-                            area_hectares:  data.area_hectares,
-                            num_vertices:   data.num_vertices,
-                            edge_distances: data.edge_distances,
-                            formData: {
-                                client:     clientVal,
-                                surveyor:   surveyorVal  || null,
-                                district:   districtVal  || null,
-                                plotNumber: plotVal      || null
-                            }
+                            action:    'save_batch',
+                            layerName: pend.layerName,
+                            polygons:  pend.polygons,
+                            formData:  pend.formData
                         })
                     });
                     const result = await res.json();
 
                     if (result.success && result.saved) {
-                        _setSaveStatus(`✅ Saved as ${result.row?.unique_id || 'new polygon'}!`, '#27ae60');
+                        const ids = (result.rows || []).map(r => r.unique_id).join(', ');
+                        _setBatchStatus(
+                            `✅ Saved ${result.count} parcel(s): ${ids}`,
+                            '#27ae60'
+                        );
                         if (window._surveySyncLayer) window._surveySyncLayer.getSource().clear();
-                        setTimeout(_removeSavePanel, 3000);
+                        window._ssPending = { polygons: [], formData: {}, layerName: '' };
+                        setTimeout(_removeBatchPanel, 4000);
                     } else {
-                        _setSaveStatus(`❌ ${result.error || 'Save failed'}`, '#e74c3c');
-                        document.getElementById('ssBtnSave').disabled = false;
+                        _setBatchStatus(`❌ ${result.error || 'Save failed'}`, '#e74c3c');
+                        document.getElementById('ssBtnSaveAll').disabled = false;
                     }
                 } catch (err) {
-                    _setSaveStatus(`❌ Network error: ${err.message}`, '#e74c3c');
-                    document.getElementById('ssBtnSave').disabled = false;
+                    _setBatchStatus(`❌ Network error: ${err.message}`, '#e74c3c');
+                    document.getElementById('ssBtnSaveAll').disabled = false;
                 }
             }
+
         })();
     </script>
 </body>
 
-</html>
+</html>

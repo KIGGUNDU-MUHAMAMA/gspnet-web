@@ -1,18 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /**
- * survey-sync  –  Geospatial Network Uganda
- * ==========================================
- * A standalone Edge Function that handles polygon broadcasting
- * from desktop plugins (AutoCAD GSPWEBSYNC, QGIS gsp_surveysync)
- * to the live webmap via Supabase Realtime.
- *
- * This function is SEPARATE from polygon-creator and does NOT
- * touch the polygon_features table or any existing workflows.
- *
+ * survey-sync  –  Geospatial Network Uganda  v2.0
+ * =================================================
  * Actions:
- *   broadcast_polygon  – validate geometry, fire Realtime event (no auth required)
- *   save_polygon       – commit a previously-broadcast polygon to the DB (auth required)
+ *   broadcast_batch  – validate array of polygons + formData, fire Realtime (no auth)
+ *   save_batch       – save all polygons to DB with shared formData (auth required)
+ *   broadcast_polygon – legacy single-polygon broadcast (backward compat)
+ *   save_polygon      – legacy single-polygon save (backward compat)
  */
 
 const corsHeaders = {
@@ -39,15 +34,12 @@ const LAYER_PREFIX: Record<string, string> = {
 
 type InputPoint = { x: number; y: number };
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
 function fail(status: number, message: string) {
   return new Response(
     JSON.stringify({ success: false, error: message }),
     { status, headers: { ...corsHeaders, "Content-Type": "application/json" } },
   );
 }
-
 function ok(payload: Record<string, unknown>) {
   return new Response(
     JSON.stringify({ success: true, ...payload }),
@@ -55,21 +47,19 @@ function ok(payload: Record<string, unknown>) {
   );
 }
 
-function toRadians(deg: number): number { return (deg * Math.PI) / 180; }
+function toRadians(deg: number) { return (deg * Math.PI) / 180; }
 
-function isValidLonLat(lon: number, lat: number): boolean {
+function isValidLonLat(lon: number, lat: number) {
   return Number.isFinite(lon) && Number.isFinite(lat) &&
     lon >= -180 && lon <= 180 && lat >= -90 && lat <= 90;
 }
 
 function areaHectares(ring: number[][]): number {
   const avgLat = ring.reduce((s, c) => s + c[1], 0) / ring.length;
-  const mLat = 111320;
-  const mLon = 111320 * Math.cos(toRadians(avgLat));
+  const mLat = 111320, mLon = 111320 * Math.cos(toRadians(avgLat));
   let area = 0;
   for (let i = 0; i < ring.length - 1; i++) {
-    const [x1, y1] = ring[i];
-    const [x2, y2] = ring[i + 1];
+    const [x1, y1] = ring[i], [x2, y2] = ring[i + 1];
     area += x1 * mLon * y2 * mLat - x2 * mLon * y1 * mLat;
   }
   return Math.abs(area) / 2 / 10000;
@@ -108,14 +98,10 @@ function vincentyM(lon1: number, lat1: number, lon2: number, lat2: number): numb
 }
 
 function buildRing(points: InputPoint[]): { ring: number[][]; errors: string[] } {
-  const errors: string[] = [];
-  const ring: number[][] = [];
+  const errors: string[] = [], ring: number[][] = [];
   for (const p of points) {
     const lon = Number(p.x), lat = Number(p.y);
-    if (!isValidLonLat(lon, lat)) {
-      errors.push(`Invalid WGS84 coordinate: (${p.x}, ${p.y})`);
-      continue;
-    }
+    if (!isValidLonLat(lon, lat)) { errors.push(`Invalid: (${p.x}, ${p.y})`); continue; }
     ring.push([lon, lat]);
   }
   if (ring.length >= 3) {
@@ -126,33 +112,33 @@ function buildRing(points: InputPoint[]): { ring: number[][]; errors: string[] }
 }
 
 function computeEdges(ring: number[][]): Array<{ meters: number; label: string }> {
-  const edges = [];
-  for (let i = 0; i < ring.length - 1; i++) {
+  return ring.slice(0, -1).map((_, i) => {
     const m = vincentyM(ring[i][0], ring[i][1], ring[i + 1][0], ring[i + 1][1]);
-    edges.push({ meters: m, label: `${m.toFixed(2)}m` });
-  }
-  return edges;
+    return { meters: m, label: `${m.toFixed(2)}m` };
+  });
 }
 
-// ── ID generation (mirrors polygon-creator logic) ─────────────────────────────
+function processPolygon(points: InputPoint[]): {
+  geometry: object; area_hectares: number; num_vertices: number;
+  edge_distances: Array<{ meters: number; label: string }>; errors: string[];
+} | null {
+  const { ring, errors } = buildRing(points);
+  if (errors.length > 0 || ring.length < 4) return null;
+  return {
+    geometry: { type: "Polygon", coordinates: [ring] },
+    area_hectares: areaHectares(ring),
+    num_vertices: ring.length - 1,
+    edge_distances: computeEdges(ring),
+    errors,
+  };
+}
 
-async function generateUniqueId(
-  admin: ReturnType<typeof createClient>,
-  layerName: string,
-): Promise<string> {
+async function generateUniqueId(admin: ReturnType<typeof createClient>, layerName: string): Promise<string> {
   const prefix = LAYER_PREFIX[layerName] ?? "SYNC";
-
-  // Try DB RPC first
   const { data, error } = await admin.rpc("generate_polygon_unique_id", { layer_name: layerName });
   if (!error && data) return String(data);
-
-  // Fallback: find max seq in polygon_features
-  const { data: rows } = await admin
-    .from("polygon_features")
-    .select("unique_id")
-    .eq("layer_name", layerName)
-    .ilike("unique_id", `${prefix}-%`);
-
+  const { data: rows } = await admin.from("polygon_features").select("unique_id")
+    .eq("layer_name", layerName).ilike("unique_id", `${prefix}-%`);
   let maxSeq = 0;
   const re = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}-(\\d+)$`);
   for (const row of rows || []) {
@@ -162,19 +148,40 @@ async function generateUniqueId(
   return `${prefix}-${String(maxSeq + 1).padStart(3, "0")}`;
 }
 
-// ── Auth ──────────────────────────────────────────────────────────────────────
-
-async function getAuthedUserId(
-  req: Request,
-  supabaseUrl: string,
-  serviceRole: string,
-): Promise<string | null> {
+async function getAuthedUserId(req: Request, supabaseUrl: string, serviceRole: string): Promise<string | null> {
   const auth = req.headers.get("Authorization") || "";
   const token = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
   if (!token) return null;
   const { data, error } = await createClient(supabaseUrl, serviceRole).auth.getUser(token);
   if (error || !data?.user?.id) return null;
   return data.user.id;
+}
+
+function buildDbRow(
+  unique_id: string, layerName: string,
+  geom: object, area: number, num_vertices: number,
+  edge_distances: unknown, formData: Record<string, unknown>, userId: string
+) {
+  return {
+    unique_id,
+    layer_name:        layerName,
+    geometry:          geom,
+    area_hectares:     area,
+    num_vertices,
+    edge_distances,
+    coordinate_system: String(formData.coordinateSystem ?? "EPSG:4326"),
+    client:            String(formData.client            ?? "Unknown"),
+    project_name:      String(formData.projectName       ?? ""),
+    district:          formData.district     ? String(formData.district)     : null,
+    county:            formData.county       ? String(formData.county)       : null,
+    block_number:      formData.blockNumber  ? String(formData.blockNumber)  : null,
+    plot_number:       formData.plotNumber   ? String(formData.plotNumber)   : null,
+    surveyor:          formData.surveyor     ? String(formData.surveyor)     : null,
+    supervisor:        formData.supervisor   ? String(formData.supervisor)   : null,
+    company:           formData.company      ? String(formData.company)      : null,
+    additional_info:   "Saved via plugin batch sync",
+    created_by:        userId,
+  };
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
@@ -194,39 +201,36 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceRole);
 
-    // ── broadcast_polygon ──────────────────────────────────────────────────
-    // NO authentication required – any plugin user can broadcast.
-    if (action === "broadcast_polygon") {
+    // ── broadcast_batch ────────────────────────────────────────────────────
+    if (action === "broadcast_batch") {
       const layerName = String(body?.layerName || "");
-      if (!ALLOWED_LAYERS.includes(layerName))
-        return fail(400, `Invalid layerName. Allowed: ${ALLOWED_LAYERS.join(", ")}`);
+      if (!ALLOWED_LAYERS.includes(layerName)) return fail(400, `Invalid layerName`);
 
-      const points: InputPoint[] = Array.isArray(body?.points) ? body.points : [];
-      if (points.length < 3) return fail(400, "At least 3 points required");
+      const rawPolygons: Array<{ points: InputPoint[] }> = Array.isArray(body?.polygons) ? body.polygons : [];
+      if (rawPolygons.length === 0) return fail(400, "No polygons provided");
 
-      const { ring, errors } = buildRing(points);
-      if (errors.length > 0) return fail(400, `Coordinate errors: ${errors.join("; ")}`);
-      if (ring.length < 4) return fail(400, "Not enough valid points");
+      const formData = body?.formData ?? {};
+      const processed: object[] = [];
 
-      const area         = areaHectares(ring);
-      const num_vertices = ring.length - 1;
-      const edge_distances = computeEdges(ring);
-      const geometry    = { type: "Polygon", coordinates: [ring] };
+      for (const p of rawPolygons) {
+        const pts: InputPoint[] = Array.isArray(p.points) ? p.points : [];
+        if (pts.length < 3) continue;
+        const result = processPolygon(pts);
+        if (result) processed.push(result);
+      }
+      if (processed.length === 0) return fail(400, "No valid polygons after validation");
 
-      // Broadcast via Supabase Realtime (no DB write)
       const realtimeClient = createClient(supabaseUrl, supabaseAnon ?? serviceRole);
       const channel = realtimeClient.channel("plugin-sync");
-
       await new Promise<void>((resolve) => {
         let resolved = false;
         const done = () => { if (!resolved) { resolved = true; resolve(); } };
-
         channel.subscribe(async (status) => {
           if (status === "SUBSCRIBED") {
             await channel.send({
               type: "broadcast",
-              event: "new_polygon",
-              payload: { layerName, geometry, area_hectares: area, num_vertices, edge_distances },
+              event: "new_polygon_batch",
+              payload: { layerName, polygons: processed, formData },
             });
             done();
           }
@@ -234,63 +238,104 @@ Deno.serve(async (req) => {
         setTimeout(done, 4000);
       });
       realtimeClient.removeChannel(channel);
-
-      return ok({ broadcasted: true, area_hectares: area, num_vertices });
+      return ok({ broadcasted: true, count: processed.length });
     }
 
-    // ── save_polygon ───────────────────────────────────────────────────────
-    // Auth IS required – only logged-in webmap users can save permanently.
-    if (action === "save_polygon") {
+    // ── save_batch ─────────────────────────────────────────────────────────
+    if (action === "save_batch") {
       const userId = await getAuthedUserId(req, supabaseUrl, serviceRole);
-      if (!userId) return fail(401, "Login required to save. Please log in on the webmap first.");
+      if (!userId) return fail(401, "Login required to save.");
 
       const layerName = String(body?.layerName || "");
-      if (!ALLOWED_LAYERS.includes(layerName))
-        return fail(400, `Invalid layerName. Allowed: ${ALLOWED_LAYERS.join(", ")}`);
+      if (!ALLOWED_LAYERS.includes(layerName)) return fail(400, `Invalid layerName`);
 
+      const polygons: Array<{
+        geometry: { coordinates: number[][][] };
+        area_hectares?: number;
+        num_vertices?: number;
+        edge_distances?: unknown;
+      }> = Array.isArray(body?.polygons) ? body.polygons : [];
+      if (polygons.length === 0) return fail(400, "No polygons");
+
+      const formData: Record<string, unknown> = body?.formData ?? {};
+      const saved: object[] = [];
+      const saveErrors: string[] = [];
+
+      for (const p of polygons) {
+        try {
+          if (!p.geometry?.coordinates?.[0]) { saveErrors.push("Missing geometry"); continue; }
+          const ring = p.geometry.coordinates[0];
+          const area = Number(p.area_hectares ?? areaHectares(ring));
+          const nv   = Number(p.num_vertices  ?? ring.length - 1);
+          const ed   = p.edge_distances        ?? computeEdges(ring);
+          const uid  = await generateUniqueId(admin, layerName);
+          const row  = buildDbRow(uid, layerName, p.geometry, area, nv, ed, formData, userId);
+
+          const { data, error } = await admin
+            .from("polygon_features").insert(row)
+            .select("id, unique_id, layer_name, area_hectares").single();
+
+          if (error) { saveErrors.push(`${uid}: ${error.message}`); continue; }
+          saved.push(data);
+        } catch (e) {
+          saveErrors.push(e instanceof Error ? e.message : "Unknown error");
+        }
+      }
+
+      if (saved.length === 0) return fail(500, `All saves failed: ${saveErrors.join("; ")}`);
+      return ok({ saved: true, count: saved.length, rows: saved, errors: saveErrors });
+    }
+
+    // ── legacy broadcast_polygon (backward compat) ─────────────────────────
+    if (action === "broadcast_polygon") {
+      const layerName = String(body?.layerName || "");
+      if (!ALLOWED_LAYERS.includes(layerName)) return fail(400, `Invalid layerName`);
+      const points: InputPoint[] = Array.isArray(body?.points) ? body.points : [];
+      if (points.length < 3) return fail(400, "At least 3 points required");
+      const result = processPolygon(points);
+      if (!result) return fail(400, "Invalid polygon geometry");
+      const realtimeClient = createClient(supabaseUrl, supabaseAnon ?? serviceRole);
+      const channel = realtimeClient.channel("plugin-sync");
+      await new Promise<void>((resolve) => {
+        let resolved = false;
+        const done = () => { if (!resolved) { resolved = true; resolve(); } };
+        channel.subscribe(async (status) => {
+          if (status === "SUBSCRIBED") {
+            await channel.send({
+              type: "broadcast", event: "new_polygon_batch",
+              payload: { layerName, polygons: [result], formData: {} },
+            });
+            done();
+          }
+        });
+        setTimeout(done, 4000);
+      });
+      realtimeClient.removeChannel(channel);
+      return ok({ broadcasted: true, area_hectares: result.area_hectares, num_vertices: result.num_vertices });
+    }
+
+    // ── legacy save_polygon ────────────────────────────────────────────────
+    if (action === "save_polygon") {
+      const userId = await getAuthedUserId(req, supabaseUrl, serviceRole);
+      if (!userId) return fail(401, "Login required to save.");
+      const layerName = String(body?.layerName || "");
+      if (!ALLOWED_LAYERS.includes(layerName)) return fail(400, `Invalid layerName`);
       const geometry = body?.geometry;
       if (!geometry?.coordinates?.[0]) return fail(400, "Missing geometry");
-
-      const ring          = geometry.coordinates[0] as number[][];
-      const area          = Number(body?.area_hectares ?? areaHectares(ring));
-      const num_vertices  = Number(body?.num_vertices ?? ring.length - 1);
-      const edge_distances = body?.edge_distances ?? computeEdges(ring);
-      const formData      = body?.formData ?? {};
-      const unique_id     = await generateUniqueId(admin, layerName);
-
-      const row = {
-        unique_id,
-        layer_name:        layerName,
-        geometry,
-        area_hectares:     area,
-        num_vertices,
-        edge_distances,
-        coordinate_system: "EPSG:4326",
-        client:            formData.client         ?? null,
-        project_name:      formData.projectName    ?? null,
-        district:          formData.district       ?? null,
-        county:            formData.county         ?? null,
-        block_number:      formData.blockNumber    ?? null,
-        plot_number:       formData.plotNumber     ?? null,
-        surveyor:          formData.surveyor       ?? null,
-        supervisor:        formData.supervisor     ?? null,
-        company:           formData.company        ?? null,
-        additional_info:   "Saved via plugin sync",
-        created_by:        userId,
-      };
-
-      const { data, error } = await admin
-        .from("polygon_features")
-        .insert(row)
-        .select("id, unique_id, layer_name, area_hectares")
-        .single();
-
+      const ring = geometry.coordinates[0] as number[][];
+      const area = Number(body?.area_hectares ?? areaHectares(ring));
+      const nv   = Number(body?.num_vertices  ?? ring.length - 1);
+      const ed   = body?.edge_distances        ?? computeEdges(ring);
+      const fd: Record<string, unknown> = body?.formData ?? {};
+      const uid  = await generateUniqueId(admin, layerName);
+      const row  = buildDbRow(uid, layerName, geometry, area, nv, ed, fd, userId);
+      const { data, error } = await admin.from("polygon_features").insert(row)
+        .select("id, unique_id, layer_name, area_hectares").single();
       if (error) return fail(500, `Save failed: ${error.message}`);
       return ok({ saved: true, row: data });
     }
 
-    return fail(400, `Unknown action: ${action}. Use broadcast_polygon or save_polygon.`);
-
+    return fail(400, `Unknown action: ${action}`);
   } catch (err) {
     return fail(500, err instanceof Error ? err.message : "Unexpected error");
   }
