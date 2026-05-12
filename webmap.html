@@ -62010,6 +62010,32 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                              &nbsp;·&nbsp; Vertices: <b style="color:#fff">${data.num_vertices}</b></div>
                         </div>
                     </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                        <div>
+                            <label style="display:block;font-size:11px;color:#aaa;margin-bottom:3px;">Client Name *</label>
+                            <input id="ssClientInput" type="text" placeholder="e.g. Uganda Land Commission"
+                                style="width:100%;background:#0d0d1e;border:1px solid #555;color:#fff;
+                                padding:6px 8px;border-radius:5px;font-size:12px;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;color:#aaa;margin-bottom:3px;">Surveyor</label>
+                            <input id="ssSurveyorInput" type="text" placeholder="Optional"
+                                style="width:100%;background:#0d0d1e;border:1px solid #555;color:#fff;
+                                padding:6px 8px;border-radius:5px;font-size:12px;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;color:#aaa;margin-bottom:3px;">District</label>
+                            <input id="ssDistrictInput" type="text" placeholder="Optional"
+                                style="width:100%;background:#0d0d1e;border:1px solid #555;color:#fff;
+                                padding:6px 8px;border-radius:5px;font-size:12px;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11px;color:#aaa;margin-bottom:3px;">Plot Number</label>
+                            <input id="ssPlotInput" type="text" placeholder="Optional"
+                                style="width:100%;background:#0d0d1e;border:1px solid #555;color:#fff;
+                                padding:6px 8px;border-radius:5px;font-size:12px;box-sizing:border-box;">
+                        </div>
+                    </div>
                     <div style="display:flex;gap:10px;margin-top:4px;">
                         <button id="ssBtnSave" style="flex:1;padding:9px;background:#e74c3c;color:#fff;
                             border:none;border-radius:7px;font-weight:700;cursor:pointer;font-size:13px;">
@@ -62043,6 +62069,18 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
 
             // ── Save polygon via survey-sync save_polygon ──────────────────────
             async function _savePolygon(data) {
+                // Collect form values
+                const clientVal   = (document.getElementById('ssClientInput')?.value   || '').trim();
+                const surveyorVal = (document.getElementById('ssSurveyorInput')?.value || '').trim();
+                const districtVal = (document.getElementById('ssDistrictInput')?.value || '').trim();
+                const plotVal     = (document.getElementById('ssPlotInput')?.value     || '').trim();
+
+                if (!clientVal) {
+                    _setSaveStatus('⚠ Client Name is required before saving.', '#e74c3c');
+                    document.getElementById('ssClientInput')?.focus();
+                    return;
+                }
+
                 _setSaveStatus('Checking login…', '#f39c12');
                 const sessionData = await window.supabaseClient.auth.getSession();
                 const token = sessionData.data.session?.access_token;
@@ -62063,12 +62101,18 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                             'Authorization': `Bearer ${token}`
                         },
                         body: JSON.stringify({
-                            action:        'save_polygon',
-                            layerName:     data.layerName,
-                            geometry:      data.geometry,
-                            area_hectares: data.area_hectares,
-                            num_vertices:  data.num_vertices,
-                            edge_distances: data.edge_distances
+                            action:         'save_polygon',
+                            layerName:      data.layerName,
+                            geometry:       data.geometry,
+                            area_hectares:  data.area_hectares,
+                            num_vertices:   data.num_vertices,
+                            edge_distances: data.edge_distances,
+                            formData: {
+                                client:     clientVal,
+                                surveyor:   surveyorVal  || null,
+                                district:   districtVal  || null,
+                                plotNumber: plotVal      || null
+                            }
                         })
                     });
                     const result = await res.json();
