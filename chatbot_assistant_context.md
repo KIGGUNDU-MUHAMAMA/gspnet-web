@@ -97,3 +97,132 @@ GSP.NET does not use standard, inaccurate web-mapping formulas (like Haversine).
   - **IDW (Inverse Distance Weighting):** Uses Power=2 (Smooth) or Power=4 (Sharp) to estimate unknown grid points based on the weighted distance of known points.
 - **Volume Calculations (Earthworks):** To compute Cut/Fill volumes or Stockpiles, the system integrates the volume delta between the generated DTM surface mesh and a user-defined reference plane or a secondary comparison DTM surface.
 - **Property Valuation Algorithm:** Uses **Distance-Weighted Averaging**. The system queries historical sales comparables within a defined radius, applying a mathematical weight based on the proximity to the subject property to auto-calculate the estimated value.
+
+---
+
+## 7. GSP SurveySync Plugins
+
+GSP SurveySync is a real-time data bridge between professional desktop surveying software (QGIS and AutoCAD/Civil 3D) and the GSPNET cloud webmap. It eliminates manual file transfer — polygons drawn in the field are broadcast live to the webmap for immediate review and database saving.
+
+**How to access downloads:** Click the **PLUGINS** button in the navigation bar on the login page (`index.html`). A professional modal opens with two tabs — one for each plugin.
+
+---
+
+### 7.1 QGIS Plugin (v3.0)
+
+**What it does:**
+- Loads existing NLIS/survey parcels from the GSPNET database into QGIS as a read-only reference layer.
+- Lets surveyors draw new parcels inside QGIS, queue them locally, then broadcast the entire batch to the live GSPNET webmap in one click.
+- Attaches full project metadata (client, district, surveyor, supervisor, CRS, etc.) to every polygon.
+
+**Installation:**
+1. Download `gsp_surveysync_qgis_plugin.zip` from the PLUGINS modal → QGIS Plugin tab.
+2. Open QGIS → **Plugins → Manage and Install Plugins → Install from ZIP**.
+3. Browse to the downloaded ZIP and click **Install Plugin**.
+4. The plugin panel appears in the QGIS toolbar as **GSP SurveySync**.
+
+**Step 1 – Load a Survey Layer:**
+1. Open the GSP SurveySync panel in QGIS.
+2. Select a layer from the dropdown (e.g. *Kampala NLIS*).
+3. Click **⬇ Load Layer into QGIS** — existing parcels load as read-only; they will NOT be re-sent.
+
+**Step 2 – Fill Project Details** *(required before editing)*
+Complete all required fields: Client Name, Project Name, Coordinate System, District, Surveyor's Name, Supervisor's Name. Optional: County, Block Number, Plot Number, Company.
+
+**Step 3 – Draw Parcels & Send:**
+1. Click **✏ Start Editing**.
+2. Use QGIS toolbar → **Add Polygon Feature** (or `Ctrl+.`) to draw each parcel. Right-click to finish each polygon.
+3. Polygons queue locally — nothing is sent until you choose to.
+4. The Send button shows the count: *📡 Send All (3) to Webmap*.
+5. Click **📡 Send All (N) to Webmap** — all parcels broadcast instantly to the live GSPNET webmap.
+
+**Webmap side (what the reviewer does):**
+- All sent parcels appear highlighted on the map, labelled #1, #2, #3…
+- A batch save panel shows the project details from the field.
+- Reviewer clicks **💾 Save All N Parcels** to commit everything to the database, or **✕ Discard** to reject.
+
+**Requirements:** QGIS 3.16+, Windows/macOS/Linux, internet connection, GSPNET account.
+
+---
+
+### 7.2 AutoCAD / Civil 3D Plugin (v2.0)
+
+**What it does:** Adds 3 professional commands to AutoCAD and Civil 3D for exporting parcel coordinates and inserting formatted coordinate tables directly in the drawing.
+
+**Installation:**
+1. Download and unzip the AutoCAD plugin from the PLUGINS modal → AutoCAD Plugin tab.
+2. Copy the `GSPSurveySync.bundle` folder to: `%APPDATA%\Autodesk\ApplicationPlugins\GSPSurveySync.bundle`
+3. Restart AutoCAD. All three commands are immediately available.
+
+**Requirements:** AutoCAD 2018+ or Civil 3D 2018+, Windows 64-bit, .NET Framework 4.x.
+
+---
+
+**Command: GSPEXPORT**
+Select closed polylines → label parcel centroids → export a CSV of all coordinates.
+
+Steps:
+1. Type `GSPEXPORT` and press `Enter`.
+2. Select one or more closed polylines (open polylines are skipped automatically). Press `Enter`.
+3. A Save dialog opens — choose a filename and location. Click **Save**.
+4. The CSV is written instantly and parcel labels (P001, P002…) are placed at each centroid on layer `GSP-PARCEL-LABELS` (green).
+
+CSV output format:
+```
+parcel_id,point_number,eastings,northings,description
+P001,1,756123.0000,37890.0000,CM1
+P001,2,756180.0000,37890.0000,CM2
+P001,3,756180.0000,37850.0000,CM3
+P001,4,756123.0000,37850.0000,CM4
+P001,5,756123.0000,37890.0000,CM1   ← first point repeated to close the parcel
+P002,1,756400.0000,38000.0000,CM5
+...
+```
+- `point_number` resets to 1 for each new parcel.
+- `description` (CM1, CM2…) is a global counter across all parcels.
+- Each parcel automatically closes by repeating its first coordinate at the end.
+
+---
+
+**Command: GSPTABLE**
+Insert a formatted coordinate table for one selected parcel.
+
+Steps:
+1. Type `GSPTABLE` and press `Enter`.
+2. Select one closed polyline. Press `Enter`.
+3. Click the insertion point (top-left corner of the table).
+4. A formatted table with columns **Mark | Easting | Northing | Elevation** is drawn on layer `GSP-TABLES`.
+
+---
+
+**Command: GSPTABLES**
+Batch-insert coordinate tables for multiple parcels in one operation.
+
+Steps:
+1. Type `GSPTABLES` and press `Enter`.
+2. Select all closed polylines. Press `Enter`.
+3. Click the top-left origin point.
+4. Tables are stacked downward automatically with a 2-unit gap between each.
+
+---
+
+### 7.3 Typical End-to-End Workflow
+
+**QGIS → Webmap:**
+Field surveyor loads reference layer → fills project details → draws parcels → clicks Send All → webmap reviewer sees live polygons → saves all to database.
+
+**AutoCAD → CSV:**
+Open drawing → type GSPEXPORT → select closed parcels → save CSV → CSV has all coordinates in standard format, ready for import into any GIS or survey system.
+
+---
+
+### 7.4 Troubleshooting
+
+| Problem | Solution |
+|---------|---------|
+| QGIS plugin not visible after install | Restart QGIS; check *Plugins → Manage* that GSP SurveySync is enabled |
+| "Must be logged in to save" on webmap | Log in to GSPNET on the webmap first, then re-send from QGIS |
+| AutoCAD command not recognised | Verify the `.bundle` folder is in the correct `ApplicationPlugins` path and AutoCAD was restarted |
+| Open polylines skipped by GSPEXPORT | Close them first using `PEDIT → Close` or redraw as closed polygons |
+| Webmap save panel not appearing | Check internet connection; Supabase Realtime must be connected |
+| Send button disabled in QGIS | Complete Step 2 (project details) first, then click Start Editing |
