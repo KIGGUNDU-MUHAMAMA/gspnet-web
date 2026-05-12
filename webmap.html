@@ -17915,6 +17915,17 @@
         <script
             src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
 
+    <!-- ══ Place Search Floating Popup (fixed, outside all panels) ══ -->
+    <div id="placeSearchPopup" role="dialog" aria-modal="true" aria-label="Place search results">
+        <div class="psp-header">
+            <span class="psp-title"><i class="fas fa-map-marker-alt"></i> Search Results</span>
+            <button class="psp-close" id="pspCloseBtn" aria-label="Close" title="Close">&#x2715;</button>
+        </div>
+        <div id="pspError" class="psp-error" role="alert"></div>
+        <ul id="placeResultsList" role="listbox" aria-label="Place results"></ul>
+        <div class="psp-attrib">Results from <a href="https://nominatim.openstreetmap.org" target="_blank" rel="noopener">Nominatim / OpenStreetMap</a></div>
+    </div>
+
         <script>
 
             // Toast notification function
@@ -62451,16 +62462,7 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
 
         })();
     </script>
-    <!-- ══ Place Search Floating Popup (fixed, outside all panels) ══ -->
-    <div id="placeSearchPopup" role="dialog" aria-modal="true" aria-label="Place search results">
-        <div class="psp-header">
-            <span class="psp-title"><i class="fas fa-map-marker-alt"></i> Search Results</span>
-            <button class="psp-close" id="pspCloseBtn" aria-label="Close" title="Close">&#x2715;</button>
-        </div>
-        <div id="pspError" class="psp-error" role="alert"></div>
-        <ul id="placeResultsList" role="listbox" aria-label="Place results"></ul>
-        <div class="psp-attrib">Results from <a href="https://nominatim.openstreetmap.org" target="_blank" rel="noopener">Nominatim / OpenStreetMap</a></div>
-    </div>
+
 </body>
 
 </html>
