@@ -1808,12 +1808,9 @@
     <!-- Navigation Bar -->
     <nav class="top-nav">
         <div class="nav-container">
-            <a class="nav-btn"
-                href="https://kwssgfanbntfjdclchfi.supabase.co/storage/v1/object/public/uploads/plugins/GSPSurveySync_Distributable.zip"
-                download="GSPSurveySync_Distributable.zip"
-                aria-label="Download GSPSurveySync plugins package (ZIP)">
+            <button class="nav-btn" id="pluginsNavBtn" onclick="document.getElementById('pluginModal').classList.add('active')" aria-label="View and download GSP plugins">
                 <i class="fas fa-puzzle-piece" aria-hidden="true"></i> PLUGINS
-            </a>
+            </button>
 
             <a class="nav-btn" href="about.html" aria-label="About GSPNET">
                 <i class="fas fa-info-circle" aria-hidden="true"></i> ABOUT GSPNET
@@ -2075,7 +2072,163 @@
         </div>
     </div>
 
+    <!-- ═══════════════════════════════════════════════════════════
+         GSP PLUGINS MODAL
+    ═══════════════════════════════════════════════════════════════ -->
+    <div id="pluginModal" class="pm-overlay" role="dialog" aria-modal="true" aria-labelledby="pmTitle">
+      <div class="pm-backdrop" onclick="document.getElementById('pluginModal').classList.remove('active')"></div>
+      <div class="pm-dialog">
+        <!-- Header -->
+        <div class="pm-header">
+          <div class="pm-hicon"><i class="fas fa-puzzle-piece"></i></div>
+          <div style="flex:1;min-width:0">
+            <h2 id="pmTitle" class="pm-title">GSP SurveySync Plugins</h2>
+            <p class="pm-subtitle">Bridge desktop surveying tools to the GSPNET cloud webmap</p>
+          </div>
+          <button class="pm-close" onclick="document.getElementById('pluginModal').classList.remove('active')" aria-label="Close">&times;</button>
+        </div>
+        <!-- Tabs -->
+        <div class="pm-tabs">
+          <button class="pm-tab pm-tab-active" id="pmTabQgis" onclick="pmSwitch('Qgis','Acad')">
+            <i class="fas fa-layer-group"></i> QGIS Plugin
+          </button>
+          <button class="pm-tab" id="pmTabAcad" onclick="pmSwitch('Acad','Qgis')">
+            <i class="fas fa-drafting-compass"></i> AutoCAD Plugin
+          </button>
+        </div>
+
+        <!-- QGIS Panel -->
+        <div class="pm-panel pm-panel-active" id="pmPanelQgis">
+          <span class="pm-badge pm-badge-green"><i class="fas fa-layer-group"></i> QGIS 3.x &nbsp;·&nbsp; v3.0</span>
+          <p class="pm-desc">Draw parcels inside QGIS and broadcast them in real-time to the GSPNET webmap for instant review and database saving — no manual file transfers needed.</p>
+          <h3 class="pm-stitle"><i class="fas fa-list-ol"></i>&nbsp; Step-by-Step Guide</h3>
+          <ol class="pm-steps">
+            <li><span class="pm-sn">1</span><div><strong>Install the plugin</strong><p>In QGIS, go to <em>Plugins → Manage and Install Plugins → Install from ZIP</em>. Select the downloaded file and click <em>Install Plugin</em>.</p></div></li>
+            <li><span class="pm-sn">2</span><div><strong>Open the panel</strong><p>Click the <em>GSP SurveySync</em> button in the QGIS toolbar or go to <em>Plugins → GSP SurveySync</em>.</p></div></li>
+            <li><span class="pm-sn">3</span><div><strong>Load a survey layer</strong><p>Select a layer from the dropdown (e.g. <em>Kampala NLIS</em>) and click <strong>⬇ Load Layer into QGIS</strong>. Existing parcels load as a read-only reference.</p></div></li>
+            <li><span class="pm-sn">4</span><div><strong>Fill project details</strong><p>Complete required fields: <em>Client Name, Project Name, Coordinate System, District, Surveyor</em> and <em>Supervisor</em>. These are attached to every polygon sent.</p></div></li>
+            <li><span class="pm-sn">5</span><div><strong>Draw parcels</strong><p>Click <strong>✏ Start Editing</strong>, then use <em>Add Polygon Feature</em> (<kbd>Ctrl+.</kbd>). Draw each parcel and right-click to finish. Polygons queue locally.</p></div></li>
+            <li><span class="pm-sn">6</span><div><strong>Send to webmap</strong><p>Click <strong>📡 Send All (N) to Webmap</strong>. All queued parcels broadcast to the live GSPNET webmap instantly.</p></div></li>
+            <li><span class="pm-sn">7</span><div><strong>Webmap review &amp; save</strong><p>The webmap operator sees all parcels highlighted with your project details and clicks <strong>💾 Save All Parcels</strong> to commit to the database.</p></div></li>
+          </ol>
+          <div class="pm-req"><i class="fas fa-info-circle"></i><span><strong>Requirements:</strong> QGIS 3.16+ &nbsp;·&nbsp; Windows / macOS / Linux &nbsp;·&nbsp; Internet connection &nbsp;·&nbsp; GSPNET account</span></div>
+          <a class="pm-dl pm-dl-green" href="https://kwssgfanbntfjdclchfi.supabase.co/storage/v1/object/public/uploads/plugins/gsp_surveysync_qgis_plugin.zip" download="gsp_surveysync_qgis_plugin.zip">
+            <i class="fas fa-download"></i>&nbsp; Download QGIS Plugin (ZIP)
+          </a>
+        </div>
+
+        <!-- AutoCAD Panel -->
+        <div class="pm-panel" id="pmPanelAcad">
+          <span class="pm-badge pm-badge-red"><i class="fas fa-drafting-compass"></i> AutoCAD / Civil 3D &nbsp;·&nbsp; v2.0</span>
+          <p class="pm-desc">Adds three professional commands to AutoCAD and Civil 3D: export parcel coordinates to a standard CSV file and insert formatted coordinate tables directly in your drawing.</p>
+
+          <h3 class="pm-stitle"><i class="fas fa-list-ol"></i>&nbsp; Installation</h3>
+          <ol class="pm-steps pm-steps-sm">
+            <li><span class="pm-sn">1</span><div><strong>Extract the ZIP</strong><p>Unzip the downloaded file to get the <code>GSPSurveySync.bundle</code> folder.</p></div></li>
+            <li><span class="pm-sn">2</span><div><strong>Copy to AutoCAD plugins folder</strong><p>Move the folder to: <code>%APPDATA%\Autodesk\ApplicationPlugins\GSPSurveySync.bundle</code></p></div></li>
+            <li><span class="pm-sn">3</span><div><strong>Restart AutoCAD</strong><p>The three commands below are now available in any drawing.</p></div></li>
+          </ol>
+
+          <div class="pm-cmdblock">
+            <div class="pm-cmd pm-cmd-blue">GSPEXPORT</div>
+            <p class="pm-cmddesc">Select closed polylines → label parcels P001… → export CSV with coordinates.</p>
+            <ol class="pm-steps pm-steps-sm">
+              <li><span class="pm-sn">1</span><div><strong>Type GSPEXPORT</strong> and press <kbd>Enter</kbd></div></li>
+              <li><span class="pm-sn">2</span><div><strong>Select closed polylines</strong><p>Click each closed polygon or window-select. Press <kbd>Enter</kbd> to confirm.</p></div></li>
+              <li><span class="pm-sn">3</span><div><strong>Save the CSV</strong><p>Choose a save location. Output columns: <em>parcel_id, point_number, eastings, northings, description</em>. Each parcel closes back to its first point.</p></div></li>
+              <li><span class="pm-sn">4</span><div><strong>Labels applied</strong><p>Parcel centroids are labelled <em>P001, P002…</em> on layer <em>GSP-PARCEL-LABELS</em> (green) automatically.</p></div></li>
+            </ol>
+          </div>
+
+          <div class="pm-cmdblock">
+            <div class="pm-cmd pm-cmd-yellow">GSPTABLE</div>
+            <p class="pm-cmddesc">Insert a formatted coordinate table for one selected parcel.</p>
+            <ol class="pm-steps pm-steps-sm">
+              <li><span class="pm-sn">1</span><div><strong>Type GSPTABLE</strong> → select one closed polyline</div></li>
+              <li><span class="pm-sn">2</span><div><strong>Pick insertion point</strong><p>Click where the top-left of the table should go. A table with Mark, Easting, Northing and Elevation columns is drawn on layer <em>GSP-TABLES</em>.</p></div></li>
+            </ol>
+          </div>
+
+          <div class="pm-cmdblock">
+            <div class="pm-cmd pm-cmd-purple">GSPTABLES</div>
+            <p class="pm-cmddesc">Batch-insert coordinate tables for multiple parcels at once.</p>
+            <ol class="pm-steps pm-steps-sm">
+              <li><span class="pm-sn">1</span><div><strong>Type GSPTABLES</strong> → select all closed polylines</div></li>
+              <li><span class="pm-sn">2</span><div><strong>Pick origin point</strong><p>Tables stack downward automatically with a 2-unit gap between each one.</p></div></li>
+            </ol>
+          </div>
+
+          <div class="pm-req"><i class="fas fa-info-circle"></i><span><strong>Requirements:</strong> AutoCAD 2018+ or Civil 3D 2018+ &nbsp;·&nbsp; Windows 64-bit &nbsp;·&nbsp; .NET Framework 4.x</span></div>
+          <a class="pm-dl pm-dl-red" href="https://kwssgfanbntfjdclchfi.supabase.co/storage/v1/object/public/uploads/plugins/GSPSurveySync_Distributable%20(1).zip" download="GSPSurveySync_AutoCAD_Plugin.zip">
+            <i class="fas fa-download"></i>&nbsp; Download AutoCAD Plugin (ZIP)
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <style>
+    .pm-overlay{position:fixed;inset:0;z-index:99990;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
+    .pm-overlay.active{opacity:1;pointer-events:all}
+    .pm-backdrop{position:absolute;inset:0;background:rgba(3,10,25,.78);backdrop-filter:blur(7px)}
+    .pm-dialog{position:relative;z-index:1;background:linear-gradient(150deg,#0d1b35 0%,#091222 100%);border:1px solid rgba(96,165,250,.2);border-radius:22px;width:min(820px,96vw);max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 40px 100px rgba(0,0,0,.8),0 0 0 1px rgba(96,165,250,.07);transform:translateY(30px) scale(.96);transition:transform .4s cubic-bezier(.22,1,.36,1)}
+    .pm-overlay.active .pm-dialog{transform:none}
+    .pm-header{display:flex;align-items:center;gap:14px;padding:22px 26px 18px;border-bottom:1px solid rgba(96,165,250,.13);flex-shrink:0}
+    .pm-hicon{width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,#2563eb,#4f46e5);display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#fff;flex-shrink:0}
+    .pm-title{font-size:1.2rem;font-weight:800;color:#e2e8f0;margin:0 0 2px}
+    .pm-subtitle{font-size:.8rem;color:#64748b;margin:0}
+    .pm-close{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#64748b;font-size:1.5rem;width:36px;height:36px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;line-height:1;padding:0}
+    .pm-close:hover{background:rgba(239,68,68,.18);border-color:rgba(239,68,68,.35);color:#f87171}
+    .pm-tabs{display:flex;gap:3px;padding:14px 26px 0;flex-shrink:0;background:rgba(0,0,0,.15)}
+    .pm-tab{flex:1;padding:10px 14px;border-radius:10px 10px 0 0;border:1px solid rgba(96,165,250,.12);border-bottom:none;background:rgba(255,255,255,.03);color:#475569;font-weight:700;font-size:.85rem;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:7px}
+    .pm-tab-active{background:rgba(37,99,235,.15);color:#93c5fd;border-color:rgba(96,165,250,.28)}
+    .pm-tab:hover:not(.pm-tab-active){background:rgba(255,255,255,.06);color:#94a3b8}
+    .pm-panel{display:none;padding:22px 26px 26px;overflow-y:auto;flex:1}
+    .pm-panel-active{display:block}
+    .pm-badge{display:inline-flex;align-items:center;gap:6px;font-size:.76rem;font-weight:700;padding:4px 11px;border-radius:20px;margin-bottom:12px;letter-spacing:.04em}
+    .pm-badge-green{background:rgba(34,197,94,.1);color:#4ade80;border:1px solid rgba(34,197,94,.22)}
+    .pm-badge-red{background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.22)}
+    .pm-desc{color:#94a3b8;font-size:.88rem;line-height:1.65;margin:0 0 18px}
+    .pm-stitle{font-size:.92rem;font-weight:700;color:#cbd5e1;margin:0 0 12px;display:flex;align-items:center;gap:7px}
+    .pm-steps{list-style:none;padding:0;margin:0 0 16px;display:flex;flex-direction:column;gap:8px}
+    .pm-steps li{display:flex;align-items:flex-start;gap:11px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06);border-radius:11px;padding:11px 13px}
+    .pm-sn{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:1px}
+    .pm-steps li strong{display:block;color:#e2e8f0;font-size:.85rem;margin-bottom:2px}
+    .pm-steps li p{margin:0;color:#94a3b8;font-size:.81rem;line-height:1.55}
+    .pm-steps li code,.pm-steps li kbd{background:rgba(96,165,250,.11);color:#93c5fd;font-family:monospace;font-size:.79rem;padding:1px 6px;border-radius:5px;border:1px solid rgba(96,165,250,.18)}
+    .pm-steps-sm li{padding:8px 11px}
+    .pm-steps-sm li strong{font-size:.82rem}
+    .pm-steps-sm li p{font-size:.79rem}
+    .pm-cmdblock{border:1px solid rgba(96,165,250,.13);border-radius:14px;padding:14px;margin-bottom:14px;background:rgba(0,0,0,.15)}
+    .pm-cmd{display:inline-block;font-family:monospace;font-size:.83rem;font-weight:800;padding:3px 11px;border-radius:7px;margin-bottom:6px;letter-spacing:.07em}
+    .pm-cmd-blue{background:rgba(37,99,235,.18);color:#93c5fd;border:1px solid rgba(37,99,235,.32)}
+    .pm-cmd-yellow{background:rgba(234,179,8,.11);color:#fde047;border:1px solid rgba(234,179,8,.28)}
+    .pm-cmd-purple{background:rgba(168,85,247,.14);color:#c4b5fd;border:1px solid rgba(168,85,247,.28)}
+    .pm-cmddesc{color:#94a3b8;font-size:.83rem;margin:0 0 10px}
+    .pm-req{display:flex;align-items:flex-start;gap:9px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.18);border-radius:10px;padding:11px 13px;font-size:.8rem;color:#94a3b8;margin-bottom:18px}
+    .pm-req i{color:#fcd34d;flex-shrink:0;margin-top:2px}
+    .pm-req strong{color:#fcd34d}
+    .pm-dl{display:flex;align-items:center;justify-content:center;gap:9px;padding:13px 22px;border-radius:12px;font-weight:800;font-size:.92rem;text-decoration:none;transition:all .25s;letter-spacing:.03em}
+    .pm-dl-green{background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;box-shadow:0 4px 18px rgba(22,163,74,.32)}
+    .pm-dl-green:hover{transform:translateY(-2px);box-shadow:0 7px 26px rgba(22,163,74,.45)}
+    .pm-dl-red{background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;box-shadow:0 4px 18px rgba(220,38,38,.32)}
+    .pm-dl-red:hover{transform:translateY(-2px);box-shadow:0 7px 26px rgba(220,38,38,.45)}
+    @media(max-width:560px){
+      .pm-header{padding:16px 16px 13px}.pm-tabs{padding:11px 16px 0}
+      .pm-panel{padding:16px 16px 20px}.pm-title{font-size:1rem}
+    }
+    </style>
     <script>
+    function pmSwitch(show,hide){
+      var s=document.getElementById('pmPanel'+show),h=document.getElementById('pmPanel'+hide);
+      var ts=document.getElementById('pmTab'+show),th=document.getElementById('pmTab'+hide);
+      s.classList.add('pm-panel-active');h.classList.remove('pm-panel-active');
+      ts.classList.add('pm-tab-active');th.classList.remove('pm-tab-active');
+    }
+    document.addEventListener('keydown',function(e){if(e.key==='Escape')document.getElementById('pluginModal').classList.remove('active');});
+    </script>
+
+    <script>
+
         // Initialize Supabase with proper error handling
         // Check if supabase is already declared to avoid duplicate declaration error
         var supabase;
