@@ -10209,6 +10209,7 @@
             padding: 8px;
             border-radius: 6px;
             flex: 1;
+            position: relative;
         }
 
         .search-input {
@@ -10219,6 +10220,11 @@
             flex: 1;
             min-width: 120px;
             font-size: 0.9rem;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            outline: 2px solid rgba(255,255,255,0.6);
         }
 
         .search-btn {
@@ -10234,6 +10240,129 @@
             display: flex;
             align-items: center;
             gap: 6px;
+        }
+
+        /* ── Autocomplete Suggestions Dropdown ── */
+        .search-suggestions {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12);
+            z-index: 99999;
+            overflow: hidden;
+            border: 1px solid rgba(0,0,0,0.08);
+            animation: suggestFadeIn 0.18s ease;
+            max-height: 320px;
+            overflow-y: auto;
+        }
+
+        @keyframes suggestFadeIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .search-suggestions::-webkit-scrollbar {
+            width: 5px;
+        }
+        .search-suggestions::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .search-suggestions::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+
+        .suggestion-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 11px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.13s;
+            font-size: 0.82rem;
+            color: #1a1a2e;
+            line-height: 1.4;
+        }
+
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+
+        .suggestion-item:hover,
+        .suggestion-item.active {
+            background: #eaf6ee;
+        }
+
+        .suggestion-item.active {
+            background: #d4edda;
+        }
+
+        .suggestion-icon {
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 11px;
+            margin-top: 1px;
+        }
+
+        .suggestion-text {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .suggestion-name {
+            font-weight: 600;
+            color: #1a1a2e;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .suggestion-detail {
+            font-size: 0.75rem;
+            color: #6b7280;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .suggestion-no-results {
+            padding: 16px 14px;
+            text-align: center;
+            color: #9ca3af;
+            font-size: 0.83rem;
+            font-style: italic;
+        }
+
+        .suggestion-loading {
+            padding: 14px;
+            text-align: center;
+            color: #6b7280;
+            font-size: 0.82rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .suggestion-spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid #e5e7eb;
+            border-top-color: #27ae60;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: inline-block;
         }
 
         .coord-search {
@@ -13932,8 +14061,15 @@
             <div class="map-bottom-controls">
                 <div class="map-controls-row">
                     <div class="search-container">
-                        <div class="search-box">
-                            <input type="text" class="search-input" id="placeSearch" placeholder="Search place...">
+                        <div class="search-box" id="placeSearchBox">
+                            <input type="text" class="search-input" id="placeSearch"
+                                placeholder="Search a place in Uganda..."
+                                autocomplete="off"
+                                aria-label="Search place"
+                                aria-autocomplete="list"
+                                aria-controls="searchSuggestions"
+                                aria-expanded="false">
+                            <div id="searchSuggestions" class="search-suggestions" style="display:none;" role="listbox"></div>
                             <button type="button" class="search-btn" id="placeSearchBtn">
                                 <i class="fas fa-search"></i> <span>Search</span>
                             </button>
@@ -32033,71 +32169,217 @@
                 }
             }
 
-            // Place name search functionality with improved accuracy
-            document.getElementById('placeSearchBtn').addEventListener('click', function () {
-                const query = document.getElementById('placeSearch').value;
-                if (!query) {
-                    alert('Please enter a place name to search.');
-                    return;
+            // ══════════════════════════════════════════════════════
+            // PLACE SEARCH — Professional Autocomplete Implementation
+            // ══════════════════════════════════════════════════════
+            (function initPlaceSearch() {
+                const input        = document.getElementById('placeSearch');
+                const btn          = document.getElementById('placeSearchBtn');
+                const dropdown     = document.getElementById('searchSuggestions');
+
+                let debounceTimer  = null;
+                let activeIndex    = -1;   // keyboard-highlighted suggestion index
+                let currentResults = [];   // cache last Nominatim results
+                let abortCtrl      = null; // cancel in-flight requests
+
+                // ── Helpers ────────────────────────────────────────
+                function flyToResult(result) {
+                    const lon = parseFloat(result.lon);
+                    const lat = parseFloat(result.lat);
+                    if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+                        showToast('Invalid coordinates returned.', 'error');
+                        return;
+                    }
+                    markerSource.clear();
+                    markerSource.addFeature(new ol.Feature({
+                        geometry: new ol.geom.Point(ol.proj.fromLonLat([lon, lat])),
+                        type: 'coordinate',
+                        label: result.display_name
+                    }));
+                    view.animate({ center: ol.proj.fromLonLat([lon, lat]), zoom: 16, duration: 1400 });
+                    showToast(`📍 ${result.display_name.split(',')[0]}`, 'success');
                 }
 
-                fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=ug&q=${encodeURIComponent(query)}`, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json'
-                    },
-                    signal: AbortSignal.timeout(10000) // 10 second timeout
-                })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data && data.length > 0) {
-                            const result = data[0];
-                            const lon = parseFloat(result.lon);
-                            const lat = parseFloat(result.lat);
+                function closeSuggestions() {
+                    dropdown.style.display = 'none';
+                    dropdown.innerHTML = '';
+                    activeIndex = -1;
+                    input.setAttribute('aria-expanded', 'false');
+                }
 
-                            if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
-                                throw new Error('Invalid coordinates returned');
-                            }
-
-                            // Clear previous markers
-                            markerSource.clear();
-
-                            // Add new marker
-                            const marker = new ol.Feature({
-                                geometry: new ol.geom.Point(ol.proj.fromLonLat([lon, lat])),
-                                type: 'coordinate',
-                                label: result.display_name
-                            });
-                            markerSource.addFeature(marker);
-
-                            // Zoom to location with higher precision
-                            view.animate({
-                                center: ol.proj.fromLonLat([lon, lat]),
-                                zoom: 16,
-                                duration: 1500
-                            });
-                            showToast(`Location found: ${result.display_name}`, 'success');
-                        } else {
-                            alert('Location not found. Please try another search term.');
-                            showToast('Location not found. Please try another search term.', 'error');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error during geocoding:', error);
-                        const errorMsg = error.name === 'AbortError'
-                            ? 'Search request timed out. Please try again.'
-                            : error.message?.includes('Failed to fetch')
-                                ? 'Network error. Please check your connection and try again.'
-                                : 'Error during search. Please try again.';
-                        alert(errorMsg);
-                        showToast(errorMsg, 'error');
+                function setActiveItem(index) {
+                    const items = dropdown.querySelectorAll('.suggestion-item');
+                    items.forEach((el, i) => {
+                        el.classList.toggle('active', i === index);
+                        el.setAttribute('aria-selected', i === index ? 'true' : 'false');
                     });
-            });
+                    activeIndex = index;
+                }
+
+                function getPlaceParts(displayName) {
+                    const parts = displayName.split(',').map(s => s.trim());
+                    return {
+                        name:   parts[0] || displayName,
+                        detail: parts.slice(1, 4).join(', ') || ''
+                    };
+                }
+
+                // ── Render dropdown ────────────────────────────────
+                function renderSuggestions(results) {
+                    currentResults = results;
+                    activeIndex = -1;
+                    dropdown.innerHTML = '';
+
+                    if (!results || results.length === 0) {
+                        dropdown.innerHTML = `<div class="suggestion-no-results">No places found. Try a different name.</div>`;
+                        dropdown.style.display = 'block';
+                        input.setAttribute('aria-expanded', 'true');
+                        return;
+                    }
+
+                    results.forEach((r, i) => {
+                        const { name, detail } = getPlaceParts(r.display_name);
+                        const item = document.createElement('div');
+                        item.className = 'suggestion-item';
+                        item.setAttribute('role', 'option');
+                        item.setAttribute('aria-selected', 'false');
+                        item.innerHTML = `
+                            <div class="suggestion-icon"><i class="fas fa-map-marker-alt"></i></div>
+                            <div class="suggestion-text">
+                                <div class="suggestion-name">${name}</div>
+                                <div class="suggestion-detail">${detail}</div>
+                            </div>`;
+                        item.addEventListener('mousedown', (e) => {
+                            e.preventDefault(); // prevent input blur before click fires
+                            input.value = name;
+                            closeSuggestions();
+                            flyToResult(r);
+                        });
+                        item.addEventListener('mousemove', () => setActiveItem(i));
+                        dropdown.appendChild(item);
+                    });
+
+                    dropdown.style.display = 'block';
+                    input.setAttribute('aria-expanded', 'true');
+                }
+
+                function showLoadingState() {
+                    dropdown.innerHTML = `
+                        <div class="suggestion-loading">
+                            <span class="suggestion-spinner"></span> Searching Uganda...
+                        </div>`;
+                    dropdown.style.display = 'block';
+                }
+
+                // ── Nominatim fetch ────────────────────────────────
+                function fetchSuggestions(query) {
+                    if (abortCtrl) abortCtrl.abort();
+                    abortCtrl = new AbortController();
+
+                    showLoadingState();
+
+                    fetch(
+                        `https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=ug&addressdetails=0&q=${encodeURIComponent(query)}`,
+                        { headers: { 'Accept': 'application/json' }, signal: abortCtrl.signal }
+                    )
+                    .then(r => { if (!r.ok) throw new Error('Network error'); return r.json(); })
+                    .then(data => renderSuggestions(data))
+                    .catch(err => {
+                        if (err.name === 'AbortError') return; // user typed more — ignore
+                        dropdown.innerHTML = `<div class="suggestion-no-results">Search unavailable. Check your connection.</div>`;
+                        dropdown.style.display = 'block';
+                    });
+                }
+
+                // ── Input event (debounced, ≥3 chars) ─────────────
+                input.addEventListener('input', function () {
+                    const q = this.value.trim();
+                    clearTimeout(debounceTimer);
+                    if (q.length < 3) { closeSuggestions(); return; }
+                    debounceTimer = setTimeout(() => fetchSuggestions(q), 400);
+                });
+
+                // ── Keyboard navigation ────────────────────────────
+                input.addEventListener('keydown', function (e) {
+                    const items = dropdown.querySelectorAll('.suggestion-item');
+                    const isOpen = dropdown.style.display === 'block' && items.length > 0;
+
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        if (!isOpen) return;
+                        setActiveItem(Math.min(activeIndex + 1, items.length - 1));
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        if (!isOpen) return;
+                        setActiveItem(Math.max(activeIndex - 1, 0));
+                    } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (isOpen && activeIndex >= 0 && currentResults[activeIndex]) {
+                            // Select highlighted suggestion
+                            const r = currentResults[activeIndex];
+                            input.value = r.display_name.split(',')[0].trim();
+                            closeSuggestions();
+                            flyToResult(r);
+                        } else {
+                            // Fallback: treat as button click
+                            btn.click();
+                        }
+                    } else if (e.key === 'Escape') {
+                        closeSuggestions();
+                    }
+                });
+
+                // ── Button click — top result fallback ─────────────
+                btn.addEventListener('click', function () {
+                    const q = input.value.trim();
+                    if (!q) { showToast('Please enter a place name to search.', 'error'); return; }
+
+                    // If a suggestion is already highlighted, use it
+                    if (activeIndex >= 0 && currentResults[activeIndex]) {
+                        const r = currentResults[activeIndex];
+                        input.value = r.display_name.split(',')[0].trim();
+                        closeSuggestions();
+                        flyToResult(r);
+                        return;
+                    }
+
+                    // Fetch and use top result automatically
+                    if (abortCtrl) abortCtrl.abort();
+                    abortCtrl = new AbortController();
+                    showToast('Searching...', 'info');
+
+                    fetch(
+                        `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=ug&q=${encodeURIComponent(q)}`,
+                        { headers: { 'Accept': 'application/json' }, signal: abortCtrl.signal }
+                    )
+                    .then(r => { if (!r.ok) throw new Error('Network error'); return r.json(); })
+                    .then(data => {
+                        closeSuggestions();
+                        if (data && data.length > 0) {
+                            flyToResult(data[0]);
+                        } else {
+                            showToast('Location not found. Try a different name.', 'error');
+                        }
+                    })
+                    .catch(err => {
+                        if (err.name === 'AbortError') return;
+                        showToast('Network error. Please check your connection.', 'error');
+                    });
+                });
+
+                // ── Dismiss on click outside ────────────────────────
+                document.addEventListener('click', function (e) {
+                    if (!document.getElementById('placeSearchBox').contains(e.target)) {
+                        closeSuggestions();
+                    }
+                });
+
+                // ── Dismiss on input blur (slight delay for click) ──
+                input.addEventListener('blur', function () {
+                    setTimeout(closeSuggestions, 180);
+                });
+
+            })(); // end initPlaceSearch
 
             // PATCH: Enhanced Coordinate search functionality with split-panel popup
             // Open coordinate search popup (now in bottom controls)
@@ -43687,12 +43969,7 @@ function smoothChaikin(points) {
                 }
             });
 
-            // Add enter key support for search inputs
-            document.getElementById('placeSearch').addEventListener('keypress', function (e) {
-                if (e.key === 'Enter') {
-                    document.getElementById('placeSearchBtn').click();
-                }
-            });
+            // Enter key for placeSearch is now handled inside initPlaceSearch() above
 
             // PATCH: Add null checks for missing elements to prevent console errors
             const eastingElement = document.getElementById('easting');
