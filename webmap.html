@@ -12359,19 +12359,22 @@
            INBOX STYLES
            ============================================ */
 
-        /* Inbox Layout */
+        /* Inbox Layout - Premium Horizontal Split on Desktop */
         .inbox-layout {
             display: flex;
             height: 100%;
-            flex-direction: column;
+            flex-direction: row !important;
             position: relative;
         }
 
-        /* Users List */
+        /* Users List Sidebar */
         .users-list {
-            flex: 1;
-            border-bottom: 1px solid #e0e0e0;
-            background: #f8f9fa;
+            width: 35% !important;
+            min-width: 280px !important;
+            max-width: 380px;
+            border-right: 1px solid var(--chat-border);
+            border-bottom: none !important;
+            background: var(--chat-surface);
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -12505,14 +12508,48 @@
             background: #ccc;
         }
 
-        /* Chat Conversation */
+        /* Chat Conversation - Always visible right pane on Desktop */
         .chat-conversation {
-            flex: 1;
-            display: none;
-            /* Hidden by default, shown when user selected */
+            flex: 1 !important;
+            display: flex !important;
             flex-direction: column;
-            background: white;
+            background: var(--chat-bg);
             overflow: hidden;
+            position: relative;
+        }
+
+        /* Toggle UI components depending on active chat state */
+        .inbox-layout:not(.conversation-active) .conversation-header,
+        .inbox-layout:not(.conversation-active) .chat-input-bar {
+            display: none !important;
+        }
+        
+        /* Show gorgeous placeholder when inactive */
+        .inbox-layout:not(.conversation-active) .messages-list {
+            background: var(--chat-surface);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        #no-user-selected {
+            display: flex !important;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            color: var(--chat-text-secondary);
+            font-size: 15px;
+            text-align: center;
+            padding: 24px;
+            height: auto !important;
+            font-style: normal !important;
+        }
+
+        /* Hide placeholder once user selects a conversation */
+        .inbox-layout.conversation-active #no-user-selected {
+            display: none !important;
         }
 
         .conversation-header {
@@ -12944,31 +12981,32 @@
             }
 
             .users-list {
-                width: 100%;
-                min-width: 100%;
-                height: 100%;
-                border-right: none;
-                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                width: 100% !important;
+                min-width: 100% !important;
+                max-width: 100% !important;
+                height: 100% !important;
+                border-right: none !important;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
             }
 
             .chat-conversation {
-                position: absolute;
-                top: 0;
-                right: -100%;
-                width: 100%;
-                height: 100%;
+                position: absolute !important;
+                top: 0 !important;
+                right: -100% !important;
+                width: 100% !important;
+                height: 100% !important;
                 display: flex !important;
-                background: var(--chat-bg);
-                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                z-index: 5;
+                background: var(--chat-bg) !important;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                z-index: 5 !important;
             }
 
             .inbox-layout.conversation-active .users-list {
-                transform: translateX(-100%);
+                transform: translateX(-100%) !important;
             }
 
             .inbox-layout.conversation-active .chat-conversation {
-                transform: translateX(-100%);
+                transform: translateX(-100%) !important;
             }
 
             .messages-list {
@@ -58488,9 +58526,9 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                         </div>
                         <div id="messages-container" class="messages-list">
                             <!-- Private messages will appear here -->
-                            <div id="no-user-selected" class="no-user-message"
-                                style="display: flex; justify-content: center; align-items: center; height: 200px; color: #666; font-style: italic;">
-                                Select a user to start chatting
+                            <div id="no-user-selected" class="no-user-message">
+                                <i class="fas fa-comments" style="font-size: 48px; color: var(--chat-accent); margin-bottom: 12px; opacity: 0.5;"></i>
+                                <div>Select a user to start chatting</div>
                             </div>
                         </div>
                         <div id="message-image-preview" class="chat-image-preview-bar"></div>
