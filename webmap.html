@@ -58228,6 +58228,7 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                     // 1. Render User Message
                     this.appendMessage('You', text, 'sent');
                     inputField.value = '';
+                    inputField.style.height = 'auto'; // Reset dynamic height after sending
 
                     // 2. Add loading state
                     const loadingId = this.appendMessage('GSPNET AI Assistant', '<div class="typing-indicator" style="font-style: italic; color: #666;">Thinking...</div>', 'received');
@@ -58335,17 +58336,17 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                 appendMessage(sender, htmlContent, type) {
                     const container = document.getElementById('bot-messages-container');
                     const msgId = 'msg-' + Date.now();
-                    const bgColor = type === 'sent' ? '#dcf8c6' : '#f0f4ff';
-                    const alignSelf = type === 'sent' ? 'flex-end' : 'flex-start';
-                    const alignItems = type === 'sent' ? 'flex-end' : 'flex-start';
-                    const borderRadius = type === 'sent' ? '18px 18px 4px 18px' : '18px 18px 18px 4px';
-                    const textAlign = type === 'sent' ? 'right' : 'left';
+                    const isSent = type === 'sent';
+                    const timestamp = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
                     const msgHTML = `
-                        <div class="message message-${type}" style="align-self: ${alignSelf}; align-items: ${alignItems}; margin-bottom: 12px; display: flex; flex-direction: column; max-width: 80%; text-align: ${textAlign};">
-                            <div class="sender-name" style="font-size: 0.75rem; color: #666; margin-bottom: 4px; padding: 0 4px;">${sender}</div>
-                            <div class="message-bubble" id="${msgId}" style="background: ${bgColor}; border: 1px solid #e5e5ea; padding: 10px 14px; border-radius: ${borderRadius}; font-size: 14px; line-height: 1.5; box-shadow: 0 1px 2px rgba(0,0,0,0.05); word-wrap: break-word;">
-                                ${htmlContent}
+                        <div class="message-item ${isSent ? 'sent' : 'received'}">
+                            <div class="message-bubble">
+                                ${!isSent ? `<div class="sender-name" style="font-size: 11px; font-weight: 600; color: var(--chat-accent); margin-bottom: 4px;">${sender}</div>` : ''}
+                                <div class="message-text" id="${msgId}">${htmlContent}</div>
+                                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 2px;">
+                                    <span style="font-size: 10px; color: var(--chat-text-secondary);">${timestamp}</span>
+                                </div>
                             </div>
                         </div>
                     `;
@@ -58400,14 +58401,8 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                     localStorage.removeItem('gspnet_chat_history_main');
                     const container = document.getElementById('bot-messages-container');
                     if (container) {
-                        container.innerHTML = `
-                            <div class="message message-received" style="align-self: flex-start; align-items: flex-start; margin-bottom: 12px; display: flex; flex-direction: column; max-width: 80%;">
-                                <div class="sender-name" style="font-size: 0.75rem; color: #666; margin-bottom: 4px; padding: 0 4px;">GSPNET AI Assistant</div>
-                                <div class="message-bubble" style="background: #f0f4ff; border: 1px solid #d2e3fc; padding: 10px 14px; border-radius: 18px 18px 18px 4px; font-size: 14px; line-height: 1.4; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                    Memory cleared. Ask me a fresh question about account access, tools, or workflows.
-                                </div>
-                            </div>
-                        `;
+                        container.innerHTML = '';
+                        this.appendMessage('GSPNET AI Assistant', 'Memory cleared. Ask me a fresh question about account access, tools, or workflows.', 'received');
                     }
                     this.lastError = 'none';
                     this.lastResponseMs = null;
@@ -58550,24 +58545,35 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
 
             <!-- AI Assistant View -->
             <div id="bot-view" class="chat-view">
-                <div class="bot-layout" style="display: flex; flex-direction: column; height: 100%;">
-                    <div id="bot-messages-container" class="messages-list" style="flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column;">
-                        <div class="message message-received" style="align-self: flex-start; align-items: flex-start; margin-bottom: 12px; display: flex; flex-direction: column; max-width: 80%;">
-                            <div class="sender-name" style="font-size: 0.75rem; color: #666; margin-bottom: 4px; padding: 0 4px;">GSPNET AI Assistant</div>
-                            <div class="message-bubble" style="background: #f0f4ff; border: 1px solid #d2e3fc; padding: 10px 14px; border-radius: 18px 18px 18px 4px; font-size: 14px; line-height: 1.4; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                <p class="message-content" style="margin: 0;">Hello! I'm your Geospatial Network AI Assistant. How can I help you today?</p>
-                                <p class="message-content" style="margin: 8px 0 0 0; font-size: 12px; color: #555;"><i>Hint: Ask me about DTMs, Profiles, Coordinate Extractor, or the project.</i></p>
+                <div class="bot-layout" style="display: flex; flex-direction: column; height: 100%; background: var(--chat-bg);">
+                    <div id="bot-messages-container" class="messages-list" style="flex: 1; padding: 16px;">
+                        <!-- Initial Greeting with unified styling -->
+                        <div class="message-item received">
+                            <div class="message-bubble">
+                                <div class="sender-name" style="font-size: 11px; font-weight: 600; color: var(--chat-accent); margin-bottom: 4px;">GSPNET AI Assistant</div>
+                                <div class="message-text">
+                                    <p style="margin: 0;">Hello! I'm your Geospatial Network AI Assistant. How can I help you today?</p>
+                                    <p style="margin: 8px 0 0 0; font-size: 12px; opacity: 0.8;"><i>Hint: Ask me about DTMs, Profiles, Coordinate Extractor, or the project.</i></p>
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 2px;">
+                                    <span style="font-size: 10px; color: var(--chat-text-secondary);">System</span>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="message-input-area" style="padding: 15px; border-top: 1px solid #e0e0e0; background: #fff;">
-                        <textarea id="bot-message-input" placeholder="Ask a question..." rows="2" style="width: 100%; resize: none; border-radius: 8px; border: 1px solid #ccc; padding: 10px; font-family: inherit; margin-bottom: 10px;"></textarea>
-                        <div class="message-actions" style="display: flex; justify-content: space-between; align-items: center;">
-                            <button id="bot-clear-history-btn" class="message-send" style="background: transparent; color: #1f2937; border: 1px solid #cbd5e1; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: 600;">Clear memory</button>
-                            <button id="bot-message-send-btn" class="message-send" style="background: #2563eb; color: white; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-weight: bold;">Send</button>
+                    <!-- Unified Compact Chat Input Bar -->
+                    <div class="chat-input-bar" style="flex-direction: column; height: auto; gap: 8px; padding: 12px; border-top: 1px solid var(--chat-border); background: var(--chat-surface); width: 100%;">
+                        <div style="display: flex; align-items: flex-end; width: 100%; gap: 8px;">
+                            <button type="button" id="bot-clear-history-btn" class="chat-input-attach-btn" title="Clear memory" style="width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #dc3545; cursor: pointer; border: 1px solid #f5c2c7; background: #fff0f1;">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                            <textarea id="bot-message-input" placeholder="Ask AI a question... (Shift+Enter to send)" rows="1" style="flex: 1; resize: none;"></textarea>
+                            <button id="bot-message-send-btn" class="chat-input-send-btn" title="Send"><i class="fas fa-paper-plane"></i></button>
                         </div>
-                        <div style="font-size: 10px; color: #999; text-align: center; margin-top: 5px;">AI can make mistakes. Check important info.</div>
-                        <div id="bot-diagnostics-line" style="font-size: 10px; color: #777; margin-top: 6px;">Backend: unknown | Last error: none | Response: n/a</div>
+                        <div style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                            <div style="font-size: 9px; color: var(--chat-text-secondary); text-align: center; opacity: 0.8;">AI can make mistakes. Verify important info.</div>
+                            <div id="bot-diagnostics-line" style="font-size: 9px; color: var(--chat-text-secondary); text-align: center; opacity: 0.6;">Backend: unknown | Last error: none</div>
+                        </div>
                     </div>
                 </div>
             </div>
