@@ -21320,125 +21320,205 @@
                 return null;
             }
 
-            function getPolygonStyle(feature) {
-                const layerName = feature.get('layer_name');
-                const uniqueId = feature.get('unique_id');
-                const edgeDistances = feature.get('edge_distances'); // Stored edge distances from database
-                const layerColors = {
-                    'TITLE TRACTS UTM ZONE 36N': '#e74c3c',
-                    'TITLE TRACTS UTM ZONE 36S': '#c0392b',
-                    'UNTITLED UTM ZONE 36N': '#3498db',
-                    'UNTITLED UTM ZONE 36S': '#2980b9',
-                    'BLB-UNTITLED': '#9b59b6'
-                };
+            // ══════════════════════════════════════════════════════
+            // SURVEY POLYGON STYLE — RESOLUTION-AWARE Progressive Detail
+            // Matches GSPNET layer pattern for clean, professional rendering.
+            // ──────────────────────────────────────────────────────
+            // ALWAYS : Colored stroke + quality-flag fill (clean outline)
+            // TIER 1 (res ≤ 5.0,  ~500 m) : Polygon ID label (unique_id)
+            // TIER 2 (res ≤ 1.0,  ~100 m) : Distance labels + corner markers
+            // TIER 3 (res ≤ 0.45, ~50 m)  : Area label (appears last)
+            // ══════════════════════════════════════════════════════
 
-                const color = layerColors[layerName] || '#3498db';
-                const geometry = feature.getGeometry();
-                const coordinates = geometry.getCoordinates()[0];
-                const qualityFill = getSurveyParcelQualityFillRgba(uniqueId);
-                const styles = [];
-                if (qualityFill) {
-                    styles.push(new ol.style.Style({
-                        fill: new ol.style.Fill({ color: qualityFill })
-                    }));
-                }
-                styles.push(new ol.style.Style({
-                    stroke: new ol.style.Stroke({
-                        color: color,
-                        width: 2
-                    })
-                }));
-
-                // Get map resolution to convert 1 meter to pixels for corner circles
-                const view = map.getView();
-                const resolution = view.getResolution();
-                // Resolution is in meters per pixel (for Web Mercator)
-                // For 1 meter radius: radius in pixels = 1 / resolution
-                const radiusInPixels = resolution ? (1 / resolution) : 3; // Fallback to 3px if resolution unavailable
-                // Clamp to reasonable range (2-10 pixels) for visibility
-                const circleRadius = Math.max(2, Math.min(10, radiusInPixels));
-
-                // Use outer vincentyDistance (WGS84 ellipsoidal accuracy)
-                // No need for a local haversineDistance — vincentyDistance is available in outer scope
-
-                const areaHectares = feature.get('area_hectares');
-                if (areaHectares) {
-                    // Always calculate distances on-the-fly using Vincenty for ellipsoidal accuracy
-                    // (Stored edge_distances from DB may have been computed with old Haversine formula)
-                    // Transform coordinates from Web Mercator to WGS84 for accurate distance calculation
-                    const wgs84Coords = coordinates.map(coord => {
-                        return ol.proj.transform(coord, 'EPSG:3857', 'EPSG:4326');
-                    });
-
-                    // Add distance labels for each edge
-                    for (let i = 0; i < wgs84Coords.length - 1; i++) {
-                        const p1 = wgs84Coords[i];
-                        const p2 = wgs84Coords[i + 1];
-
-                        // Calculate distance using Vincenty (WGS84 ellipsoidal accuracy)
-                        const distanceMeters = haversineDistance(p1[0], p1[1], p2[0], p2[1]);
-
-                        // Use LineString geometry for automatic text alignment along the edge
-                        const p1Merc = coordinates[i];
-                        const p2Merc = coordinates[i + 1];
-
-                        // Create a LineString for this edge
-                        const edgeLine = new ol.geom.LineString([p1Merc, p2Merc]);
-
-                        styles.push(new ol.style.Style({
-                            text: new ol.style.Text({
-                                text: `${distanceMeters.toFixed(2)} m`,
-                                font: '12px sans-serif',
-                                fill: new ol.style.Fill({ color: '#333' }),
-                                stroke: new ol.style.Stroke({ color: '#fff', width: 2 }),
-                                offsetY: -10, // Offset perpendicular to line
-                                placement: 'line', // Automatically aligns text along the line
-                                textAlign: 'center',
-                                textBaseline: 'middle',
-                                overflow: true,
-                                maxAngle: Math.PI / 4 // Only show text if line is not too steep
-                            }),
-                            geometry: edgeLine // Use line geometry instead of point
-                        }));
-                    }
-
-                    // Add 1-meter radius circles at every corner (vertex)
-                    for (let i = 0; i < coordinates.length - 1; i++) { // Exclude closing point
-                        styles.push(new ol.style.Style({
-                            image: new ol.style.Circle({
-                                radius: circleRadius, // 1 meter in pixels (scaled by resolution)
-                                fill: new ol.style.Fill({ color: color }),
-                                stroke: new ol.style.Stroke({
-                                    color: '#fff',
-                                    width: 1.5
-                                })
-                            }),
-                            geometry: new ol.geom.Point(coordinates[i])
-                        }));
-                    }
-
-                    // Add area and unique_id label in center
-                    // Compute area on-the-fly using UTM Shoelace (matches AutoCAD)
-                    // instead of stored DB value (which used spherical formula, ~0.76% too high)
-                    const computedAreaSqM = geodesicAreaSqMeters(wgs84Coords);
-                    const computedAreaHa = computedAreaSqM / 10000;
-                    const center = ol.extent.getCenter(geometry.getExtent());
-                    const labelText = uniqueId
-                        ? `${uniqueId}\n${computedAreaHa.toFixed(4)} ha`
-                        : `${computedAreaHa.toFixed(4)} ha`;
-
-                    styles.push(new ol.style.Style({
-                        text: new ol.style.Text({
-                            text: labelText,
-                            font: 'bold 14px sans-serif',
-                            fill: new ol.style.Fill({ color: '#000' }),
-                            stroke: new ol.style.Stroke({ color: '#fff', width: 3 }),
-                            placement: 'point',
-                            textAlign: 'center',
-                            textBaseline: 'middle'
+            // Pre-built shared stroke styles per layer color (created once, reused everywhere)
+            const _surveyStrokeCache = {};
+            function _getSurveyStrokeStyles(color) {
+                if (!_surveyStrokeCache[color]) {
+                    _surveyStrokeCache[color] = {
+                        whiteBuffer: new ol.style.Style({
+                            stroke: new ol.style.Stroke({ color: '#ffffff', width: 4, lineCap: 'round', lineJoin: 'round' })
                         }),
-                        geometry: new ol.geom.Point(center)
-                    }));
+                        colorStroke: new ol.style.Style({
+                            stroke: new ol.style.Stroke({ color: color, width: 2, lineCap: 'round', lineJoin: 'round' })
+                        })
+                    };
+                }
+                return _surveyStrokeCache[color];
+            }
+
+            // Quality-flag fill style cache (keyed by rgba string)
+            const _surveyFlagFillCache = {};
+            function _getSurveyFlagFillStyle(rgba) {
+                if (!_surveyFlagFillCache[rgba]) {
+                    _surveyFlagFillCache[rgba] = new ol.style.Style({
+                        fill: new ol.style.Fill({ color: rgba })
+                    });
+                }
+                return _surveyFlagFillCache[rgba];
+            }
+
+            const SURVEY_LAYER_COLORS = {
+                'TITLE TRACTS UTM ZONE 36N': '#e74c3c',
+                'TITLE TRACTS UTM ZONE 36S': '#c0392b',
+                'UNTITLED UTM ZONE 36N': '#3498db',
+                'UNTITLED UTM ZONE 36S': '#2980b9',
+                'BLB-UNTITLED': '#9b59b6'
+            };
+
+            function getPolygonStyle(feature) {
+                const geometry = feature.getGeometry();
+                const geomType = geometry ? geometry.getType() : null;
+                if (!geometry || (geomType !== 'Polygon' && geomType !== 'MultiPolygon')) {
+                    return [];
+                }
+
+                const layerName = feature.get('layer_name');
+                const uniqueId  = feature.get('unique_id');
+                const color     = SURVEY_LAYER_COLORS[layerName] || '#3498db';
+
+                const viewRef    = map.getView();
+                const resolution = viewRef.getResolution();
+                const geomRevision = geometry.getRevision ? geometry.getRevision() : 0;
+                const coordinates  = geomType === 'MultiPolygon'
+                    ? geometry.getCoordinates()[0][0]
+                    : geometry.getCoordinates()[0];
+
+                // ── ALWAYS: Base strokes (white buffer + colored outline) ──
+                const shared = _getSurveyStrokeStyles(color);
+                const styles = [shared.whiteBuffer, shared.colorStroke];
+
+                // Quality-flag fill overlay (if flagged)
+                const qualityFill = getSurveyParcelQualityFillRgba(uniqueId);
+                if (qualityFill) {
+                    styles.push(_getSurveyFlagFillStyle(qualityFill));
+                }
+
+                // ── TIER 1: Polygon ID label (res ≤ 5.0, ~500 m zoom) ──
+                if (resolution <= RES_THRESHOLD.LABELS) {
+                    if (uniqueId) {
+                        const cacheKey = '__surveyLabelStyleCache';
+                        const labelText = uniqueId.toString();
+                        let labelStyleCache = feature.get(cacheKey);
+                        if (!labelStyleCache || labelStyleCache.revision !== geomRevision || labelStyleCache.text !== labelText) {
+                            const centroid = ol.extent.getCenter(geometry.getExtent());
+                            labelStyleCache = {
+                                revision: geomRevision,
+                                text: labelText,
+                                style: new ol.style.Style({
+                                    geometry: new ol.geom.Point(centroid),
+                                    text: new ol.style.Text({
+                                        text: labelText,
+                                        font: 'bold 12px sans-serif',
+                                        fill: new ol.style.Fill({ color: '#000000' }),
+                                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                                        textAlign: 'center',
+                                        textBaseline: 'middle',
+                                        offsetY: 0
+                                    })
+                                })
+                            };
+                            feature.set(cacheKey, labelStyleCache, true);
+                        }
+                        styles.push(labelStyleCache.style);
+                    }
+                }
+
+                // ── TIER 2: Distance labels + corner markers (res ≤ 1.0) ──
+                if (resolution <= DETAIL_ZOOM_GATE.DISTANCES) {
+                    // 2a — Distance labels along edges (cached)
+                    const distCacheKey = '__surveyDistanceStylesCache';
+                    let distanceStylesCache = feature.get(distCacheKey);
+                    if (!distanceStylesCache || distanceStylesCache.revision !== geomRevision) {
+                        const distanceStyles = [];
+                        for (let i = 0; i < coordinates.length - 1; i++) {
+                            const distanceMeters = getEdgeDistance(coordinates[i], coordinates[i + 1]);
+                            const edgeLine = new ol.geom.LineString([coordinates[i], coordinates[i + 1]]);
+                            distanceStyles.push(new ol.style.Style({
+                                text: new ol.style.Text({
+                                    text: `${distanceMeters.toFixed(2)} m`,
+                                    font: '11px sans-serif',
+                                    fill: new ol.style.Fill({ color: '#333' }),
+                                    stroke: new ol.style.Stroke({ color: '#fff', width: 2 }),
+                                    offsetY: -8,
+                                    placement: 'line',
+                                    textAlign: 'center',
+                                    textBaseline: 'middle',
+                                    overflow: true,
+                                    maxAngle: Math.PI / 4
+                                }),
+                                geometry: edgeLine
+                            }));
+                        }
+                        distanceStylesCache = { revision: geomRevision, styles: distanceStyles };
+                        feature.set(distCacheKey, distanceStylesCache, true);
+                    }
+                    styles.push(...distanceStylesCache.styles);
+
+                    // 2b — Corner markers (cached)
+                    const cornerCacheKey = '__surveyCornerStylesCache';
+                    let cornerStylesCache = feature.get(cornerCacheKey);
+                    if (!cornerStylesCache || cornerStylesCache.revision !== geomRevision) {
+                        const cornerStyles = [];
+                        const circleRadius = 4;
+                        const centerDotRadius = 1.2;
+                        for (let i = 0; i < coordinates.length - 1; i++) {
+                            // Outer circle (layer-colored)
+                            cornerStyles.push(new ol.style.Style({
+                                geometry: new ol.geom.Point(coordinates[i]),
+                                image: new ol.style.Circle({
+                                    radius: circleRadius,
+                                    fill: new ol.style.Fill({ color: color }),
+                                    stroke: new ol.style.Stroke({ color: '#ffffff', width: 1.5 })
+                                })
+                            }));
+                            // Center dot (black)
+                            cornerStyles.push(new ol.style.Style({
+                                geometry: new ol.geom.Point(coordinates[i]),
+                                image: new ol.style.Circle({
+                                    radius: centerDotRadius,
+                                    fill: new ol.style.Fill({ color: '#000000' })
+                                })
+                            }));
+                        }
+                        cornerStylesCache = { revision: geomRevision, styles: cornerStyles };
+                        feature.set(cornerCacheKey, cornerStylesCache, true);
+                    }
+                    styles.push(...cornerStylesCache.styles);
+                }
+
+                // ── TIER 3: Area label at deepest zoom (res ≤ 0.45) ──
+                if (resolution <= DETAIL_ZOOM_GATE.FULL_DETAIL) {
+                    const areaCacheKey = '__surveyAreaStyleCache';
+                    let areaStyleCache = feature.get(areaCacheKey);
+                    if (!areaStyleCache || areaStyleCache.revision !== geomRevision) {
+                        // Compute area on-the-fly using UTM Shoelace (matches AutoCAD)
+                        const wgs84Coords = coordinates.map(coord =>
+                            ol.proj.transform(coord, 'EPSG:3857', 'EPSG:4326')
+                        );
+                        const computedAreaSqM = geodesicAreaSqMeters(wgs84Coords);
+                        const computedAreaHa  = computedAreaSqM / 10000;
+                        const center = ol.extent.getCenter(geometry.getExtent());
+                        const areaText = `${computedAreaHa.toFixed(4)} ha`;
+
+                        areaStyleCache = {
+                            revision: geomRevision,
+                            style: new ol.style.Style({
+                                geometry: new ol.geom.Point(center),
+                                text: new ol.style.Text({
+                                    text: areaText,
+                                    font: 'bold 13px sans-serif',
+                                    fill: new ol.style.Fill({ color: '#000' }),
+                                    stroke: new ol.style.Stroke({ color: '#fff', width: 3 }),
+                                    placement: 'point',
+                                    textAlign: 'center',
+                                    textBaseline: 'middle',
+                                    offsetY: 14 // Below the polygon ID label
+                                })
+                            })
+                        };
+                        feature.set(areaCacheKey, areaStyleCache, true);
+                    }
+                    styles.push(areaStyleCache.style);
                 }
 
                 return styles;
