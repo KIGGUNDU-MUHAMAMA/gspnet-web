@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -6839,6 +6839,13 @@
             --chat-border: #e0e0e0;
             --chat-text-primary: #111b21;
             --chat-text-secondary: #667781;
+            /* New additions for Phase 3 */
+            --chat-bg: #eae6df;
+            --chat-bubble-sent: #d9fdd3;
+            --chat-bubble-received: #ffffff;
+            --chat-bubble-shadow: rgba(11, 20, 26, 0.08);
+            --chat-unread-badge: #25d366;
+            --chat-post-border: #e0e0e0;
         }
 
         /* Chat Panel */
@@ -8394,14 +8401,14 @@
         }
 
         /* Mobile Responsive */
-        @media (max-width: 768px) {
+                @media (max-width: 768px) {
             .chat-panel {
-                width: 85%;
-                right: -85%;
+                width: 100% !important;
+                right: -100% !important;
+                z-index: 9999;
             }
-
             .chat-panel.open {
-                right: 0;
+                right: 0 !important;
             }
 
             .valuation-panel {
@@ -11562,11 +11569,18 @@
         }
 
         .chat-panel.dark-theme {
-            --chat-surface: #1a1a2e;
-            --chat-input-bg: #16213e;
-            --chat-border: #2a2a4a;
-            --chat-text-primary: #e0e0e0;
-            --chat-text-secondary: #8899aa;
+            --chat-surface: #1f2c34;
+            --chat-input-bg: #2a3942;
+            --chat-border: #2a3942;
+            --chat-text-primary: #e9edef;
+            --chat-text-secondary: #8696a0;
+            /* Dark new additions */
+            --chat-bg: #0b141a;
+            --chat-bubble-sent: #005c4b;
+            --chat-bubble-received: #202c33;
+            --chat-bubble-shadow: rgba(0, 0, 0, 0.15);
+            --chat-unread-badge: #25d366;
+            --chat-post-border: #2c3b45;
         }
 
         .chat-panel.dark-theme .chat-header {
@@ -12037,13 +12051,15 @@
 
         /* Post Card */
         .post-card {
-            background: white;
+            background: var(--chat-surface);
             border-radius: 12px;
             padding: 16px;
             margin-bottom: 16px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            border: 1px solid #e0e0e0;
-            transition: all 0.3s ease;
+            border: 1px solid var(--chat-post-border);
+            color: var(--chat-text-primary);
+            transition: all 0.25s ease;
+            animation: chatMsgSlideIn 0.25s ease-out;
         }
 
         .post-card:hover {
@@ -12533,7 +12549,7 @@
             flex: 1;
             overflow-y: auto;
             padding: 16px;
-            background: #f8f9fa;
+            background: var(--chat-bg);
             display: flex;
             flex-direction: column;
             /* Start with column to stack messages vertically */
@@ -12579,24 +12595,65 @@
         }
 
         .message-bubble {
-            max-width: 70%;
-            padding: 12px 16px;
+            max-width: 75%;
+            padding: 8px 12px;
             border-radius: 18px;
             position: relative;
             word-wrap: break-word;
+            box-shadow: 0 1px 1px var(--chat-bubble-shadow);
+            font-size: 14.5px;
+            line-height: 1.4;
+            animation: chatMsgSlideIn 0.2s ease-out;
         }
 
         .messages-list .message-item.sent .message-bubble {
-            background: linear-gradient(135deg, #1976d2, #1565c0);
-            color: white;
-            border-bottom-right-radius: 4px;
+            background: var(--chat-bubble-sent);
+            color: var(--chat-text-primary);
+            border-top-right-radius: 0px;
+            border-bottom-right-radius: 18px;
         }
 
         .messages-list .message-item.received .message-bubble {
-            background: white;
-            color: #333;
-            border: 1px solid #e0e0e0;
-            border-bottom-left-radius: 4px;
+            background: var(--chat-bubble-received);
+            color: var(--chat-text-primary);
+            border-top-left-radius: 0px;
+            border-bottom-left-radius: 18px;
+        }
+
+        /* Message Grouping Overrides */
+        .message-item.grouped {
+            margin-bottom: 3px !important;
+        }
+        .message-item.grouped .message-bubble {
+            border-radius: 18px !important;
+        }
+
+        /* Date separator styling */
+        .date-separator {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 16px 0;
+            width: 100%;
+        }
+        .date-separator-text {
+            background: rgba(255, 255, 255, 0.85);
+            color: #54656f;
+            font-size: 12px;
+            padding: 5px 12px;
+            border-radius: 8px;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.05);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+        .chat-panel.dark-theme .date-separator-text {
+            background: rgba(26, 39, 46, 0.9);
+            color: #8696a0;
+        }
+        @keyframes chatMsgSlideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .message-text {
@@ -12869,34 +12926,57 @@
            RESPONSIVE DESIGN
            ============================================ */
 
-        @media (max-width: 768px) {
+                @media (max-width: 768px) {
             .chat-panel {
-                width: 85%;
-                right: -85%;
+                width: 100% !important;
+                right: -100% !important;
+                z-index: 9999;
             }
-
             .chat-panel.open {
-                right: 0;
+                right: 0 !important;
             }
 
             .inbox-layout {
-                flex-direction: column;
+                flex-direction: row;
+                overflow: hidden;
+                position: relative;
+                height: 100%;
             }
 
             .users-list {
                 width: 100%;
-                height: 30%;
+                min-width: 100%;
+                height: 100%;
                 border-right: none;
-                border-bottom: 1px solid #e0e0e0;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
 
             .chat-conversation {
-                height: 70%;
+                position: absolute;
+                top: 0;
+                right: -100%;
+                width: 100%;
+                height: 100%;
+                display: flex !important;
+                background: var(--chat-bg);
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                z-index: 5;
+            }
+
+            .inbox-layout.conversation-active .users-list {
+                transform: translateX(-100%);
+            }
+
+            .inbox-layout.conversation-active .chat-conversation {
+                transform: translateX(-100%);
             }
 
             .messages-list {
-                max-height: calc(100vh - 500px);
-                /* Smaller on mobile */
+                max-height: calc(100vh - 130px);
+            }
+            
+            .back-btn {
+                display: flex !important;
             }
 
             .post-actions {
@@ -47545,7 +47625,42 @@ function smoothChaikin(points) {
                     // Load recent messages from Supabase
                     await loadRecentMessages();
 
-                    // Setup real-time subscriptions
+                    // Play synthetic notification chime (Web Audio API)
+            function playNotificationSound() {
+                if (localStorage.getItem('chatMuted') === 'true') return;
+                try {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioCtx) return;
+                    const ctx = new AudioCtx();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.frequency.value = 830; // Pleasant crisp sine chime
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                    osc.start();
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+                    osc.stop(ctx.currentTime + 0.3);
+                } catch (e) {
+                    console.warn('ðŸ”‡ Web Audio playback skipped:', e);
+                }
+            }
+
+            // Helper to parse date for headers
+            function getFriendlyDateString(isoString) {
+                const date = new Date(isoString);
+                const today = new Date();
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+
+                if (date.toDateString() === today.toDateString()) return 'Today';
+                if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+                
+                return date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+            }
+
+            // Setup real-time subscriptions
                     setupRealtimeSubscriptions();
 
                     // Add welcome message
@@ -47799,6 +47914,41 @@ function smoothChaikin(points) {
                 } catch (error) {
                     console.error('Error loading messages:', error);
                 }
+            }
+
+            // Play synthetic notification chime (Web Audio API)
+            function playNotificationSound() {
+                if (localStorage.getItem('chatMuted') === 'true') return;
+                try {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioCtx) return;
+                    const ctx = new AudioCtx();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.frequency.value = 830; // Pleasant crisp sine chime
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                    osc.start();
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+                    osc.stop(ctx.currentTime + 0.3);
+                } catch (e) {
+                    console.warn('ðŸ”‡ Web Audio playback skipped:', e);
+                }
+            }
+
+            // Helper to parse date for headers
+            function getFriendlyDateString(isoString) {
+                const date = new Date(isoString);
+                const today = new Date();
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+
+                if (date.toDateString() === today.toDateString()) return 'Today';
+                if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+                
+                return date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
             }
 
             // Setup real-time subscriptions
@@ -56390,7 +56540,42 @@ function smoothChaikin(points) {
                     await loadChatRooms();
                     await loadUsersList();
 
-                    // Setup real-time subscriptions
+                    // Play synthetic notification chime (Web Audio API)
+            function playNotificationSound() {
+                if (localStorage.getItem('chatMuted') === 'true') return;
+                try {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioCtx) return;
+                    const ctx = new AudioCtx();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.frequency.value = 830; // Pleasant crisp sine chime
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                    osc.start();
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+                    osc.stop(ctx.currentTime + 0.3);
+                } catch (e) {
+                    console.warn('ðŸ”‡ Web Audio playback skipped:', e);
+                }
+            }
+
+            // Helper to parse date for headers
+            function getFriendlyDateString(isoString) {
+                const date = new Date(isoString);
+                const today = new Date();
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+
+                if (date.toDateString() === today.toDateString()) return 'Today';
+                if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+                
+                return date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+            }
+
+            // Setup real-time subscriptions
                     setupRealtimeSubscriptions();
 
                     ChatSystem.initialized = true;
@@ -56480,7 +56665,7 @@ function smoothChaikin(points) {
                         .from('room_posts')
                         .select('*')
                         .eq('room_id', roomId)
-                        .order('created_at', { ascending: false });
+                        .order('created_at', { ascending: true });
 
                     if (error) throw error;
 
@@ -56899,48 +57084,69 @@ function smoothChaikin(points) {
             // ============================================
 
             // Render posts
+            // Batch-optimized room post renderer (Fixes N+1 queries)
             async function renderPosts(posts = null) {
                 const container = document.getElementById('posts-container');
                 if (!container) return;
 
                 if (!posts) {
-                    // Get current posts from state
                     const { data } = await supabase
                         .from('room_posts')
                         .select('*')
                         .eq('room_id', ChatSystem.currentRoom)
-                        .order('created_at', { ascending: false });
+                        .order('created_at', { ascending: true });
                     posts = data || [];
                 }
 
                 container.innerHTML = '';
+                if (posts.length === 0) return;
 
-                for (const post of posts) {
-                    const postElement = await renderPost(post);
-                    container.appendChild(postElement);
+                const ids = posts.map(p => p.id);
+
+                try {
+                    // 1. Batch query reactions and comments in parallel
+                    const [{ data: allReactions }, { data: allComments }] = await Promise.all([
+                        supabase.from('post_reactions').select('*').in('post_id', ids),
+                        supabase.from('post_comments').select('*').in('post_id', ids).order('created_at', { ascending: true })
+                    ]);
+
+                    const rxMap = new Map();
+                    allReactions?.forEach(r => {
+                        if (!rxMap.has(r.post_id)) rxMap.set(r.post_id, []);
+                        rxMap.get(r.post_id).push(r);
+                    });
+
+                    const cmMap = new Map();
+                    allComments?.forEach(c => {
+                        if (!cmMap.has(c.post_id)) cmMap.set(c.post_id, []);
+                        cmMap.get(c.post_id).push(c);
+                    });
+
+                    // 2. Render synchronously using cached batch data
+                    for (const post of posts) {
+                        const reactions = rxMap.get(post.id) || [];
+                        const comments = cmMap.get(post.id) || [];
+                        const postElement = renderPostSync(post, reactions, comments);
+                        container.appendChild(postElement);
+                    }
+
+                    // Scroll to bottom to emulate standard chat
+                    container.scrollTop = container.scrollHeight;
+
+                } catch(e) {
+                    console.error("âŒ Batch render posts failed:", e);
                 }
             }
 
-            // Render individual post
-            async function renderPost(post) {
+            // Synchronous post renderer (Uses batch loaded reactions/comments)
+            function renderPostSync(post, reactions, comments) {
                 const postElement = document.createElement('div');
                 postElement.className = 'post-card';
                 postElement.dataset.postId = post.id;
 
-                // Get reactions count
-                const { data: reactions } = await supabase
-                    .from('post_reactions')
-                    .select('*')
-                    .eq('post_id', post.id);
-
-                const likes = reactions?.filter(r => r.reaction_type === 'like').length || 0;
-                const dislikes = reactions?.filter(r => r.reaction_type === 'dislike').length || 0;
-
-                // Check user's reaction
-                const userReaction = reactions?.find(r => r.user_id === ChatSystem.currentUser.id);
-
-                // Get comments count
-                const comments = await loadPostComments(post.id);
+                const likes = reactions.filter(r => r.reaction_type === 'like').length;
+                const dislikes = reactions.filter(r => r.reaction_type === 'dislike').length;
+                const userReaction = reactions.find(r => r.user_id === ChatSystem.currentUser.id);
                 const commentsCount = comments.length;
 
                 postElement.innerHTML = `
@@ -56954,33 +57160,33 @@ function smoothChaikin(points) {
                 <div class="post-content">${escapeHtml(post.content)}</div>
                 ${post.image_url ? `
                     <div class="post-image" style="margin-top: 12px;">
-                        <img src="${escapeHtml(post.image_url)}" alt="Post image" style="max-width: 100%; max-height: 400px; border-radius: 8px; cursor: pointer;" onclick="window.open('${escapeHtml(post.image_url)}', '_blank')" />
+                        <img src="${escapeHtml(post.image_url)}" alt="Post image" style="max-width: 100%; max-height: 320px; border-radius: 8px; cursor: pointer;" onclick="window.open('${escapeHtml(post.image_url)}', '_blank')" />
                     </div>
                 ` : ''}
                 ${post.coordinates ? `
                     <div class="post-location">
-                        📍 Location: ${post.coordinates.lat?.toFixed(4)}, ${post.coordinates.lon?.toFixed(4)}
+                        ðŸ“ Location: ${post.coordinates.lat?.toFixed(4)}, ${post.coordinates.lon?.toFixed(4)}
                     </div>
                 ` : ''}
                 <div class="post-actions">
                     <button class="reaction-btn ${userReaction?.reaction_type === 'like' ? 'liked' : ''}" 
                             onclick="toggleReaction('${post.id}', 'like')">
-                        <span class="icon">👍</span>
+                        <span class="icon">ðŸ‘</span>
                         <span class="like-count">${likes}</span>
                     </button>
                     <button class="reaction-btn ${userReaction?.reaction_type === 'dislike' ? 'disliked' : ''}" 
                             onclick="toggleReaction('${post.id}', 'dislike')">
-                        <span class="icon">👎</span>
+                        <span class="icon">ðŸ‘Ž</span>
                         <span class="dislike-count">${dislikes}</span>
                     </button>
                     <button class="comment-toggle" onclick="toggleComments('${post.id}')">
-                        <span class="icon">💬</span>
+                        <span class="icon">ðŸ’¬</span>
                         <span>Comments (${commentsCount})</span>
                     </button>
                 </div>
                 <div class="comments-section" id="comments-${post.id}" style="display: none;">
                     <div class="comments-list" id="comments-list-${post.id}">
-                        ${await renderComments(comments)}
+                        ${renderCommentsSync(comments)}
                     </div>
                     <div class="add-comment-form">
                         <textarea class="comment-input" placeholder="Add a comment..." rows="2"></textarea>
@@ -56991,6 +57197,26 @@ function smoothChaikin(points) {
 
                 return postElement;
             }
+
+            function renderCommentsSync(comments) {
+                if (!comments || comments.length === 0) {
+                    return '<div class="no-comments">No comments yet. Be the first to comment!</div>';
+                }
+                return comments.map(comment => `
+                    <div class="comment-item">
+                        <div class="comment-avatar">${comment.username.charAt(0).toUpperCase()}</div>
+                        <div class="comment-content">
+                            <div class="comment-header">
+                                <span class="comment-username">@${comment.username}</span>
+                                <span class="comment-time">${formatTime(comment.created_at)}</span>
+                            </div>
+                            <div class="comment-text">${escapeHtml(comment.content)}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            
 
             // Render comments
             async function renderComments(comments) {
@@ -57182,12 +57408,11 @@ function smoothChaikin(points) {
                     partnerNameEl.textContent = user.username || user.display_name || user.email?.split('@')[0] || 'Unknown User';
                 }
 
-                // Show conversation area, hide users list and no-user message
-                const usersList = document.querySelector('.users-list');
-                const chatConversation = document.querySelector('.chat-conversation');
+                // Activate sliding layout natively
+                const inboxLayout = document.querySelector('.inbox-layout');
+                if (inboxLayout) inboxLayout.classList.add('conversation-active');
+                
                 const noUserMessage = document.getElementById('no-user-selected');
-                if (usersList) usersList.style.display = 'none';
-                if (chatConversation) chatConversation.style.display = 'flex';
                 if (noUserMessage) noUserMessage.style.display = 'none';
 
                 // Load conversation
@@ -57276,7 +57501,7 @@ function smoothChaikin(points) {
                 }
             }
 
-            // Render messages
+                        // Render messages with modern grouping and day-dividers
             function renderMessages(messages, partnerId = null, lastReadAt = null) {
                 const container = document.getElementById('messages-container');
                 if (!container) return;
@@ -57290,7 +57515,23 @@ function smoothChaikin(points) {
                     })
                     : -1;
 
+                let lastMsgDate = null;
+                let lastSenderId = null;
+                let lastMsgTime = null;
+
                 messages.forEach((message, index) => {
+                    // 1. Add Day Divider headers
+                    const msgDateStr = new Date(message.created_at).toDateString();
+                    if (msgDateStr !== lastMsgDate) {
+                        const dateDiv = document.createElement('div');
+                        dateDiv.className = 'date-separator';
+                        dateDiv.innerHTML = `<span class="date-separator-text">${getFriendlyDateString(message.created_at)}</span>`;
+                        container.appendChild(dateDiv);
+                        lastMsgDate = msgDateStr;
+                        lastSenderId = null; // Reset grouping on new day
+                    }
+
+                    // 2. Add Unread Marker
                     if (index === unreadIndex) {
                         const divider = document.createElement('div');
                         divider.className = 'unread-divider';
@@ -57298,34 +57539,35 @@ function smoothChaikin(points) {
                         container.appendChild(divider);
                     }
 
-                    // Robust check for sender ID (handle string vs number)
                     const isSent = String(message.sender_id) === String(ChatSystem.currentUser.id);
-                    console.log(`Msg ${message.id}: Sender=${message.sender_id}, Me=${ChatSystem.currentUser.id}, isSent=${isSent}`);
+                    
+                    // 3. Smooth Grouping logic (within 2 mins from same user)
+                    const msgTime = new Date(message.created_at).getTime();
+                    const isGrouped = lastSenderId === String(message.sender_id) && 
+                                      lastMsgTime && (msgTime - lastMsgTime) < (2 * 60 * 1000);
+                    
+                    lastSenderId = String(message.sender_id);
+                    lastMsgTime = msgTime;
 
                     const messageElement = document.createElement('div');
-                    // Force flex layout and alignment via inline styles to override any conflicting CSS
-                    messageElement.className = `message-item ${isSent ? 'sent' : 'received'}`;
-                    messageElement.style.cssText = `
-                        display: flex;
-                        width: 100%;
-                        justify-content: ${isSent ? 'flex-end' : 'flex-start'};
-                        margin-bottom: 10px;
-                    `;
+                    messageElement.className = `message-item ${isSent ? 'sent' : 'received'} ${isGrouped ? 'grouped' : ''}`;
 
                     messageElement.innerHTML = `
                     <div class="message-bubble">
                         <div class="message-text">${escapeHtml(message.content || '')}</div>
                         ${message.image_url ? `
-                            <div class="message-image" style="margin-top: 8px;">
-                                <img src="${escapeHtml(message.image_url)}" alt="Shared image" style="max-width: 100%; max-height: 300px; border-radius: 8px; cursor: pointer;" onclick="window.open('${escapeHtml(message.image_url)}', '_blank')" />
+                            <div class="message-image" style="margin-top: 6px;">
+                                <img src="${escapeHtml(message.image_url)}" alt="Shared image" style="max-width: 100%; max-height: 280px; border-radius: 8px; cursor: pointer;" onclick="window.open('${escapeHtml(message.image_url)}', '_blank')" />
                             </div>
                         ` : ''}
-                        <div class="message-time">${formatTime(message.created_at)}</div>
-                        ${isSent ? `
-                            <div class="message-status">
-                                ${message.is_read ? '<span class="read">✓✓</span>' : '<span class="delivered">✓</span>'}
-                            </div>
-                        ` : ''}
+                        <div style="display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 2px;">
+                            <span style="font-size: 10px; color: var(--chat-text-secondary);">${formatTime(message.created_at)}</span>
+                            ${isSent ? `
+                                <span style="font-size: 12px; color: ${message.is_read ? '#53bdeb' : 'var(--chat-text-secondary)'}; font-weight: bold;">
+                                    ${message.is_read ? 'âœ“âœ“' : 'âœ“'}
+                                </span>
+                            ` : ''}
+                        </div>
                     </div>
                 `;
 
@@ -57367,19 +57609,58 @@ function smoothChaikin(points) {
                 }
             }
 
+            // Play synthetic notification chime (Web Audio API)
+            function playNotificationSound() {
+                if (localStorage.getItem('chatMuted') === 'true') return;
+                try {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioCtx) return;
+                    const ctx = new AudioCtx();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.frequency.value = 830; // Pleasant crisp sine chime
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                    osc.start();
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+                    osc.stop(ctx.currentTime + 0.3);
+                } catch (e) {
+                    console.warn('ðŸ”‡ Web Audio playback skipped:', e);
+                }
+            }
+
+            // Helper to parse date for headers
+            function getFriendlyDateString(isoString) {
+                const date = new Date(isoString);
+                const today = new Date();
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+
+                if (date.toDateString() === today.toDateString()) return 'Today';
+                if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+                
+                return date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+            }
+
             // Setup real-time subscriptions
             function setupRealtimeSubscriptions() {
                 console.log('🔄 Setting up real-time subscriptions...');
 
-                // Subscribe to room posts
+                                // Subscribe to room posts
                 const postsChannel = supabase
                     .channel('room_posts')
                     .on('postgres_changes',
-                        { event: '*', schema: 'public', table: 'room_posts' },
+                        { event: 'INSERT', schema: 'public', table: 'room_posts' },
                         async (payload) => {
-                            console.log('📝 Post change received:', payload);
+                            console.log('ðŸ“ Post change received:', payload);
                             if (payload.new && payload.new.room_id === ChatSystem.currentRoom) {
                                 await loadRoomPosts(ChatSystem.currentRoom);
+                                // Play notification sound if sent by other user
+                                if (String(payload.new.user_id) !== String(ChatSystem.currentUser.id)) {
+                                    playNotificationSound();
+                                }
                             }
                             scheduleSocialChatBadgeRefresh();
                         }
@@ -57412,25 +57693,35 @@ function smoothChaikin(points) {
                     )
                     .subscribe();
 
-                // Subscribe to private messages
+                                // Subscribe to private messages (Bi-directional realtime sync)
                 const messagesChannel = supabase
                     .channel('private_messages')
                     .on('postgres_changes',
                         {
                             event: 'INSERT',
                             schema: 'public',
-                            table: 'private_messages',
-                            filter: `receiver_id=eq.${ChatSystem.currentUser.id}`
+                            table: 'private_messages'
                         },
                         async (payload) => {
-                            console.log('📨 New message received:', payload);
+                            const isFromMe = String(payload.new.sender_id) === String(ChatSystem.currentUser.id);
+                            const isToMe = String(payload.new.receiver_id) === String(ChatSystem.currentUser.id);
+                            
+                            // Filter message contextually
+                            if (!isFromMe && !isToMe) return;
+
+                            console.log('ðŸ“¨ Real-time message synced:', payload);
+                            
                             const partner = ChatSystem.currentChatPartner;
                             const openInbox = ChatSystem.currentMode === 'inbox';
-                            if (partner && openInbox &&
-                                String(payload.new.sender_id) === String(partner.id)) {
+                            const targetPartnerId = isFromMe ? payload.new.receiver_id : payload.new.sender_id;
+
+                            // Check if active thread matches incoming payload
+                            if (partner && openInbox && String(targetPartnerId) === String(partner.id)) {
                                 await loadConversation(partner.id, { showUnreadDivider: false });
+                                if (!isFromMe) playNotificationSound();
                             } else {
                                 await refreshInboxSummaries();
+                                if (!isFromMe) playNotificationSound();
                             }
                         }
                     )
@@ -57632,12 +57923,11 @@ function smoothChaikin(points) {
 
                 // Back to users button
                 document.getElementById('back-to-users')?.addEventListener('click', () => {
-                    // Hide conversation, show users list
-                    const usersList = document.querySelector('.users-list');
-                    const chatConversation = document.querySelector('.chat-conversation');
+                    // Deactivate sliding layout natively
+                    const inboxLayout = document.querySelector('.inbox-layout');
+                    if (inboxLayout) inboxLayout.classList.remove('conversation-active');
+                    
                     const noUserMessage = document.getElementById('no-user-selected');
-                    if (usersList) usersList.style.display = 'flex';
-                    if (chatConversation) chatConversation.style.display = 'none';
                     if (noUserMessage) noUserMessage.style.display = 'flex';
 
                     // Clear selected user
@@ -57650,16 +57940,16 @@ function smoothChaikin(points) {
                     if (partnerNameEl) partnerNameEl.textContent = 'Select a user';
                 });
 
-                // Enter key handlers
+                // Enter key handlers: Shift+Enter sends, Enter inserts newline
                 document.getElementById('post-input')?.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
+                    if (e.key === 'Enter' && e.shiftKey) {
                         e.preventDefault();
                         document.getElementById('post-submit-btn').click();
                     }
                 });
 
                 document.getElementById('message-input')?.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
+                    if (e.key === 'Enter' && e.shiftKey) {
                         e.preventDefault();
                         document.getElementById('message-send-btn').click();
                     }
@@ -58170,7 +58460,7 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                             <button type="button" class="chat-attach-option" id="share-location-btn"><i class="fas fa-crosshairs"></i> Location</button>
                         </div>
                     </div>
-                    <textarea id="post-input" placeholder="Type a message..." rows="1"></textarea>
+                    <textarea id="post-input" placeholder="Type a message... (Shift+Enter to send)" rows="1"></textarea>
                     <button id="post-submit-btn" class="chat-input-send-btn" title="Send"><i class="fas fa-paper-plane"></i></button>
                 </div>
             </div>
@@ -58213,7 +58503,7 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                                     <button type="button" class="chat-attach-option" id="message-share-location-btn"><i class="fas fa-crosshairs"></i> Location</button>
                                 </div>
                             </div>
-                            <textarea id="message-input" placeholder="Type a message..." rows="1"></textarea>
+                            <textarea id="message-input" placeholder="Type a message... (Shift+Enter to send)" rows="1"></textarea>
                             <button id="message-send-btn" class="chat-input-send-btn" title="Send"><i class="fas fa-paper-plane"></i></button>
                         </div>
                     </div>
