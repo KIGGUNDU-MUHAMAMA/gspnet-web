@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -47643,7 +47643,7 @@ function smoothChaikin(points) {
                     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
                     osc.stop(ctx.currentTime + 0.3);
                 } catch (e) {
-                    console.warn('ðŸ”‡ Web Audio playback skipped:', e);
+                    console.warn('Web Audio playback skipped:', e);
                 }
             }
 
@@ -47934,7 +47934,7 @@ function smoothChaikin(points) {
                     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
                     osc.stop(ctx.currentTime + 0.3);
                 } catch (e) {
-                    console.warn('ðŸ”‡ Web Audio playback skipped:', e);
+                    console.warn('Web Audio playback skipped:', e);
                 }
             }
 
@@ -56558,7 +56558,7 @@ function smoothChaikin(points) {
                     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
                     osc.stop(ctx.currentTime + 0.3);
                 } catch (e) {
-                    console.warn('ðŸ”‡ Web Audio playback skipped:', e);
+                    console.warn('Web Audio playback skipped:', e);
                 }
             }
 
@@ -57165,22 +57165,22 @@ function smoothChaikin(points) {
                 ` : ''}
                 ${post.coordinates ? `
                     <div class="post-location">
-                        ðŸ“ Location: ${post.coordinates.lat?.toFixed(4)}, ${post.coordinates.lon?.toFixed(4)}
+                        <i class="fas fa-map-marker-alt"></i> Location: ${post.coordinates.lat?.toFixed(4)}, ${post.coordinates.lon?.toFixed(4)}
                     </div>
                 ` : ''}
                 <div class="post-actions">
                     <button class="reaction-btn ${userReaction?.reaction_type === 'like' ? 'liked' : ''}" 
                             onclick="toggleReaction('${post.id}', 'like')">
-                        <span class="icon">ðŸ‘</span>
+                        <span class="icon"><i class="fas fa-thumbs-up"></i></span>
                         <span class="like-count">${likes}</span>
                     </button>
                     <button class="reaction-btn ${userReaction?.reaction_type === 'dislike' ? 'disliked' : ''}" 
                             onclick="toggleReaction('${post.id}', 'dislike')">
-                        <span class="icon">ðŸ‘Ž</span>
+                        <span class="icon"><i class="fas fa-thumbs-down"></i></span>
                         <span class="dislike-count">${dislikes}</span>
                     </button>
                     <button class="comment-toggle" onclick="toggleComments('${post.id}')">
-                        <span class="icon">ðŸ’¬</span>
+                        <span class="icon"><i class="fas fa-comment"></i></span>
                         <span>Comments (${commentsCount})</span>
                     </button>
                 </div>
@@ -57627,7 +57627,7 @@ function smoothChaikin(points) {
                     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
                     osc.stop(ctx.currentTime + 0.3);
                 } catch (e) {
-                    console.warn('ðŸ”‡ Web Audio playback skipped:', e);
+                    console.warn('Web Audio playback skipped:', e);
                 }
             }
 
@@ -57654,7 +57654,7 @@ function smoothChaikin(points) {
                     .on('postgres_changes',
                         { event: 'INSERT', schema: 'public', table: 'room_posts' },
                         async (payload) => {
-                            console.log('ðŸ“ Post change received:', payload);
+                            console.log('Post change received:', payload);
                             if (payload.new && payload.new.room_id === ChatSystem.currentRoom) {
                                 await loadRoomPosts(ChatSystem.currentRoom);
                                 // Play notification sound if sent by other user
@@ -57709,7 +57709,7 @@ function smoothChaikin(points) {
                             // Filter message contextually
                             if (!isFromMe && !isToMe) return;
 
-                            console.log('ðŸ“¨ Real-time message synced:', payload);
+                            console.log('Real-time message synced:', payload);
                             
                             const partner = ChatSystem.currentChatPartner;
                             const openInbox = ChatSystem.currentMode === 'inbox';
@@ -63151,4 +63151,4 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
 
 </body>
 
-</html>
+</html>
