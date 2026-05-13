@@ -6829,6 +6829,18 @@
             }
         }
 
+        /* -- Chat UI Design Tokens -- */
+        :root {
+            --chat-accent: #00a884;
+            --chat-accent-hover: #008f72;
+            --chat-header-bg: linear-gradient(135deg, #0a3d2e 0%, #00a884 100%);
+            --chat-surface: #ffffff;
+            --chat-input-bg: #f0f2f5;
+            --chat-border: #e0e0e0;
+            --chat-text-primary: #111b21;
+            --chat-text-secondary: #667781;
+        }
+
         /* Chat Panel */
         .chat-panel {
             position: fixed;
@@ -6850,23 +6862,26 @@
         }
 
         .chat-header {
-            background: linear-gradient(135deg, #1a2a6c, #3498db);
+            background: var(--chat-header-bg);
             color: white;
-            padding: 15px 20px;
+            padding: 0;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
+            flex-shrink: 0;
         }
 
         .chat-header h3 {
             margin: 0;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
+            padding: 10px 16px 0;
         }
 
         .chat-controls {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 4px;
+            padding: 4px 12px 8px;
+            justify-content: flex-end;
         }
 
         .online-count {
@@ -11546,8 +11561,16 @@
             color: #e0e0e0;
         }
 
+        .chat-panel.dark-theme {
+            --chat-surface: #1a1a2e;
+            --chat-input-bg: #16213e;
+            --chat-border: #2a2a4a;
+            --chat-text-primary: #e0e0e0;
+            --chat-text-secondary: #8899aa;
+        }
+
         .chat-panel.dark-theme .chat-header {
-            background: linear-gradient(135deg, #0d1b2a, #1b263b);
+            background: linear-gradient(135deg, #0a1f1a 0%, #064d3c 100%);
         }
 
         .chat-panel.dark-theme .chat-body {
@@ -11635,57 +11658,241 @@
         /* Chat Tabs */
         .chat-tabs {
             display: flex;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 4px;
-            margin-bottom: 10px;
+            padding: 0;
+            position: relative;
         }
 
         .chat-tab {
             position: relative;
             flex: 1;
-            padding: 8px 16px;
-            background: transparent;
-            color: rgba(255, 255, 255, 0.7);
+            background: none;
             border: none;
-            border-radius: 6px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 13px;
+            font-weight: 600;
+            padding: 14px 8px 12px;
             cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.3s ease;
+            transition: color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
 
         .chat-tab.active {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            color: #fff;
+        }
+
+        .chat-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 20%;
+            right: 20%;
+            height: 3px;
+            background: #fff;
+            border-radius: 3px 3px 0 0;
         }
 
         .chat-tab:hover:not(.active) {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
+            color: rgba(255, 255, 255, 0.9);
         }
 
         .chat-tab-badge {
             display: none;
-            margin-left: 6px;
             min-width: 18px;
             height: 18px;
             padding: 0 5px;
             border-radius: 9px;
             background: #e74c3c;
             color: #fff;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
             line-height: 18px;
             text-align: center;
-            vertical-align: middle;
         }
 
         .chat-tab-badge.visible {
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            animation: chatUnreadPulse 2s infinite;
+        }
+
+        /* Mute Toggle */
+        .chat-mute-btn {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 15px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .chat-mute-btn:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        .chat-mute-btn.muted {
+            color: rgba(255,255,255,0.4);
+        }
+
+        /* Compact Input Bar (shared by rooms and inbox) */
+        .chat-input-bar {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            padding: 8px 12px;
+            border-top: 1px solid var(--chat-border);
+            background: var(--chat-input-bg);
+            flex-shrink: 0;
+        }
+
+        .chat-input-bar textarea {
+            flex: 1;
+            padding: 8px 14px;
+            border: 1px solid var(--chat-border);
+            border-radius: 20px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            min-height: 36px;
+            max-height: 120px;
+            line-height: 20px;
+            overflow-y: auto;
+            background: var(--chat-surface);
+            color: var(--chat-text-primary);
+            transition: border-color 0.2s;
+        }
+
+        .chat-input-bar textarea:focus {
+            border-color: var(--chat-accent);
+            box-shadow: 0 0 0 2px rgba(0, 168, 132, 0.12);
+        }
+
+        .chat-input-bar textarea::placeholder {
+            color: var(--chat-text-secondary);
+        }
+
+        .chat-input-attach-btn {
+            background: none;
+            border: none;
+            font-size: 18px;
+            color: var(--chat-text-secondary);
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 50%;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            align-self: flex-end;
+            position: relative;
+        }
+
+        .chat-input-attach-btn:hover {
+            background: rgba(0,0,0,0.06);
+            color: var(--chat-accent);
+        }
+
+        .chat-input-send-btn {
+            background: var(--chat-accent);
+            border: none;
+            color: #fff;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            font-size: 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.2s;
+            align-self: flex-end;
+        }
+
+        .chat-input-send-btn:hover {
+            background: var(--chat-accent-hover);
+            transform: scale(1.08);
+        }
+
+        .chat-input-send-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Attachment popup */
+        .chat-attach-popup {
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            background: var(--chat-surface);
+            border: 1px solid var(--chat-border);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+            padding: 8px;
+            margin-bottom: 4px;
+            z-index: 10;
+            min-width: 140px;
+        }
+
+        .chat-attach-popup.open {
+            display: block;
+            animation: chatMsgSlideIn 0.15s ease;
+        }
+
+        .chat-attach-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border: none;
+            background: none;
+            width: 100%;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--chat-text-primary);
+            transition: background 0.15s;
+        }
+
+        .chat-attach-option:hover {
+            background: var(--chat-input-bg);
+        }
+
+        .chat-attach-option i {
+            font-size: 16px;
+            width: 20px;
+            text-align: center;
+            color: var(--chat-accent);
+        }
+
+        /* Image preview bar above input */
+        .chat-image-preview-bar {
+            display: none;
+            padding: 6px 12px;
+            border-top: 1px solid var(--chat-border);
+            background: var(--chat-input-bg);
+        }
+
+        .chat-image-preview-bar.active {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chat-image-preview-bar img {
+            height: 48px;
+            border-radius: 6px;
+            object-fit: cover;
+        }
+
+        .chat-image-preview-bar .remove-preview {
+            background: none;
+            border: none;
+            color: #e74c3c;
+            cursor: pointer;
+            font-size: 14px;
         }
 
         .user-name-line {
@@ -57463,6 +57670,56 @@ function smoothChaikin(points) {
                 handleImageSelection('message-image-input', 'message-image-preview', 'message-image-btn');
 
                 console.log('✅ Social chat event listeners set up');
+
+                // --- Attachment popup toggles ---
+                document.addEventListener('click', function(e) {
+                    document.querySelectorAll('.chat-attach-popup.open').forEach(function(p) {
+                        if (!p.parentElement.contains(e.target)) p.classList.remove('open');
+                    });
+                });
+                ['post-attach-toggle', 'msg-attach-toggle'].forEach(function(id) {
+                    var btn = document.getElementById(id);
+                    if (btn) {
+                        btn.addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            var popup = btn.querySelector('.chat-attach-popup');
+                            if (popup) popup.classList.toggle('open');
+                        });
+                    }
+                });
+                // Close popup when an option is clicked
+                document.querySelectorAll('.chat-attach-option').forEach(function(opt) {
+                    opt.addEventListener('click', function() {
+                        var popup = opt.closest('.chat-attach-popup');
+                        if (popup) popup.classList.remove('open');
+                    });
+                });
+
+                // Mute toggle
+                (function() {
+                    var muteBtn = document.getElementById('chatMuteBtn');
+                    if (muteBtn) {
+                        var muted = localStorage.getItem('chatMuted') === 'true';
+                        if (muted) {
+                            muteBtn.classList.add('muted');
+                            muteBtn.querySelector('i').className = 'fas fa-bell-slash';
+                        }
+                        muteBtn.addEventListener('click', function() {
+                            muted = !muted;
+                            localStorage.setItem('chatMuted', muted);
+                            muteBtn.classList.toggle('muted', muted);
+                            muteBtn.querySelector('i').className = muted ? 'fas fa-bell-slash' : 'fas fa-bell';
+                        });
+                    }
+                })();
+
+                // Auto-expand textareas in compact input bars
+                document.querySelectorAll('.chat-input-bar textarea').forEach(function(ta) {
+                    ta.addEventListener('input', function() {
+                        ta.style.height = 'auto';
+                        ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
+                    });
+                });
             }
 
             // Switch between tabs
@@ -57871,6 +58128,9 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                     <button type="button" id="tab-bot" class="chat-tab">AI Assistant</button>
                 </div>
                 <div class="chat-controls">
+                    <button type="button" class="chat-mute-btn" id="chatMuteBtn" title="Mute notifications">
+                        <i class="fas fa-bell"></i>
+                    </button>
                     <button type="button" class="icon-btn" id="propertySearchBtn" title="Property Search">
                         <i class="fas fa-search-location"></i>
                     </button>
@@ -57900,19 +58160,18 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                 <div id="posts-container" class="posts-list">
                     <!-- Posts will appear here -->
                 </div>
-                <div class="post-input-area">
-                    <textarea id="post-input" placeholder="Share your thoughts..." rows="3"></textarea>
-                    <div class="post-actions">
-                        <input type="file" id="post-image-input" accept="image/*" style="display: none;" />
-                        <button id="post-image-btn" title="Add Image" class="image-upload-btn">
-                            <i class="fas fa-image"></i>
-                        </button>
-                        <button id="share-location-btn" title="Share Location">
-                            <i class="fas fa-crosshairs"></i>
-                        </button>
-                        <button id="post-submit-btn" class="post-submit">Post</button>
+                <div id="post-image-preview" class="chat-image-preview-bar"></div>
+                <div class="chat-input-bar">
+                    <input type="file" id="post-image-input" accept="image/*" style="display: none;" />
+                    <div class="chat-input-attach-btn" id="post-attach-toggle" title="Attach">
+                        <i class="fas fa-plus"></i>
+                        <div class="chat-attach-popup" id="post-attach-popup">
+                            <button type="button" class="chat-attach-option" id="post-image-btn"><i class="fas fa-image"></i> Photo</button>
+                            <button type="button" class="chat-attach-option" id="share-location-btn"><i class="fas fa-crosshairs"></i> Location</button>
+                        </div>
                     </div>
-                    <div id="post-image-preview" class="image-preview" style="display: none;"></div>
+                    <textarea id="post-input" placeholder="Type a message..." rows="1"></textarea>
+                    <button id="post-submit-btn" class="chat-input-send-btn" title="Send"><i class="fas fa-paper-plane"></i></button>
                 </div>
             </div>
 
@@ -57944,23 +58203,18 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                                 Select a user to start chatting
                             </div>
                         </div>
-                        <div class="message-input-area">
-                            <textarea id="message-input" placeholder="Type a message..." rows="3"></textarea>
-                            <div class="message-actions">
-                                <div style="display: flex; gap: 8px;">
-                                    <input type="file" id="message-image-input" accept="image/*"
-                                        style="display: none;" />
-                                    <button id="message-image-btn" title="Add Image" class="image-upload-btn">
-                                        <i class="fas fa-image"></i>
-                                    </button>
-                                    <button id="message-share-location-btn" title="Share Location"
-                                        class="image-upload-btn">
-                                        <i class="fas fa-crosshairs"></i>
-                                    </button>
+                        <div id="message-image-preview" class="chat-image-preview-bar"></div>
+                        <div class="chat-input-bar">
+                            <input type="file" id="message-image-input" accept="image/*" style="display: none;" />
+                            <div class="chat-input-attach-btn" id="msg-attach-toggle" title="Attach">
+                                <i class="fas fa-plus"></i>
+                                <div class="chat-attach-popup" id="msg-attach-popup">
+                                    <button type="button" class="chat-attach-option" id="message-image-btn"><i class="fas fa-image"></i> Photo</button>
+                                    <button type="button" class="chat-attach-option" id="message-share-location-btn"><i class="fas fa-crosshairs"></i> Location</button>
                                 </div>
-                                <button id="message-send-btn" class="message-send">Send</button>
                             </div>
-                            <div id="message-image-preview" class="image-preview" style="display: none;"></div>
+                            <textarea id="message-input" placeholder="Type a message..." rows="1"></textarea>
+                            <button id="message-send-btn" class="chat-input-send-btn" title="Send"><i class="fas fa-paper-plane"></i></button>
                         </div>
                     </div>
                 </div>
