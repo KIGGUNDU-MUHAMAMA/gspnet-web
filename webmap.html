@@ -20632,37 +20632,56 @@
 
             // Geodesic area calculation: projects WGS84 → UTM → Shoelace
             // This matches how AutoCAD computes survey areas (planar area on UTM projection)
-            // and avoids the ~0.76% error of spherical area formulas
-            function geodesicAreaSqMeters(wgs84Coords) {
+            // and avoids the ~0.76% error of spherical area formulas.
+            //
+            // knownUtmEpsg: optional. If the caller knows the correct UTM CRS (e.g. 'EPSG:32636'),
+            //               pass it to skip auto-detection and guarantee consistency.
+            function geodesicAreaSqMeters(wgs84Coords, knownUtmEpsg) {
                 // wgs84Coords: array of [lon, lat] pairs (first == last for closed ring)
                 if (!wgs84Coords || wgs84Coords.length < 4) return 0; // need at least 3 + closing
 
-                // Determine UTM zone from centroid longitude
-                let sumLon = 0, sumLat = 0;
-                const n = wgs84Coords.length - 1; // exclude closing point
-                for (let i = 0; i < n; i++) {
-                    sumLon += wgs84Coords[i][0];
-                    sumLat += wgs84Coords[i][1];
+                // ── Guarantee ring closure ──
+                // Some data sources omit the duplicate closing vertex.
+                // If first ≠ last, close the ring so the Shoelace formula includes every edge.
+                const first = wgs84Coords[0];
+                const last  = wgs84Coords[wgs84Coords.length - 1];
+                let coords  = wgs84Coords;
+                if (first[0] !== last[0] || first[1] !== last[1]) {
+                    coords = wgs84Coords.concat([first]);
                 }
-                const centLon = sumLon / n;
-                const centLat = sumLat / n;
 
-                // UTM zone number: 1-60
-                const zoneNumber = Math.floor((centLon + 180) / 6) + 1;
-                // Hemisphere: N or S
-                const isNorth = centLat >= 0;
-                // EPSG code: 326xx for North, 327xx for South
-                const utmEpsg = `EPSG:${isNorth ? 32600 + zoneNumber : 32700 + zoneNumber}`;
+                // ── Determine UTM EPSG ──
+                let utmEpsg = knownUtmEpsg || null;
+                if (!utmEpsg) {
+                    // Auto-detect from centroid
+                    let sumLon = 0, sumLat = 0;
+                    const n = coords.length - 1; // exclude closing point
+                    for (let i = 0; i < n; i++) {
+                        sumLon += coords[i][0];
+                        sumLat += coords[i][1];
+                    }
+                    const centLon = sumLon / n;
+                    const centLat = sumLat / n;
+                    const zoneNumber = Math.floor((centLon + 180) / 6) + 1;
+                    const isNorth = centLat >= 0;
+                    utmEpsg = `EPSG:${isNorth ? 32600 + zoneNumber : 32700 + zoneNumber}`;
+                }
 
-                // Project all points to UTM
+                // ── Project to UTM and apply Shoelace ──
                 let utmCoords;
                 try {
-                    utmCoords = wgs84Coords.map(c => ol.proj.transform(c, 'EPSG:4326', utmEpsg));
+                    utmCoords = coords.map(c => ol.proj.transform(c, 'EPSG:4326', utmEpsg));
                 } catch (e) {
-                    // If UTM projection not registered, fall back to Web Mercator Shoelace
-                    // (less accurate at high latitudes but better than spherical)
-                    console.warn('[Area] UTM projection failed, falling back to EPSG:3857:', e.message);
-                    utmCoords = wgs84Coords.map(c => ol.proj.transform(c, 'EPSG:4326', 'EPSG:3857'));
+                    // If UTM projection not registered, use OpenLayers geodesic area (Karney)
+                    // This is far more accurate than the old EPSG:3857 Shoelace fallback.
+                    console.warn('[Area] UTM projection failed, using geodesic fallback:', e.message);
+                    try {
+                        const ring = new ol.geom.Polygon([coords.map(c => ol.proj.fromLonLat(c))]);
+                        return Math.abs(ol.sphere.getArea(ring, { projection: 'EPSG:3857' }));
+                    } catch (e2) {
+                        console.error('[Area] Geodesic area fallback also failed:', e2.message);
+                        return 0;
+                    }
                 }
 
                 // Shoelace formula for planar area (same as JRJ Engine / AutoCAD)
@@ -21495,7 +21514,18 @@
                         const wgs84Coords = coordinates.map(coord =>
                             ol.proj.transform(coord, 'EPSG:3857', 'EPSG:4326')
                         );
-                        const computedAreaSqM = geodesicAreaSqMeters(wgs84Coords);
+
+                        // Determine the correct UTM CRS for this parcel:
+                        // 1) Use the stored coordinate_system from the database if available
+                        // 2) Otherwise derive from the layer name (36N → EPSG:32636, 36S → EPSG:32736)
+                        // 3) Fall back to auto-detection inside geodesicAreaSqMeters
+                        let knownUtm = feature.get('coordinate_system') || null;
+                        if (!knownUtm && layerName) {
+                            if (layerName.includes('36S')) knownUtm = 'EPSG:32736';
+                            else if (layerName.includes('36N')) knownUtm = 'EPSG:32636';
+                            else if (layerName === 'BLB-UNTITLED') knownUtm = 'EPSG:32636'; // BLB defaults to 36N
+                        }
+                        const computedAreaSqM = geodesicAreaSqMeters(wgs84Coords, knownUtm);
                         const computedAreaHa  = computedAreaSqM / 10000;
                         const center = ol.extent.getCenter(geometry.getExtent());
                         const areaText = `${computedAreaHa.toFixed(4)} ha`;
@@ -29617,7 +29647,8 @@
                         // Recompute area on-the-fly using UTM Shoelace for AutoCAD-matching accuracy
                         // (edge function uses spherical formula which is ~0.76% too high)
                         if (data.geometry && data.geometry.coordinates && data.geometry.coordinates[0]) {
-                            const accurateAreaSqM = geodesicAreaSqMeters(data.geometry.coordinates[0]);
+                            // Pass the known CRS so area matches AutoCAD exactly
+                            const accurateAreaSqM = geodesicAreaSqMeters(data.geometry.coordinates[0], crs);
                             const accurateAreaHa = accurateAreaSqM / 10000;
                             console.log(`[Area] Edge function: ${data.area_hectares?.toFixed(6)} ha → UTM Shoelace: ${accurateAreaHa.toFixed(6)} ha`);
                             currentPolygonData.area_hectares = accurateAreaHa;
@@ -29807,7 +29838,9 @@
                             // Add area label in center — compute on-the-fly for accuracy
                             const previewCoords = feature.getGeometry().getCoordinates()[0];
                             const previewWgs84 = previewCoords.map(c => ol.proj.transform(c, 'EPSG:3857', 'EPSG:4326'));
-                            const previewAreaHa = geodesicAreaSqMeters(previewWgs84) / 10000;
+                            // Use the CRS from the polygon data for consistent area
+                            const previewKnownUtm = (currentPolygonData && currentPolygonData.coordinate_system) || crs || null;
+                            const previewAreaHa = geodesicAreaSqMeters(previewWgs84, previewKnownUtm) / 10000;
                             const center = ol.extent.getCenter(feature.getGeometry().getExtent());
                             styles.push(new ol.style.Style({
                                 text: new ol.style.Text({
@@ -44638,7 +44671,36 @@ function smoothChaikin(points) {
             async function displayPolygonInfo(polygonFeature) {
                 const uid = polygonFeature.get('unique_id');
                 const layerName = polygonFeature.get('layer_name') || 'Survey polygon';
-                const areaHa = polygonFeature.get('area_hectares');
+                const storedAreaHa = polygonFeature.get('area_hectares');
+
+                // ── Recompute area using the same UTM Shoelace method as the map labels ──
+                // This ensures the popup matches the label exactly.
+                let displayAreaHa = storedAreaHa;
+                try {
+                    const geom = polygonFeature.getGeometry();
+                    if (geom) {
+                        const geomType = geom.getType();
+                        const ringCoords = geomType === 'MultiPolygon'
+                            ? geom.getCoordinates()[0][0]
+                            : geom.getCoordinates()[0];
+                        const wgs84Ring = ringCoords.map(c =>
+                            ol.proj.transform(c, 'EPSG:3857', 'EPSG:4326')
+                        );
+                        // Determine known UTM from feature props or layer name
+                        let knownUtm = polygonFeature.get('coordinate_system') || null;
+                        if (!knownUtm && layerName) {
+                            if (layerName.includes('36S')) knownUtm = 'EPSG:32736';
+                            else if (layerName.includes('36N')) knownUtm = 'EPSG:32636';
+                            else if (layerName === 'BLB-UNTITLED') knownUtm = 'EPSG:32636';
+                        }
+                        const recomputedSqM = geodesicAreaSqMeters(wgs84Ring, knownUtm);
+                        if (recomputedSqM > 0) {
+                            displayAreaHa = recomputedSqM / 10000;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[displayPolygonInfo] area recompute failed, using stored value:', e);
+                }
 
                 const rows = [
                     ['Unique ID', uid],
@@ -44653,7 +44715,7 @@ function smoothChaikin(points) {
                     ['Supervisor', polygonFeature.get('supervisor')],
                     ['Company', polygonFeature.get('company')],
                     ['Coordinate system', polygonFeature.get('coordinate_system')],
-                    ['Area (ha)', areaHa != null && areaHa !== '' ? Number(areaHa).toFixed(4) : null],
+                    ['Area (ha)', displayAreaHa != null && displayAreaHa !== '' ? Number(displayAreaHa).toFixed(4) : null],
                     ['Vertices', polygonFeature.get('num_vertices')],
                     ['Additional info', polygonFeature.get('additional_info')],
                     ['Recorded', polygonFeature.get('created_at')]
