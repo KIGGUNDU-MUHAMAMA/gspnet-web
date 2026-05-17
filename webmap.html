@@ -20818,10 +20818,15 @@
                         });
 
                         try {
+                            // IMPORTANT: pass bbox strategy + clearBeforeLoad=true so flatgeobuf
+                            // uses HTTP Range requests against the spatial index — only features
+                            // in the current viewport are fetched (few KB vs the whole file).
                             const loader = flatgeobuf.createLoader(
                                 src,
                                 this._fgbUrl,
-                                "EPSG:4326"
+                                "EPSG:4326",
+                                function (extent) { return [extent]; }, // bbox strategy
+                                true                                     // clearBeforeLoad
                             );
                             src.setLoader(loader);
                             src.refresh();
@@ -21521,8 +21526,13 @@
                             urlIndex++;
                             console.log(`[FGB] Deferred loading: ${config.name} from ${url}`);
                             try {
+                                // IMPORTANT: bbox strategy + clearBeforeLoad=true — streams only
+                                // features in the current viewport via HTTP Range; prevents full-file
+                                // download of 100–200 MB NLIS/Blocks datasets on every toggle.
                                 const loader = flatgeobuf.createLoader(
-                                    src, url, "EPSG:4326"
+                                    src, url, "EPSG:4326",
+                                    function (extent) { return [extent]; }, // bbox strategy
+                                    true                                     // clearBeforeLoad
                                 );
                                 src.setLoader(loader);
                                 src.refresh();
