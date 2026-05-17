@@ -20807,9 +20807,7 @@
                         const loader = flatgeobuf.createLoader(
                             src,
                             this._fgbUrl,
-                            "EPSG:4326",
-                            function (extent) { return [extent]; },
-                            true
+                            "EPSG:4326"
                         );
                         src.setLoader(loader);
                         src.refresh();
@@ -21385,9 +21383,7 @@
                             console.log(`[FGB] Deferred loading: ${config.name} from ${url}`);
                             try {
                                 const loader = flatgeobuf.createLoader(
-                                    src, url, "EPSG:4326",
-                                    function (extent) { return [extent]; },
-                                    true
+                                    src, url, "EPSG:4326"
                                 );
                                 src.setLoader(loader);
                                 src.refresh();
@@ -21453,13 +21449,16 @@
             let polygonLoadCache = {};
             let polygonLoadDebounce = null;
 
+            // Per-layer debounce map — prevents layers from cancelling each other's load
+            const polygonLoadDebounceByLayer = {};
+
             async function loadPolygonsForExtent(layerName, extent, projection, source) {
-                // Debounce to avoid too many requests
-                if (polygonLoadDebounce) {
-                    clearTimeout(polygonLoadDebounce);
+                // Per-layer debounce (avoid one layer cancelling another's load)
+                if (polygonLoadDebounceByLayer[layerName]) {
+                    clearTimeout(polygonLoadDebounceByLayer[layerName]);
                 }
 
-                polygonLoadDebounce = setTimeout(async () => {
+                polygonLoadDebounceByLayer[layerName] = setTimeout(async () => {
                     try {
                         // Transform extent from map projection to WGS84
                         const bottomLeft = ol.proj.transform([extent[0], extent[1]], projection, 'EPSG:4326');
@@ -21473,26 +21472,28 @@
                             return;
                         }
 
-                        // Query Supabase with bounding box
-                        // Note: Supabase PostGIS functions may need to be enabled
-                        // Using client-side filtering for now
+                        console.log(`[Survey] Loading polygons for layer: ${layerName}`);
+
+                        // Query Supabase for this layer's polygons
                         const { data, error } = await supabase
                             .from('polygon_features')
                             .select('*')
-                            .eq('layer_name', layerName)
-                            .eq('is_archived', false);
+                            .eq('layer_name', layerName);
 
                         if (error) {
-                            console.error('Error loading polygons:', error);
+                            console.error(`[Survey] Supabase error loading "${layerName}":`, error.message, error.code);
                             return;
                         }
 
                         if (!data || data.length === 0) {
+                            console.log(`[Survey] No polygons found for layer: ${layerName}`);
                             polygonLoadCache[cacheKey] = true;
                             return;
                         }
 
-                        // Filter by extent (client-side)
+                        console.log(`[Survey] Retrieved ${data.length} rows for ${layerName}, filtering by extent...`);
+
+                        // Filter by extent (client-side) with FIXED bounding box logic
                         const format = new ol.format.GeoJSON();
                         const features = [];
 
@@ -21502,28 +21503,29 @@
                                 const geom = polygon.geometry;
                                 if (!geom || !geom.coordinates) return;
 
-                                // Check if polygon intersects extent
-                                const rings = geom.type === 'Polygon' ? geom.coordinates : (geom.type === 'MultiPolygon' ? geom.coordinates.flat(1) : []);
-                                rings.forEach(coords => { // Rename to coords for minimal impact below
+                                // Compute bounding box of entire geometry
                                 let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
+                                const rings = geom.type === 'Polygon'
+                                    ? geom.coordinates
+                                    : (geom.type === 'MultiPolygon' ? geom.coordinates.flat(1) : []);
 
-                                coords.forEach(coord => {
-                                    minLon = Math.min(minLon, coord[0]);
-                                    maxLon = Math.max(maxLon, coord[0]);
-                                    minLat = Math.min(minLat, coord[1]);
-                                    maxLat = Math.max(maxLat, coord[1]);
-                                });
+                                rings.forEach(ring => {
+                                    ring.forEach(coord => {
+                                        if (coord[0] < minLon) minLon = coord[0];
+                                        if (coord[0] > maxLon) maxLon = coord[0];
+                                        if (coord[1] < minLat) minLat = coord[1];
+                                        if (coord[1] > maxLat) maxLat = coord[1];
+                                    });
                                 });
 
-                                // Check intersection
+                                // Skip if polygon is entirely outside the current view extent
                                 if (maxLon < bottomLeft[0] || minLon > topRight[0] ||
                                     maxLat < bottomLeft[1] || minLat > topRight[1]) {
-                                    return; // Outside extent
+                                    return;
                                 }
 
-                                // Create feature
+                                // Create OL feature
                                 const feature = format.readFeature({
-
                                     type: 'Feature',
                                     geometry: geom,
                                     properties: {
@@ -21542,7 +21544,7 @@
                                         additional_info: polygon.additional_info,
                                         area_hectares: polygon.area_hectares,
                                         num_vertices: polygon.num_vertices,
-                                        edge_distances: polygon.edge_distances || null, // Include stored edge distances
+                                        edge_distances: polygon.edge_distances || null,
                                         csv_file_id: polygon.csv_file_id,
                                         created_at: polygon.created_at
                                     }
@@ -21553,7 +21555,7 @@
 
                                 features.push(feature);
                             } catch (e) {
-                                console.warn('Error processing polygon:', e);
+                                console.warn('[Survey] Error processing polygon row:', e);
                             }
                         });
 
@@ -21561,14 +21563,17 @@
                         if (features.length > 0) {
                             source.addFeatures(features);
                             polygonLoadCache[cacheKey] = true;
-                            console.log(`Loaded ${features.length} polygons for ${layerName}`);
+                            console.log(`[Survey] Added ${features.length} features for ${layerName}`);
+                        } else {
+                            console.log(`[Survey] No features in current extent for ${layerName}`);
                         }
 
                     } catch (error) {
-                        console.error('Error in loadPolygonsForExtent:', error);
+                        console.error('[Survey] Error in loadPolygonsForExtent:', error);
                     }
-                }, 350); // Debounce 350ms
+                }, 350); // 350ms debounce per layer
             }
+
 
             // FlatGeobuf Parcel Styling — RESOLUTION-AWARE
             // Tier 1: Stroke + polygon label
