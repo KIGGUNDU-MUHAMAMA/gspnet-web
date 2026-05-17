@@ -1,0 +1,29 @@
+
+            // GIS Export Engine (Extractor)
+            function closePanelsForGisExport() {
+                document.getElementById('condoPanel')?.classList.remove('open');
+                const gp = document.getElementById('gspnet-assist-panel');
+                if (gp) gp.style.display = 'none';
+                document.getElementById('profile-generation-panel')?.classList.remove('active');
+                const pm = document.getElementById('printDialogModal');
+                if (pm) pm.style.display = 'none';
+            }
+
+            if (typeof GisExportEngine !== 'undefined') {
+                window.gisExportEngine = new GisExportEngine({
+                    map: map,
+                    view: view,
+                    getGspnetLayers: function () { return gspnetLayers; },
+                    getPolygonLayers: function () { return polygonLayers; },
+                    getExtractorSource: function () { return extractorSource; },
+                    getContourLayer: function () { return terrain3DState.contourLayer; },
+                    showToast: showToast,
+                    closeOtherPanels: closePanelsForGisExport,
+                    isAuthenticated: function () { return window.__gspnetExportAuthenticated === true; }
+                });
+                window.gisExportEngine.init();
+                window.gisExportEngine.state.exportExtent = view.calculateExtent(map.getSize());
+                window.gisExportEngine._drawExtentFeature(window.gisExportEngine.state.exportExtent);
+            } else {
+                console.error('[webmap] GisExportEngine not loaded - check export-engine.js');
+            }

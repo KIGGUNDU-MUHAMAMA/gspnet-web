@@ -128,6 +128,7 @@
     <!-- CesiumJS — 3D globe engine for OL-Cesium terrain viewer -->
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.123/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <link href="cesium3d-viewer.css" rel="stylesheet">
+    <link href="export-engine.css" rel="stylesheet">
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.123/Build/Cesium/Cesium.js"></script>
     <script src="cesium3d-viewer.js" defer></script>
     <script src="condo-viewer.js"></script>
@@ -2604,7 +2605,7 @@
                         <table style="width: 100%; border-collapse: collapse;">
                             <tr>
                                 <td style="padding: 10px 0; border-bottom: 1px solid #dee2e6; width: 40%; font-weight: 600; color: #495057;">📏 Area:</td>
-                                <td style="padding: 10px 0; border-bottom: 1px solid #dee2e6; color: #212529;">${property.area_sqm ? formatPriceForPDF(property.area_sqm) + ' m²' : 'N/A'}</td>
+                                <td style="padding: 10px 0; border-bottom: 1px solid #dee2e6; color: #212529;">${property.area_sqm ? (property.area_sqm / 4046.86).toFixed(3) + ' Acres' : 'N/A'}</td>
                             </tr>
                             <tr>
                                 <td style="padding: 10px 0; border-bottom: 1px solid #dee2e6; font-weight: 600; color: #495057;">📋 Plot Number:</td>
@@ -2892,6 +2893,8 @@
                         return;
                     }
                     window.__currentValuationUserId = user.id;
+                    window.__gspnetExportAuthenticated = true;
+                    window.dispatchEvent(new Event('gspnet-export-auth-changed'));
 
                     // Check if user has active subscription
                     try {
@@ -2947,6 +2950,7 @@
                 }
             } else {
                 console.log('No token available, proceeding with limited access');
+                window.__gspnetExportAuthenticated = false;
             }
 
             if (!window.__currentProfileRole) {
@@ -14413,9 +14417,9 @@
                         <i class="fas fa-crosshairs"></i> <span>COORD SEARCH</span>
                     </button>
 
-                    <!-- Coordinate Extractor Button -->
-                    <button type="button" class="coord-extractor-main-btn" id="coordExtractorMainBtn">
-                        <i class="fas fa-ruler-combined"></i> <span>COORD EXTRACTOR</span>
+                    <!-- Extractor (GIS Export Engine) -->
+                    <button type="button" class="coord-extractor-main-btn" id="coordExtractorMainBtn" title="Extractor — map &amp; survey export">
+                        <i class="fas fa-file-export"></i> <span>EXTRACTOR</span>
                     </button>
 
                     <!-- GSP.NET UPDATES Button (New) -->
@@ -15341,49 +15345,89 @@
                 </div>
             </div>
 
-            <!-- Coordinate Extractor Modal -->
-            <div class="coord-extractor-modal" id="coordExtractorModal">
-                <div class="coord-extractor-header">
-                    <h3><i class="fas fa-ruler-combined"></i> Coordinate Extractor Tool</h3>
-                    <button type="button" class="coord-extractor-close" id="coordExtractorClose"
-                        aria-label="Close coordinate extractor">&times;</button>
-                </div>
-                <div class="coord-extractor-body">
-                    <div class="coord-extractor-grid">
-                        <div class="coord-extractor-controls-panel">
-                            <label for="crs-selector">Coordinate Reference System:</label>
-                            <select id="crs-selector" name="crs" class="crs-selector">
-                                <option value="EPSG:32636">WGS84 UTM Zone 36N (Default)</option>
-                                <option value="EPSG:21096">Arc1960 UTM Zone 36N — EPSG:21096</option>
-                                <option value="EPSG:21036">Arc1960 UTM Zone 36S — EPSG:21036</option>
-                                <option value="EPSG:32736">WGS84 UTM Zone 36S — EPSG:32736</option>
-                                <option value="EPSG:4326">WGS84 Geographic (Lat/Lon) — EPSG:4326</option>
-                                <option value="EPSG:3857">Web Mercator — EPSG:3857</option>
-                            </select>
-
-                            <div class="coord-controls-row" style="margin-top: 20px; text-align: left;">
-                                <label style="display: block; margin-bottom: 5px; cursor: pointer;">
-                                    <input type="checkbox" id="export-csv-checkbox" checked> Export CSV (Attributes & Points)
-                                </label>
-                                <label style="display: block; margin-bottom: 5px; cursor: pointer;">
-                                    <input type="checkbox" id="export-dxf-checkbox" checked> Export DXF (CAD Polyline)
-                                </label>
-                                <label style="display: block; margin-bottom: 15px; cursor: pointer;">
-                                    <input type="checkbox" id="export-jrj-checkbox" checked> Generate JRJ PDF
-                                </label>
-                                <button type="button" class="coord-control-btn primary" id="start-extraction-btn" style="width: 100%;">
-                                    <i class="fas fa-mouse-pointer"></i> Select Polygon on Map
-                                </button>
+                        <!-- GIS Export Engine Panel (Coordinate Extractor upgrade) -->
+            <aside id="gisExportPanel" class="gis-export-panel" aria-hidden="true">
+                <header class="gis-export-panel__header">
+                    <div>
+                        <h2><i class="fas fa-file-export"></i> Extractor</h2>
+                        <p class="gis-export-panel__subtitle">GIS export engine â€” raster, vector &amp; survey deliverables</p>
+                    </div>
+                    <button type="button" class="gis-export-panel__close" id="gisExportClose" aria-label="Close">&times;</button>
+                </header>
+                <div class="gis-export-panel__body">
+                    <div class="gis-export-panel__auth-lock"><div>
+                        <div class="gis-export-auth-lock__icon"><i class="fas fa-lock"></i></div>
+                        <p class="gis-export-auth-lock__title">Sign in required</p>
+                        <p class="gis-export-auth-lock__text">Log in to use the GIS Export Engine.</p>
+                        <a href="index.html" class="gis-export-auth-lock__link">Go to login</a>
+                    </div></div>
+                    <div class="gis-export-panel__steps">
+                        <section class="gis-export-step is-open is-active" data-step="1">
+                            <div class="gis-export-step__head"><span class="gis-export-step__num">1</span><span class="gis-export-step__title">Export format</span><i class="fas fa-chevron-down gis-export-step__chevron"></i></div>
+                            <div class="gis-export-step__body"><div id="gisExportFormatCards" class="gis-export-formats"></div></div>
+                        </section>
+                        <section class="gis-export-step" data-step="2">
+                            <div class="gis-export-step__head"><span class="gis-export-step__num">2</span><span class="gis-export-step__title">Extent</span><i class="fas fa-chevron-down gis-export-step__chevron"></i></div>
+                            <div class="gis-export-step__body">
+                                <div class="gis-export-chips">
+                                    <button type="button" class="gis-export-chip is-selected" data-extent="map">Map extent</button>
+                                    <button type="button" class="gis-export-chip" data-extent="draw-box">Draw rectangle</button>
+                                    <button type="button" class="gis-export-chip" data-extent="draw-poly">Draw polygon</button>
+                                    <button type="button" class="gis-export-chip" data-extent="pick">Pick parcel(s)</button>
+                                </div>
+                                <div id="gisExportExtentStats" class="gis-export-extent-stats">Using current map view.</div>
+                                <button type="button" class="gis-export-btn gis-export-btn--secondary" id="gisExportAutoCrop" style="width:100%;margin-top:6px;"><i class="fas fa-crop-alt"></i> Auto-crop to 1 km</button>
                             </div>
-
-                            <div class="coord-extractor-status" id="coord-extractor-status">
-                                <i class="fas fa-info-circle"></i> <span id="coord-status-text">Ready to start</span>
-                                <span id="wfs-loading-indicator" style="display:none;" class="loading-indicator"></span>
+                        </section>
+                        <section class="gis-export-step" data-step="3">
+                            <div class="gis-export-step__head"><span class="gis-export-step__num">3</span><span class="gis-export-step__title">Coordinate system</span><i class="fas fa-chevron-down gis-export-step__chevron"></i></div>
+                            <div class="gis-export-step__body">
+                                <label class="gis-export-label" for="gisExportCrs">Select coordinate system</label>
+                                <select id="gisExportCrs" class="gis-export-select"></select>
+                                <p id="gisExportCrsHint" class="gis-export-crs-hint"></p>
                             </div>
-                        </div>
+                        </section>
+                        <section class="gis-export-step" data-step="4">
+                            <div class="gis-export-step__head"><span class="gis-export-step__num">4</span><span class="gis-export-step__title">Settings</span><i class="fas fa-chevron-down gis-export-step__chevron"></i></motion></motion></motion></motion></div>
+                            <div class="gis-export-step__body">
+                                <details class="gis-export-advanced" open><summary>Raster options</summary>
+                                    <label class="gis-export-label" for="gisExportResolution">Resolution</label>
+                                    <select id="gisExportResolution" class="gis-export-select"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select>
+                                    <label class="gis-export-toggle-row"><span>Include labels</span><input type="checkbox" id="gisExportRasterLabels" checked></label>
+                                    <label class="gis-export-toggle-row"><span>Include coordinate grid</span><input type="checkbox" id="gisExportRasterGrid" checked></label>
+                                    <label class="gis-export-toggle-row"><span>Transparent PNG</span><input type="checkbox" id="gisExportRasterTransparent"></label>
+                                </details>
+                                <details class="gis-export-advanced"><summary>DXF options</summary>
+                                    <label class="gis-export-toggle-row"><span>Simplify</span><input type="checkbox" id="gisExportDxfSimplify"></label>
+                                    <label class="gis-export-toggle-row"><span>DXF labels</span><input type="checkbox" id="gisExportDxfLabels"></label>
+                                    <label class="gis-export-toggle-row"><span>Legacy R12</span><input type="checkbox" id="gisExportDxfLegacy"></label>
+                                </details>
+                                <details class="gis-export-advanced"><summary>Survey deliverables</summary>
+                                    <label class="gis-export-toggle-row"><span>Corner coordinates CSV</span><input type="checkbox" id="gisExportCornerCsv" checked></label>
+                                    <label class="gis-export-toggle-row"><span>JRJ computation CSV</span><input type="checkbox" id="gisExportJrjCsv"></label>
+                                </details>
+                            </div>
+                        </section>
+                        <section class="gis-export-step" data-step="5">
+                            <div class="gis-export-step__head"><span class="gis-export-step__num">5</span><span class="gis-export-step__title">Preview</span><i class="fas fa-chevron-down gis-export-step__chevron"></i></div>
+                            <div class="gis-export-step__body gis-export-preview">
+                                <table><tr><th>Format</th><td id="gisPreviewFormat">-</td></tr><tr><th>Extent</th><td id="gisPreviewExtent">-</td></tr><tr><th>CRS</th><td id="gisPreviewCrs">-</td></tr><tr><th>Resolution</th><td id="gisPreviewResolution">-</td></tr><tr><th>Est. size</th><td id="gisPreviewSize">-</td></tr></table>
+                                <p class="gis-export-label" style="margin-top:10px;">Visible layers</p>
+                                <div id="gisPreviewLayers" class="gis-export-preview__layers">-</div>
+                                <div id="gisExportWarnings" class="gis-export-warnings"></div>
+                            </div>
+                        </section>
                     </div>
                 </div>
-            </div>
+                <footer class="gis-export-panel__footer">
+                    <div id="gisExportProgress" class="gis-export-progress"><span id="gisExportProgressText">Generating export...</span><div class="gis-export-progress__bar"><div id="gisExportProgressFill" class="gis-export-progress__fill"></div></div></div>
+                    <div class="gis-export-actions">
+                        <button type="button" class="gis-export-btn gis-export-btn--primary" id="gisExportRun" disabled><i class="fas fa-download"></i> Export ZIP</button>
+                        <button type="button" class="gis-export-btn gis-export-btn--secondary" id="gisExportClearExtent"><i class="fas fa-eraser"></i> Clear</button>
+                        <button type="button" class="gis-export-btn gis-export-btn--danger" id="gisExportCancel"><i class="fas fa-times"></i> Cancel</button>
+                    </div>
+                </footer>
+            </aside>
 
             <!-- Print disclaimer (hidden until printing) -->
             <div class="print-disclaimer">
@@ -18219,6 +18263,8 @@
 
         <!-- Turf.js for spatial operations and TIN interpolation -->
         <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7/turf.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+        <script src="export-engine.js"></script>
 
         <!-- D3-delaunay for TIN triangulation (QGIS-quality contours) -->
         <script src="https://cdn.jsdelivr.net/npm/d3-delaunay@6"></script>
@@ -18347,7 +18393,8 @@
                 source: new ol.source.XYZ({
                     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
                     attributions: 'Tiles © Esri',
-                    crossOrigin: 'anonymous'
+                    crossOrigin: 'anonymous',
+                    maxZoom: 19
                 })
             });
 
@@ -18358,7 +18405,8 @@
                 source: new ol.source.XYZ({
                     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
                     attributions: 'Tiles © Esri',
-                    crossOrigin: 'anonymous'
+                    crossOrigin: 'anonymous',
+                    maxZoom: 19
                 })
             });
 
@@ -18369,7 +18417,8 @@
                 source: new ol.source.XYZ({
                     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}',
                     attributions: 'Tiles © Esri',
-                    crossOrigin: 'anonymous'
+                    crossOrigin: 'anonymous',
+                    maxZoom: 19
                 })
             });
 
@@ -18383,7 +18432,8 @@
                 source: new ol.source.XYZ({
                     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Reference_Overlay/MapServer/tile/{z}/{y}/{x}',
                     attributions: 'Reference © Esri',
-                    crossOrigin: 'anonymous'
+                    crossOrigin: 'anonymous',
+                    maxZoom: 19
                 })
             });
 
@@ -18394,7 +18444,8 @@
                 source: new ol.source.XYZ({
                     url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
                     attributions: '© Google',
-                    crossOrigin: 'anonymous'
+                    crossOrigin: 'anonymous',
+                    maxZoom: 20
                 })
             });
 
@@ -21452,7 +21503,8 @@
                                 if (!geom || !geom.coordinates) return;
 
                                 // Check if polygon intersects extent
-                                const coords = geom.coordinates[0];
+                                const rings = geom.type === 'Polygon' ? geom.coordinates : (geom.type === 'MultiPolygon' ? geom.coordinates.flat(1) : []);
+                                rings.forEach(coords => { // Rename to coords for minimal impact below
                                 let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
 
                                 coords.forEach(coord => {
@@ -21460,6 +21512,7 @@
                                     maxLon = Math.max(maxLon, coord[0]);
                                     minLat = Math.min(minLat, coord[1]);
                                     maxLat = Math.max(maxLat, coord[1]);
+                                });
                                 });
 
                                 // Check intersection
@@ -21470,6 +21523,7 @@
 
                                 // Create feature
                                 const feature = format.readFeature({
+
                                     type: 'Feature',
                                     geometry: geom,
                                     properties: {
@@ -26274,27 +26328,33 @@
                 const loadingIndicator = document.getElementById('pgf-loading-indicator');
                 const statusText = document.getElementById('coord-status-text');
 
-                loadingIndicator.style.display = 'inline-block';
-                statusText.textContent = 'Loading pg_featureserv collections...';
+                if (loadingIndicator) loadingIndicator.style.display = 'inline-block';
+                if (statusText) statusText.textContent = 'Loading pg_featureserv collections...';
 
                 try {
                     const collections = await fetchCollections();
 
                     // Clear existing options (except the first one)
-                    while (pgfLayerSelector.options.length > 1) {
-                        pgfLayerSelector.remove(1);
+                    if (pgfLayerSelector) {
+                        while (pgfLayerSelector.options.length > 1) {
+                            pgfLayerSelector.remove(1);
+                        }
                     }
-                    while (pgfLayerUpdates.options.length > 1) {
-                        pgfLayerUpdates.remove(1);
+                    if (pgfLayerUpdates) {
+                        while (pgfLayerUpdates.options.length > 1) {
+                            pgfLayerUpdates.remove(1);
+                        }
                     }
 
                     // Add ALL collections to coordinate extractor dropdown (for preview/snapping)
-                    collections.forEach(collection => {
-                        const option = document.createElement('option');
-                        option.value = collection.id;
-                        option.textContent = `${collection.title} (${collection.id})`;
-                        pgfLayerSelector.appendChild(option);
-                    });
+                    if (pgfLayerSelector) {
+                        collections.forEach(collection => {
+                            const option = document.createElement('option');
+                            option.value = collection.id;
+                            option.textContent = `${collection.title} (${collection.id})`;
+                            pgfLayerSelector.appendChild(option);
+                        });
+                    }
 
                     // Add ONLY the 7 hardcoded editable layers to GSP.NET UPDATES dropdown
                     EDITABLE_LAYERS.forEach(layer => {
@@ -26304,15 +26364,15 @@
                         pgfLayerUpdates.appendChild(option);
                     });
 
-                    statusText.textContent = `pg_featureserv collections loaded (${collections.length})`;
+                    if (statusText) statusText.textContent = `pg_featureserv collections loaded (${collections.length})`;
                     showToast(`pg_featureserv collections loaded (${collections.length})`, 'success');
 
                 } catch (error) {
                     console.error('Failed to load pg_featureserv collections:', error);
-                    statusText.textContent = 'Failed to load pg_featureserv collections';
+                    if (statusText) statusText.textContent = 'Failed to load pg_featureserv collections';
                     showToast('Failed to load pg_featureserv collections: ' + error.message, 'error');
                 } finally {
-                    loadingIndicator.style.display = 'none';
+                    if (loadingIndicator) loadingIndicator.style.display = 'none';
                 }
             }
 
@@ -27503,7 +27563,7 @@
 
                         coordinates.forEach(coord => {
                             // Convert to selected CRS
-                            const selectedCrs = document.getElementById('crs-selector').value;
+                            const selectedCrs = (document.getElementById('gisExportCrs') || {}).value || 'EPSG:32636';
                             const viewProjection = view.getProjection();
                             const viewCode = viewProjection.getCode();
 
@@ -27682,7 +27742,7 @@
 
                 // Generate points along the edge
                 const points = [];
-                const selectedCrs = document.getElementById('crs-selector').value;
+                const selectedCrs = (document.getElementById('gisExportCrs') || {}).value || 'EPSG:32636';
                 const viewProjection = view.getProjection();
                 const viewCode = viewProjection.getCode();
 
@@ -27801,7 +27861,7 @@
                         if (extractionActive && snappingEnabled) {
                             setupFlatGeobufSnapping();
                         }
-                        if (coordExtractorModal.style.display === 'block') {
+                        if (document.getElementById('gisExportPanel')?.classList.contains('open')) {
                             populateLayerSelector();
                         }
                     });
@@ -27813,7 +27873,7 @@
                         if (extractionActive && snappingEnabled) {
                             setupFlatGeobufSnapping();
                         }
-                        if (coordExtractorModal.style.display === 'block') {
+                        if (document.getElementById('gisExportPanel')?.classList.contains('open')) {
                             populateLayerSelector();
                         }
                     });
@@ -28007,295 +28067,36 @@
                 }
             }
 
-            // ==========================================
-            // Coordinate Extractor - Automated Flow
-            // ==========================================
-            let polygonSelectInteraction = null;
+            
+            // GIS Export Engine (Extractor)
+            function closePanelsForGisExport() {
+                document.getElementById('condoPanel')?.classList.remove('open');
+                const gp = document.getElementById('gspnet-assist-panel');
+                if (gp) gp.style.display = 'none';
+                document.getElementById('profile-generation-panel')?.classList.remove('active');
+                const pm = document.getElementById('printDialogModal');
+                if (pm) pm.style.display = 'none';
+            }
 
-            document.getElementById('start-extraction-btn').addEventListener('click', function () {
-                extractionActive = !extractionActive;
-
-                if (extractionActive) {
-                    // Start extraction
-                    this.innerHTML = '<i class="fas fa-stop"></i> Cancel Selection';
-                    this.style.background = 'linear-gradient(to bottom, #e74c3c, #c0392b)';
-                    document.getElementById('coord-extractor-status').style.display = 'block';
-                    document.getElementById('coord-status-text').textContent = 'Click a polygon on the map...';
-
-                    // Create select interaction for polygons
-                    const selectableLayers = [];
-                    // Add GSPNET layers
-                    gspnetLayers.forEach(layer => {
-                        if (layer.getVisible()) selectableLayers.push(layer);
-                    });
-                    // Add Survey Polygon layers
-                    Object.values(polygonLayers).forEach(layer => {
-                        if (layer.getVisible()) selectableLayers.push(layer);
-                    });
-
-                    polygonSelectInteraction = new ol.interaction.Select({
-                        layers: selectableLayers,
-                        style: new ol.style.Style({
-                            stroke: new ol.style.Stroke({
-                                color: '#00ffff',
-                                width: 3
-                            }),
-                            fill: new ol.style.Fill({
-                                color: 'rgba(0, 255, 255, 0.3)'
-                            })
-                        })
-                    });
-
-                    map.addInteraction(polygonSelectInteraction);
-
-                    polygonSelectInteraction.on('select', function(e) {
-                        if (e.selected.length > 0) {
-                            const feature = e.selected[0];
-                            const geometry = feature.getGeometry();
-                            
-                            if (geometry && (geometry.getType() === 'Polygon' || geometry.getType() === 'MultiPolygon')) {
-                                processPolygonExtraction(feature);
-                                
-                                // Auto-cancel after selection
-                                document.getElementById('start-extraction-btn').click();
-                            } else {
-                                showToast('Please select a polygon feature.', 'warning');
-                                polygonSelectInteraction.getFeatures().clear();
-                            }
-                        }
-                    });
-
-                    showToast('Extraction mode active. Click a polygon on the map.', 'info');
-                } else {
-                    // Stop extraction
-                    this.innerHTML = '<i class="fas fa-mouse-pointer"></i> Select Polygon on Map';
-                    this.style.background = 'linear-gradient(to bottom, #3498db, #2980b9)';
-                    document.getElementById('coord-status-text').textContent = 'Ready to start';
-
-                    if (polygonSelectInteraction) {
-                        map.removeInteraction(polygonSelectInteraction);
-                        polygonSelectInteraction = null;
-                    }
-                }
-            });
-
-            function processPolygonExtraction(feature) {
-                const geometry = feature.getGeometry();
-                let coordinates = [];
-                
-                if (geometry.getType() === 'Polygon') {
-                    coordinates = geometry.getCoordinates()[0]; // Outer ring
-                } else if (geometry.getType() === 'MultiPolygon') {
-                    coordinates = geometry.getPolygon(0).getCoordinates()[0]; // Outer ring of first polygon
-                }
-
-                if (!coordinates || coordinates.length === 0) {
-                    showToast('Invalid polygon geometry.', 'error');
-                    return;
-                }
-
-                const selectedCrs = document.getElementById('crs-selector').value;
-                const viewProjection = view.getProjection();
-                const viewCode = viewProjection.getCode();
-
-                extractedPoints = [];
-                let vertexCount = 0;
-
-                coordinates.forEach((coord, index) => {
-                    try {
-                        const transformedCoord = ol.proj.transform(coord, viewCode, selectedCrs);
-                        const lonLat = ol.proj.transform(coord, viewCode, 'EPSG:4326');
-                        
-                        // Prevent adding the last coordinate if it's identical to the first (closing vertex)
-                        if (index === coordinates.length - 1 && 
-                            extractedPoints.length > 0 && 
-                            extractedPoints[0].easting === (selectedCrs === 'EPSG:4326' ? transformedCoord[0].toFixed(6) : Number(transformedCoord[0].toFixed(3))) && 
-                            extractedPoints[0].northing === (selectedCrs === 'EPSG:4326' ? transformedCoord[1].toFixed(6) : Number(transformedCoord[1].toFixed(3)))) {
-                            return;
-                        }
-
-                        const extractedPoint = {
-                            id: vertexCount + 1,
-                            easting: selectedCrs === 'EPSG:4326' ? transformedCoord[0].toFixed(6) : Number(transformedCoord[0].toFixed(3)),
-                            northing: selectedCrs === 'EPSG:4326' ? transformedCoord[1].toFixed(6) : Number(transformedCoord[1].toFixed(3)),
-                            lat: lonLat[1].toFixed(6),
-                            lon: lonLat[0].toFixed(6),
-                            crs: selectedCrs
-                        };
-
-                        extractedPoints.push(extractedPoint);
-                        vertexCount++;
-                    } catch (error) {
-                        console.error('Error transforming vertex coordinate:', error);
-                    }
+            if (typeof GisExportEngine !== 'undefined') {
+                window.gisExportEngine = new GisExportEngine({
+                    map: map,
+                    view: view,
+                    getGspnetLayers: function () { return gspnetLayers; },
+                    getPolygonLayers: function () { return polygonLayers; },
+                    getExtractorSource: function () { return extractorSource; },
+                    getContourLayer: function () { return terrain3DState.contourLayer; },
+                    showToast: showToast,
+                    closeOtherPanels: closePanelsForGisExport,
+                    isAuthenticated: function () { return window.__gspnetExportAuthenticated === true; }
                 });
+                window.gisExportEngine.init();
 
-                updateExtractorLayer();
-                
-                const exportCsv = document.getElementById('export-csv-checkbox').checked;
-                const exportDxf = document.getElementById('export-dxf-checkbox').checked;
-                const exportJrj = document.getElementById('export-jrj-checkbox').checked;
-                
-                if (exportCsv) {
-                    exportPolygonData(feature, extractedPoints);
-                }
-                
-                if (exportDxf) {
-                    exportPolygonDXF(feature, extractedPoints, selectedCrs);
-                }
 
-                if (exportJrj) {
-                    const jrjPdf = new JRJPdfGenerator();
-                    const jrjCoords = extractedPoints.map(p => ({
-                        stn: 'CM' + p.id,
-                        n: parseFloat(p.northing),
-                        e: parseFloat(p.easting)
-                    }));
-                    const plotNumber = feature.get('plot') || feature.get('plot_number') || feature.get('PlotNumber') || 'Extracted';
-                    jrjPdf.generatePdf(jrjCoords, { plot: plotNumber });
-                }
-                
-                if (exportCsv || exportDxf || exportJrj) {
-                    showToast(`Automatically extracted ${vertexCount} vertices.`, 'success');
-                } else {
-                    showToast(`Extracted ${vertexCount} vertices, but no export format was selected.`, 'info');
-                }
+            } else {
+                console.error('[webmap] GisExportEngine not loaded - check export-engine.js');
             }
 
-            function updateExtractorLayer() {
-                if (typeof extractorSource !== 'undefined') {
-                    extractorSource.clear();
-
-                    extractedPoints.forEach(point => {
-                        const viewProjection = view.getProjection();
-                        const selectedCrs = point.crs || document.getElementById('crs-selector').value;
-
-                        try {
-                            // Create point in the selected CRS and transform to map view for display
-                            const pointFeature = new ol.Feature({
-                                geometry: new ol.geom.Point(
-                                    ol.proj.transform([parseFloat(point.easting), parseFloat(point.northing)], selectedCrs, viewProjection)
-                                )
-                            });
-
-                            pointFeature.setStyle(new ol.style.Style({
-                                image: new ol.style.Circle({
-                                    radius: 6,
-                                    fill: new ol.style.Fill({
-                                        color: 'rgba(255, 0, 0, 0.7)'
-                                    }),
-                                    stroke: new ol.style.Stroke({
-                                        color: 'red',
-                                        width: 2
-                                    })
-                                }),
-                                text: new ol.style.Text({
-                                    text: point.id.toString(),
-                                    offsetY: -15,
-                                    font: 'bold 12px sans-serif',
-                                    fill: new ol.style.Fill({ color: 'red' }),
-                                    stroke: new ol.style.Stroke({ color: 'white', width: 3 })
-                                })
-                            }));
-
-                            extractorSource.addFeature(pointFeature);
-                        } catch (error) {
-                            console.error('Error updating extractor layer for point', point.id, error);
-                        }
-                    });
-                }
-            }
-
-            function exportPolygonData(feature, points) {
-                const properties = feature.getProperties();
-                let csvContent = "POLYGON ATTRIBUTES\n";
-                csvContent += "Attribute,Value\n";
-                
-                // Add all properties except geometry
-                for (const key in properties) {
-                    if (key !== feature.getGeometryName() && typeof properties[key] !== 'object') {
-                        // Escape quotes and commas
-                        let val = properties[key] == null ? '' : String(properties[key]);
-                        if (val.includes(',') || val.includes('"')) {
-                            val = '"' + val.replace(/"/g, '""') + '"';
-                        }
-                        csvContent += `${key},${val}\n`;
-                    }
-                }
-                
-                csvContent += "\nPOLYGON COORDINATES\n";
-                csvContent += "Point ID,Easting,Northing,Latitude,Longitude\n";
-                
-                points.forEach(point => {
-                    csvContent += `${point.id},${point.easting},${point.northing},${point.lat},${point.lon}\n`;
-                });
-
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const link = document.createElement("a");
-                const url = URL.createObjectURL(blob);
-                link.setAttribute("href", url);
-                link.setAttribute("download", "GSPNET-POLYGON-EXTRACT.csv");
-                link.style.visibility = 'hidden';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            }
-
-            function exportPolygonDXF(feature, points, crs) {
-                // Minimal R12 DXF structure for a standard POLYLINE (best compatibility for old AutoCAD/Civil 3D)
-                let dxf = "  0\nSECTION\n  2\nHEADER\n  0\nENDSEC\n  0\nSECTION\n  2\nENTITIES\n";
-                
-                // POLYLINE entity header
-                dxf += "  0\nPOLYLINE\n";
-                dxf += "  8\nGSPNET_BOUNDARY\n"; // Layer name
-                dxf += " 66\n1\n"; // Vertices follow flag
-                dxf += " 70\n1\n"; // 1 = Closed polyline flag
-
-                // Add each coordinate as a VERTEX entity
-                points.forEach(point => {
-                    dxf += "  0\nVERTEX\n";
-                    dxf += "  8\nGSPNET_BOUNDARY\n"; 
-                    dxf += ` 10\n${point.easting}\n`;
-                    dxf += ` 20\n${point.northing}\n`;
-                    dxf += " 30\n0.0\n"; // Z-coordinate is required for older DXF structures
-                });
-
-                // Sequence End entity designates the end of the vertices
-                dxf += "  0\nSEQEND\n";
-                dxf += "  8\nGSPNET_BOUNDARY\n";
-
-                dxf += "  0\nENDSEC\n  0\nEOF\n";
-
-                const blob = new Blob([dxf], { type: 'application/dxf' });
-                const link = document.createElement("a");
-                const url = URL.createObjectURL(blob);
-                link.setAttribute("href", url);
-                link.setAttribute("download", `GSPNET-BOUNDARY-${crs.replace(':', '_')}.dxf`);
-                link.style.visibility = 'hidden';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            }
-
-            // Coordinate Extractor Modal Control
-            const coordExtractorMainBtn = document.getElementById('coordExtractorMainBtn');
-            const coordExtractorModal = document.getElementById('coordExtractorModal');
-            const coordExtractorClose = document.getElementById('coordExtractorClose');
-
-            coordExtractorMainBtn.addEventListener('click', function () {
-                coordExtractorModal.style.display = 'block';
-            });
-
-            coordExtractorClose.addEventListener('click', function () {
-                coordExtractorModal.style.display = 'none';
-
-                // Stop extraction if active
-                if (extractionActive) {
-                    document.getElementById('start-extraction-btn').click();
-                }
-            });
-
-            // ========================================
             //  GSP.NET UPDATES - NEW IMPLEMENTATION
             //  Clean, modular, backend-driven editing system
             // ========================================
@@ -44354,8 +44155,8 @@ function smoothChaikin(points) {
                 // Escape key to close modals
                 if (e.key === 'Escape') {
                     // Close any open modals or panels
-                    if (coordExtractorModal.style.display === 'block') {
-                        coordExtractorClose.click();
+                    if (window.gisExportEngine && document.getElementById('gisExportPanel')?.classList.contains('open')) {
+                        window.gisExportEngine.closePanel();
                     }
                     if (gspnetPanel && gspnetPanel.style.display === 'block') {
                         const gspnetCloseBtn = document.getElementById('gspnet-panel-close');
@@ -45786,7 +45587,7 @@ function smoothChaikin(points) {
             // Coordinate extraction handler
             function handleCoordinateExtraction(evt) {
                 const coordinate = evt.coordinate;
-                const crs = document.getElementById('crs-selector').value;
+                const crs = (document.getElementById('gisExportCrs') || {}).value || 'EPSG:32636';
 
                 // Transform to selected CRS
                 const transformedCoord = ol.proj.transform(coordinate, 'EPSG:3857', crs);
@@ -48797,11 +48598,15 @@ function smoothChaikin(points) {
             // Uganda Coordinate Systems
             // Make it globally accessible
             const UGANDA_COORDINATE_SYSTEMS = window.UGANDA_COORDINATE_SYSTEMS = [
-                { value: 'EPSG:32636', label: 'WGS84 UTM Zone 36N (EPSG:32636)' },
-                { value: 'EPSG:21096', label: 'Arc1960 UTM Zone 36N (EPSG:21096)' },
-                { value: 'EPSG:21036', label: 'Arc1960 UTM Zone 36S (EPSG:21036)' },
-                { value: 'EPSG:32736', label: 'WGS84 UTM Zone 36S (EPSG:32736)' },
-                { value: 'EPSG:4326', label: 'WGS84 Geographic Lat/Lon (EPSG:4326)' }
+                { value: 'EPSG:4326', label: 'WGS 84 Geographic (EPSG:4326)', group: 'Global' },
+                { value: 'EPSG:3857', label: 'Web Mercator (EPSG:3857)', group: 'Global' },
+                { value: 'EPSG:32635', label: 'WGS 84 / UTM Zone 35N (EPSG:32635)', group: 'UTM' },
+                { value: 'EPSG:32636', label: 'WGS 84 / UTM Zone 36N (EPSG:32636)', group: 'UTM' },
+                { value: 'EPSG:32735', label: 'WGS 84 / UTM Zone 35S (EPSG:32735)', group: 'UTM' },
+                { value: 'EPSG:32736', label: 'WGS 84 / UTM Zone 36S (EPSG:32736)', group: 'UTM' },
+                { value: 'EPSG:21095', label: 'Arc 1960 / UTM Zone 35N (EPSG:21095)', group: 'Arc1960' },
+                { value: 'EPSG:21096', label: 'Arc 1960 / UTM Zone 36N (EPSG:21096)', group: 'Arc1960' },
+                { value: 'EPSG:21036', label: 'Arc 1960 / UTM Zone 36S (EPSG:21036)', group: 'Arc1960' }
             ];
 
             // Project Library State Variables
@@ -54593,11 +54398,17 @@ function smoothChaikin(points) {
                 propertyMarkersLayer = new ol.layer.Vector({
                     source: propertyMarkersSource,
                     zIndex: 999,
-                    style: function (feature) {
-                        const price = feature.get('price_ugx');
+                    style: function (feature, resolution) {
+                        const price = feature.get('price_ugx') || 0;
                         const priceText = formatPrice(price);
+                        
+                        const geom = feature.getGeometry();
+                        const isPolygon = geom && (geom.getType() === 'Polygon' || geom.getType() === 'MultiPolygon');
+                        
+                        const styles = [];
 
-                        return new ol.style.Style({
+                        styles.push(new ol.style.Style({
+                            geometry: isPolygon ? geom.getInteriorPoint() : undefined,
                             image: new ol.style.Icon({
                                 anchor: [0.5, 1],
                                 src: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path fill="%2327ae60" stroke="%23ffffff" stroke-width="2" d="M16 0C10.5 0 6 4.5 6 10c0 8 10 22 10 22s10-14 10-22c0-5.5-4.5-10-10-10zm0 14c-2.2 0-4-1.8-4-4s1.8-4 4-4 4 1.8 4 4-1.8 4-4 4z"/></svg>',
@@ -54612,7 +54423,16 @@ function smoothChaikin(points) {
                                 backgroundFill: new ol.style.Fill({ color: 'rgba(39, 174, 96, 0.9)' }),
                                 padding: [4, 6, 4, 6]
                             })
-                        });
+                        }));
+
+                        if (isPolygon && resolution <= (typeof DETAIL_ZOOM_GATE !== 'undefined' ? DETAIL_ZOOM_GATE.DISTANCES : 1.0)) {
+                            styles.push(new ol.style.Style({
+                                fill: new ol.style.Fill({ color: 'rgba(39, 174, 96, 0.15)' }),
+                                stroke: new ol.style.Stroke({ color: 'rgba(39, 174, 96, 0.8)', width: 2, lineDash: [5, 5] })
+                            }));
+                        }
+
+                        return styles;
                     }
                 });
 
@@ -54677,20 +54497,41 @@ function smoothChaikin(points) {
                         console.log('Map clicked, propertyListingPanelOpen:', propertyListingPanelOpen);
                         if (!propertyListingPanelOpen) return;
 
-                        const coordinate = evt.coordinate;
-                        const lonLat = ol.proj.toLonLat(coordinate);
-                        console.log('Map click coordinates:', lonLat);
+                        let selectedPolygonFeature = null;
+                        
+                        map.forEachFeatureAtPixel(evt.pixel, function(feature, layer) {
+                            if (!selectedPolygonFeature) {
+                                const geom = feature.getGeometry();
+                                if (geom && (geom.getType() === 'Polygon' || geom.getType() === 'MultiPolygon')) {
+                                    selectedPolygonFeature = feature;
+                                }
+                            }
+                        }, { hitTolerance: 5 });
+
+                        if (!selectedPolygonFeature) {
+                            showToast('Please click on a valid parcel polygon on the map.', 'warning');
+                            return;
+                        }
+
+                        const geom = selectedPolygonFeature.getGeometry();
+                        const center = geom.getInteriorPoint().getCoordinates();
+                        const lonLat = ol.proj.toLonLat(center);
+                        
+                        const format = new ol.format.GeoJSON();
+                        const geojsonStr = format.writeGeometry(geom, {
+                            dataProjection: 'EPSG:4326',
+                            featureProjection: 'EPSG:3857'
+                        });
 
                         selectedPropertyCoordinate = {
-                            mapCoord: coordinate,
+                            mapCoord: center,
                             lon: lonLat[0],
-                            lat: lonLat[1]
+                            lat: lonLat[1],
+                            geojson: geojsonStr
                         };
 
-                        // Handle location selection
-                        handleLocationSelection(coordinate, lonLat);
+                        handleLocationSelection(center, lonLat, geom);
 
-                        // Remove listener after first click
                         ol.Observable.unByKey(propertyClickListener);
                         propertyClickListener = null;
                         disableCrosshair();
@@ -54699,21 +54540,18 @@ function smoothChaikin(points) {
             }
 
             // Handle map location selection
-            function handleLocationSelection(coordinate, lonLat) {
+            function handleLocationSelection(coordinate, lonLat, geom) {
                 console.log('handleLocationSelection called with coordinates:', lonLat);
 
-                // Remove previous pin if exists
                 if (currentPropertyPin && propertyMarkersSource) {
                     propertyMarkersSource.removeFeature(currentPropertyPin);
                 }
 
-                // Create temporary pin marker
                 currentPropertyPin = new ol.Feature({
-                    geometry: new ol.geom.Point(coordinate),
+                    geometry: geom ? geom.clone() : new ol.geom.Point(coordinate),
                     isTemporary: true
                 });
 
-                // Add temporary pin to map
                 propertyMarkersSource.addFeature(currentPropertyPin);
 
                 // Update UI
@@ -55155,12 +54993,20 @@ function smoothChaikin(points) {
                         contact: contact,
                         plot_number: plot || null,
                         block_number: block || null,
-                        area_sqm: area ? parseInt(area) : null,
+                        area_sqm: area ? Math.round(parseFloat(area) * 4046.86) : null,
                         price_ugx: parseInt(price),
                         tenure: tenure,
                         status: 'available',
                         image_urls: imageUrls.length > 0 ? imageUrls : null
                     };
+
+                    if (selectedPropertyCoordinate.geojson) {
+                        try {
+                            propertyData.geojson = JSON.parse(selectedPropertyCoordinate.geojson);
+                        } catch(e) {
+                            console.error('Error parsing geojson for save:', e);
+                        }
+                    }
 
                     // #region agent log - hypothesis C: data preparation
                     fetch('http://127.0.0.1:7242/ingest/2866f7e4-488b-44a9-893a-149a99e08935', {
@@ -55476,7 +55322,7 @@ function smoothChaikin(points) {
                             </div>
                             <div class="property-details" style="font-size: 0.9rem; color: #666; margin-bottom: 5px;">
                                 <div class="property-detail-item">Plot: ${prop.plot_number || 'N/A'} • Block: ${prop.block_number || 'N/A'}</div>
-                                <div class="property-detail-item">Area: ${prop.area_sqm ? formatPrice(prop.area_sqm) + ' m²' : 'N/A'}</div>
+                                <div class="property-detail-item">Area: ${prop.area_sqm ? (prop.area_sqm / 4046.86).toFixed(3) + ' Acres' : 'N/A'}</div>
                             </div>
                             <div class="property-actions" style="display: flex; gap: 8px; margin-top: 5px;">
                                 <button class="btn-fly-to" style="padding: 4px 8px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem;"><i class="fas fa-map-marker-alt"></i> Locate</button>
@@ -55608,12 +55454,27 @@ function smoothChaikin(points) {
                 initializePropertyLayer();
 
                 properties.forEach(prop => {
-                    const coordinate = ol.proj.fromLonLat([prop.lon, prop.lat]);
+                    let geometry;
+                    if (prop.geojson) {
+                        try {
+                            const format = new ol.format.GeoJSON();
+                            const geojsonObj = typeof prop.geojson === 'string' ? prop.geojson : JSON.stringify(prop.geojson);
+                            geometry = format.readGeometry(geojsonObj, {
+                                dataProjection: 'EPSG:4326',
+                                featureProjection: 'EPSG:3857'
+                            });
+                        } catch(e) {
+                            console.warn('Could not parse property geojson', e);
+                        }
+                    }
+                    if (!geometry) {
+                        const coordinate = ol.proj.fromLonLat([prop.lon, prop.lat]);
+                        geometry = new ol.geom.Point(coordinate);
+                    }
                     const feature = new ol.Feature({
-                        geometry: new ol.geom.Point(coordinate),
+                        geometry: geometry,
                         ...prop
                     });
-
                     propertyMarkersSource.addFeature(feature);
                 });
 
@@ -55669,7 +55530,7 @@ function smoothChaikin(points) {
                     <div style="font-size: 0.95rem; color: #444; line-height: 1.6;">
                         <div><strong>District:</strong> ${property.district}</div>
                         <div><strong>Price:</strong> <span style="color: #27ae60; font-weight: bold;">UGX ${formatPrice(property.price_ugx)}</span></div>
-                        <div><strong>Area:</strong> ${property.area_sqm ? formatPrice(property.area_sqm) + ' m²' : 'N/A'}</div>
+                        <div><strong>Area:</strong> ${property.area_sqm ? (property.area_sqm / 4046.86).toFixed(3) + ' Acres' : 'N/A'}</div>
                         <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #eee;">
                             <div><strong>Seller:</strong> ${property.seller_name}</div>
                             <div><strong>Contact:</strong> <a href="tel:${property.contact}" style="color: #3498db; text-decoration: none;">${property.contact}</a></div>
@@ -59458,11 +59319,10 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
             <div class="property-listing-body">
                 <!-- Instruction overlay (shown when no location selected) -->
                 <div class="location-instruction-overlay" id="locationInstructionOverlay">
-                    <i class="fas fa-map-marker-alt"></i>
-                    <h4>Select Property Location</h4>
-                    <p>Option 1: Click anywhere on the map to mark your property's location.<br>Option 2: Use the button
-                        below to select the current map center.</p>
-                    <button type="button" class="valuation-btn" id="useCurrentLocationBtn" style="margin-top: 15px;">
+                    <i class="fas fa-draw-polygon"></i>
+                    <h4>Select Property Parcel</h4>
+                    <p>Click on any parcel (from GSPNET LAYERS or Survey Polygons) on the map to list it for sale.<br>Ensure the parcel layer is enabled in the Layer Switcher.</p>
+                    <button type="button" class="valuation-btn" id="useCurrentLocationBtn" style="margin-top: 15px; display: none;">
                         <i class="fas fa-crosshairs"></i> Use Current Map Center
                     </button>
                 </div>
@@ -59503,8 +59363,8 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                     </div>
 
                     <div class="form-row">
-                        <label>Area (Square Meters)</label>
-                        <input type="number" id="propertyArea" placeholder="e.g., 5000" min="1" />
+                        <label>Area (Acres)</label>
+                        <input type="number" id="propertyArea" placeholder="e.g., 0.5" min="0.01" step="any" />
                     </div>
 
                     <div class="form-row">

@@ -1,0 +1,82 @@
+            <!-- GIS Export Engine Panel (Coordinate Extractor upgrade) -->
+            <aside id="gisExportPanel" class="gis-export-panel" aria-hidden="true">
+                <header class="gis-export-panel__header">
+                    <div>
+                        <h2><i class="fas fa-file-export"></i> Extractor</h2>
+                        <p class="gis-export-panel__subtitle">GIS export engine - raster, vector &amp; survey deliverables</p>
+                    </div>
+                    <button type="button" class="gis-export-panel__close" id="gisExportClose" aria-label="Close">&times;</button>
+                </header>
+                <div class="gis-export-panel__body">
+                    <div class="gis-export-panel__auth-lock"><div>
+                        <div class="gis-export-auth-lock__icon"><i class="fas fa-lock"></i></div>
+                        <p class="gis-export-auth-lock__title">Sign in required</p>
+                        <p class="gis-export-auth-lock__text">Log in to use the GIS Export Engine.</p>
+                        <a href="index.html" class="gis-export-auth-lock__link">Go to login</a>
+                    </div></div>
+                    <div class="gis-export-panel__steps">
+                        <section class="gis-export-step is-open is-active" data-step="1">
+                            <div class="gis-export-step__head"><span class="gis-export-step__num">1</span><span class="gis-export-step__title">Export format</span><i class="fas fa-chevron-down gis-export-step__chevron"></i></div>
+                            <div class="gis-export-step__body"><div id="gisExportFormatCards" class="gis-export-formats"></div></div>
+                        </section>
+                        <section class="gis-export-step" data-step="2">
+                            <div class="gis-export-step__head"><span class="gis-export-step__num">2</span><span class="gis-export-step__title">Extent</span><i class="fas fa-chevron-down gis-export-step__chevron"></i></div>
+                            <div class="gis-export-step__body">
+                                <div class="gis-export-chips">
+                                    <button type="button" class="gis-export-chip is-selected" data-extent="map">Map extent</button>
+                                    <button type="button" class="gis-export-chip" data-extent="draw-box">Draw rectangle</button>
+                                    <button type="button" class="gis-export-chip" data-extent="draw-poly">Draw polygon</button>
+                                    <button type="button" class="gis-export-chip" data-extent="pick">Pick parcel(s)</button>
+                                </div>
+                                <div id="gisExportExtentStats" class="gis-export-extent-stats">Using current map view.</div>
+                                <button type="button" class="gis-export-btn gis-export-btn--secondary" id="gisExportAutoCrop" style="width:100%;margin-top:6px;"><i class="fas fa-crop-alt"></i> Auto-crop to 1 km</button>
+                            </div>
+                        </section>
+                        <section class="gis-export-step" data-step="3">
+                            <div class="gis-export-step__head"><span class="gis-export-step__num">3</span><span class="gis-export-step__title">Coordinate system</span><i class="fas fa-chevron-down gis-export-step__chevron"></i></div>
+                            <div class="gis-export-step__body">
+                                <label class="gis-export-label" for="gisExportCrs">Select coordinate system</label>
+                                <select id="gisExportCrs" class="gis-export-select"></select>
+                                <p id="gisExportCrsHint" class="gis-export-crs-hint"></p>
+                            </div>
+                        </section>
+                        <section class="gis-export-step" data-step="4">
+                            <div class="gis-export-step__head"><span class="gis-export-step__num">4</span><span class="gis-export-step__title">Settings</span><i class="fas fa-chevron-down gis-export-step__chevron"></i></motion></motion></motion></motion></div>
+                            <div class="gis-export-step__body">
+                                <details class="gis-export-advanced" open><summary>Raster options</summary>
+                                    <label class="gis-export-label" for="gisExportResolution">Resolution</label>
+                                    <select id="gisExportResolution" class="gis-export-select"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select>
+                                    <label class="gis-export-toggle-row"><span>Include labels</span><input type="checkbox" id="gisExportRasterLabels" checked></label>
+                                    <label class="gis-export-toggle-row"><span>Transparent PNG</span><input type="checkbox" id="gisExportRasterTransparent"></label>
+                                </details>
+                                <details class="gis-export-advanced"><summary>DXF options</summary>
+                                    <label class="gis-export-toggle-row"><span>Simplify</span><input type="checkbox" id="gisExportDxfSimplify"></label>
+                                    <label class="gis-export-toggle-row"><span>DXF labels</span><input type="checkbox" id="gisExportDxfLabels"></label>
+                                    <label class="gis-export-toggle-row"><span>Legacy R12</span><input type="checkbox" id="gisExportDxfLegacy"></label>
+                                </details>
+                                <details class="gis-export-advanced"><summary>Survey deliverables</summary>
+                                    <label class="gis-export-toggle-row"><span>Corner coordinates CSV</span><input type="checkbox" id="gisExportCornerCsv" checked></label>
+                                    <label class="gis-export-toggle-row"><span>JRJ computation CSV</span><input type="checkbox" id="gisExportJrjCsv"></label>
+                                </details>
+                            </div>
+                        </section>
+                        <section class="gis-export-step" data-step="5">
+                            <div class="gis-export-step__head"><span class="gis-export-step__num">5</span><span class="gis-export-step__title">Preview</span><i class="fas fa-chevron-down gis-export-step__chevron"></i></div>
+                            <div class="gis-export-step__body gis-export-preview">
+                                <table><tr><th>Format</th><td id="gisPreviewFormat">-</td></tr><tr><th>Extent</th><td id="gisPreviewExtent">-</td></tr><tr><th>CRS</th><td id="gisPreviewCrs">-</td></tr><tr><th>Resolution</th><td id="gisPreviewResolution">-</td></tr><tr><th>Est. size</th><td id="gisPreviewSize">-</td></tr></table>
+                                <p class="gis-export-label" style="margin-top:10px;">Visible layers</p>
+                                <div id="gisPreviewLayers" class="gis-export-preview__layers">-</div>
+                                <div id="gisExportWarnings" class="gis-export-warnings"></div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+                <footer class="gis-export-panel__footer">
+                    <div id="gisExportProgress" class="gis-export-progress"><span id="gisExportProgressText">Generating export...</span><div class="gis-export-progress__bar"><div id="gisExportProgressFill" class="gis-export-progress__fill"></div></div></div>
+                    <div class="gis-export-actions">
+                        <button type="button" class="gis-export-btn gis-export-btn--primary" id="gisExportRun" disabled><i class="fas fa-download"></i> Export ZIP</button>
+                        <button type="button" class="gis-export-btn gis-export-btn--secondary" id="gisExportClearExtent"><i class="fas fa-eraser"></i> Clear</button>
+                        <button type="button" class="gis-export-btn gis-export-btn--danger" id="gisExportCancel"><i class="fas fa-times"></i> Cancel</button>
+                    </div>
+                </footer>
+            </aside>
