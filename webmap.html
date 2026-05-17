@@ -20764,6 +20764,9 @@
                 const isBlock = config.name.toLowerCase().includes('blocks') || config.name.toLowerCase().includes('block');
                 const isProtected = config.name === 'Protected Areas';
                 const isForest = config.name === 'Uganda Forests Reserve';
+                const isMitianaBlocks = config.name === 'Mityana Blocks';
+                const isMitianaBlock = config.name === 'Mityana Block';
+                const isMityanaNlis = config.name === 'Mityana NLIS';
 
                 const layer = new ol.layer.Vector({
                     title: config.name,
@@ -20775,6 +20778,10 @@
                         function (feature) { return getProtectedAreasStyle(feature); } :
                         config.name === 'Mukono Blocks' ?
                             function (feature) { return getMukonoBlocksStyle(feature); } :
+                        (isMitianaBlocks || isMitianaBlock) ?
+                            function (feature) { return getMitianaBlocksStyle(feature); } :
+                        isMityanaNlis ?
+                            function (feature) { return getMityanaNlisStyle(feature); } :
                             isBlock ?
                                 function (feature) { return getBlockBoundaryStyle(feature); } :
                                 function (feature) { return getFlatGeobufParcelStyle(feature); },
@@ -20802,15 +20809,25 @@
 
                     if (this.getVisible() && !this._fgbLoaded) {
                         this._fgbLoaded = true;
-                        console.log(`[FGB] Deferred loading: ${config.name}`);
+                        console.log(`[FGB] Deferred loading: ${config.name} from ${this._fgbUrl}`);
                         const src = this.getSource();
-                        const loader = flatgeobuf.createLoader(
-                            src,
-                            this._fgbUrl,
-                            "EPSG:4326"
-                        );
-                        src.setLoader(loader);
-                        src.refresh();
+
+                        // Surface any source-level vector load errors
+                        src.once('error', function (evt) {
+                            console.error(`[FGB] Source error for ${config.name}:`, evt.error || evt);
+                        });
+
+                        try {
+                            const loader = flatgeobuf.createLoader(
+                                src,
+                                this._fgbUrl,
+                                "EPSG:4326"
+                            );
+                            src.setLoader(loader);
+                            src.refresh();
+                        } catch (err) {
+                            console.error(`[FGB] Failed to create loader for ${config.name}:`, err);
+                        }
                     }
                 });
 
@@ -21215,6 +21232,128 @@
                 return styles;
             }
 
+            // Mityana Blocks style — labels from 'BLOCK NO' field
+            function getMitianaBlocksStyle(feature) {
+                const geometry = feature.getGeometry();
+                const geomType = geometry ? geometry.getType() : null;
+                if (!geometry || (geomType !== 'Polygon' && geomType !== 'MultiPolygon')) {
+                    return [];
+                }
+
+                const view = map.getView();
+                const resolution = view.getResolution();
+
+                const styles = [SHARED_STYLES.blockFillWhiteBuffer, SHARED_STYLES.blockBlackStroke];
+
+                if (resolution <= RES_THRESHOLD.LABELS) {
+                    // Try multiple field name variants used in Mityana Blocks FGB
+                    const blockNo = feature.get('BLOCK NO')
+                        || feature.get('Block No')
+                        || feature.get('block_no')
+                        || feature.get('BlockNo')
+                        || feature.get('BLOCKNO')
+                        || feature.get('BLOCK_NO')
+                        || feature.get('nlis_id');
+                    const labelText = blockNo != null ? blockNo.toString() : null;
+                    if (labelText) {
+                        const centroid = ol.extent.getCenter(geometry.getExtent());
+                        styles.push(new ol.style.Style({
+                            geometry: new ol.geom.Point(centroid),
+                            text: new ol.style.Text({
+                                text: labelText,
+                                font: 'bold 11px sans-serif',
+                                fill: new ol.style.Fill({ color: '#1a3c5e' }),
+                                stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }),
+                                textAlign: 'center',
+                                textBaseline: 'middle',
+                                overflow: true
+                            })
+                        }));
+                    }
+                }
+
+                return styles;
+            }
+
+            // Mityana NLIS style — labels from 'PlotNumber' field
+            function getMityanaNlisStyle(feature) {
+                const geometry = feature.getGeometry();
+                const geomType = geometry ? geometry.getType() : null;
+                if (!geometry || (geomType !== 'Polygon' && geomType !== 'MultiPolygon')) {
+                    return [];
+                }
+
+                const view = map.getView();
+                const resolution = view.getResolution();
+                const geomRevision = geometry.getRevision ? geometry.getRevision() : 0;
+                const coordinates = geomType === 'MultiPolygon'
+                    ? geometry.getCoordinates()[0][0]
+                    : geometry.getCoordinates()[0];
+
+                // Tier 1: always show stroke
+                const styles = [SHARED_STYLES.nlisWhiteBuffer, SHARED_STYLES.nlisBlackStroke];
+
+                if (isLayerInFastRender(feature)) return styles;
+
+                // Tier 1: plot number label at ~500m zoom
+                if (resolution <= RES_THRESHOLD.LABELS) {
+                    // Try multiple field name variants used in Mityana NLIS FGB
+                    const plotNo = feature.get('PlotNumber')
+                        || feature.get('Plot Number')
+                        || feature.get('PLOTNUMBER')
+                        || feature.get('plot_number')
+                        || feature.get('PLOT NO')
+                        || feature.get('Plot_No')
+                        || feature.get('nlis_id');
+                    if (plotNo != null) {
+                        const centroid = ol.extent.getCenter(geometry.getExtent());
+                        styles.push(new ol.style.Style({
+                            geometry: new ol.geom.Point(centroid),
+                            text: new ol.style.Text({
+                                text: plotNo.toString(),
+                                font: '11px sans-serif',
+                                fill: new ol.style.Fill({ color: '#000000' }),
+                                stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                                textAlign: 'center',
+                                textBaseline: 'middle',
+                                overflow: true
+                            })
+                        }));
+                    }
+                }
+
+                // Tier 2: edge distance labels at close zoom
+                if (resolution <= DETAIL_ZOOM_GATE.DISTANCES) {
+                    const cacheKey = '__mityanaNlisDistCache';
+                    let cache = feature.get(cacheKey);
+                    if (!cache || cache.revision !== geomRevision) {
+                        const distStyles = [];
+                        for (let i = 0; i < coordinates.length - 1; i++) {
+                            const dist = getEdgeDistance(coordinates[i], coordinates[i + 1]);
+                            distStyles.push(new ol.style.Style({
+                                geometry: new ol.geom.LineString([coordinates[i], coordinates[i + 1]]),
+                                text: new ol.style.Text({
+                                    text: `${dist.toFixed(2)} m`,
+                                    font: '12px sans-serif',
+                                    fill: new ol.style.Fill({ color: '#333' }),
+                                    stroke: new ol.style.Stroke({ color: '#fff', width: 2 }),
+                                    offsetY: -10,
+                                    placement: 'line',
+                                    textAlign: 'center',
+                                    overflow: true,
+                                    maxAngle: Math.PI / 4
+                                })
+                            }));
+                        }
+                        cache = { revision: geomRevision, styles: distStyles };
+                        feature.set(cacheKey, cache, true);
+                    }
+                    styles.push(...cache.styles);
+                }
+
+                return styles;
+            }
+
             // Block Boundary style — RESOLUTION-AWARE (uses shared cached styles)
             function getBlockBoundaryStyle(feature) {
                 const geometry = feature.getGeometry();
@@ -21405,6 +21544,9 @@
                 layers: Object.values(nlisLayers),
                 zIndex: 1000 // Above base maps (which have zIndex: 1)
             });
+
+            // Add NLIS group to map (required — without this the layers never render)
+            map.addLayer(nlisLayersGroup);
 
             const extractorSource = new ol.source.Vector();
             const extractorLayer = new ol.layer.Vector({
