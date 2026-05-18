@@ -20575,8 +20575,8 @@
                 { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/mbaleblocks.fgb', title: 'Mbale Blocks' },
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mbarara.nlis.fgb', title: 'Mbarara NLIS' },
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mbararablocks.fgb', title: 'Mbarara Blocks' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mityana.nlis.fgb', title: 'Mityana NLIS' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mityanablocks.fgb', title: 'Mityana Blocks' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson/mityana.nlis.fgb', fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/geojeson/mityana.nlis.fgb', title: 'Mityana NLIS' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson/mityana.blocks.fgb', fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/geojeson/mityana.blocks.fgb', title: 'Mityana Blocks' },
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson2/moroto.nlis.fgb', title: 'Moroto NLIS' },
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson2/morotoblock.fgb', title: 'Moroto Block' },
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mpigi.nlis.fgb', title: 'Mpigi NLIS' },
@@ -20753,6 +20753,7 @@
             const layerConfigs = layersData.map(layerData => ({
                 name: layerData.title,
                 url: layerData.url,
+                fallbackUrl: layerData.fallbackUrl || null,
                 visible: false
             }));
 
@@ -20764,8 +20765,8 @@
                 const isBlock = config.name.toLowerCase().includes('blocks') || config.name.toLowerCase().includes('block');
                 const isProtected = config.name === 'Protected Areas';
                 const isForest = config.name === 'Uganda Forests Reserve';
-                const isMitianaBlocks = config.name === 'Mityana Blocks';
-                const isMitianaBlock = config.name === 'Mityana Block';
+                const isMityanaBlocks = config.name === 'Mityana Blocks';
+                const isMityanaBlock = config.name === 'Mityana Block';
                 const isMityanaNlis = config.name === 'Mityana NLIS';
 
                 const layer = new ol.layer.Vector({
@@ -20778,8 +20779,8 @@
                         function (feature) { return getProtectedAreasStyle(feature); } :
                         config.name === 'Mukono Blocks' ?
                             function (feature) { return getMukonoBlocksStyle(feature); } :
-                        (isMitianaBlocks || isMitianaBlock) ?
-                            function (feature) { return getMitianaBlocksStyle(feature); } :
+                        (isMityanaBlocks || isMityanaBlock) ?
+                            function (feature) { return getMityanaBlocksStyle(feature); } :
                         isMityanaNlis ?
                             function (feature) { return getMityanaNlisStyle(feature); } :
                             isBlock ?
@@ -20790,8 +20791,11 @@
 
                 // Store URL for deferred loading
                 layer._fgbUrl = config.url;
+                layer._fgbFallbackUrl = config.fallbackUrl;
                 layer._fgbLoaded = false;
-                registerFlatGeobufWarmupUrls(config.name, [config.url]);
+                const warmupUrls = [config.url];
+                if (config.fallbackUrl) warmupUrls.push(config.fallbackUrl);
+                registerFlatGeobufWarmupUrls(config.name, warmupUrls);
 
                 source.on('addfeature', function (evt) {
                     const feature = evt.feature;
@@ -20809,30 +20813,44 @@
 
                     if (this.getVisible() && !this._fgbLoaded) {
                         this._fgbLoaded = true;
-                        console.log(`[FGB] Deferred loading: ${config.name} from ${this._fgbUrl}`);
+                        const urls = [this._fgbUrl];
+                        if (this._fgbFallbackUrl) urls.push(this._fgbFallbackUrl);
+                        let urlIndex = 0;
                         const src = this.getSource();
+                        const layerRef = this;
 
                         // Surface any source-level vector load errors
                         src.once('error', function (evt) {
                             console.error(`[FGB] Source error for ${config.name}:`, evt.error || evt);
                         });
 
-                        try {
-                            // IMPORTANT: pass bbox strategy + clearBeforeLoad=true so flatgeobuf
-                            // uses HTTP Range requests against the spatial index — only features
-                            // in the current viewport are fetched (few KB vs the whole file).
-                            const loader = flatgeobuf.createLoader(
-                                src,
-                                this._fgbUrl,
-                                "EPSG:4326",
-                                function (extent) { return [extent]; }, // bbox strategy
-                                true                                     // clearBeforeLoad
-                            );
-                            src.setLoader(loader);
-                            src.refresh();
-                        } catch (err) {
-                            console.error(`[FGB] Failed to create loader for ${config.name}:`, err);
-                        }
+                        const tryNextUrl = () => {
+                            if (urlIndex >= urls.length) {
+                                console.error(`[FGB] Failed to load ${config.name} from all URLs`);
+                                return;
+                            }
+                            const url = urls[urlIndex];
+                            urlIndex++;
+                            console.log(`[FGB] Deferred loading: ${config.name} from ${url}`);
+                            try {
+                                // IMPORTANT: pass bbox strategy + clearBeforeLoad=true so flatgeobuf
+                                // uses HTTP Range requests against the spatial index — only features
+                                // in the current viewport are fetched (few KB vs the whole file).
+                                const loader = flatgeobuf.createLoader(
+                                    src,
+                                    url,
+                                    "EPSG:4326",
+                                    function (extent) { return [extent]; }, // bbox strategy
+                                    true                                     // clearBeforeLoad
+                                );
+                                src.setLoader(loader);
+                                src.refresh();
+                            } catch (err) {
+                                console.warn(`[FGB] Failed ${config.name} from ${url}:`, err);
+                                tryNextUrl();
+                            }
+                        };
+                        tryNextUrl();
                     }
                 });
 
@@ -20886,80 +20904,6 @@
             });
 
             map.addLayer(surveyPolygonsGroup);
-
-            // Define NLIS layer configurations
-            // NLIS Layers using newexample.html pattern
-            const nlisLayerConfigs = [
-                {
-                    name: 'KAMPALA BLOCKS',
-                    urls: [
-                        'https://kwssgfanbntfjdclchfi.supabase.co/storage/v1/object/public/uploads/NLIS%20LAYERS/KAMPALA%20BLOCKS.fgb',
-                        'https://data.geospatialnetworkug.xyz/geojeson2/kampalablocks.fgb'
-                    ],
-                    color: [38, 162, 105, 0.6], borderColor: [38, 162, 105, 1], borderWidth: 1
-                },
-                {
-                    name: 'WAKISO BLOCKS',
-                    urls: [
-                        'https://kwssgfanbntfjdclchfi.supabase.co/storage/v1/object/public/uploads/NLIS%20LAYERS/WAKISO%20BLOCKS.fgb',
-                        'https://data.geospatialnetworkug.xyz/WAKISO/wakisoblocks.fgb'
-                    ],
-                    color: [38, 162, 105, 0.6], borderColor: [38, 162, 105, 1], borderWidth: 1
-                },
-                {
-                    name: 'MPIGI BLOCKS',
-                    urls: [
-                        'https://kwssgfanbntfjdclchfi.supabase.co/storage/v1/object/public/uploads/NLIS%20LAYERS/MPIGI%20BLOCKS.fgb'
-                    ],
-                    color: [38, 162, 105, 0.6], borderColor: [38, 162, 105, 1], borderWidth: 1
-                },
-                {
-                    name: 'MUKONO BLOCKS',
-                    urls: [
-                        'https://kwssgfanbntfjdclchfi.supabase.co/storage/v1/object/public/uploads/NLIS%20LAYERS/MUKONO%20BLOCKS.fgb'
-                    ],
-                    color: [38, 162, 105, 0.6], borderColor: [38, 162, 105, 1], borderWidth: 1
-                },
-                {
-                    name: 'KAMPALA1',
-                    urls: [
-                        'https://kwssgfanbntfjdclchfi.supabase.co/storage/v1/object/public/uploads/NLIS%20LAYERS/KAMPALA1.fgb',
-                        'https://data.geospatialnetworkug.xyz/geojeson2/kampala.nlsi1.fgb'
-                    ],
-                    color: [26, 95, 180, 0.6], borderColor: [26, 95, 180, 1], borderWidth: 2
-                },
-                {
-                    name: 'KAMPALA2',
-                    urls: [
-                        'https://kwssgfanbntfjdclchfi.supabase.co/storage/v1/object/public/uploads/NLIS%20LAYERS/KAMPALA2.fgb',
-                        'https://data.geospatialnetworkug.xyz/geojeson2/kampala.nlsi2.fgb'
-                    ],
-                    color: [26, 95, 180, 0.6], borderColor: [26, 95, 180, 1], borderWidth: 2
-                },
-                {
-                    name: 'MPIGI',
-                    urls: [
-                        'https://kwssgfanbntfjdclchfi.supabase.co/storage/v1/object/public/uploads/NLIS%20LAYERS/MPIGI.fgb'
-                    ],
-                    color: [26, 95, 180, 0.6], borderColor: [26, 95, 180, 1], borderWidth: 2
-                },
-                {
-                    name: 'WAKISO',
-                    urls: [
-                        'https://kwssgfanbntfjdclchfi.supabase.co/storage/v1/object/public/uploads/NLIS%20LAYERS/WAKISO2.fgb',
-                        'https://data.geospatialnetworkug.xyz/WAKISO/wakiso.nlis2.fgb'
-                    ],
-                    color: [26, 95, 180, 0.6], borderColor: [26, 95, 180, 1], borderWidth: 2
-                },
-                {
-                    name: 'MUKONO',
-                    urls: [
-                        'https://kwssgfanbntfjdclchfi.supabase.co/storage/v1/object/public/uploads/NLIS%20LAYERS/MUKONO2.fgb'
-                    ],
-                    color: [26, 95, 180, 0.6], borderColor: [26, 95, 180, 1], borderWidth: 2
-                }
-            ];
-
 
 
             // Vincenty inverse formula for geodesic distance on WGS84 ellipsoid
@@ -21238,7 +21182,7 @@
             }
 
             // Mityana Blocks style — labels from 'BLOCK NO' field
-            function getMitianaBlocksStyle(feature) {
+            function getMityanaBlocksStyle(feature) {
                 const geometry = feature.getGeometry();
                 const geomType = geometry ? geometry.getType() : null;
                 if (!geometry || (geomType !== 'Polygon' && geomType !== 'MultiPolygon')) {
@@ -21471,92 +21415,7 @@
                 return styles;
             }
 
-            // NLIS Layers infrastructure
-            const nlisLayers = {};
 
-            // Create vector sources and layers for each NLIS layer
-            nlisLayerConfigs.forEach(config => {
-                const source = new ol.source.Vector({
-                    strategy: ol.loadingstrategy.bbox
-                });
-
-                // Create layer with styling — DEFERRED LOADING
-                const layer = new ol.layer.Vector({
-                    title: config.name,
-                    source: source,
-                    zIndex: 10000, // Much higher than basemaps
-                    maxResolution: 5.0, // Only render at ~500m zoom and closer
-                    style: function (feature) {
-                        return getNlisPolygonStyle(feature);
-                    },
-                    visible: false // Hidden by default, visible when toggled in layer switcher
-                });
-
-                // Store URLs for deferred loading
-                layer._fgbUrls = config.urls || [config.url];
-                layer._fgbLoaded = false;
-                registerFlatGeobufWarmupUrls(config.name, layer._fgbUrls);
-
-                source.on('addfeature', function (evt) {
-                    const feature = evt.feature;
-                    if (feature && typeof feature.set === 'function') {
-                        feature.set('__layerTitle', config.name, true);
-                    }
-                });
-
-                // Deferred loading: only download FlatGeoBuf when layer is toggled visible
-                layer.on('change:visible', function () {
-                    if (this.getVisible()) {
-                        markLayerFastRender(config.name);
-                        setTimeout(() => this.changed(), FGB_FAST_RENDER_WINDOW_MS + 50);
-                    }
-
-                    if (this.getVisible() && !this._fgbLoaded) {
-                        this._fgbLoaded = true;
-                        const urls = this._fgbUrls;
-                        let urlIndex = 0;
-                        const src = this.getSource();
-
-                        const tryNextUrl = () => {
-                            if (urlIndex >= urls.length) {
-                                console.error(`[FGB] Failed to load ${config.name} from all URLs`);
-                                return;
-                            }
-                            const url = urls[urlIndex];
-                            urlIndex++;
-                            console.log(`[FGB] Deferred loading: ${config.name} from ${url}`);
-                            try {
-                                // IMPORTANT: bbox strategy + clearBeforeLoad=true — streams only
-                                // features in the current viewport via HTTP Range; prevents full-file
-                                // download of 100–200 MB NLIS/Blocks datasets on every toggle.
-                                const loader = flatgeobuf.createLoader(
-                                    src, url, "EPSG:4326",
-                                    function (extent) { return [extent]; }, // bbox strategy
-                                    true                                     // clearBeforeLoad
-                                );
-                                src.setLoader(loader);
-                                src.refresh();
-                            } catch (error) {
-                                console.warn(`[FGB] Failed ${config.name} from ${url}:`, error);
-                                tryNextUrl();
-                            }
-                        };
-                        tryNextUrl();
-                    }
-                });
-
-                nlisLayers[config.name] = layer;
-            });
-
-            // Create NLIS Layers group (same pattern as Survey Polygons)
-            const nlisLayersGroup = new ol.layer.Group({
-                title: 'NLIS LAYERS',
-                layers: Object.values(nlisLayers),
-                zIndex: 1000 // Above base maps (which have zIndex: 1)
-            });
-
-            // Add NLIS group to map (required — without this the layers never render)
-            map.addLayer(nlisLayersGroup);
 
             const extractorSource = new ol.source.Vector();
             const extractorLayer = new ol.layer.Vector({
@@ -21591,7 +21450,7 @@
             const gspnetLayerGroup = new ol.layer.Group({
                 title: 'GSPNET LAYERS',
                 layers: gspnetLayers,
-                zIndex: 900 // Below NLIS layers but above base maps
+                zIndex: 900 // Above base maps
             });
 
             // Add layer groups to map
