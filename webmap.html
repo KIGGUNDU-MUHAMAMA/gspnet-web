@@ -6110,14 +6110,6 @@
 
         .quality-flags-btn:hover {
             background: linear-gradient(to bottom, #e67e22, #d35400);
-            width: auto;
-            min-width: 140px;
-            padding: 0 12px;
-            border-radius: 20px;
-        }
-
-        .quality-flags-btn:hover span:not(.unread-badge) {
-            display: inline;
         }
 
         .quality-flags-btn i {
@@ -14337,6 +14329,9 @@
                     <button type="button" class="control-btn" id="locateBtn" title="Locate Me">
                         <i class="fas fa-location-dot"></i> <span>Locate</span>
                     </button>
+                    <button type="button" class="control-btn" id="gspRoverBtn" title="GSP Rover — Field Survey Mode">
+                        <i class="fas fa-satellite-dish"></i> <span>GSP ROVER</span>
+                    </button>
                     <button type="button" class="control-btn" id="printBtn" title="Print Map">
                         <i class="fas fa-print"></i> <span>Print</span>
                     </button>
@@ -18327,6 +18322,8 @@
             proj4.defs("EPSG:21096", "+proj=utm +zone=36 +a=6378249.145 +rf=293.465 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs +type=crs");
             proj4.defs("EPSG:21036", "+proj=utm +zone=36 +south +a=6378249.145 +rf=293.465 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs +type=crs");
             proj4.defs("EPSG:21095", "+proj=utm +zone=35 +a=6378249.145 +rf=293.465 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs +type=crs");
+            proj4.defs("EPSG:32637", "+proj=utm +zone=37 +datum=WGS84 +units=m +no_defs");
+            proj4.defs("EPSG:21035", "+proj=utm +zone=35 +south +a=6378249.145 +rf=293.465 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs +type=crs");
 
             if (ol.proj.proj4 && typeof ol.proj.proj4.register === "function") {
                 ol.proj.proj4.register(proj4);
@@ -63068,6 +63065,2612 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
 
         })();
     </script>
+
+
+<!-- ============================================================ -->
+<!-- GSP ROVER — Professional Field Survey Mode                  -->
+<!-- ============================================================ -->
+<style>
+/* ---- GSP Rover Root Variables ---- */
+:root {
+  --rv-bg:       #0d1117;
+  --rv-panel:    #161b22;
+  --rv-card:     #1c2333;
+  --rv-border:   #30363d;
+  --rv-amber:    #f59e0b;
+  --rv-amber-dk: #b45309;
+  --rv-blue:     #3b82f6;
+  --rv-green:    #22c55e;
+  --rv-red:      #ef4444;
+  --rv-warn:     #f59e0b;
+  --rv-txt:      #f8fafc;
+  --rv-txt2:     #94a3b8;
+  --rv-radius:   8px;
+}
+
+/* ---- Overlay container ---- */
+#gspRoverOverlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200000;
+  background: var(--rv-bg);
+  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--rv-txt);
+  overflow: hidden;
+}
+#gspRoverOverlay.rv-open { display: flex; }
+/* rvMap fills remaining vertical space */
+#rvMap { flex: 1; position: relative; }
+
+/* Desktop right-panel mode */
+@media (min-width: 1200px) {
+  #gspRoverOverlay {
+    left: auto;
+    right: 0;
+    width: 420px;
+    border-left: 2px solid var(--rv-amber);
+    box-shadow: -6px 0 40px rgba(0,0,0,.7);
+  }
+}
+
+/* ---- Top status bar ---- */
+#rvStatusBar {
+  flex-shrink: 0;
+  background: var(--rv-panel);
+  border-bottom: 1px solid var(--rv-border);
+  padding: 6px 10px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.rv-sbar-row1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rv-brand {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--rv-amber);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+.rv-src-sel {
+  flex: 1;
+  background: var(--rv-card);
+  border: 1px solid var(--rv-border);
+  color: var(--rv-txt);
+  font-size: 12px;
+  padding: 3px 6px;
+  border-radius: 5px;
+  max-width: 140px;
+}
+.rv-exit-btn {
+  background: var(--rv-red);
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  width: 30px; height: 30px;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.rv-sbar-row2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.rv-coord-lbl {
+  font-size: 11px;
+  color: var(--rv-txt2);
+  white-space: nowrap;
+}
+.rv-coord-val {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--rv-txt);
+  white-space: nowrap;
+  font-family: 'Courier New', monospace;
+}
+.rv-crs-btn {
+  background: var(--rv-card);
+  border: 1px solid var(--rv-amber);
+  color: var(--rv-amber);
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rv-sbar-row3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.rv-stat {
+  font-size: 11px;
+  color: var(--rv-txt2);
+  white-space: nowrap;
+}
+.rv-stat b { color: var(--rv-txt); }
+#rvFixBadge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--rv-card);
+  border: 1px solid var(--rv-border);
+  color: var(--rv-txt2);
+  letter-spacing: 0.5px;
+  transition: all 0.4s;
+}
+#rvFixBadge.fix-good { background: #14532d; border-color: var(--rv-green); color: var(--rv-green); }
+#rvFixBadge.fix-warn { background: #451a03; border-color: var(--rv-amber); color: var(--rv-amber); }
+#rvFixBadge.fix-bad  { background: #450a0a; border-color: var(--rv-red);   color: var(--rv-red);   }
+
+/* ---- Map area ---- */
+#rvMapContainer {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+#rvMap {
+  width: 100%;
+  height: 100%;
+}
+
+/* ---- Stakeout slide-up panel ---- */
+#rvStakeoutPanel {
+  display: none;
+  flex-shrink: 0;
+  background: var(--rv-panel);
+  border-top: 2px solid var(--rv-amber);
+  padding: 8px 10px;
+}
+#rvStakeoutPanel.rv-so-active { display: block; }
+.rv-so-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.rv-so-label {
+  font-size: 13px;
+  color: var(--rv-txt2);
+}
+.rv-so-dist {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--rv-amber);
+  font-family: monospace;
+}
+.rv-so-bearing {
+  font-size: 13px;
+  color: var(--rv-blue);
+  font-weight: 600;
+}
+.rv-so-progress {
+  height: 4px;
+  background: var(--rv-border);
+  border-radius: 2px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.rv-so-progress-fill {
+  height: 100%;
+  background: var(--rv-amber);
+  border-radius: 2px;
+  transition: width 0.5s;
+}
+.rv-so-nav {
+  display: flex;
+  gap: 6px;
+}
+.rv-so-nav button {
+  flex: 1;
+  padding: 7px;
+  border: 1px solid var(--rv-border);
+  border-radius: 5px;
+  background: var(--rv-card);
+  color: var(--rv-txt);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.rv-so-nav button:hover { background: var(--rv-border); }
+.rv-so-nav button.rv-exit-so { background: var(--rv-red); border-color: var(--rv-red); }
+
+/* ---- Corner list panel ---- */
+#rvCornerPanel {
+  display: none;
+  flex-shrink: 0;
+  background: var(--rv-panel);
+  border-top: 1px solid var(--rv-border);
+  max-height: 180px;
+  overflow-y: auto;
+}
+#rvCornerPanel.rv-cp-active { display: block; }
+.rv-corner-header {
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--rv-txt2);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--rv-border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.rv-corner-item {
+  display: flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--rv-border);
+  gap: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.rv-corner-item:hover { background: var(--rv-card); }
+.rv-corner-item.rv-active-corner { background: #451a03; border-left: 3px solid var(--rv-amber); }
+.rv-corner-idx {
+  font-size: 11px; color: var(--rv-txt2); min-width: 26px; font-weight: 600;
+}
+.rv-corner-coords {
+  font-size: 11px; color: var(--rv-txt); font-family: monospace; flex: 1;
+}
+.rv-corner-go {
+  font-size: 11px; background: var(--rv-amber-dk); color: var(--rv-txt); border: none;
+  border-radius: 4px; padding: 2px 8px; cursor: pointer;
+}
+
+/* ---- Bottom-left collapsible action bar (collapses upward) ---- */
+#rvActionBar {
+  position: absolute;
+  left: 8px;
+  bottom: 10px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  pointer-events: none;
+}
+#rvActionBar * { pointer-events: auto; }
+
+#rvActionBtns {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 5px;
+  background: var(--rv-panel);
+  border: 1px solid var(--rv-border);
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  max-height: 65vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: max-height 0.25s ease, padding 0.25s ease, opacity 0.2s ease;
+}
+#rvActionBtns.rv-collapsed {
+  max-height: 0;
+  padding: 0 5px;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+#rvActionToggle {
+  width: 62px;
+  height: 24px;
+  background: var(--rv-panel);
+  border: 1px solid var(--rv-border);
+  border-radius: 0 0 8px 8px;
+  color: var(--rv-amber);
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+#rvActionToggle:hover { background: var(--rv-amber-dk); }
+
+.rv-action-btn {
+  width: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 7px 4px;
+  background: var(--rv-card);
+  border: 1px solid var(--rv-border);
+  border-radius: 7px;
+  color: var(--rv-txt2);
+  font-size: 9px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.rv-action-btn i { font-size: 15px; margin-bottom: 1px; }
+.rv-action-btn span { display: block; }
+.rv-action-btn:hover, .rv-action-btn.rv-active {
+  background: var(--rv-amber-dk);
+  border-color: var(--rv-amber);
+  color: var(--rv-txt);
+}
+.rv-action-btn.rv-red-btn {
+  background: #450a0a;
+  border-color: var(--rv-red);
+  color: var(--rv-red);
+}
+.rv-action-btn.rv-green-btn {
+  background: #14532d;
+  border-color: var(--rv-green);
+  color: var(--rv-green);
+}
+.rv-action-btn.rv-blue-btn {
+  background: #1e3a5f;
+  border-color: var(--rv-blue);
+  color: var(--rv-blue);
+}
+
+/* ---- Record walk banner (absolute bottom) ---- */
+#rvRecordBanner {
+  display: none;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  background: #14532d;
+  border-top: 2px solid var(--rv-green);
+  padding: 6px 14px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+#rvRecordBanner.rv-recording { display: flex; }
+.rv-rec-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--rv-green);
+  animation: rvPulse 1s infinite;
+}
+.rv-rec-info { font-size: 12px; color: var(--rv-txt); font-weight: 600; }
+#rvRecStopBtn {
+  background: var(--rv-red); border: none; color: #fff;
+  padding: 4px 12px; border-radius: 5px; font-size: 12px; cursor: pointer;
+}
+
+/* ---- Modals ---- */
+.rv-modal-backdrop {
+  display: none;
+  position: fixed; inset: 0; z-index: 210000;
+  background: rgba(0,0,0,.75);
+  align-items: center; justify-content: center;
+}
+.rv-modal-backdrop.rv-modal-open { display: flex; }
+.rv-modal {
+  background: var(--rv-panel);
+  border: 1px solid var(--rv-border);
+  border-radius: 12px;
+  width: 340px;
+  max-width: 95vw;
+  padding: 20px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.6);
+}
+.rv-modal h3 {
+  margin: 0 0 14px;
+  color: var(--rv-amber);
+  font-size: 16px;
+}
+.rv-modal label {
+  display: block;
+  font-size: 12px;
+  color: var(--rv-txt2);
+  margin-bottom: 4px;
+  margin-top: 10px;
+}
+.rv-modal input, .rv-modal select, .rv-modal textarea {
+  width: 100%; box-sizing: border-box;
+  background: var(--rv-card); border: 1px solid var(--rv-border);
+  color: var(--rv-txt); border-radius: 5px; padding: 8px 10px; font-size: 13px;
+}
+.rv-modal input:focus, .rv-modal select:focus, .rv-modal textarea:focus {
+  outline: none; border-color: var(--rv-amber);
+}
+.rv-modal-btns {
+  display: flex; gap: 8px; margin-top: 16px;
+}
+.rv-btn-primary {
+  flex: 1; padding: 10px; background: var(--rv-amber); color: #000;
+  border: none; border-radius: 6px; font-weight: 700; font-size: 13px; cursor: pointer;
+}
+.rv-btn-secondary {
+  flex: 1; padding: 10px; background: var(--rv-card); color: var(--rv-txt);
+  border: 1px solid var(--rv-border); border-radius: 6px; font-size: 13px; cursor: pointer;
+}
+.rv-btn-danger {
+  flex: 1; padding: 10px; background: var(--rv-red); color: #fff;
+  border: none; border-radius: 6px; font-size: 13px; cursor: pointer;
+}
+
+/* ---- CRS dropdown modal ---- */
+#rvCrsModal .rv-modal { width: 310px; }
+
+/* ---- Export modal ---- */
+#rvExportModal .rv-export-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+.rv-export-btn {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 4px; padding: 14px 8px;
+  background: var(--rv-card); border: 1px solid var(--rv-border);
+  border-radius: 8px; color: var(--rv-txt2); font-size: 11px;
+  cursor: pointer; transition: all 0.15s;
+}
+.rv-export-btn i { font-size: 20px; }
+.rv-export-btn:hover { background: var(--rv-border); color: var(--rv-txt); }
+.rv-export-btn.csv:hover { border-color: var(--rv-green); color: var(--rv-green); }
+.rv-export-btn.kml:hover { border-color: var(--rv-blue);  color: var(--rv-blue);  }
+.rv-export-btn.dxf:hover { border-color: var(--rv-amber); color: var(--rv-amber); }
+
+/* ---- Points list inside mark modal ---- */
+.rv-pt-list { max-height: 120px; overflow-y: auto; margin-top: 8px; }
+.rv-pt-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 4px 6px; border-bottom: 1px solid var(--rv-border); font-size: 11px;
+}
+.rv-pt-row span { color: var(--rv-txt2); font-family: monospace; }
+.rv-pt-row b { color: var(--rv-amber); }
+.rv-pt-del { background: none; border: none; color: var(--rv-red); cursor: pointer; font-size: 14px; }
+
+/* ---- Basemap switcher inside rover ---- */
+#rvBasemapBar {
+  display: none;
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: rgba(13,17,23,.9);
+  border-top: 1px solid var(--rv-border);
+  padding: 6px 8px;
+  flex-direction: row;
+  gap: 6px;
+  overflow-x: auto;
+  z-index: 10;
+}
+#rvBasemapBar.rv-bm-open { display: flex; }
+.rv-bm-thumb {
+  flex-shrink: 0;
+  width: 64px;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 3px; cursor: pointer;
+}
+.rv-bm-thumb .rv-bm-img {
+  width: 60px; height: 40px;
+  border-radius: 5px;
+  border: 2px solid var(--rv-border);
+  object-fit: cover;
+  background: var(--rv-card);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+.rv-bm-thumb.active .rv-bm-img { border-color: var(--rv-amber); }
+.rv-bm-thumb span { font-size: 9px; color: var(--rv-txt2); text-align: center; }
+.rv-bm-thumb.active span { color: var(--rv-amber); }
+
+/* ---- averaging progress ---- */
+#rvAvgProgress {
+  height: 3px; background: var(--rv-border); border-radius: 2px;
+  margin-top: 8px; overflow: hidden;
+}
+#rvAvgProgressFill {
+  height: 100%; background: var(--rv-amber); border-radius: 2px;
+  width: 0%; transition: width 0.3s;
+}
+
+/* ---- GPS marker on map ---- */
+.rv-gps-dot {
+  width: 16px; height: 16px;
+  background: var(--rv-blue);
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px rgba(59,130,246,.4);
+  animation: rvGpsPulse 2s infinite;
+}
+@keyframes rvGpsPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(59,130,246,.6); }
+  70%  { box-shadow: 0 0 0 12px rgba(59,130,246,0); }
+  100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); }
+}
+@keyframes rvPulse {
+  0%,100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+/* ---- Alert toast ---- */
+#rvAlertToast {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--rv-amber);
+  color: #000;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  z-index: 220000;
+  display: none;
+  animation: rvSlideDown 0.3s ease;
+  text-align: center;
+  max-width: 340px;
+  box-shadow: 0 4px 20px rgba(245,158,11,.4);
+}
+@keyframes rvSlideDown {
+  from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* scrollbar */
+#rvCornerPanel::-webkit-scrollbar { width: 4px; }
+#rvCornerPanel::-webkit-scrollbar-track { background: var(--rv-panel); }
+#rvCornerPanel::-webkit-scrollbar-thumb { background: var(--rv-border); border-radius: 2px; }
+.rv-modal input[type=checkbox] { width: auto; margin-right: 6px; }
+</style>
+
+<!-- ---- GSP Rover HTML ---- -->
+<div id="gspRoverOverlay">
+
+  <!-- Status bar -->
+  <div id="rvStatusBar">
+    <div class="rv-sbar-row1">
+      <span class="rv-brand">🛰 GSP ROVER</span>
+      <select id="rvSrcSel" class="rv-src-sel" title="GPS Source">
+        <option value="phone">Phone GPS</option>
+        <option value="external">External GPS</option>
+      </select>
+      <span style="flex:1"></span>
+      <button class="rv-exit-btn" id="rvExitBtn" title="Exit Rover">✕</button>
+    </div>
+    <div class="rv-sbar-row2">
+      <span class="rv-coord-lbl">E:</span>
+      <span class="rv-coord-val" id="rvCoordE">—</span>
+      <span class="rv-coord-lbl" style="margin-left:6px;">N:</span>
+      <span class="rv-coord-val" id="rvCoordN">—</span>
+      <button class="rv-crs-btn" id="rvCrsBtn">UTM 36S ▾</button>
+    </div>
+    <div class="rv-sbar-row3">
+      <span class="rv-stat">Acc: <b id="rvAcc">—</b>m</span>
+      <span class="rv-stat">Alt: <b id="rvAlt">—</b>m</span>
+      <span class="rv-stat">Sats: <b id="rvSats">—</b></span>
+      <span id="rvFixBadge">NO GPS</span>
+    </div>
+  </div>
+
+  <!-- Map -->
+  <div id="rvMapContainer">
+    <div id="rvMap"></div>
+    <!-- Basemap switcher overlay -->
+    <div id="rvBasemapBar">
+      <div class="rv-bm-thumb active" data-bm="hybrid">
+        <div class="rv-bm-img">🛰</div><span>Satellite</span>
+      </div>
+      <div class="rv-bm-thumb" data-bm="osm">
+        <div class="rv-bm-img">🗺</div><span>OSM</span>
+      </div>
+      <div class="rv-bm-thumb" data-bm="topo">
+        <div class="rv-bm-img">🏔</div><span>Topo</span>
+      </div>
+      <div class="rv-bm-thumb" data-bm="dark">
+        <div class="rv-bm-img">🌑</div><span>Dark</span>
+      </div>
+      <div class="rv-bm-thumb" data-bm="none">
+        <div class="rv-bm-img">⬜</div><span>None</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Record walk banner -->
+  <div id="rvRecordBanner">
+    <div class="rv-rec-dot"></div>
+    <span class="rv-rec-info" id="rvRecInfo">Recording… 0 pts | 0.0 m</span>
+    <button id="rvRecStopBtn">■ STOP</button>
+  </div>
+
+  <!-- Stakeout panel -->
+  <div id="rvStakeoutPanel">
+    <div class="rv-so-info">
+      <div>
+        <div class="rv-so-label" id="rvSoLabel">→ Target</div>
+        <div class="rv-so-dist" id="rvSoDist">—</div>
+      </div>
+      <div class="rv-so-bearing" id="rvSoBearing">—</div>
+    </div>
+    <div class="rv-so-progress"><div class="rv-so-progress-fill" id="rvSoProgressFill" style="width:0%"></div></div>
+    <div class="rv-so-nav">
+      <button id="rvSoPrevBtn">◀ PREV</button>
+      <button id="rvSoNextBtn">NEXT ▶</button>
+      <button class="rv-exit-so" id="rvSoExitBtn">EXIT STAKEOUT</button>
+    </div>
+  </div>
+
+  <!-- Corner list panel -->
+  <div id="rvCornerPanel">
+    <div class="rv-corner-header">
+      <span>SELECTED PARCEL CORNERS</span>
+      <button style="background:none;border:none;color:var(--rv-txt2);cursor:pointer;font-size:14px;" id="rvCornerCloseBtn">✕</button>
+    </div>
+    <div id="rvCornerList"></div>
+  </div>
+
+  <!-- Bottom-left collapsible action bar (collapses upward) -->
+  <div id="rvActionBar">
+    <div id="rvActionBtns">
+      <button class="rv-action-btn" id="rvMarkBtn" title="Mark Point">
+        <i class="fas fa-map-pin"></i><span>MARK</span>
+      </button>
+      <button class="rv-action-btn" id="rvSelectBtn" title="Select Parcel">
+        <i class="fas fa-vector-square"></i><span>SELECT</span>
+      </button>
+      <button class="rv-action-btn" id="rvRecordBtn" title="Record Boundary Walk">
+        <i class="fas fa-route"></i><span>WALK</span>
+      </button>
+      <button class="rv-action-btn" id="rvAreaBtn" title="Area from Points">
+        <i class="fas fa-draw-polygon"></i><span>AREA</span>
+      </button>
+      <button class="rv-action-btn" id="rvExportBtn" title="Export Data">
+        <i class="fas fa-file-export"></i><span>EXPORT</span>
+      </button>
+      <button class="rv-action-btn" id="rvBasemapBtn" title="Basemap">
+        <i class="fas fa-layer-group"></i><span>MAP</span>
+      </button>
+      <button class="rv-action-btn" id="rvPhotoBtn" title="Capture Geotagged Photo">
+        <i class="fas fa-camera"></i><span>PHOTO</span>
+      </button>
+      <button class="rv-action-btn" id="rvSettingsBtn" title="Settings">
+        <i class="fas fa-cog"></i><span>OPTS</span>
+      </button>
+    </div>
+    <button id="rvActionToggle" title="Toggle tools">▲ Tools</button>
+  </div>
+
+  <!-- Hidden camera input -->
+  <input type="file" id="rvCameraInput" accept="image/*" capture="environment" style="display:none;">
+
+</div><!-- end #gspRoverOverlay -->
+
+<!-- Alert toast (outside overlay so always visible) -->
+<div id="rvAlertToast"></div>
+
+<!-- === Mark Point Modal === -->
+<div class="rv-modal-backdrop" id="rvMarkModal">
+  <div class="rv-modal">
+    <h3><i class="fas fa-map-pin" style="color:var(--rv-amber)"></i> Mark Point</h3>
+    <label>Point Name / ID</label>
+    <input type="text" id="rvMarkName" placeholder="e.g. C1, BM-001" />
+    <label>Description (optional)</label>
+    <input type="text" id="rvMarkDesc" placeholder="Corner, benchmark…" />
+    <label style="display:flex;align-items:center;margin-top:10px;color:var(--rv-txt2);">
+      <input type="checkbox" id="rvMarkAvg" checked> Use 5-reading average
+    </label>
+    <div id="rvAvgProgress" style="display:none"><div id="rvAvgProgressFill"></div></div>
+    <div id="rvAvgStatus" style="font-size:11px;color:var(--rv-txt2);margin-top:4px;"></div>
+    <div class="rv-modal-btns" style="margin-top:12px;">
+      <button class="rv-btn-primary" id="rvMarkSaveBtn">📌 MARK</button>
+      <button class="rv-btn-secondary" id="rvMarkCancelBtn">Cancel</button>
+    </div>
+    <hr style="border-color:var(--rv-border);margin:14px 0 8px;">
+    <div style="font-size:11px;color:var(--rv-txt2);margin-bottom:4px;">Captured Points (<span id="rvPtCount">0</span>)
+      <button id="rvClearPtsBtn" style="float:right;background:none;border:none;color:var(--rv-red);cursor:pointer;font-size:11px;">🗑 Clear All</button>
+    </div>
+    <div class="rv-pt-list" id="rvPtList"></div>
+  </div>
+</div>
+
+<!-- === CRS Modal === -->
+<div class="rv-modal-backdrop" id="rvCrsModal">
+  <div class="rv-modal">
+    <h3>Coordinate System</h3>
+    <select id="rvCrsSelect" size="10" style="width:100%;height:auto;">
+      <option value="4326">WGS84 Lat/Lon (DD)</option>
+      <option value="32635">UTM 35N WGS84</option>
+      <option value="32735">UTM 35S WGS84</option>
+      <option value="32636">UTM 36N WGS84</option>
+      <option value="32736" selected>UTM 36S WGS84 ★</option>
+      <option value="32637">UTM 37N WGS84</option>
+      <option value="21095">Arc1960 UTM 35N</option>
+      <option value="21035">Arc1960 UTM 35S</option>
+      <option value="21096">Arc1960 UTM 36N</option>
+      <option value="21036">Arc1960 UTM 36S</option>
+    </select>
+    <div class="rv-modal-btns">
+      <button class="rv-btn-primary" id="rvCrsApplyBtn">Apply</button>
+      <button class="rv-btn-secondary" id="rvCrsCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- === Export Modal === -->
+<div class="rv-modal-backdrop" id="rvExportModal">
+  <div class="rv-modal">
+    <h3><i class="fas fa-file-export" style="color:var(--rv-amber)"></i> Export Data</h3>
+    <p style="font-size:12px;color:var(--rv-txt2);margin:0 0 8px;">Choose format to download:</p>
+    <div class="rv-export-grid">
+      <button class="rv-export-btn csv" id="rvExportCsvBtn"><i class="fas fa-file-csv"></i>CSV<br><small>Points</small></button>
+      <button class="rv-export-btn kml" id="rvExportKmlBtn"><i class="fas fa-globe"></i>KML<br><small>Polygon</small></button>
+      <button class="rv-export-btn dxf" id="rvExportDxfBtn"><i class="fas fa-drafting-compass"></i>DXF<br><small>R12 ASCII</small></button>
+    </div>
+    <div class="rv-modal-btns" style="margin-top:12px;">
+      <button class="rv-btn-secondary" id="rvExportCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- === Settings Modal === -->
+<div class="rv-modal-backdrop" id="rvSettingsModal">
+  <div class="rv-modal">
+    <h3><i class="fas fa-cog" style="color:var(--rv-amber)"></i> Rover Settings</h3>
+    <label>Averaging readings (1–20)</label>
+    <input type="number" id="rvAvgCount" value="5" min="1" max="20" />
+    <label>Arrival threshold (meters)</label>
+    <input type="number" id="rvArrivalThresh" value="2.0" min="0.5" max="50" step="0.5" />
+    <label>Proximity alert distance (m)</label>
+    <input type="number" id="rvProxDist" value="5.0" min="1" max="100" step="0.5" />
+    <label style="display:flex;align-items:center;margin-top:10px;color:var(--rv-txt2);">
+      <input type="checkbox" id="rvWakeLockChk" checked> Keep screen awake
+    </label>
+    <label style="display:flex;align-items:center;margin-top:8px;color:var(--rv-txt2);">
+      <input type="checkbox" id="rvVibrateChk" checked> Vibrate on arrival
+    </label>
+    <div class="rv-modal-btns">
+      <button class="rv-btn-primary" id="rvSettingsSaveBtn">Save</button>
+      <button class="rv-btn-secondary" id="rvSettingsCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- === Area Result Modal === -->
+<div class="rv-modal-backdrop" id="rvAreaModal">
+  <div class="rv-modal">
+    <h3><i class="fas fa-draw-polygon" style="color:var(--rv-amber)"></i> Area Calculator</h3>
+    <p style="font-size:12px;color:var(--rv-txt2);">Using <span id="rvAreaPtSource">marked points</span> as polygon vertices (in order captured):</p>
+    <div id="rvAreaResult" style="font-size:28px;font-weight:800;color:var(--rv-amber);text-align:center;margin:16px 0;">—</div>
+    <div id="rvAreaResultSub" style="font-size:13px;color:var(--rv-txt2);text-align:center;">—</div>
+    <div class="rv-modal-btns">
+      <button class="rv-btn-primary" id="rvAreaCalcBtn">Calculate</button>
+      <button class="rv-btn-secondary" id="rvAreaCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- === Exit Confirmation Modal === -->
+<div class="rv-modal-backdrop" id="rvExitModal">
+  <div class="rv-modal">
+    <h3><i class="fas fa-sign-out-alt" style="color:var(--rv-amber)"></i> Exit Rover</h3>
+    <div id="rvExitSummary" style="font-size:12px;color:var(--rv-txt2);margin:8px 0;line-height:1.6;">
+    </div>
+    <div class="rv-modal-btns" style="flex-direction:column;gap:8px;">
+      <button class="rv-btn-primary" id="rvExitReportBtn" style="width:100%;">📄 Close &amp; Download Report</button>
+      <button class="rv-btn-secondary" id="rvExitNoReportBtn" style="width:100%;">Close Without Report</button>
+      <button class="rv-btn-secondary" id="rvExitCancelBtn" style="width:100%;background:transparent;border:1px solid var(--rv-border);">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- GSP ROVER JAVASCRIPT                                         -->
+<!-- ============================================================ -->
+<script>
+(function() {
+'use strict';
+
+/* ================================================================
+   STATE
+================================================================ */
+const RV = {
+  open: false,
+  watchId: null,
+  pos: null,           // latest GeolocationPosition
+  crs: '32736',        // active display CRS
+  crsLabel: 'UTM 36S',
+  map: null,           // OL map inside rover
+  gpsLayer: null,      // vector layer for GPS marker + accuracy circle
+  gpsSource: null,
+  stakeLayer: null,    // stakeout bearing line
+  stakeSource: null,
+  walkLayer: null,     // boundary walk polyline
+  walkSource: null,
+  walkCoords: [],      // [[lon,lat],…]
+  recording: false,
+  points: [],          // marked points [{id,name,desc,lon,lat,acc,alt,ts},…]
+  corners: [],         // selected parcel corners [{lon,lat},…]
+  stakeoutIdx: -1,     // which corner we're navigating to
+  stakeoutStart: null, // start distance for progress bar
+  averaging: false,
+  avgReadings: [],
+  avgTarget: 5,
+  settings: {
+    avgCount: 5,
+    arrivalThresh: 2.0,
+    proxDist: 5.0,
+    wakeLock: true,
+    vibrate: true
+  },
+  wakeLockSentinel: null,
+  basemap: 'hybrid',
+  baseLayers: {},
+  selectMode: false,
+  toastTimer: null,
+  alertedPoints: new Set(),   // proximity already alerted
+  alertedEdges:  new Set(),
+  // --- GNSS / Web Serial ---
+  gnssMode: 'phone',          // 'phone' | 'external'
+  serialPort: null,
+  serialReader: null,
+  serialReading: false,
+  nmeaBuffer: '',
+  fixQuality: 0,              // GGA field 6 (0=nofix,1=GPS,2=DGPS,4=RTK Fixed,5=RTK Float)
+  fixType: 'NO GPS',
+  hdop: null,
+  satCount: null,
+  gnssLat: null,
+  gnssLon: null,
+  gnssAlt: null,
+  gnssAcc: null,              // estimated from HDOP
+  gnssSpeed: null,
+  gnssHeading: null,
+  // --- Session tracking ---
+  sessionStart: null,         // Date when rover opened
+  sessionId: null,
+};
+// Export state so external modules (e.g. photo watermark) can access it
+window._gspRoverState = RV;
+
+/* ================================================================
+   HELPERS
+================================================================ */
+function rvLoadPoints() {
+  try {
+    const d = localStorage.getItem('gspRoverPoints');
+    if (d) RV.points = JSON.parse(d);
+  } catch(e) { RV.points = []; }
+}
+function rvSavePoints() {
+  try { localStorage.setItem('gspRoverPoints', JSON.stringify(RV.points)); } catch(e){}
+}
+function rvLoadSettings() {
+  try {
+    const d = localStorage.getItem('gspRoverSettings');
+    if (d) Object.assign(RV.settings, JSON.parse(d));
+  } catch(e){}
+}
+function rvSaveSettings() {
+  try { localStorage.setItem('gspRoverSettings', JSON.stringify(RV.settings)); } catch(e){}
+}
+
+function rvToast(msg, dur=3500) {
+  const t = document.getElementById('rvAlertToast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(RV.toastTimer);
+  RV.toastTimer = setTimeout(() => { t.style.display='none'; }, dur);
+}
+
+function rvFormatCoord(lon, lat, crs) {
+  if (crs === '4326') {
+    return { e: lon.toFixed(7) + '°E', n: lat.toFixed(7) + '°N' };
+  }
+  try {
+    const pt = proj4('EPSG:4326', 'EPSG:'+crs, [lon, lat]);
+    return { e: pt[0].toFixed(3), n: pt[1].toFixed(3) };
+  } catch(err) {
+    return { e: '—', n: '—' };
+  }
+}
+
+function rvBearing(lat1, lon1, lat2, lon2) {
+  const toRad = d => d * Math.PI / 180;
+  const toDeg = r => r * 180 / Math.PI;
+  const dLon = toRad(lon2 - lon1);
+  const φ1 = toRad(lat1), φ2 = toRad(lat2);
+  const y = Math.sin(dLon) * Math.cos(φ2);
+  const x = Math.cos(φ1)*Math.sin(φ2) - Math.sin(φ1)*Math.cos(φ2)*Math.cos(dLon);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
+function rvHaversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2-lat1), dLon = toRad(lon2-lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function rvBearingLabel(deg) {
+  const dirs = ['N','NE','E','SE','S','SW','W','NW','N'];
+  return dirs[Math.round(deg/45)];
+}
+
+function rvPolyArea(coords) {
+  // Shoelace in metres using Web Mercator distances
+  let area = 0;
+  const n = coords.length;
+  if (n < 3) return 0;
+  const proj = coords.map(c => ol.proj.fromLonLat(c)); // to metres
+  for (let i=0; i<n; i++) {
+    const j = (i+1)%n;
+    area += proj[i][0]*proj[j][1];
+    area -= proj[j][0]*proj[i][1];
+  }
+  return Math.abs(area/2);
+}
+
+function rvDownload(filename, content, mime) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], {type: mime}));
+  a.download = filename;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),10000);
+}
+
+/* ================================================================
+   WAKE LOCK
+================================================================ */
+async function rvAcquireWakeLock() {
+  if (!RV.settings.wakeLock) return;
+  try {
+    if ('wakeLock' in navigator) {
+      RV.wakeLockSentinel = await navigator.wakeLock.request('screen');
+    }
+  } catch(e){ console.warn('WakeLock:', e.message); }
+}
+function rvReleaseWakeLock() {
+  if (RV.wakeLockSentinel) {
+    RV.wakeLockSentinel.release().catch(()=>{});
+    RV.wakeLockSentinel = null;
+  }
+}
+
+/* ================================================================
+   ROVER MAP INIT
+================================================================ */
+function rvInitMap() {
+  if (RV.map) return;
+
+  // Base layers
+  const satLayer = new ol.layer.Tile({
+    source: new ol.source.XYZ({
+      url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+      crossOrigin: 'anonymous',
+      maxZoom: 21
+    })
+  });
+  const osmLayer2 = new ol.layer.Tile({
+    source: new ol.source.OSM({ crossOrigin: 'anonymous' }),
+    visible: false
+  });
+  const topoLayer = new ol.layer.Tile({
+    source: new ol.source.XYZ({
+      url: 'https://tile.opentopomap.org/{z}/{x}/{y}.png',
+      crossOrigin: 'anonymous',
+      maxZoom: 17
+    }),
+    visible: false
+  });
+  const darkLayer = new ol.layer.Tile({
+    source: new ol.source.XYZ({
+      url: 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}@2x.png',
+      crossOrigin: 'anonymous',
+      maxZoom: 20
+    }),
+    visible: false
+  });
+
+  const noneLayer = new ol.layer.Tile({ visible: false }); // blank basemap option
+
+  RV.baseLayers = { hybrid: satLayer, osm: osmLayer2, topo: topoLayer, dark: darkLayer, none: noneLayer };
+
+  // --- Clone GSPNET & survey polygon layers from main map ---
+  // IMPORTANT: OpenLayers layers can only belong to ONE map at a time.
+  // We create NEW ol.layer.Vector instances sharing the same ol.source.Vector
+  // so both maps render the same data independently.
+  const mainMapLayers = [];
+  RV.clonedLayers = []; // track for potential cleanup
+  if (window.map) {
+    function cloneVectorLayer(lyr) {
+      // Only clone vector layers that have a source
+      if (!(lyr instanceof ol.layer.Vector)) return;
+      const src = lyr.getSource();
+      if (!src) return;
+      const clone = new ol.layer.Vector({
+        source: src,              // share the same source
+        style: lyr.getStyleFunction() || lyr.getStyle(),
+        visible: lyr.getVisible(),
+        zIndex: lyr.getZIndex() || 0,
+        opacity: lyr.getOpacity(),
+        maxResolution: lyr.getMaxResolution(),
+        minResolution: lyr.getMinResolution()
+      });
+      // Mirror visibility changes from main map → rover
+      lyr.on('change:visible', function() { clone.setVisible(lyr.getVisible()); });
+      mainMapLayers.push(clone);
+      RV.clonedLayers.push(clone);
+    }
+
+    window.map.getLayers().forEach(function(lyr) {
+      // Skip tile layers (basemaps) — rover has its own
+      if (lyr instanceof ol.layer.Tile || lyr instanceof ol.layer.Image) return;
+      // Recurse into LayerGroups (GSPNET LAYERS, Survey Polygons, etc.)
+      if (lyr instanceof ol.layer.Group) {
+        lyr.getLayers().forEach(function(sub) {
+          if (sub instanceof ol.layer.Group) {
+            // Nested groups (unlikely but safe)
+            sub.getLayers().forEach(function(subsub) { cloneVectorLayer(subsub); });
+          } else {
+            cloneVectorLayer(sub);
+          }
+        });
+        return;
+      }
+      cloneVectorLayer(lyr);
+    });
+  }
+
+  // GPS source / layer
+  RV.gpsSource = new ol.source.Vector();
+  RV.gpsLayer = new ol.layer.Vector({
+    source: RV.gpsSource,
+    style: function(feat) {
+      const type = feat.get('type');
+      if (type === 'accuracy') {
+        return new ol.style.Style({
+          fill: new ol.style.Fill({ color: 'rgba(59,130,246,0.12)' }),
+          stroke: new ol.style.Stroke({ color: 'rgba(59,130,246,0.5)', width: 1 })
+        });
+      }
+      return new ol.style.Style({
+        image: new ol.style.Circle({
+          radius: 8,
+          fill: new ol.style.Fill({ color: '#3b82f6' }),
+          stroke: new ol.style.Stroke({ color: '#fff', width: 2.5 })
+        })
+      });
+    },
+    zIndex: 100
+  });
+
+  // Stakeout layer
+  RV.stakeSource = new ol.source.Vector();
+  RV.stakeLayer = new ol.layer.Vector({
+    source: RV.stakeSource,
+    style: new ol.style.Style({
+      stroke: new ol.style.Stroke({
+        color: '#f59e0b',
+        width: 2.5,
+        lineDash: [8, 5]
+      })
+    }),
+    zIndex: 90
+  });
+
+  // Walk layer
+  RV.walkSource = new ol.source.Vector();
+  RV.walkLayer = new ol.layer.Vector({
+    source: RV.walkSource,
+    style: function(feat) {
+      const type = feat.get('type');
+      if (type === 'walk') {
+        return new ol.style.Style({
+          stroke: new ol.style.Stroke({ color: '#22c55e', width: 3 })
+        });
+      }
+      // corner points
+      return new ol.style.Style({
+        image: new ol.style.Circle({
+          radius: 5,
+          fill: new ol.style.Fill({ color: '#22c55e' }),
+          stroke: new ol.style.Stroke({ color: '#fff', width: 1.5 })
+        })
+      });
+    },
+    zIndex: 80
+  });
+
+  // Marked points layer
+  RV.ptSource = new ol.source.Vector();
+  RV.ptLayer = new ol.layer.Vector({
+    source: RV.ptSource,
+    style: function(feat) {
+      return [
+        new ol.style.Style({
+          image: new ol.style.RegularShape({
+            points: 3,
+            radius: 8,
+            angle: Math.PI,
+            fill: new ol.style.Fill({ color: '#f59e0b' }),
+            stroke: new ol.style.Stroke({ color: '#000', width: 1 })
+          })
+        }),
+        new ol.style.Style({
+          text: new ol.style.Text({
+            text: feat.get('name') || '',
+            font: 'bold 10px sans-serif',
+            fill: new ol.style.Fill({ color: '#fff' }),
+            stroke: new ol.style.Stroke({ color: '#000', width: 3 }),
+            offsetY: -18
+          })
+        })
+      ];
+    },
+    zIndex: 110
+  });
+
+  // Corners layer
+  RV.cornerSource = new ol.source.Vector();
+  RV.cornerLayer = new ol.layer.Vector({
+    source: RV.cornerSource,
+    style: function(feat) {
+      const isActive = feat.get('active');
+      return [
+        new ol.style.Style({
+          image: new ol.style.Circle({
+            radius: 6,
+            fill: new ol.style.Fill({ color: isActive ? '#f59e0b' : '#3b82f6' }),
+            stroke: new ol.style.Stroke({ color: '#fff', width: 2 })
+          })
+        }),
+        new ol.style.Style({
+          text: new ol.style.Text({
+            text: feat.get('label') || '',
+            font: 'bold 10px sans-serif',
+            fill: new ol.style.Fill({ color: '#fff' }),
+            stroke: new ol.style.Stroke({ color: '#000', width: 3 }),
+            offsetY: -16
+          })
+        })
+      ];
+    },
+    zIndex: 105
+  });
+
+  // Get current map view center
+  let initCenter = [32.5, 1.0];
+  let initZoom = 8;
+  try {
+    const mv = window.map.getView();
+    const c = ol.proj.toLonLat(mv.getCenter());
+    initCenter = c;
+    initZoom = Math.min(mv.getZoom() + 1, 21);
+  } catch(e){}
+
+  RV.map = new ol.Map({
+    target: 'rvMap',
+    layers: [
+      satLayer, osmLayer2, topoLayer, darkLayer, noneLayer,
+      ...mainMapLayers,
+      RV.walkLayer, RV.stakeLayer, RV.cornerLayer, RV.ptLayer, RV.gpsLayer
+    ],
+    view: new ol.View({
+      center: ol.proj.fromLonLat(initCenter),
+      zoom: initZoom,
+      maxZoom: 22
+    }),
+    controls: ol.control.defaults.defaults({
+      attribution: false,
+      rotate: false,
+      zoom: true
+    })
+  });
+
+  // Click select mode
+  RV.map.on('click', function(evt) {
+    if (!RV.selectMode) return;
+    rvHandleMapClick(evt.coordinate);
+  });
+}
+
+/* ================================================================
+   BASEMAP SWITCHER
+================================================================ */
+window.rvSetBasemap = function rvSetBasemap(name) {
+  RV.basemap = name;
+  Object.entries(RV.baseLayers).forEach(([k,l]) => l.setVisible(k === name));
+  document.querySelectorAll('.rv-bm-thumb').forEach(el => {
+    el.classList.toggle('active', el.dataset.bm === name);
+  });
+};
+
+/* ================================================================
+   NMEA PARSER & WEB SERIAL (Phase 4 — External GNSS Receiver)
+================================================================ */
+const GNSS_FIX_LABELS = {
+  0: { text: '✕ NO FIX',     cls: 'fix-bad'  },
+  1: { text: '◌ GPS',         cls: 'fix-warn' },
+  2: { text: '◉ DGPS',        cls: 'fix-warn' },
+  4: { text: '● RTK FIXED',   cls: 'fix-good' },
+  5: { text: '◉ RTK FLOAT',   cls: 'fix-warn' }
+};
+
+/** Parse a NMEA latitude field (ddmm.mmmmm) + N/S indicator → decimal degrees */
+function nmeaLatToDeg(lat, ns) {
+  if (!lat) return null;
+  const deg = parseInt(lat.substring(0, 2), 10);
+  const min = parseFloat(lat.substring(2));
+  let d = deg + min / 60;
+  if (ns === 'S') d = -d;
+  return d;
+}
+/** Parse a NMEA longitude field (dddmm.mmmmm) + E/W indicator → decimal degrees */
+function nmeaLonToDeg(lon, ew) {
+  if (!lon) return null;
+  const deg = parseInt(lon.substring(0, 3), 10);
+  const min = parseFloat(lon.substring(3));
+  let d = deg + min / 60;
+  if (ew === 'W') d = -d;
+  return d;
+}
+
+/**
+ * Process a single complete NMEA sentence.
+ * Supported: $G?GGA, $G?RMC, $G?GSV
+ */
+function rvParseNMEA(sentence) {
+  if (!sentence || sentence.length < 6) return;
+  // Strip checksum
+  const star = sentence.indexOf('*');
+  const body = star > 0 ? sentence.substring(0, star) : sentence;
+  const parts = body.split(',');
+  const type = parts[0].substring(3); // e.g. GGA, RMC, GSV
+
+  if (type === 'GGA') {
+    // $GNGGA,hhmmss.ss,lat,N,lon,E,quality,numSats,hdop,alt,M,...
+    const lat  = nmeaLatToDeg(parts[2], parts[3]);
+    const lon  = nmeaLonToDeg(parts[4], parts[5]);
+    const fix  = parseInt(parts[6], 10) || 0;
+    const sats = parseInt(parts[7], 10) || 0;
+    const hdop = parseFloat(parts[8]) || null;
+    const alt  = parseFloat(parts[9]) || null;
+
+    RV.fixQuality = fix;
+    RV.satCount = sats;
+    RV.hdop = hdop;
+    if (lat != null && lon != null && fix > 0) {
+      RV.gnssLat = lat;
+      RV.gnssLon = lon;
+      RV.gnssAlt = alt;
+      // Estimate accuracy from HDOP (CEP ≈ HDOP × 2.5m for typical consumer GNSS)
+      // RTK Fixed ≈ HDOP × 0.02, Float ≈ HDOP × 0.15
+      if (fix === 4)      RV.gnssAcc = hdop ? hdop * 0.02 : 0.015;
+      else if (fix === 5) RV.gnssAcc = hdop ? hdop * 0.15 : 0.05;
+      else                RV.gnssAcc = hdop ? hdop * 2.5  : 5.0;
+
+      const label = GNSS_FIX_LABELS[fix] || GNSS_FIX_LABELS[0];
+      RV.fixType = label.text;
+
+      // Feed the same position pipeline as phone GPS
+      rvOnGNSSPosition();
+    }
+  }
+  else if (type === 'RMC') {
+    // $GNRMC,hhmmss.ss,status,lat,N,lon,E,speedKnots,headingDeg,...
+    const speedKnots = parseFloat(parts[7]);
+    const heading    = parseFloat(parts[8]);
+    if (!isNaN(speedKnots)) RV.gnssSpeed   = speedKnots * 0.514444; // → m/s
+    if (!isNaN(heading))    RV.gnssHeading  = heading;
+  }
+  else if (type === 'GSV') {
+    // We already get sat count from GGA, but GSV provides per-constellation detail
+    // For now, just use GGA satCount (more reliable for total in-use count)
+  }
+}
+
+/**
+ * Called when GNSS provides a valid position fix.
+ * Mirrors the rvOnGPS callback with GNSS-sourced data.
+ */
+function rvOnGNSSPosition() {
+  const lat = RV.gnssLat, lon = RV.gnssLon;
+  if (lat == null || lon == null) return;
+
+  // Build a fake GeolocationPosition-like object for shared pipeline
+  const fakePos = {
+    coords: {
+      latitude:  lat,
+      longitude: lon,
+      accuracy:  RV.gnssAcc || 1.0,
+      altitude:  RV.gnssAlt,
+      altitudeAccuracy: null,
+      heading:   RV.gnssHeading,
+      speed:     RV.gnssSpeed
+    },
+    timestamp: Date.now()
+  };
+  RV.pos = fakePos;
+
+  // Status bar — coordinates
+  const cv = rvFormatCoord(lon, lat, RV.crs);
+  document.getElementById('rvCoordE').textContent = cv.e;
+  document.getElementById('rvCoordN').textContent = cv.n;
+  document.getElementById('rvAcc').textContent = RV.gnssAcc != null ? RV.gnssAcc.toFixed(3) : '—';
+  document.getElementById('rvAlt').textContent = RV.gnssAlt != null ? RV.gnssAlt.toFixed(1) : '—';
+
+  // Fix badge from NMEA
+  const label = GNSS_FIX_LABELS[RV.fixQuality] || GNSS_FIX_LABELS[0];
+  const badge = document.getElementById('rvFixBadge');
+  badge.textContent = label.text;
+  badge.className = label.cls;
+
+  // Satellites
+  document.getElementById('rvSats').textContent = RV.satCount != null ? RV.satCount : '—';
+
+  // Map marker
+  if (RV.map) {
+    RV.gpsSource.clear();
+    const olCoord = ol.proj.fromLonLat([lon, lat]);
+    const accMeters = RV.gnssAcc || 1.0;
+    const circle = new ol.geom.Circle(olCoord, accMeters);
+    RV.gpsSource.addFeatures([
+      new ol.Feature({ geometry: circle, type: 'accuracy' }),
+      new ol.Feature({ geometry: new ol.geom.Point(olCoord), type: 'gps' })
+    ]);
+  }
+
+  // Stakeout
+  if (RV.stakeoutIdx >= 0 && RV.corners.length > 0) rvUpdateStakeout(lat, lon);
+  // Walk recording
+  if (RV.recording) rvRecordTick(lon, lat);
+  // Averaging
+  if (RV.averaging) rvAvgTick(fakePos);
+  // Proximity
+  rvCheckProximity(lat, lon);
+}
+
+/**
+ * Connect to an external GNSS receiver via Web Serial API.
+ */
+async function rvConnectGNSS() {
+  if (!('serial' in navigator)) {
+    rvToast('⚠ Web Serial not supported on this browser/device', 5000);
+    document.getElementById('rvSrcSel').value = 'phone';
+    RV.gnssMode = 'phone';
+    return false;
+  }
+  try {
+    const port = await navigator.serial.requestPort();
+    // Try common GNSS baud rates: 115200 (u-blox, Emlid), 9600 (generic), 38400 (Trimble)
+    await port.open({ baudRate: 115200 });
+    RV.serialPort = port;
+    RV.serialReading = true;
+    RV.gnssMode = 'external';
+    rvToast('✓ External GNSS connected (115200 baud)', 3000);
+
+    // Stop phone GPS when GNSS is active
+    rvStopGPS();
+
+    // Start reading
+    rvSerialReadLoop(port);
+    return true;
+  } catch (err) {
+    console.warn('[GNSS] Connection failed:', err);
+    if (err.name !== 'NotFoundError') { // user cancelled port picker
+      rvToast('✕ GNSS connection failed: ' + err.message, 4000);
+    }
+    document.getElementById('rvSrcSel').value = 'phone';
+    RV.gnssMode = 'phone';
+    return false;
+  }
+}
+
+/**
+ * Continuous read loop for serial GNSS data.
+ */
+async function rvSerialReadLoop(port) {
+  const decoder = new TextDecoderStream();
+  const readableStreamClosed = port.readable.pipeTo(decoder.writable);
+  RV.serialReader = decoder.readable.getReader();
+
+  try {
+    while (RV.serialReading) {
+      const { value, done } = await RV.serialReader.read();
+      if (done) break;
+      if (!value) continue;
+
+      // Accumulate into buffer, process complete sentences
+      RV.nmeaBuffer += value;
+      const lines = RV.nmeaBuffer.split(/\r?\n/);
+      RV.nmeaBuffer = lines.pop(); // keep incomplete last line
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('$')) {
+          rvParseNMEA(trimmed);
+        }
+      }
+    }
+  } catch (err) {
+    if (RV.serialReading) {
+      console.warn('[GNSS] Read error:', err);
+      rvToast('⚠ GNSS read error — switching to phone GPS', 4000);
+      rvDisconnectGNSS();
+      rvStartGPS();
+    }
+  } finally {
+    RV.serialReader.releaseLock();
+    readableStreamClosed.catch(() => {});
+  }
+}
+
+/**
+ * Disconnect from external GNSS receiver.
+ */
+async function rvDisconnectGNSS() {
+  RV.serialReading = false;
+  RV.gnssMode = 'phone';
+  try {
+    if (RV.serialReader) {
+      await RV.serialReader.cancel();
+      RV.serialReader = null;
+    }
+  } catch (e) { /* reader may already be released */ }
+  try {
+    if (RV.serialPort) {
+      await RV.serialPort.close();
+      RV.serialPort = null;
+    }
+  } catch (e) { /* port may already be closed */ }
+  // Reset GNSS state
+  RV.fixQuality = 0;
+  RV.hdop = null;
+  RV.satCount = null;
+  RV.gnssLat = null;
+  RV.gnssLon = null;
+  RV.gnssAlt = null;
+  RV.gnssAcc = null;
+  rvToast('GNSS disconnected — using phone GPS', 2500);
+}
+
+/* ================================================================
+   SESSION REPORT (Phase 5 — HTML download on exit)
+================================================================ */
+function rvGenerateSessionReport() {
+  const now = new Date();
+  const start = RV.sessionStart || now;
+  const durationMs = now - start;
+  const durationMin = Math.floor(durationMs / 60000);
+  const durationSec = Math.floor((durationMs % 60000) / 1000);
+  const durationStr = durationMin + 'm ' + durationSec + 's';
+
+  // Calculate total distance from walked path
+  let totalDist = 0;
+  if (RV.walkCoords && RV.walkCoords.length > 1) {
+    for (let i = 1; i < RV.walkCoords.length; i++) {
+      totalDist += rvHaversine(RV.walkCoords[i-1][1], RV.walkCoords[i-1][0], RV.walkCoords[i][1], RV.walkCoords[i][0]);
+    }
+  }
+
+  // Average accuracy across captured points
+  let avgAcc = '—';
+  if (RV.points.length > 0) {
+    const accs = RV.points.filter(p => p.acc != null).map(p => p.acc);
+    if (accs.length > 0) avgAcc = (accs.reduce((a,b) => a+b, 0) / accs.length).toFixed(2) + 'm';
+  }
+
+  // Points table
+  let ptRows = '';
+  RV.points.forEach((p, i) => {
+    const cv = rvFormatCoord(p.lon, p.lat, RV.crs);
+    ptRows += `<tr>
+      <td>${i+1}</td>
+      <td>${p.name || p.id}</td>
+      <td>${cv.e}</td>
+      <td>${cv.n}</td>
+      <td>${p.acc != null ? p.acc.toFixed(2) + 'm' : '—'}</td>
+      <td>${p.desc || ''}</td>
+    </tr>`;
+  });
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GSP Rover Session Report — ${RV.sessionId || 'Session'}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Segoe UI',Roboto,sans-serif; background:#f8fafc; color:#1e293b; padding:24px; }
+  .header { background:linear-gradient(135deg,#0d1117,#1e293b); color:#f8fafc; padding:24px; border-radius:12px; margin-bottom:20px; }
+  .header h1 { font-size:22px; color:#f59e0b; margin-bottom:4px; }
+  .header p { font-size:13px; color:#94a3b8; }
+  .badge { display:inline-block; background:#f59e0b; color:#0d1117; padding:2px 10px; border-radius:4px; font-weight:700; font-size:12px; margin-top:8px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:20px; }
+  .stat-card { background:#fff; border:1px solid #e2e8f0; border-radius:10px; padding:16px; text-align:center; }
+  .stat-card .value { font-size:28px; font-weight:800; color:#0d1117; }
+  .stat-card .label { font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; }
+  table { width:100%; border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; border:1px solid #e2e8f0; margin-bottom:20px; }
+  th { background:#1e293b; color:#f59e0b; padding:10px 12px; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; text-align:left; }
+  td { padding:8px 12px; font-size:13px; border-bottom:1px solid #e2e8f0; }
+  tr:nth-child(even) td { background:#f8fafc; }
+  .footer { text-align:center; color:#94a3b8; font-size:11px; padding:12px 0; border-top:1px solid #e2e8f0; margin-top:20px; }
+  .disclaimer { background:#fffbeb; border:1px solid #fcd34d; border-radius:8px; padding:12px 16px; font-size:12px; color:#92400e; margin-bottom:20px; }
+  @media print { body { padding:12px; } .header { page-break-after:avoid; } }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🛰 GSP ROVER — Session Report</h1>
+  <p>Session: ${RV.sessionId || '—'}</p>
+  <p>Date: ${start.toLocaleDateString()} ${start.toLocaleTimeString()} — ${now.toLocaleTimeString()}</p>
+  <span class="badge">CRS: ${RV.crsLabel}</span>
+  ${RV.gnssMode === 'external' ? '<span class="badge" style="margin-left:6px;">External GNSS</span>' : ''}
+</div>
+
+<div class="stats">
+  <div class="stat-card"><div class="value">${durationStr}</div><div class="label">Duration</div></div>
+  <div class="stat-card"><div class="value">${RV.points.length}</div><div class="label">Points Captured</div></div>
+  <div class="stat-card"><div class="value">${totalDist > 0 ? totalDist.toFixed(1) + 'm' : '—'}</div><div class="label">Distance Walked</div></div>
+  <div class="stat-card"><div class="value">${avgAcc}</div><div class="label">Avg Accuracy</div></div>
+</div>
+
+${RV.points.length > 0 ? `
+<h3 style="margin-bottom:10px;font-size:15px;">Captured Points</h3>
+<table>
+  <thead><tr><th>#</th><th>Name</th><th>Easting</th><th>Northing</th><th>Accuracy</th><th>Description</th></tr></thead>
+  <tbody>${ptRows}</tbody>
+</table>
+` : '<p style="color:#64748b;margin-bottom:20px;">No points captured during this session.</p>'}
+
+<div class="disclaimer">
+  ⚠ <strong>Disclaimer:</strong> Coordinates and areas shown are derived from ${RV.gnssMode === 'external' ? 'an external GNSS receiver' : 'device GPS'} and are for reference/reconnaissance purposes only. They do not constitute a professional survey and should not be used for legal boundary determination.
+</div>
+
+<div class="footer">
+  <p>Generated by GSP.NET Rover — ${now.toISOString()}</p>
+  <p>© GSP.NET — Government Survey Platform</p>
+</div>
+</body></html>`;
+
+  return html;
+}
+
+function rvDownloadSessionReport() {
+  const html = rvGenerateSessionReport();
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const ts = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
+  a.download = 'GSP-ROVER-Report-' + ts + '.html';
+  a.click();
+  URL.revokeObjectURL(url);
+  rvToast('📄 Session report downloaded', 3000);
+}
+
+/* ================================================================
+   GPS TRACKING
+================================================================ */
+function rvStartGPS() {
+  if (!navigator.geolocation) {
+    rvToast('Geolocation not supported!', 4000);
+    return;
+  }
+  const opts = { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 };
+  RV.watchId = navigator.geolocation.watchPosition(rvOnGPS, rvOnGPSErr, opts);
+}
+function rvStopGPS() {
+  if (RV.watchId !== null) {
+    navigator.geolocation.clearWatch(RV.watchId);
+    RV.watchId = null;
+  }
+}
+
+function rvOnGPS(pos) {
+  RV.pos = pos;
+  const { latitude: lat, longitude: lon, accuracy, altitude, altitudeAccuracy, heading, speed } = pos.coords;
+
+  // Update status bar
+  const cv = rvFormatCoord(lon, lat, RV.crs);
+  document.getElementById('rvCoordE').textContent = cv.e;
+  document.getElementById('rvCoordN').textContent = cv.n;
+  document.getElementById('rvAcc').textContent = accuracy != null ? accuracy.toFixed(1) : '—';
+  document.getElementById('rvAlt').textContent = altitude != null ? altitude.toFixed(1) : '—';
+
+  // Fix badge
+  const badge = document.getElementById('rvFixBadge');
+  if (accuracy <= 1.5) {
+    badge.textContent = '● RTK FIXED'; badge.className='fix-good';
+  } else if (accuracy <= 5) {
+    badge.textContent = '◉ DGPS'; badge.className='fix-warn';
+  } else if (accuracy <= 20) {
+    badge.textContent = '◌ GPS'; badge.className='fix-warn';
+  } else {
+    badge.textContent = '✕ POOR'; badge.className='fix-bad';
+  }
+
+  // Satellites (not in standard API, show — )
+  document.getElementById('rvSats').textContent = '—';
+
+  // Update map marker
+  if (RV.map) {
+    RV.gpsSource.clear();
+    const olCoord = ol.proj.fromLonLat([lon, lat]);
+    // Accuracy circle
+    const circle = new ol.geom.Circle(olCoord, accuracy);
+    const circFeat = new ol.Feature({ geometry: circle, type: 'accuracy' });
+    // GPS dot
+    const ptFeat = new ol.Feature({ geometry: new ol.geom.Point(olCoord), type: 'gps' });
+    RV.gpsSource.addFeatures([circFeat, ptFeat]);
+  }
+
+  // Stakeout update
+  if (RV.stakeoutIdx >= 0 && RV.corners.length > 0) {
+    rvUpdateStakeout(lat, lon);
+  }
+
+  // Walk recording
+  if (RV.recording) {
+    rvRecordTick(lon, lat);
+  }
+
+  // Averaging
+  if (RV.averaging) {
+    rvAvgTick(pos);
+  }
+
+  // Proximity alerts
+  rvCheckProximity(lat, lon);
+}
+
+function rvOnGPSErr(err) {
+  document.getElementById('rvFixBadge').textContent = '✕ ERROR';
+  document.getElementById('rvFixBadge').className = 'fix-bad';
+  document.getElementById('rvCoordE').textContent = '—';
+  document.getElementById('rvCoordN').textContent = '—';
+}
+
+/* ================================================================
+   MARK POINT
+================================================================ */
+function rvOpenMarkModal() {
+  document.getElementById('rvMarkName').value = 'C' + (RV.points.length + 1);
+  document.getElementById('rvMarkDesc').value = '';
+  document.getElementById('rvMarkAvg').checked = true;
+  document.getElementById('rvAvgProgress').style.display = 'none';
+  document.getElementById('rvAvgStatus').textContent = '';
+  rvRefreshPtList();
+  document.getElementById('rvMarkModal').classList.add('rv-modal-open');
+}
+
+function rvRefreshPtList() {
+  const list = document.getElementById('rvPtList');
+  const count = document.getElementById('rvPtCount');
+  count.textContent = RV.points.length;
+  list.innerHTML = '';
+  RV.points.forEach((p, idx) => {
+    const cv = rvFormatCoord(p.lon, p.lat, RV.crs);
+    const row = document.createElement('div');
+    row.className = 'rv-pt-row';
+    row.innerHTML = `<b>${p.name}</b><span>${cv.e}, ${cv.n}</span><button class="rv-pt-del" data-idx="${idx}">🗑</button>`;
+    list.appendChild(row);
+  });
+  // delete handlers
+  list.querySelectorAll('.rv-pt-del').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const i = parseInt(this.dataset.idx);
+      RV.points.splice(i, 1);
+      rvSavePoints();
+      rvRefreshPtList();
+      rvRefreshPtLayer();
+    });
+  });
+}
+
+function rvRefreshPtLayer() {
+  if (!RV.ptSource) return;
+  RV.ptSource.clear();
+  RV.points.forEach(p => {
+    const f = new ol.Feature({
+      geometry: new ol.geom.Point(ol.proj.fromLonLat([p.lon, p.lat])),
+      name: p.name
+    });
+    RV.ptSource.addFeature(f);
+  });
+}
+
+function rvDoMarkPoint() {
+  if (!RV.pos) { rvToast('No GPS fix yet!'); return; }
+  const name = document.getElementById('rvMarkName').value.trim() || ('C'+(RV.points.length+1));
+  const desc = document.getElementById('rvMarkDesc').value.trim();
+  const doAvg = document.getElementById('rvMarkAvg').checked;
+
+  if (doAvg) {
+    rvStartAveraging(name, desc);
+  } else {
+    rvSavePoint(name, desc, RV.pos.coords.longitude, RV.pos.coords.latitude,
+                RV.pos.coords.accuracy, RV.pos.coords.altitude);
+  }
+}
+
+function rvStartAveraging(name, desc) {
+  RV.avgReadings = [];
+  RV.avgTarget = RV.settings.avgCount;
+  RV.averaging = true;
+  document.getElementById('rvAvgProgress').style.display = 'block';
+  document.getElementById('rvAvgProgressFill').style.width = '0%';
+  document.getElementById('rvAvgStatus').textContent = `Reading 0 / ${RV.avgTarget}…`;
+  document.getElementById('rvMarkSaveBtn').disabled = true;
+  document.getElementById('rvMarkSaveBtn').textContent = 'Averaging…';
+  RV._avgName = name;
+  RV._avgDesc = desc;
+}
+
+function rvAvgTick(pos) {
+  if (!RV.averaging) return;
+  RV.avgReadings.push({
+    lon: pos.coords.longitude,
+    lat: pos.coords.latitude,
+    acc: pos.coords.accuracy,
+    alt: pos.coords.altitude
+  });
+  const pct = Math.round(RV.avgReadings.length / RV.avgTarget * 100);
+  document.getElementById('rvAvgProgressFill').style.width = pct + '%';
+  document.getElementById('rvAvgStatus').textContent = `Reading ${RV.avgReadings.length} / ${RV.avgTarget}…`;
+
+  if (RV.avgReadings.length >= RV.avgTarget) {
+    RV.averaging = false;
+    const avgLon = RV.avgReadings.reduce((s,r) => s+r.lon, 0) / RV.avgReadings.length;
+    const avgLat = RV.avgReadings.reduce((s,r) => s+r.lat, 0) / RV.avgReadings.length;
+    const avgAcc = RV.avgReadings.reduce((s,r) => s+r.acc, 0) / RV.avgReadings.length;
+    const avgAlt = RV.avgReadings.reduce((s,r) => s+(r.alt||0), 0) / RV.avgReadings.length;
+    rvSavePoint(RV._avgName, RV._avgDesc, avgLon, avgLat, avgAcc, avgAlt);
+    document.getElementById('rvMarkSaveBtn').disabled = false;
+    document.getElementById('rvMarkSaveBtn').textContent = '📌 MARK';
+  }
+}
+
+function rvSavePoint(name, desc, lon, lat, acc, alt) {
+  const pt = { id: Date.now(), name, desc, lon, lat, acc: acc||0, alt: alt||0, ts: new Date().toISOString() };
+  RV.points.push(pt);
+  rvSavePoints();
+  rvRefreshPtList();
+  rvRefreshPtLayer();
+  rvToast(`✅ Point "${name}" saved!`);
+  // Pan map to point
+  if (RV.map) {
+    RV.map.getView().animate({ center: ol.proj.fromLonLat([lon, lat]), zoom: 18, duration: 600 });
+  }
+}
+
+/* ================================================================
+   PARCEL SELECT MODE
+================================================================ */
+function rvToggleSelectMode() {
+  RV.selectMode = !RV.selectMode;
+  const btn = document.getElementById('rvSelectBtn');
+  btn.classList.toggle('rv-active', RV.selectMode);
+  btn.title = RV.selectMode ? 'Click map to select parcel…' : 'Select Parcel';
+  if (RV.selectMode) {
+    rvToast('Tap a parcel on the map to select it', 3000);
+    document.getElementById('rvMap').style.cursor = 'crosshair';
+  } else {
+    document.getElementById('rvMap').style.cursor = '';
+  }
+}
+
+function rvHandleMapClick(coord) {
+  // Try to get features from main map's WFS/vector sources
+  const lonLat = ol.proj.toLonLat(coord);
+  const lon = lonLat[0], lat = lonLat[1];
+
+  // Query the main window.map for vector features at this point
+  let corners = null;
+  if (window.map) {
+    const pixel = window.map.getPixelFromCoordinate(
+      ol.proj.transform(coord, 'EPSG:3857', window.map.getView().getProjection())
+    );
+    if (pixel) {
+      window.map.forEachFeatureAtPixel(pixel, function(feature) {
+        if (corners) return; // take first
+        const geom = feature.getGeometry();
+        if (!geom) return;
+        const type = geom.getType();
+        if (type === 'Polygon') {
+          const ring = geom.getCoordinates()[0];
+          corners = ring.map(c => {
+            const ll = ol.proj.toLonLat(c, window.map.getView().getProjection().getCode());
+            return { lon: ll[0], lat: ll[1] };
+          });
+        } else if (type === 'MultiPolygon') {
+          const ring = geom.getCoordinates()[0][0];
+          corners = ring.map(c => {
+            const ll = ol.proj.toLonLat(c, window.map.getView().getProjection().getCode());
+            return { lon: ll[0], lat: ll[1] };
+          });
+        }
+      });
+    }
+  }
+
+  // Also try rover map itself
+  if (!corners && RV.map) {
+    RV.map.forEachFeatureAtPixel(RV.map.getPixelFromCoordinate(coord), function(feature) {
+      if (corners) return;
+      const geom = feature.getGeometry();
+      if (!geom) return;
+      const type = geom.getType();
+      if (type === 'Polygon') {
+        const ring = geom.getCoordinates()[0];
+        corners = ring.map(c => { const ll = ol.proj.toLonLat(c); return { lon: ll[0], lat: ll[1] }; });
+      }
+    });
+  }
+
+  if (!corners || corners.length < 2) {
+    rvToast('No polygon found here. Try clicking on a parcel boundary.', 3000);
+    RV.selectMode = false;
+    document.getElementById('rvSelectBtn').classList.remove('rv-active');
+    document.getElementById('rvMap').style.cursor = '';
+    return;
+  }
+
+  // Remove duplicate last point if same as first
+  if (corners.length > 1) {
+    const first = corners[0], last = corners[corners.length-1];
+    if (Math.abs(first.lon - last.lon) < 1e-9 && Math.abs(first.lat - last.lat) < 1e-9) {
+      corners.pop();
+    }
+  }
+
+  RV.corners = corners;
+  rvShowCorners();
+  RV.selectMode = false;
+  document.getElementById('rvSelectBtn').classList.remove('rv-active');
+  document.getElementById('rvMap').style.cursor = '';
+  rvToast(`Selected parcel: ${corners.length} corners`, 2500);
+}
+
+function rvShowCorners() {
+  if (!RV.cornerSource) return;
+  RV.cornerSource.clear();
+  RV.corners.forEach((c, i) => {
+    const f = new ol.Feature({
+      geometry: new ol.geom.Point(ol.proj.fromLonLat([c.lon, c.lat])),
+      label: 'C' + (i+1),
+      active: i === RV.stakeoutIdx
+    });
+    RV.cornerSource.addFeature(f);
+  });
+
+  // Refresh corner list
+  const list = document.getElementById('rvCornerList');
+  list.innerHTML = '';
+  RV.corners.forEach((c, i) => {
+    const cv = rvFormatCoord(c.lon, c.lat, RV.crs);
+    const row = document.createElement('div');
+    row.className = 'rv-corner-item' + (i===RV.stakeoutIdx ? ' rv-active-corner' : '');
+    row.innerHTML = `<span class="rv-corner-idx">C${i+1}</span><span class="rv-corner-coords">${cv.e} / ${cv.n}</span><button class="rv-corner-go" onclick="rvGoToCorner(${i})">GO→</button>`;
+    list.appendChild(row);
+  });
+
+  document.getElementById('rvCornerPanel').classList.add('rv-cp-active');
+}
+
+/* ================================================================
+   STAKEOUT
+================================================================ */
+window.rvGoToCorner = function(idx) {
+  if (!RV.corners[idx]) return;
+  RV.stakeoutIdx = idx;
+  RV.stakeoutStart = null;
+  document.getElementById('rvStakeoutPanel').classList.add('rv-so-active');
+  document.getElementById('rvSoLabel').textContent = '→ C' + (idx+1);
+  rvShowCorners(); // refresh highlights
+  if (RV.pos) {
+    rvUpdateStakeout(RV.pos.coords.latitude, RV.pos.coords.longitude);
+  }
+  rvToast(`Navigating to C${idx+1}`, 2000);
+};
+
+function rvUpdateStakeout(userLat, userLon) {
+  if (RV.stakeoutIdx < 0 || !RV.corners[RV.stakeoutIdx]) return;
+  const tgt = RV.corners[RV.stakeoutIdx];
+  const dist = rvHaversine(userLat, userLon, tgt.lat, tgt.lon);
+  const bear = rvBearing(userLat, userLon, tgt.lat, tgt.lon);
+  const bearLbl = rvBearingLabel(bear);
+
+  if (RV.stakeoutStart === null) RV.stakeoutStart = dist;
+
+  document.getElementById('rvSoDist').textContent = dist < 1000 ? dist.toFixed(1)+'m' : (dist/1000).toFixed(3)+'km';
+  document.getElementById('rvSoBearing').textContent = bear.toFixed(1) + '° ' + bearLbl;
+
+  const pct = RV.stakeoutStart > 0 ? Math.min(100, (1 - dist/RV.stakeoutStart)*100) : 0;
+  document.getElementById('rvSoProgressFill').style.width = pct + '%';
+
+  // Draw bearing line
+  if (RV.stakeSource) {
+    RV.stakeSource.clear();
+    const from = ol.proj.fromLonLat([userLon, userLat]);
+    const to   = ol.proj.fromLonLat([tgt.lon, tgt.lat]);
+    const line = new ol.Feature({ geometry: new ol.geom.LineString([from, to]) });
+    RV.stakeSource.addFeature(line);
+  }
+
+  // Arrival check
+  if (dist <= RV.settings.arrivalThresh) {
+    rvOnArrival();
+  }
+}
+
+function rvOnArrival() {
+  if (RV.settings.vibrate && navigator.vibrate) navigator.vibrate([200,100,200,100,400]);
+  rvToast(`🎯 Arrived at C${RV.stakeoutIdx+1}!`, 4000);
+  // Auto advance
+  const nextIdx = RV.stakeoutIdx + 1;
+  if (nextIdx < RV.corners.length) {
+    setTimeout(() => { window.rvGoToCorner(nextIdx); }, 1500);
+  } else {
+    setTimeout(() => {
+      document.getElementById('rvStakeoutPanel').classList.remove('rv-so-active');
+      RV.stakeoutIdx = -1;
+      RV.stakeSource && RV.stakeSource.clear();
+      rvToast('✅ All corners visited!', 4000);
+    }, 1500);
+  }
+}
+
+/* ================================================================
+   BOUNDARY WALK RECORDING
+================================================================ */
+function rvStartRecording() {
+  if (!RV.pos) { rvToast('No GPS fix yet!'); return; }
+  RV.recording = true;
+  RV.walkCoords = [];
+  if (RV.walkSource) RV.walkSource.clear();
+  document.getElementById('rvRecordBanner').classList.add('rv-recording');
+  document.getElementById('rvRecordBtn').classList.add('rv-green-btn');
+  rvToast('🔴 Recording boundary walk…', 2000);
+}
+
+function rvStopRecording() {
+  RV.recording = false;
+  document.getElementById('rvRecordBanner').classList.remove('rv-recording');
+  document.getElementById('rvRecordBtn').classList.remove('rv-green-btn');
+
+  if (RV.walkCoords.length < 3) {
+    rvToast('Need at least 3 points for area', 3000);
+    return;
+  }
+
+  const area = rvPolyArea(RV.walkCoords);
+  const acres = area / 4046.856;
+  const ha    = area / 10000;
+  const msg = `Walk complete!\nArea: ${area.toFixed(1)} m²\n= ${ha.toFixed(4)} ha\n= ${acres.toFixed(4)} acres`;
+  rvToast(`Area: ${area.toFixed(0)}m² | ${ha.toFixed(3)}ha | ${acres.toFixed(3)}ac`, 6000);
+}
+
+function rvRecordTick(lon, lat) {
+  const coords = RV.walkCoords;
+  if (coords.length > 0) {
+    const last = coords[coords.length-1];
+    const dist = rvHaversine(lat, lon, last[1], last[0]);
+    if (dist < 1.0) return; // minimum 1m between recordings
+  }
+  coords.push([lon, lat]);
+
+  // Update walk line on map
+  if (RV.walkSource && coords.length >= 2) {
+    RV.walkSource.clear();
+    const olCoords = coords.map(c => ol.proj.fromLonLat(c));
+    const line = new ol.Feature({ geometry: new ol.geom.LineString(olCoords), type: 'walk' });
+    RV.walkSource.addFeature(line);
+  }
+
+  // Update banner
+  let totalDist = 0;
+  for (let i = 1; i < coords.length; i++) {
+    totalDist += rvHaversine(coords[i-1][1], coords[i-1][0], coords[i][1], coords[i][0]);
+  }
+  document.getElementById('rvRecInfo').textContent =
+    `Recording… ${coords.length} pts | ${totalDist.toFixed(1)} m`;
+}
+
+/* ================================================================
+   AREA CALCULATOR
+================================================================ */
+function rvShowAreaModal() {
+  let pts;
+  let src;
+  if (RV.walkCoords.length >= 3) {
+    pts = RV.walkCoords;
+    src = 'walked boundary';
+  } else if (RV.corners.length >= 3) {
+    pts = RV.corners.map(c => [c.lon, c.lat]);
+    src = 'selected parcel corners';
+  } else if (RV.points.length >= 3) {
+    pts = RV.points.map(p => [p.lon, p.lat]);
+    src = 'marked points';
+  } else {
+    rvToast('Need ≥3 points (walk, corners, or marked)', 3000);
+    return;
+  }
+  document.getElementById('rvAreaPtSource').textContent = src;
+  document.getElementById('rvAreaModal').classList.add('rv-modal-open');
+
+  const area = rvPolyArea(pts);
+  const acres = area / 4046.856;
+  const ha    = area / 10000;
+  document.getElementById('rvAreaResult').textContent = area.toFixed(2) + ' m²';
+  document.getElementById('rvAreaResultSub').textContent =
+    `${ha.toFixed(4)} ha  |  ${acres.toFixed(4)} acres  |  ${(area/0.09290304).toFixed(2)} ft²`;
+}
+
+/* ================================================================
+   PROXIMITY ALERTS
+================================================================ */
+function rvCheckProximity(userLat, userLon) {
+  const thresh = RV.settings.proxDist;
+
+  // Check marked points
+  RV.points.forEach(p => {
+    const d = rvHaversine(userLat, userLon, p.lat, p.lon);
+    const key = 'pt_' + p.id;
+    if (d <= thresh && !RV.alertedPoints.has(key)) {
+      RV.alertedPoints.add(key);
+      rvToast(`⚠ Approaching point "${p.name}" (${d.toFixed(1)}m)`, 4000);
+      if (RV.settings.vibrate && navigator.vibrate) navigator.vibrate([100, 50, 100]);
+    } else if (d > thresh * 2) {
+      RV.alertedPoints.delete(key);
+    }
+  });
+
+  // Check parcel corners
+  if (RV.stakeoutIdx < 0) { // only when not in stakeout (avoid double alert)
+    RV.corners.forEach((c, i) => {
+      const d = rvHaversine(userLat, userLon, c.lat, c.lon);
+      const key = 'co_' + i;
+      if (d <= thresh && !RV.alertedPoints.has(key)) {
+        RV.alertedPoints.add(key);
+        rvToast(`⚠ Approaching corner C${i+1} (${d.toFixed(1)}m)`, 4000);
+        if (RV.settings.vibrate && navigator.vibrate) navigator.vibrate([100, 50, 100]);
+      } else if (d > thresh * 2) {
+        RV.alertedPoints.delete(key);
+      }
+    });
+  }
+
+  // Check walk path edges (approaching boundary)
+  if (RV.walkCoords.length >= 2) {
+    for (let i=0; i<RV.walkCoords.length-1; i++) {
+      const key = 'edge_'+i;
+      const distToEdge = rvPointToSegmentDist(userLat, userLon,
+        RV.walkCoords[i][1], RV.walkCoords[i][0],
+        RV.walkCoords[i+1][1], RV.walkCoords[i+1][0]);
+      if (distToEdge <= thresh && !RV.alertedEdges.has(key)) {
+        RV.alertedEdges.add(key);
+        rvToast(`⚠ Approaching boundary edge (${distToEdge.toFixed(1)}m)`, 3000);
+        if (RV.settings.vibrate && navigator.vibrate) navigator.vibrate([50, 50, 50]);
+      } else if (distToEdge > thresh * 2) {
+        RV.alertedEdges.delete(key);
+      }
+    }
+  }
+}
+
+function rvPointToSegmentDist(plat, plon, alat, alon, blat, blon) {
+  // Approximate using haversine projected coords
+  const ax = alon, ay = alat, bx = blon, by = blat, px = plon, py = plat;
+  const abx = bx-ax, aby = by-ay;
+  const apx = px-ax, apy = py-ay;
+  const ab2 = abx*abx + aby*aby;
+  if (ab2 === 0) return rvHaversine(plat, plon, alat, alon);
+  let t = (apx*abx + apy*aby) / ab2;
+  t = Math.max(0, Math.min(1, t));
+  return rvHaversine(plat, plon, ay+t*aby, ax+t*abx);
+}
+
+/* ================================================================
+   EXPORTS
+================================================================ */
+function rvExportCSV() {
+  if (RV.points.length === 0) { rvToast('No points to export', 2000); return; }
+  let csv = 'Name,Description,Longitude,Latitude,Accuracy_m,Altitude_m,Timestamp\n';
+  RV.points.forEach(p => {
+    csv += `"${p.name}","${p.desc}",${p.lon},${p.lat},${p.acc},${p.alt},"${p.ts}"\n`;
+  });
+  rvDownload('gsp_rover_points_' + Date.now() + '.csv', csv, 'text/csv');
+  rvToast('CSV downloaded!');
+}
+
+function rvExportKML() {
+  let poly = null;
+  if (RV.walkCoords.length >= 3) {
+    poly = RV.walkCoords;
+  } else if (RV.corners.length >= 3) {
+    poly = RV.corners.map(c => [c.lon, c.lat]);
+  } else if (RV.points.length >= 3) {
+    poly = RV.points.map(p => [p.lon, p.lat]);
+  }
+
+  let kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n<Document>\n<name>GSP Rover Export</name>\n`;
+
+  // Points
+  RV.points.forEach(p => {
+    kml += `<Placemark><name>${p.name}</name><description>${p.desc}</description><Point><coordinates>${p.lon},${p.lat},${p.alt}</coordinates></Point></Placemark>\n`;
+  });
+
+  // Polygon
+  if (poly && poly.length >= 3) {
+    const closed = [...poly, poly[0]];
+    const coords = closed.map(c => `${c[0]},${c[1]},0`).join(' ');
+    kml += `<Placemark><name>Boundary</name><Polygon><outerBoundaryIs><LinearRing><coordinates>${coords}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>\n`;
+  }
+
+  kml += `</Document>\n</kml>`;
+  rvDownload('gsp_rover_' + Date.now() + '.kml', kml, 'application/vnd.google-earth.kml+xml');
+  rvToast('KML downloaded!');
+}
+
+function rvExportDXF() {
+  const pts = RV.points;
+  const corners = RV.corners;
+  const walkPts = RV.walkCoords;
+
+  // Get projected coordinates for DXF (use active CRS or UTM 36S)
+  const dxfCrs = (RV.crs === '4326') ? '32736' : RV.crs;
+
+  function toXY(lon, lat) {
+    try {
+      return proj4('EPSG:4326', 'EPSG:'+dxfCrs, [lon, lat]);
+    } catch(e) { return [lon, lat]; }
+  }
+
+  let dxf = '0\nSECTION\n2\nHEADER\n0\nENDSEC\n';
+  dxf += '0\nSECTION\n2\nTABLES\n';
+  dxf += '0\nTABLE\n2\nLAYER\n70\n3\n';
+  dxf += '0\nLAYER\n2\nPOINTS\n70\n0\n62\n2\n6\nCONTINUOUS\n';
+  dxf += '0\nLAYER\n2\nBOUNDARY\n70\n0\n62\n3\n6\nCONTINUOUS\n';
+  dxf += '0\nLAYER\n2\nCORNERS\n70\n0\n62\n5\n6\nCONTINUOUS\n';
+  dxf += '0\nENDTAB\n0\nENDSEC\n';
+  dxf += '0\nSECTION\n2\nENTITIES\n';
+
+  // Marked points as POINT entities + TEXT labels
+  pts.forEach(p => {
+    const xy = toXY(p.lon, p.lat);
+    dxf += `0\nPOINT\n8\nPOINTS\n10\n${xy[0].toFixed(3)}\n20\n${xy[1].toFixed(3)}\n30\n${(p.alt||0).toFixed(3)}\n`;
+    dxf += `0\nTEXT\n8\nPOINTS\n10\n${xy[0].toFixed(3)}\n20\n${xy[1].toFixed(3)}\n30\n0.000\n40\n0.5\n1\n${p.name}\n`;
+  });
+
+  // Boundary polyline (walk or corners)
+  let polyPts = [];
+  if (walkPts.length >= 2) {
+    polyPts = walkPts;
+  } else if (corners.length >= 2) {
+    polyPts = corners.map(c => [c.lon, c.lat]);
+  }
+  if (polyPts.length >= 2) {
+    dxf += `0\nPOLYLINE\n8\nBOUNDARY\n66\n1\n70\n1\n`;
+    polyPts.forEach(p => {
+      const xy = toXY(p[0], p[1]);
+      dxf += `0\nVERTEX\n8\nBOUNDARY\n10\n${xy[0].toFixed(3)}\n20\n${xy[1].toFixed(3)}\n30\n0.000\n`;
+    });
+    dxf += `0\nSEQEND\n`;
+  }
+
+  // Parcel corners as labelled points
+  corners.forEach((c, i) => {
+    const xy = toXY(c.lon, c.lat);
+    dxf += `0\nPOINT\n8\nCORNERS\n10\n${xy[0].toFixed(3)}\n20\n${xy[1].toFixed(3)}\n30\n0.000\n`;
+    dxf += `0\nTEXT\n8\nCORNERS\n10\n${xy[0].toFixed(3)}\n20\n${xy[1].toFixed(3)}\n30\n0.000\n40\n0.5\n1\nC${i+1}\n`;
+  });
+
+  dxf += '0\nENDSEC\n0\nEOF\n';
+  rvDownload('gsp_rover_' + Date.now() + '.dxf', dxf, 'application/dxf');
+  rvToast('DXF downloaded!');
+}
+
+/* ================================================================
+   OPEN / CLOSE ROVER
+================================================================ */
+function rvOpen() {
+  if (RV.open) return;
+  RV.open = true;
+  rvLoadPoints();
+  rvLoadSettings();
+  // Session tracking
+  RV.sessionStart = new Date();
+  const ts = RV.sessionStart.toISOString().replace(/[-:T]/g, '').substring(0, 12);
+  RV.sessionId = 'ROVER-' + ts;
+  RV.gnssMode = 'phone';
+  document.getElementById('rvSrcSel').value = 'phone';
+  const overlay = document.getElementById('gspRoverOverlay');
+  overlay.classList.add('rv-open');
+  rvInitMap();
+  setTimeout(() => { if (RV.map) RV.map.updateSize(); }, 100);
+  rvStartGPS();
+  rvAcquireWakeLock();
+  // Re-render pt layer from stored points
+  rvRefreshPtLayer();
+}
+
+function rvClose() {
+  if (!RV.open) return;
+  // Populate session summary
+  const dur = RV.sessionStart ? Math.round((Date.now() - RV.sessionStart.getTime()) / 60000) : 0;
+  const hrs = Math.floor(dur / 60);
+  const mins = dur % 60;
+  const durStr = hrs > 0 ? hrs + 'h ' + mins + 'm' : mins + 'm';
+  const ptCount = RV.points.length;
+  const walkCount = RV.walkCoords.length;
+  const src = RV.gnssMode === 'external' ? 'External GNSS' : 'Phone GPS';
+  const fixLabel = RV.fixType || 'N/A';
+  let html = '<table style="width:100%;border-collapse:collapse;">';
+  html += '<tr><td style="padding:3px 6px;">⏱ Duration</td><td style="padding:3px 6px;font-weight:600;">' + durStr + '</td></tr>';
+  html += '<tr><td style="padding:3px 6px;">📌 Points Captured</td><td style="padding:3px 6px;font-weight:600;">' + ptCount + '</td></tr>';
+  html += '<tr><td style="padding:3px 6px;">🚶 Walk Points</td><td style="padding:3px 6px;font-weight:600;">' + walkCount + '</td></tr>';
+  html += '<tr><td style="padding:3px 6px;">📡 Source</td><td style="padding:3px 6px;font-weight:600;">' + src + '</td></tr>';
+  html += '<tr><td style="padding:3px 6px;">🎯 Last Fix</td><td style="padding:3px 6px;font-weight:600;">' + fixLabel + '</td></tr>';
+  html += '</table>';
+  document.getElementById('rvExitSummary').innerHTML = html;
+  // Show exit dialog
+  document.getElementById('rvExitModal').classList.add('rv-modal-open');
+}
+
+function rvDoClose(downloadReport) {
+  if (!RV.open) return;
+  RV.open = false;
+  RV.selectMode = false;
+  if (RV.recording) rvStopRecording();
+  rvStopGPS();
+  // Disconnect GNSS serial if active
+  if (RV.gnssMode === 'external' || RV.serialPort) {
+    rvDisconnectGNSS();
+  }
+  rvReleaseWakeLock();
+  if (downloadReport) rvDownloadSessionReport();
+  document.getElementById('gspRoverOverlay').classList.remove('rv-open');
+  // Close all modals
+  ['rvMarkModal','rvCrsModal','rvExportModal','rvSettingsModal','rvAreaModal','rvExitModal'].forEach(id => {
+    document.getElementById(id).classList.remove('rv-modal-open');
+  });
+}
+
+/* ================================================================
+   WIRE UP UI
+================================================================ */
+document.addEventListener('DOMContentLoaded', function() {
+  // Main open button
+  const openBtn = document.getElementById('gspRoverBtn');
+  if (openBtn) openBtn.addEventListener('click', rvOpen);
+
+  // Exit button
+  document.getElementById('rvExitBtn').addEventListener('click', rvClose);
+
+  // CRS button
+  document.getElementById('rvCrsBtn').addEventListener('click', function() {
+    document.getElementById('rvCrsModal').classList.add('rv-modal-open');
+  });
+
+  // CRS modal apply
+  document.getElementById('rvCrsApplyBtn').addEventListener('click', function() {
+    const sel = document.getElementById('rvCrsSelect');
+    RV.crs = sel.value;
+    const lbl = sel.options[sel.selectedIndex].text.replace(' ★','');
+    RV.crsLabel = lbl;
+    document.getElementById('rvCrsBtn').textContent = lbl.substring(0,12) + ' ▾';
+    document.getElementById('rvCrsModal').classList.remove('rv-modal-open');
+    // Refresh display
+    if (RV.pos) rvOnGPS(RV.pos);
+    rvRefreshPtList();
+    rvShowCorners();
+  });
+  document.getElementById('rvCrsCancelBtn').addEventListener('click', function() {
+    document.getElementById('rvCrsModal').classList.remove('rv-modal-open');
+  });
+
+  // Mark button
+  document.getElementById('rvMarkBtn').addEventListener('click', rvOpenMarkModal);
+  document.getElementById('rvMarkSaveBtn').addEventListener('click', rvDoMarkPoint);
+  document.getElementById('rvMarkCancelBtn').addEventListener('click', function() {
+    RV.averaging = false;
+    document.getElementById('rvMarkModal').classList.remove('rv-modal-open');
+  });
+  document.getElementById('rvClearPtsBtn').addEventListener('click', function() {
+    if (confirm('Clear ALL captured points? This cannot be undone.')) {
+      RV.points = [];
+      rvSavePoints();
+      rvRefreshPtList();
+      rvRefreshPtLayer();
+    }
+  });
+
+  // Select button
+  document.getElementById('rvSelectBtn').addEventListener('click', rvToggleSelectMode);
+
+  // Walk / Record button
+  document.getElementById('rvRecordBtn').addEventListener('click', function() {
+    if (RV.recording) {
+      rvStopRecording();
+    } else {
+      rvStartRecording();
+    }
+  });
+  document.getElementById('rvRecStopBtn').addEventListener('click', rvStopRecording);
+
+  // Area button
+  document.getElementById('rvAreaBtn').addEventListener('click', rvShowAreaModal);
+  document.getElementById('rvAreaCalcBtn').addEventListener('click', rvShowAreaModal);
+  document.getElementById('rvAreaCloseBtn').addEventListener('click', function() {
+    document.getElementById('rvAreaModal').classList.remove('rv-modal-open');
+  });
+
+  // Export button
+  document.getElementById('rvExportBtn').addEventListener('click', function() {
+    document.getElementById('rvExportModal').classList.add('rv-modal-open');
+  });
+  document.getElementById('rvExportCsvBtn').addEventListener('click', rvExportCSV);
+  document.getElementById('rvExportKmlBtn').addEventListener('click', rvExportKML);
+  document.getElementById('rvExportDxfBtn').addEventListener('click', rvExportDXF);
+  document.getElementById('rvExportCloseBtn').addEventListener('click', function() {
+    document.getElementById('rvExportModal').classList.remove('rv-modal-open');
+  });
+
+  // Source Selector (Phone GPS ↔ External GNSS)
+  document.getElementById('rvSrcSel').addEventListener('change', async function() {
+    const mode = this.value;
+    if (mode === 'external') {
+      const ok = await rvConnectGNSS();
+      if (!ok) this.value = 'phone';
+    } else {
+      // Switch back to phone GPS
+      if (RV.gnssMode === 'external' || RV.serialPort) {
+        await rvDisconnectGNSS();
+      }
+      RV.gnssMode = 'phone';
+      rvStartGPS();
+    }
+  });
+
+  // Exit modal buttons
+  document.getElementById('rvExitReportBtn').addEventListener('click', function() {
+    rvDoClose(true);
+  });
+  document.getElementById('rvExitNoReportBtn').addEventListener('click', function() {
+    rvDoClose(false);
+  });
+  document.getElementById('rvExitCancelBtn').addEventListener('click', function() {
+    document.getElementById('rvExitModal').classList.remove('rv-modal-open');
+  });
+
+  // Initialize NMEA buffer
+  RV.nmeaBuffer = '';
+
+  // Basemap thumbnails — event delegation (avoids global-scope issues)
+  document.getElementById('rvBasemapBar').addEventListener('click', function(e) {
+    const thumb = e.target.closest('.rv-bm-thumb');
+    if (!thumb) return;
+    const bm = thumb.dataset.bm;
+    if (bm) window.rvSetBasemap(bm);
+    document.getElementById('rvBasemapBar').classList.remove('rv-bm-open');
+  });
+
+  // Action bar collapse toggle (upward)
+  document.getElementById('rvActionToggle').addEventListener('click', function() {
+    const btns = document.getElementById('rvActionBtns');
+    const collapsed = btns.classList.toggle('rv-collapsed');
+    this.innerHTML = collapsed ? '▼ Tools' : '▲ Tools';
+  });
+
+  // Basemap MAP button — toggles basemap bar visibility
+  document.getElementById('rvBasemapBtn').addEventListener('click', function() {
+    document.getElementById('rvBasemapBar').classList.toggle('rv-bm-open');
+  });
+
+  // Settings button
+  document.getElementById('rvSettingsBtn').addEventListener('click', function() {
+    document.getElementById('rvAvgCount').value     = RV.settings.avgCount;
+    document.getElementById('rvArrivalThresh').value = RV.settings.arrivalThresh;
+    document.getElementById('rvProxDist').value     = RV.settings.proxDist;
+    document.getElementById('rvWakeLockChk').checked = RV.settings.wakeLock;
+    document.getElementById('rvVibrateChk').checked  = RV.settings.vibrate;
+    document.getElementById('rvSettingsModal').classList.add('rv-modal-open');
+  });
+  document.getElementById('rvSettingsSaveBtn').addEventListener('click', function() {
+    RV.settings.avgCount     = parseInt(document.getElementById('rvAvgCount').value) || 5;
+    RV.settings.arrivalThresh = parseFloat(document.getElementById('rvArrivalThresh').value) || 2.0;
+    RV.settings.proxDist     = parseFloat(document.getElementById('rvProxDist').value) || 5.0;
+    RV.settings.wakeLock     = document.getElementById('rvWakeLockChk').checked;
+    RV.settings.vibrate      = document.getElementById('rvVibrateChk').checked;
+    rvSaveSettings();
+    document.getElementById('rvSettingsModal').classList.remove('rv-modal-open');
+    rvToast('Settings saved!', 2000);
+  });
+  document.getElementById('rvSettingsCancelBtn').addEventListener('click', function() {
+    document.getElementById('rvSettingsModal').classList.remove('rv-modal-open');
+  });
+
+  // Stakeout nav buttons
+  document.getElementById('rvSoPrevBtn').addEventListener('click', function() {
+    const prev = RV.stakeoutIdx - 1;
+    if (prev >= 0) window.rvGoToCorner(prev);
+  });
+  document.getElementById('rvSoNextBtn').addEventListener('click', function() {
+    const next = RV.stakeoutIdx + 1;
+    if (next < RV.corners.length) window.rvGoToCorner(next);
+  });
+  document.getElementById('rvSoExitBtn').addEventListener('click', function() {
+    RV.stakeoutIdx = -1;
+    document.getElementById('rvStakeoutPanel').classList.remove('rv-so-active');
+    if (RV.stakeSource) RV.stakeSource.clear();
+    rvShowCorners();
+  });
+
+  // Corner panel close
+  document.getElementById('rvCornerCloseBtn').addEventListener('click', function() {
+    document.getElementById('rvCornerPanel').classList.remove('rv-cp-active');
+  });
+
+  // Wake lock re-acquire on visibility change
+  document.addEventListener('visibilitychange', async function() {
+    if (document.visibilityState === 'visible' && RV.open && RV.settings.wakeLock) {
+      rvAcquireWakeLock();
+    }
+  });
+
+  // Close modals on backdrop click
+  ['rvMarkModal','rvCrsModal','rvExportModal','rvSettingsModal','rvAreaModal'].forEach(id => {
+    document.getElementById(id).addEventListener('click', function(e) {
+      if (e.target === this) this.classList.remove('rv-modal-open');
+    });
+  });
+});
+
+/* ================================================================
+   ALSO allow open from button even if DOM already ready (SPA case)
+================================================================ */
+if (document.readyState !== 'loading') {
+  const btn = document.getElementById('gspRoverBtn');
+  if (btn && !btn._rvWired) {
+    btn._rvWired = true;
+    btn.addEventListener('click', rvOpen);
+  }
+}
+
+})(); // end IIFE
+
+/* ================================================================
+   GSP ROVER — PHOTO WATERMARK (self-contained, outside IIFE so
+   camera input fires independently of IIFE scope)
+================================================================ */
+(function() {
+  'use strict';
+
+  function rvWirePhoto() {
+    const photoBtn = document.getElementById('rvPhotoBtn');
+    const cameraInput = document.getElementById('rvCameraInput');
+    if (!photoBtn || !cameraInput || photoBtn._rvPhotoWired) return;
+    photoBtn._rvPhotoWired = true;
+
+    photoBtn.addEventListener('click', function() {
+      // Check we have a GPS fix
+      const RV = window._gspRoverState;
+      if (!RV || !RV.pos) {
+        const toast = document.getElementById('rvAlertToast');
+        if (toast) { toast.textContent = '⚠ No GPS fix — get a location first'; toast.style.opacity='1'; setTimeout(()=>toast.style.opacity='0', 3000); }
+        return;
+      }
+      cameraInput.click();
+    });
+
+    cameraInput.addEventListener('change', function(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      const RV = window._gspRoverState;
+      const pos = RV && RV.pos;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const img = new Image();
+        img.onload = function() {
+          // Build canvas at full image size
+          const canvas = document.createElement('canvas');
+          const W = img.naturalWidth, H = img.naturalHeight;
+          canvas.width = W; canvas.height = H;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, W, H);
+
+          // --- Watermark bar at bottom ---
+          const barH = Math.max(54, Math.round(H * 0.06));
+          ctx.fillStyle = 'rgba(13, 17, 23, 0.82)';
+          ctx.fillRect(0, H - barH, W, barH);
+
+          // --- Build watermark text ---
+          const crsLabel = (RV && RV.crsLabel) || 'UTM 36S';
+          let eStr = '—', nStr = '—';
+          if (pos) {
+            try {
+              const epsg = (RV && RV.crs) ? 'EPSG:' + RV.crs : 'EPSG:32736';
+              const lon = pos.coords ? pos.coords.longitude : pos.lon;
+              const lat = pos.coords ? pos.coords.latitude  : pos.lat;
+              const projected = proj4('EPSG:4326', epsg, [lon, lat]);
+              if (epsg === 'EPSG:4326') {
+                eStr = lon.toFixed(7) + '°';
+                nStr = lat.toFixed(7) + '°';
+              } else {
+                eStr = projected[0].toFixed(3) + 'm';
+                nStr = projected[1].toFixed(3) + 'm';
+              }
+            } catch(_) {
+              const lon = pos.coords ? pos.coords.longitude : (pos.lon || 0);
+              const lat = pos.coords ? pos.coords.latitude  : (pos.lat || 0);
+              eStr = lon.toFixed(7) + '°';
+              nStr = lat.toFixed(7) + '°';
+            }
+          }
+          const acc = pos ? (pos.coords ? pos.coords.accuracy : pos.accuracy) : null;
+          const accStr = acc != null ? (acc <= 9999 ? acc.toFixed(1) + 'm' : '>9999m') : '—';
+          const fixStr = (RV && RV.fixType) || 'GPS';
+          const now = new Date();
+          const ts = now.getFullYear() + '-' +
+            String(now.getMonth()+1).padStart(2,'0') + '-' +
+            String(now.getDate()).padStart(2,'0') + ' ' +
+            String(now.getHours()).padStart(2,'0') + ':' +
+            String(now.getMinutes()).padStart(2,'0') + ':' +
+            String(now.getSeconds()).padStart(2,'0');
+
+          const fontSize = Math.max(12, Math.round(barH * 0.30));
+          ctx.font = `bold ${fontSize}px monospace`;
+          ctx.fillStyle = '#f59e0b';
+
+          // Line 1: brand + timestamp
+          ctx.textBaseline = 'top';
+          ctx.fillText('🛰 GSP ROVER  |  ' + ts, 12, H - barH + 5);
+
+          // Line 2: coords + accuracy + fix
+          ctx.fillStyle = '#f8fafc';
+          const line2FontSize = Math.max(10, Math.round(barH * 0.26));
+          ctx.font = `${line2FontSize}px monospace`;
+          ctx.fillText(
+            `${crsLabel}  E: ${eStr}  N: ${nStr}  |  Acc: ${accStr}  |  ${fixStr}`,
+            12, H - barH + 5 + fontSize + 3
+          );
+
+          // Trigger download
+          const link = document.createElement('a');
+          const dateTag = ts.replace(/[: ]/g, '-');
+          link.download = 'GSP-ROVER-' + dateTag + '.jpg';
+          link.href = canvas.toDataURL('image/jpeg', 0.92);
+          link.click();
+
+          const toast = document.getElementById('rvAlertToast');
+          if (toast) { toast.textContent = '📸 Photo saved with GPS watermark'; toast.style.opacity='1'; setTimeout(()=>toast.style.opacity='0', 3000); }
+        };
+        img.src = evt.target.result;
+      };
+      reader.readAsDataURL(file);
+      // Reset so same file can be re-captured
+      cameraInput.value = '';
+    });
+  }
+
+  // Wire immediately if DOM ready, else on load
+  if (document.readyState !== 'loading') {
+    rvWirePhoto();
+  } else {
+    document.addEventListener('DOMContentLoaded', rvWirePhoto);
+  }
+})();
+
+</script>
 
 </body>
 
