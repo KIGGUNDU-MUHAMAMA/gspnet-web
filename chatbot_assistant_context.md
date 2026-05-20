@@ -1,11 +1,13 @@
 # Geospatial Network Uganda (GSP.NET) - Complete AI Assistant Knowledge Base
 
-> **AI INSTRUCTION:** You are the official AI Assistant for GSP.NET (geospatialnetworkug.xyz). Answer ONLY using the information in this document. Be concise, professional, and use Markdown formatting. Do not invent features or tools not listed here.
+> **AI INSTRUCTION:** You are the official AI Assistant for GSP.NET (geospatialnetworkug.xyz). Answer ONLY using the information in this document. Be concise, professional, and use Markdown formatting. Do not invent features or tools not listed here. **When answering "how-to" questions or explaining features, ALWAYS check if a relevant Video Tutorial link is available in the documentation and provide it to the user at the end of your response to help them visually.**
 
 ---
 
 ## 1. About GSP.NET & Core Architecture
 **GSP.NET** is Uganda's premier web-based Cadastral & Geospatial Intelligence platform, unifying the entire surveying workflow from raw data ingestion to professional reporting.
+- **Video Tutorial:** [LOCATING GEOSPATIALNETWORKUG WEBMAP](https://youtu.be/ut-tX7GDSFs?si=yh7OfeQRXt5aavJ5)
+- **Video Tutorial:** [FEATURES ON GEOSPATIALNETWORKUG LOGIN PAGE](https://youtu.be/RXAnJtH8RH4?si=pLLizJ-W97oJwDxO)
 - **Authorship:** Led by **Kiggundu Muhamad** of N.A.S. Surveyors Ltd under the guidance of **Surveyor R.S.U. Katabu Simon**.
 - **Tech Stack:** OpenLayers 9 (2D), CesiumJS & Three.js (3D), Supabase & PostgreSQL (Backend), Cloudflare Workers (Edge Computing), jsPDF & Chart.js (Reporting).
 - **Core Mission:** To eliminate redundant surveys, safely archive cadastral data, and empower professionals with real-time collaboration tools.
@@ -15,6 +17,8 @@
 ## 2. User Accounts, Roles, & The Clerk Function
 
 ### How to Create an Account (Step-by-Step)
+- **Video Tutorial:** [SIGN UP AND CREATING ACCOUNT IN GEOSPATIALNETWORKUG](https://youtu.be/smPQolHA3uw?si=3PcbLJGdvPVFbYet)
+
 1. Navigate to the login page (`index.html`).
 2. Fill in your email, set a secure password, and select your **Account Type** (Role).
 3. Click "Create Professional Account".
@@ -31,6 +35,9 @@
 
 ## 3. Map Interaction & Toolsets
 
+- **Video Tutorial:** [HOW TO LOGIN, USES OF PARCEL SEARCH, LOCATE, PRINT, AND INFO BUTTON IN GEOSPATIALNETWORKUG](https://youtu.be/jbEN4PoLUQ0?si=lW-vHT9JPQ3oqtCq)
+- **Video Tutorial:** [PURPOSE OF LAYER SWITCHER, PROJECT LIBRARY, SYMBOLS, COORDSEARCH, EXTRACTOR, GSPNET UPDATES AND 3D CONDO](https://youtu.be/2c7-Y2ZbgrE?si=UxHZ6YRyqf3QF2Y6)
+
 ### GSP.NET Assist (The Floating Action Button)
 The GSP.NET Assist button acts as a floating command center. It provides:
 - **File Uploads (CSV, DXF, DWG, GeoJSON):** Allows surveyors to instantly overlay CAD/survey data onto the map. The system automatically detects coordinate systems (like Arc 1960 UTM Zone 36N) and reprojects them to WGS84 for web rendering.
@@ -44,6 +51,11 @@ GSP.NET includes a powerful native **CAD Inspector** for working directly with C
 - **How to Use (Tracing & Digitizing):** Once a DXF/DWG is uploaded, the entities are overlaid onto the map. The system automatically attaches a **Snapping Interaction** to these CAD lines, allowing you to use the Drawing Tools to flawlessly trace survey polygons over the CAD geometry, extract the coordinates, or save them directly into the database.
 
 ### Coordinate Search & Extractor
+- **Video Tutorial:** [LOCATE AND COORD SEARCH BUTTON FUNCTIONALITY. HOW TO USE](https://youtu.be/Qm-I5EgVPKc?si=CSHWqerhAq_m9z3a)
+- **Video Tutorial:** [COORD SEARCH AND INFO BUTTON WORK FLOWS](https://youtu.be/RLen8aigI5w?si=7IOG3nbwFk4yzGgS)
+- **Video Tutorial:** [EXTRACTOR BUTTON FOR GEOTIFF, PNG AND JPG SATELLITE IMAGES EXPORT](https://youtu.be/8luK0ke1bFQ?si=MbbaGnL5Ad4qLHQV)
+- **Video Tutorial:** [EXTRACTOR FOR DXF, GEOJSON AND KML IN SELECTED COORDINATE SYSTEM](https://youtu.be/wuXveXzZUzs?si=1xXrHO2eesIXalJ0)
+
 - **Coordinate Search:** Navigate to an exact point on Earth. Select your CRS (e.g., Arc 1960 UTM Zone 36N), enter Eastings/Northings, and the map instantly flies to that coordinate.
 - **Coordinate Extractor:** A reverse tool. Click anywhere on the map, or select a drawn polygon, to extract its coordinates into a formatted table (CSV/Excel) for export directly to field controllers or AutoCAD.
 
@@ -226,3 +238,17 @@ Open drawing → type GSPEXPORT → select closed parcels → save CSV → CSV h
 | Open polylines skipped by GSPEXPORT | Close them first using `PEDIT → Close` or redraw as closed polygons |
 | Webmap save panel not appearing | Check internet connection; Supabase Realtime must be connected |
 | Send button disabled in QGIS | Complete Step 2 (project details) first, then click Start Editing |
+
+---
+
+## 8. Video Tutorials & Media Library
+For visual guidance, always provide users with the following relevant video links based on their question:
+- **Locating Webmap:** [LOCATING GEOSPATIALNETWORKUG WEBMAP](https://youtu.be/ut-tX7GDSFs?si=yh7OfeQRXt5aavJ5)
+- **Login Page Features:** [FEATURES ON GEOSPATIALNETWORKUG LOGIN PAGE](https://youtu.be/RXAnJtH8RH4?si=pLLizJ-W97oJwDxO)
+- **Sign Up & Account Creation:** [SIGN UP AND CREATING ACCOUNT IN GEOSPATIALNETWORKUG](https://youtu.be/smPQolHA3uw?si=3PcbLJGdvPVFbYet)
+- **Login, Parcel Search, Locate, Print & Info:** [HOW TO LOGIN, USES OF PARCEL SEARCH, LOCATE, PRINT, AND INFO BUTTON](https://youtu.be/jbEN4PoLUQ0?si=lW-vHT9JPQ3oqtCq)
+- **Layer Switcher, Project Library, Symbols, 3D Condo, Extractor & Updates:** [PURPOSE OF LAYER SWITCHER, PROJECT LIBRARY, SYMBOLS, COORDSEARCH, EXTRACTOR, GSPNET UPDATES AND 3D CONDO](https://youtu.be/2c7-Y2ZbgrE?si=UxHZ6YRyqf3QF2Y6)
+- **Locate and Coord Search Use:** [LOCATE AND COORD SEARCH BUTTON FUNCTIONALITY. HOW TO USE](https://youtu.be/Qm-I5EgVPKc?si=CSHWqerhAq_m9z3a)
+- **Coord Search & Info Workflows:** [COORD SEARCH AND INFO BUTTON WORK FLOWS](https://youtu.be/RLen8aigI5w?si=7IOG3nbwFk4yzGgS)
+- **Exporting Satellite Images (GeoTIFF/PNG/JPG):** [EXTRACTOR BUTTON FOR GEOTIFF, PNG AND JPG SATELLITE IMAGES EXPORT](https://youtu.be/8luK0ke1bFQ?si=MbbaGnL5Ad4qLHQV)
+- **Exporting CAD/GIS Data (DXF/GeoJSON/KML):** [EXTRACTOR FOR DXF, GEOJSON AND KML IN SELECTED COORDINATE SYSTEM](https://youtu.be/wuXveXzZUzs?si=1xXrHO2eesIXalJ0)
