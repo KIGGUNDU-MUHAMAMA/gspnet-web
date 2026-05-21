@@ -64628,7 +64628,12 @@ async function rvConnectGNSS() {
     return false;
   }
   try {
-    const port = await navigator.serial.requestPort();
+    // Allow standard Bluetooth SPP (Serial Port Profile) devices to show up on mobile Chrome
+    const port = await navigator.serial.requestPort({
+      allowedBluetoothServiceClassIds: [
+        '00001101-0000-1000-8000-00805f9b34fb' // SPP standard UUID
+      ]
+    });
     // Try common GNSS baud rates: 115200 (u-blox, Emlid), 9600 (generic), 38400 (Trimble)
     await port.open({ baudRate: 115200 });
     RV.serialPort = port;
