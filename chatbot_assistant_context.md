@@ -50,6 +50,25 @@ GSP.NET includes a powerful native **CAD Inspector** for working directly with C
 - **Direct Rendering:** DXF files are rendered locally via a blazing-fast Canvas2D engine, while complex DWG files utilize a secure cloud-based ShareCAD integration via Supabase.
 - **How to Use (Tracing & Digitizing):** Once a DXF/DWG is uploaded, the entities are overlaid onto the map. The system automatically attaches a **Snapping Interaction** to these CAD lines, allowing you to use the Drawing Tools to flawlessly trace survey polygons over the CAD geometry, extract the coordinates, or save them directly into the database.
 
+### GSP Rover (Field Survey Mode)
+GSP Rover transforms your mobile device or PC into a professional GNSS surveying tool by connecting directly to external high-precision GNSS receivers (e.g., Emlid, Trimble, u-blox) or utilizing your device's internal GPS.
+
+**Importance:**
+Standard web maps rely on low-accuracy phone GPS (±5 meters), which is insufficient for cadastral boundaries. GSP Rover bridges the gap by allowing you to connect survey-grade RTK rovers via Bluetooth or USB to the web browser, bringing centimeter-level accuracy directly into GSP.NET.
+
+**How to Use (Step-by-Step Guide):**
+1. Click the **GSP ROVER** button in the top navigation panel.
+2. In the GNSS Connection panel, choose your data source:
+   - **Internal Phone GPS**: Uses your device's built-in location.
+   - **External Receiver (USB/Bluetooth)**: Connects to a professional RTK GNSS receiver.
+3. If using an **External Receiver**:
+   - Ensure your receiver is turned on and paired with your device.
+   - Click **"Connect External Device"**.
+   - A browser popup will appear. On PC, select the virtual COM port for your receiver. On mobile (Android Chrome), select your paired Bluetooth device (SPP) or USB OTG adapter.
+   - The connection receives NMEA data via Web Serial API.
+4. Once connected, your high-precision coordinates will appear in the panel (Latitude, Longitude, Altitude, Satellites, and Accuracy).
+5. The crosshair on the map will now track your position using the external RTK data, allowing you to walk boundaries or capture high-precision points!
+
 ### Coordinate Search & Extractor
 - **Video Tutorial:** [LOCATE AND COORD SEARCH BUTTON FUNCTIONALITY. HOW TO USE](https://youtu.be/Qm-I5EgVPKc?si=CSHWqerhAq_m9z3a)
 - **Video Tutorial:** [COORD SEARCH AND INFO BUTTON WORK FLOWS](https://youtu.be/RLen8aigI5w?si=7IOG3nbwFk4yzGgS)
