@@ -10603,19 +10603,29 @@
             }
 
             .header-top {
-                flex-wrap: nowrap;
-                gap: 4px;
+                flex-direction: column;
+                align-items: center;
+                gap: 8px;
             }
 
             .logo-container {
-                gap: 6px;
-                flex-shrink: 0;
+                gap: 8px;
+                width: 100%;
+                justify-content: center;
             }
 
             .controls-container {
-                gap: 3px;
-                justify-content: flex-end;
-                flex-wrap: wrap;
+                gap: 6px;
+                width: 100%;
+                justify-content: center;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                padding-bottom: 2px;
+            }
+
+            /* Hide scrollbar for a cleaner look */
+            .controls-container::-webkit-scrollbar {
+                display: none;
             }
 
             .control-btn {
