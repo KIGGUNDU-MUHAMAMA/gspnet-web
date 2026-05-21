@@ -10541,17 +10541,22 @@
 
         @media (max-width: 992px) {
             .map-bottom-controls {
-                flex-direction: column;
+                padding: 6px 8px;
             }
 
             .search-container,
             .coord-search {
                 min-width: 100%;
+                flex: 1 1 100%;
             }
 
-            /* Reduce gap between controls for better fit */
+            /* Keep buttons in horizontal wrapped rows */
             .map-controls-row {
+                display: flex;
+                flex-wrap: wrap;
+                flex-direction: row;
                 gap: 5px;
+                justify-content: center;
             }
 
             .coord-extractor-main-btn {
@@ -10563,6 +10568,16 @@
         @media (max-width: 768px) {
             header {
                 padding: 8px 10px;
+            }
+
+            .header-top {
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+
+            .controls-container {
+                gap: 4px;
+                justify-content: flex-end;
             }
 
             .app-title h1 {
@@ -10589,7 +10604,16 @@
             }
 
             .map-bottom-controls {
-                gap: 10px;
+                padding: 5px 6px;
+            }
+
+            /* Keep buttons horizontal, allow wrapping into rows */
+            .map-controls-row {
+                display: flex;
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 4px;
+                justify-content: center;
             }
 
             #gspnet-assist-btn {
@@ -10617,14 +10641,10 @@
                 height: 45vh;
             }
 
-            /* Further reduce spacing for small screens */
-            .map-controls-row {
-                gap: 3px;
-            }
-
             .search-container,
             .coord-search {
                 min-width: 100%;
+                flex: 1 1 100%;
                 gap: 5px;
             }
 
@@ -10642,7 +10662,7 @@
             .coord-extractor-main-btn {
                 padding: 6px 8px;
                 font-size: 0.8rem;
-                margin: 2px;
+                margin: 0;
             }
 
             .search-btn {
@@ -10905,24 +10925,62 @@
                 display: none;
             }
 
+            .control-btn {
+                padding: 7px 9px;
+                min-width: 36px;
+                justify-content: center;
+            }
+
             .logo {
-                width: 35px;
-                height: 35px;
-                font-size: 18px;
+                width: 30px;
+                height: 30px;
+                font-size: 16px;
             }
 
             .app-title h1 {
-                font-size: 1.1rem;
+                font-size: 1rem;
             }
 
-            .search-box,
-            .coord-search {
-                flex-direction: column;
+            .app-title p {
+                display: none;
+            }
+
+            .controls-container {
+                gap: 3px;
+            }
+
+            .search-box {
+                flex-direction: row;
             }
 
             .search-container,
             .coord-search {
                 min-width: 100%;
+                flex: 1 1 100%;
+            }
+
+            /* Keep bottom buttons in a horizontal wrapped row */
+            .map-controls-row {
+                display: flex;
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 3px;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .map-bottom-controls {
+                padding: 4px 5px;
+            }
+
+            .coord-extractor-main-btn span {
+                display: none;
+            }
+
+            .coord-extractor-main-btn {
+                padding: 7px 9px;
+                margin: 0;
+                justify-content: center;
             }
 
             #gspnet-assist-btn {
@@ -10948,39 +11006,6 @@
 
             .gspnet-tab span {
                 font-size: 0.7rem;
-            }
-
-            .coord-extractor-main-btn span {
-                display: none;
-            }
-
-
-            .map-controls-row {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .search-container,
-            .coord-search {
-                order: 1;
-            }
-
-            .coord-extractor-main-btn {
-                order: 2;
-                margin: 5px 0;
-                justify-content: center;
-            }
-
-            /* Stack controls vertically on very small screens */
-            .map-controls-row {
-                flex-direction: column;
-            }
-
-            .search-container,
-            .coord-search,
-            .coord-extractor-main-btn {
-                width: 100%;
-                margin-bottom: 5px;
             }
         }
 
