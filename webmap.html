@@ -6851,6 +6851,7 @@
             right: -50%;
             width: 50%;
             height: 100vh;
+            height: 100dvh;
             background: white;
             box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
             z-index: 10000;
@@ -6858,6 +6859,7 @@
             display: flex;
             flex-direction: column;
             border-left: 1px solid #e0e0e0;
+            overflow: hidden;
         }
 
         .chat-panel.open {
@@ -8402,9 +8404,29 @@
                 width: 100% !important;
                 right: -100% !important;
                 z-index: 9999;
+                height: 100vh !important;
+                height: 100dvh !important;
             }
             .chat-panel.open {
                 right: 0 !important;
+            }
+
+            .chat-header {
+                flex-shrink: 0;
+            }
+
+            .chat-tabs {
+                padding: 0;
+            }
+
+            .chat-tab {
+                padding: 10px 4px 8px;
+                font-size: 11px;
+            }
+
+            .chat-controls {
+                padding: 3px 8px 5px;
+                gap: 3px;
             }
 
             .valuation-panel {
@@ -10540,6 +10562,16 @@
         }
 
         @media (max-width: 992px) {
+            .main-content {
+                padding: 0 6px;
+                gap: 6px;
+            }
+
+            .map-container {
+                border-radius: 6px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            }
+
             .map-bottom-controls {
                 padding: 6px 8px;
             }
@@ -10567,44 +10599,71 @@
 
         @media (max-width: 768px) {
             header {
-                padding: 8px 10px;
+                padding: 5px 8px;
             }
 
             .header-top {
-                flex-wrap: wrap;
+                flex-wrap: nowrap;
+                gap: 4px;
+            }
+
+            .logo-container {
                 gap: 6px;
+                flex-shrink: 0;
             }
 
             .controls-container {
-                gap: 4px;
+                gap: 3px;
                 justify-content: flex-end;
-            }
-
-            .app-title h1 {
-                font-size: 1.2rem;
-            }
-
-            .app-title p {
-                font-size: 0.75rem;
+                flex-wrap: wrap;
             }
 
             .control-btn {
-                padding: 6px 8px;
-                font-size: 0.8rem;
+                padding: 5px 7px;
+                font-size: 0.75rem;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+            }
+
+            .control-btn span {
+                display: none;
+            }
+
+            .app-title h1 {
+                font-size: 1rem;
+            }
+
+            .app-title p {
+                display: none;
+            }
+
+            .logo {
+                width: 32px;
+                height: 32px;
             }
 
             .search-btn,
             .coord-btn {
-                padding: 6px 10px;
+                padding: 5px 8px;
             }
 
             .terrain-toggle {
-                padding: 6px 10px;
-                font-size: 0.9rem;
+                padding: 5px 8px;
+                font-size: 0.85rem;
+            }
+
+            /* Reduce map border area */
+            .main-content {
+                padding: 0 4px;
+                gap: 4px;
+            }
+
+            .map-container {
+                border-radius: 4px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
             }
 
             .map-bottom-controls {
-                padding: 5px 6px;
+                padding: 4px 5px;
             }
 
             /* Keep buttons horizontal, allow wrapping into rows */
@@ -10629,8 +10688,11 @@
             }
 
             .gspnet-assist-panel {
-                left: 15px;
-                bottom: 120px;
+                left: 5px;
+                right: 5px;
+                bottom: 100px;
+                width: auto;
+                max-height: 65vh;
             }
 
             .coord-extractor-grid {
@@ -10650,23 +10712,23 @@
 
             .search-box,
             .coord-search {
-                padding: 6px;
+                padding: 5px;
             }
 
             .search-input,
             .coord-input {
-                padding: 6px 10px;
+                padding: 5px 8px;
                 font-size: 0.85rem;
             }
 
             .coord-extractor-main-btn {
-                padding: 6px 8px;
-                font-size: 0.8rem;
+                padding: 5px 7px;
+                font-size: 0.75rem;
                 margin: 0;
             }
 
             .search-btn {
-                padding: 6px 10px;
+                padding: 5px 8px;
                 font-size: 0.85rem;
             }
         }
@@ -10917,6 +10979,10 @@
         }
 
         @media (max-width: 576px) {
+            header {
+                padding: 4px 6px;
+            }
+
             .control-btn i {
                 margin-right: 0;
             }
@@ -10926,19 +10992,20 @@
             }
 
             .control-btn {
-                padding: 7px 9px;
-                min-width: 36px;
+                padding: 5px 7px;
+                min-width: 32px;
                 justify-content: center;
+                font-size: 0.75rem;
             }
 
             .logo {
-                width: 30px;
-                height: 30px;
-                font-size: 16px;
+                width: 26px;
+                height: 26px;
+                font-size: 14px;
             }
 
             .app-title h1 {
-                font-size: 1rem;
+                font-size: 0.85rem;
             }
 
             .app-title p {
@@ -10946,7 +11013,7 @@
             }
 
             .controls-container {
-                gap: 3px;
+                gap: 2px;
             }
 
             .search-box {
@@ -10959,18 +11026,29 @@
                 flex: 1 1 100%;
             }
 
+            /* Minimal map border on phones */
+            .main-content {
+                padding: 0 2px;
+                gap: 2px;
+            }
+
+            .map-container {
+                border-radius: 3px;
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+            }
+
             /* Keep bottom buttons in a horizontal wrapped row */
             .map-controls-row {
                 display: flex;
                 flex-direction: row;
                 flex-wrap: wrap;
-                gap: 3px;
+                gap: 2px;
                 justify-content: center;
                 align-items: center;
             }
 
             .map-bottom-controls {
-                padding: 4px 5px;
+                padding: 3px 3px;
             }
 
             .coord-extractor-main-btn span {
@@ -10978,7 +11056,7 @@
             }
 
             .coord-extractor-main-btn {
-                padding: 7px 9px;
+                padding: 5px 7px;
                 margin: 0;
                 justify-content: center;
             }
@@ -10986,8 +11064,8 @@
             #gspnet-assist-btn {
                 width: 26px;
                 height: 26px;
-                left: 15px;
-                bottom: 80px;
+                left: 10px;
+                bottom: 60px;
             }
 
             #gspnet-assist-btn img {
@@ -10996,8 +11074,11 @@
             }
 
             .gspnet-assist-panel {
-                width: 300px;
-                bottom: 150px;
+                left: 3px;
+                right: 3px;
+                bottom: 90px;
+                width: auto;
+                max-height: 60vh;
             }
 
             .gspnet-tabs {
@@ -12989,16 +13070,63 @@
                 width: 100% !important;
                 right: -100% !important;
                 z-index: 9999;
+                height: 100vh !important;
+                height: 100dvh !important;
             }
             .chat-panel.open {
                 right: 0 !important;
             }
 
+            .chat-body {
+                flex: 1;
+                min-height: 0;
+                overflow: hidden;
+            }
+
+            .chat-view {
+                min-height: 0;
+            }
+
+            .chat-view.active {
+                display: flex;
+                flex: 1;
+                min-height: 0;
+                overflow: hidden;
+            }
+
+            /* Chat Rooms mobile */
+            #rooms-view.active {
+                display: flex;
+                flex-direction: column;
+                min-height: 0;
+            }
+
+            .posts-list {
+                flex: 1;
+                min-height: 0;
+                overflow-y: auto;
+                max-height: none;
+            }
+
+            .chat-input-bar {
+                flex-shrink: 0;
+                padding: 6px 8px;
+            }
+
+            .chat-input-bar textarea {
+                min-height: 32px;
+                max-height: 80px;
+                font-size: 14px;
+                padding: 6px 12px;
+            }
+
+            /* Inbox mobile */
             .inbox-layout {
                 flex-direction: row;
                 overflow: hidden;
                 position: relative;
                 height: 100%;
+                min-height: 0;
             }
 
             .users-list {
@@ -13017,6 +13145,7 @@
                 width: 100% !important;
                 height: 100% !important;
                 display: flex !important;
+                flex-direction: column !important;
                 background: var(--chat-bg) !important;
                 transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
                 z-index: 5 !important;
@@ -13031,9 +13160,27 @@
             }
 
             .messages-list {
-                max-height: calc(100vh - 130px);
+                flex: 1;
+                min-height: 0;
+                overflow-y: auto;
+                max-height: none;
             }
-            
+
+            /* AI Assistant mobile */
+            .bot-layout {
+                display: flex;
+                flex-direction: column;
+                height: 100%;
+                min-height: 0;
+                overflow: hidden;
+            }
+
+            #bot-messages-container {
+                flex: 1;
+                min-height: 0;
+                overflow-y: auto;
+            }
+
             .back-btn {
                 display: flex !important;
             }
