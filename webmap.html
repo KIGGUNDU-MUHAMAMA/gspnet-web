@@ -65182,9 +65182,16 @@ function rvPointToSegmentDist(plat, plon, alat, alon, blat, blon) {
 ================================================================ */
 function rvExportCSV() {
   if (RV.points.length === 0) { rvToast('No points to export', 2000); return; }
-  let csv = 'Name,Description,Longitude,Latitude,Accuracy_m,Altitude_m,Timestamp\n';
+  // Use CRS-converted coordinates
+  const isLatLon = (RV.crs === '4326');
+  const hdrE = isLatLon ? 'Longitude' : 'Easting';
+  const hdrN = isLatLon ? 'Latitude' : 'Northing';
+  let csv = 'Name,Description,' + hdrE + ',' + hdrN + ',Accuracy_m,Altitude_m,CRS,Timestamp\n';
   RV.points.forEach(p => {
-    csv += `"${p.name}","${p.desc}",${p.lon},${p.lat},${p.acc},${p.alt},"${p.ts}"\n`;
+    const cv = rvFormatCoord(p.lon, p.lat, RV.crs);
+    const eVal = cv.e.replace('°E','').replace('°N','');
+    const nVal = cv.n.replace('°E','').replace('°N','');
+    csv += `"${p.name}","${p.desc}",${eVal},${nVal},${p.acc},${p.alt},"EPSG:${RV.crs}","${p.ts}"\n`;
   });
   rvDownload('gsp_rover_points_' + Date.now() + '.csv', csv, 'text/csv');
   rvToast('CSV downloaded!');
@@ -65332,10 +65339,26 @@ function rvDoClose(downloadReport) {
   rvStopGPS();
   // Disconnect GNSS serial if active
   if (RV.gnssMode === 'external' || RV.serialPort) {
-    rvDisconnectGNSS();
+    try { rvDisconnectGNSS(); } catch(e) {}
   }
   rvReleaseWakeLock();
   if (downloadReport) rvDownloadSessionReport();
+
+  // === Destroy rover map to free resources ===
+  if (RV.map) {
+    RV.map.setTarget(null);
+    RV.map.dispose();
+    RV.map = null;
+  }
+  // Null out sources/layers so they are recreated on next open
+  RV.gpsSource = null; RV.gpsLayer = null;
+  RV.stakeSource = null; RV.stakeLayer = null;
+  RV.walkSource = null; RV.walkLayer = null;
+  RV.ptSource = null; RV.ptLayer = null;
+  RV.cornerSource = null; RV.cornerLayer = null;
+  RV.clonedLayers = [];
+  RV.baseLayers = null;
+
   document.getElementById('gspRoverOverlay').classList.remove('rv-open');
   // Close all modals
   ['rvMarkModal','rvCrsModal','rvExportModal','rvSettingsModal','rvAreaModal','rvExitModal'].forEach(id => {
