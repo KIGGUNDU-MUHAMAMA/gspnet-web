@@ -64127,6 +64127,9 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
       <button class="rv-action-btn" id="rvSelectBtn" title="Select Parcel">
         <i class="fas fa-vector-square"></i><span>SELECT</span>
       </button>
+      <button class="rv-action-btn" id="rvControlBtn" title="Find Nearby Controls">
+        <i class="fas fa-crosshairs"></i><span>CONTROL</span>
+      </button>
       <button class="rv-action-btn" id="rvRecordBtn" title="Record Boundary Walk">
         <i class="fas fa-route"></i><span>WALK</span>
       </button>
@@ -64179,6 +64182,20 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
       <button id="rvClearPtsBtn" style="float:right;background:none;border:none;color:var(--rv-red);cursor:pointer;font-size:11px;">🗑 Clear All</button>
     </div>
     <div class="rv-pt-list" id="rvPtList"></div>
+  </div>
+</div>
+
+<!-- === Controls Modal === -->
+<div class="rv-modal-backdrop" id="rvControlModal">
+  <div class="rv-modal">
+    <h3><i class="fas fa-crosshairs" style="color:var(--rv-amber)"></i> Nearby Controls</h3>
+    <div style="font-size:11px;color:var(--rv-txt2);margin-bottom:8px;">Control points within 2km</div>
+    <div id="rvControlList" style="max-height:50vh; overflow-y:auto; text-align:left; border: 1px solid var(--rv-border); background: var(--rv-bg2); padding: 5px; border-radius: 4px;">
+      <!-- Filled dynamically -->
+    </div>
+    <div class="rv-modal-btns" style="margin-top:12px;">
+      <button class="rv-btn-secondary" id="rvControlCloseBtn" style="width:100%">Close</button>
+    </div>
   </div>
 </div>
 
@@ -65596,6 +65613,66 @@ function rvPointToSegmentDist(plat, plon, alat, alon, blat, blon) {
 }
 
 /* ================================================================
+   NEARBY CONTROLS
+================================================================ */
+window.rvShowNearbyControls = function() {
+  if (!RV.pos) {
+    rvToast('⚠ No GPS fix yet. Please wait for location.', 3000);
+    return;
+  }
+  const uLat = RV.pos.coords.latitude;
+  const uLon = RV.pos.coords.longitude;
+  
+  let nearby = [];
+  if (window.surveyControlsIndex) {
+    window.surveyControlsIndex.forEach(ctrl => {
+      if (ctrl.coords) {
+        const d = rvHaversine(uLat, uLon, ctrl.coords[1], ctrl.coords[0]);
+        if (d <= 2000) {
+          nearby.push({ ...ctrl, dist: d });
+        }
+      }
+    });
+  }
+  
+  nearby.sort((a, b) => a.dist - b.dist);
+  
+  const listEl = document.getElementById('rvControlList');
+  if (nearby.length === 0) {
+    listEl.innerHTML = '<div style="padding:10px;text-align:center;color:var(--rv-txt2)">No controls found within 2km.</div>';
+  } else {
+    let html = '';
+    nearby.forEach(c => {
+      const dStr = c.dist < 1000 ? Math.round(c.dist) + 'm' : (c.dist/1000).toFixed(2) + 'km';
+      html += `<div class="rv-control-item" data-lon="${c.coords[0]}" data-lat="${c.coords[1]}" style="padding: 8px; border-bottom: 1px solid var(--rv-border); cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="font-weight:bold; font-size:12px; color:var(--rv-txt1)">${c.name}</div>
+          <div style="font-size:10px; color:var(--rv-txt2)">${c.layerName}</div>
+        </div>
+        <div style="font-size:11px; font-weight:bold; color:var(--rv-amber)">${dStr}</div>
+      </div>`;
+    });
+    listEl.innerHTML = html;
+    
+    // Add click listeners to items
+    setTimeout(() => {
+      listEl.querySelectorAll('.rv-control-item').forEach(item => {
+        item.addEventListener('click', function() {
+          const lon = parseFloat(this.getAttribute('data-lon'));
+          const lat = parseFloat(this.getAttribute('data-lat'));
+          RV.corners = [{ lon, lat }];
+          rvShowCorners();
+          document.getElementById('rvControlModal').classList.remove('rv-modal-open');
+          rvToast(`Targeting ${this.querySelector('div').innerText.split('\\n')[0]}`, 2000);
+        });
+      });
+    }, 50);
+  }
+  
+  document.getElementById('rvControlModal').classList.add('rv-modal-open');
+};
+
+/* ================================================================
    EXPORTS
 ================================================================ */
 function rvExportCSV() {
@@ -65853,6 +65930,12 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('rvAreaModal').classList.remove('rv-modal-open');
   });
 
+  // Control button
+  document.getElementById('rvControlBtn').addEventListener('click', window.rvShowNearbyControls);
+  document.getElementById('rvControlCloseBtn').addEventListener('click', function() {
+    document.getElementById('rvControlModal').classList.remove('rv-modal-open');
+  });
+
   // Export button
   document.getElementById('rvExportBtn').addEventListener('click', function() {
     document.getElementById('rvExportModal').classList.add('rv-modal-open');
@@ -65967,7 +66050,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // Close modals on backdrop click
-  ['rvMarkModal','rvCrsModal','rvExportModal','rvSettingsModal','rvAreaModal'].forEach(id => {
+  ['rvMarkModal','rvCrsModal','rvExportModal','rvSettingsModal','rvAreaModal','rvControlModal'].forEach(id => {
     document.getElementById(id).addEventListener('click', function(e) {
       if (e.target === this) this.classList.remove('rv-modal-open');
     });
