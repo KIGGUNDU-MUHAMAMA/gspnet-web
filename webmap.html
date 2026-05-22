@@ -65806,6 +65806,10 @@ function rvOpen() {
   setTimeout(() => { if (RV.map) RV.map.updateSize(); }, 100);
   rvStartGPS();
   rvAcquireWakeLock();
+  // Request iOS compass permission if needed
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().catch(() => {}); // ignore error if not triggered by user gesture
+  }
   // Re-render pt layer from stored points
   rvRefreshPtLayer();
 }
@@ -66199,6 +66203,40 @@ if (document.readyState !== 'loading') {
   } else {
     document.addEventListener('DOMContentLoaded', rvWirePhoto);
   }
+})();
+
+// --- Map Rotation (Compass) ---
+(function() {
+  let rvWasRotated = false;
+  
+  function rvUpdateRotation(heading) {
+    if (!window.RV || !window.RV.open || !window.RV.map) return;
+    
+    // Auto-rotate only during Stakeout to keep North-Up for regular digitizing
+    if (window.RV.stakeoutIdx >= 0) {
+      window.RV.map.getView().setRotation(-heading * Math.PI / 180);
+      rvWasRotated = true;
+    } else if (rvWasRotated) {
+      window.RV.map.getView().setRotation(0);
+      rvWasRotated = false;
+    }
+  }
+
+  window.addEventListener('deviceorientationabsolute', function(event) {
+    if (event.alpha !== null) {
+      // absolute alpha: 0=North, 90=West, 180=South, 270=East
+      // heading: 0=North, 90=East, 180=South, 270=West
+      const heading = 360 - event.alpha;
+      rvUpdateRotation(heading);
+    }
+  }, true);
+
+  // Fallback for iOS
+  window.addEventListener('deviceorientation', function(event) {
+    if (event.webkitCompassHeading !== undefined) {
+      rvUpdateRotation(event.webkitCompassHeading);
+    }
+  }, true);
 })();
 
 </script>
