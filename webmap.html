@@ -17950,6 +17950,14 @@
                 </div>
                 <div class="parcel-search-panel-body">
                     <form id="parcelSearchForm" class="parcel-search-form">
+                        <div class="form-group" style="display: flex; gap: 15px; margin-bottom: 15px; justify-content: center; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+                            <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-weight: 500;">
+                                <input type="radio" name="searchType" value="parcels" checked onchange="document.getElementById('parcelSearchUniqueIdLabel').innerText='Unique Identifier'"> Survey Parcels
+                            </label>
+                            <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-weight: 500;">
+                                <input type="radio" name="searchType" value="controls" onchange="document.getElementById('parcelSearchUniqueIdLabel').innerText='Control Name'"> Survey Controls
+                            </label>
+                        </div>
                         <div class="form-group">
                             <label for="parcelSearchDistrict">District</label>
                             <select id="parcelSearchDistrict" name="district" class="form-select">
@@ -17959,7 +17967,7 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="parcelSearchUniqueId">Unique Identifier</label>
+                            <label for="parcelSearchUniqueId" id="parcelSearchUniqueIdLabel">Unique Identifier</label>
                             <input type="text" id="parcelSearchUniqueId" name="uniqueId" class="form-input"
                                 placeholder="e.g., TT36N-001">
                         </div>
@@ -17991,6 +17999,8 @@
                                 <option value="UNTITLED UTM ZONE 36N">UNTITLED UTM ZONE 36N</option>
                                 <option value="UNTITLED UTM ZONE 36S">UNTITLED UTM ZONE 36S</option>
                                 <option value="BLB-UNTITLED">BLB-UNTITLED</option>
+                                <option value="ITRF-UGANDA">ITRF-UGANDA (Controls)</option>
+                                <option value="ARC-1960">ARC-1960 (Controls)</option>
                             </select>
                         </div>
 
@@ -21084,6 +21094,163 @@
 
             map.addLayer(surveyPolygonsGroup);
 
+
+            // ========================================
+            // SURVEY CONTROLS LAYER GROUP
+            // ========================================
+            window.surveyControlsIndex = []; // Client-side search index
+            window.surveyControlsLayers = [];
+            
+            function getItrfStyle(feature) {
+                const name = feature.get('Name') || 'ITRF-UGANDA';
+                return new ol.style.Style({
+                    image: new ol.style.RegularShape({
+                        fill: new ol.style.Fill({ color: 'rgba(0, 229, 255, 0.2)' }),
+                        stroke: new ol.style.Stroke({ color: '#00E5FF', width: 2 }),
+                        points: 3,
+                        radius: 8,
+                        rotation: 0,
+                        angle: 0
+                    }),
+                    text: new ol.style.Text({
+                        text: name,
+                        font: 'bold 13px Inter, sans-serif',
+                        fill: new ol.style.Fill({ color: '#ffffff' }),
+                        stroke: new ol.style.Stroke({ color: '#000000', width: 3 }),
+                        offsetY: -15
+                    })
+                });
+            }
+
+            function getArc1960Style(feature) {
+                const name = feature.get('Name') || 'ARC-1960';
+                return new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: 6,
+                        fill: new ol.style.Fill({ color: '#FF9800' }),
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
+                    }),
+                    text: new ol.style.Text({
+                        text: name,
+                        font: 'bold 13px Inter, sans-serif',
+                        fill: new ol.style.Fill({ color: '#ffffff' }),
+                        stroke: new ol.style.Stroke({ color: '#000000', width: 3 }),
+                        offsetY: -15
+                    })
+                });
+            }
+
+            const surveyControlsData = [
+                {
+                    name: 'ITRF-UGANDA',
+                    url: 'https://data.geospatialnetworkug.xyz/WAKISO/ITRF-CONTROLS.fgb',
+                    fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/WAKISO/ITRF-CONTROLS.fgb',
+                    styleFn: getItrfStyle
+                },
+                {
+                    name: 'ARC-1960',
+                    url: 'https://data.geospatialnetworkug.xyz/WAKISO/ARC-1960.fgb',
+                    fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/WAKISO/ARC-1960.fgb',
+                    styleFn: getArc1960Style
+                }
+            ];
+
+            window.surveyControlsLayers = surveyControlsData.map(config => {
+                const source = new ol.source.Vector({
+                    strategy: ol.loadingstrategy.bbox
+                });
+                
+                const layer = new ol.layer.Vector({
+                    title: config.name,
+                    source: source,
+                    zIndex: 600,
+                    style: config.styleFn,
+                    visible: false,
+                    maxResolution: 5.0
+                });
+
+                // Deferred flatgeobuf loading
+                layer._fgbUrl = config.url;
+                layer._fgbFallbackUrl = config.fallbackUrl;
+                layer._fgbLoaded = false;
+                
+                layer.on('change:visible', function() {
+                    if (this.getVisible() && !this._fgbLoaded) {
+                        this._fgbLoaded = true;
+                        const urls = [this._fgbUrl];
+                        if (this._fgbFallbackUrl) urls.push(this._fgbFallbackUrl);
+                        let urlIndex = 0;
+                        const src = this.getSource();
+                        
+                        const tryNextUrl = () => {
+                            if (urlIndex >= urls.length) return;
+                            const url = urls[urlIndex++];
+                            try {
+                                const loader = flatgeobuf.createLoader(
+                                    src, url, "EPSG:4326",
+                                    function(extent) { return [extent]; }, true
+                                );
+                                src.setLoader(loader);
+                                src.refresh();
+                            } catch (err) {
+                                tryNextUrl();
+                            }
+                        };
+                        tryNextUrl();
+                    }
+                });
+
+                // Background fetch for client-side search index
+                (async function buildIndex() {
+                    try {
+                        let iter = flatgeobuf.deserialize(config.url);
+                        try {
+                            for await (let feature of iter) {
+                                if (feature && feature.properties) {
+                                    let coords = null;
+                                    if (feature.geometry && feature.geometry.coordinates) {
+                                       coords = feature.geometry.coordinates;
+                                    }
+                                    window.surveyControlsIndex.push({
+                                        id: feature.properties.Name || 'Unknown',
+                                        name: feature.properties.Name || 'Unknown',
+                                        layerName: config.name,
+                                        coords: coords
+                                    });
+                                }
+                            }
+                        } catch(e) {
+                             if(config.fallbackUrl) {
+                                iter = flatgeobuf.deserialize(config.fallbackUrl);
+                                for await (let feature of iter) {
+                                    if (feature && feature.properties) {
+                                        let coords = null;
+                                        if (feature.geometry && feature.geometry.coordinates) {
+                                           coords = feature.geometry.coordinates;
+                                        }
+                                        window.surveyControlsIndex.push({
+                                            id: feature.properties.Name || 'Unknown',
+                                            name: feature.properties.Name || 'Unknown',
+                                            layerName: config.name,
+                                            coords: coords
+                                        });
+                                    }
+                                }
+                             }
+                        }
+                    } catch (err) {
+                        console.warn('Could not build index for', config.name, err);
+                    }
+                })();
+
+                return layer;
+            });
+
+            const surveyControlsGroup = new ol.layer.Group({
+                title: 'SURVEY CONTROLS',
+                layers: window.surveyControlsLayers
+            });
+            map.addLayer(surveyControlsGroup);
 
             // Vincenty inverse formula for geodesic distance on WGS84 ellipsoid
             // Replaces Haversine (spherical) for survey-grade accuracy (~0.5mm)
@@ -33183,6 +33350,9 @@
 
             // Search parcels function
             async function searchParcels() {
+                const searchTypeEl = document.querySelector('input[name="searchType"]:checked');
+                const searchType = searchTypeEl ? searchTypeEl.value : 'parcels';
+
                 const district = document.getElementById('parcelSearchDistrict').value;
                 const uniqueId = document.getElementById('parcelSearchUniqueId').value.trim();
                 const client = document.getElementById('parcelSearchClient').value.trim();
@@ -33196,6 +33366,57 @@
                 if (resultsDiv) {
                     resultsDiv.style.display = 'block';
                     resultsTable.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Searching...</p>';
+                }
+
+                if (searchType === 'controls') {
+                    // Search Control Points locally
+                    try {
+                        let filtered = window.surveyControlsIndex || [];
+                        if (uniqueId) {
+                            filtered = filtered.filter(c => c.name.toLowerCase().includes(uniqueId.toLowerCase()));
+                        }
+                        if (layer && layer !== '') {
+                            filtered = filtered.filter(c => c.layerName === layer);
+                        }
+
+                        if (filtered.length === 0) {
+                            resultsTable.innerHTML = '<p>No control points found matching your criteria.</p>';
+                            return;
+                        }
+
+                        let tableHTML = '<table class="parcel-results-table"><thead><tr>' +
+                            '<th>Control Name</th><th>Layer</th>' +
+                            '</tr></thead><tbody>';
+
+                        filtered.forEach(ctrl => {
+                            tableHTML += `<tr data-control-id="${ctrl.id}" data-control-layer="${ctrl.layerName}">` +
+                                `<td>${ctrl.name}</td>` +
+                                `<td>${ctrl.layerName}</td>` +
+                                `</tr>`;
+                        });
+                        tableHTML += '</tbody></table>';
+                        resultsTable.innerHTML = tableHTML;
+
+                        // Add click handlers
+                        const rows = resultsTable.querySelectorAll('tr[data-control-id]');
+                        rows.forEach(row => {
+                            row.addEventListener('click', function () {
+                                const ctrlId = this.getAttribute('data-control-id');
+                                const ctrlLayer = this.getAttribute('data-control-layer');
+                                const ctrlObj = window.surveyControlsIndex.find(c => c.id === ctrlId && c.layerName === ctrlLayer);
+                                if (ctrlObj && ctrlObj.coords) {
+                                    const coord = ol.proj.fromLonLat(ctrlObj.coords);
+                                    map.getView().animate({ center: coord, zoom: 19, duration: 800 });
+                                    const pointFeature = new ol.Feature(new ol.geom.Point(coord));
+                                    showQualityFlagParcelHighlight(pointFeature, 'BLB-UNTITLED');
+                                }
+                            });
+                        });
+                    } catch (e) {
+                        console.error('Error searching controls:', e);
+                        resultsTable.innerHTML = '<p class="status-message error">Error: ' + e.message + '</p>';
+                    }
+                    return;
                 }
 
                 try {
