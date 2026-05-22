@@ -63735,11 +63735,12 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
   border-radius: 4px; padding: 2px 8px; cursor: pointer;
 }
 
-/* ---- Bottom-left collapsible action bar (collapses upward) ---- */
+/* ---- Top-left collapsible action bar (collapses downward) ---- */
 #rvActionBar {
   position: absolute;
   left: 8px;
-  bottom: 10px;
+  top: 60px;
+  bottom: auto;
   z-index: 20;
   display: flex;
   flex-direction: column;
@@ -63755,12 +63756,12 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
   padding: 6px 5px;
   background: var(--rv-panel);
   border: 1px solid var(--rv-border);
-  border-bottom: none;
-  border-radius: 10px 10px 0 0;
+  border-top: none;
+  border-radius: 0 0 10px 10px;
   max-height: 65vh;
   overflow-y: auto;
   overflow-x: hidden;
-  transition: max-height 0.25s ease, padding 0.25s ease, opacity 0.2s ease;
+  transition: max-height 0.25s ease, padding 0.25s ease, opacity 0.2s ease, border-color 0.2s ease;
 }
 #rvActionBtns.rv-collapsed {
   max-height: 0;
@@ -63768,6 +63769,7 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
   opacity: 0;
   overflow: hidden;
   pointer-events: none;
+  border-color: transparent;
 }
 
 #rvActionToggle {
@@ -63775,7 +63777,7 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
   height: 24px;
   background: var(--rv-panel);
   border: 1px solid var(--rv-border);
-  border-radius: 0 0 8px 8px;
+  border-radius: 8px 8px 0 0;
   color: var(--rv-amber);
   font-size: 11px;
   cursor: pointer;
@@ -64120,8 +64122,9 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
     <div id="rvCornerList"></div>
   </div>
 
-  <!-- Bottom-left collapsible action bar (collapses upward) -->
+  <!-- Top-left collapsible action bar (collapses downward) -->
   <div id="rvActionBar">
+    <button id="rvActionToggle" title="Toggle tools">▲ Tools</button>
     <div id="rvActionBtns">
       <button class="rv-action-btn" id="rvMarkBtn" title="Mark Point">
         <i class="fas fa-map-pin"></i><span>MARK</span>
@@ -64151,7 +64154,6 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
         <i class="fas fa-cog"></i><span>OPTS</span>
       </button>
     </div>
-    <button id="rvActionToggle" title="Toggle tools">▲ Tools</button>
   </div>
 
   <!-- Hidden camera input -->
@@ -65990,7 +65992,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('rvBasemapBar').classList.remove('rv-bm-open');
   });
 
-  // Action bar collapse toggle (upward)
+  // Action bar collapse toggle (downward)
   document.getElementById('rvActionToggle').addEventListener('click', function() {
     const btns = document.getElementById('rvActionBtns');
     const collapsed = btns.classList.toggle('rv-collapsed');
