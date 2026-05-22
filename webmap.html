@@ -21203,7 +21203,8 @@
                 // Background fetch for client-side search index
                 (async function buildIndex() {
                     try {
-                        let iter = flatgeobuf.deserialize(config.url);
+                        const response = await fetch(config.url);
+                        let iter = flatgeobuf.deserialize(response.body);
                         try {
                             for await (let feature of iter) {
                                 if (feature && feature.properties) {
@@ -21221,7 +21222,8 @@
                             }
                         } catch(e) {
                              if(config.fallbackUrl) {
-                                iter = flatgeobuf.deserialize(config.fallbackUrl);
+                                const fbRes = await fetch(config.fallbackUrl);
+                                iter = flatgeobuf.deserialize(fbRes.body);
                                 for await (let feature of iter) {
                                     if (feature && feature.properties) {
                                         let coords = null;
@@ -65303,6 +65305,10 @@ function rvHandleMapClick(coord) {
             const ll = ol.proj.toLonLat(c, window.map.getView().getProjection().getCode());
             return { lon: ll[0], lat: ll[1] };
           });
+        } else if (type === 'Point') {
+          const c = geom.getCoordinates();
+          const ll = ol.proj.toLonLat(c, window.map.getView().getProjection().getCode());
+          corners = [{ lon: ll[0], lat: ll[1] }];
         }
       });
     }
@@ -65318,12 +65324,16 @@ function rvHandleMapClick(coord) {
       if (type === 'Polygon') {
         const ring = geom.getCoordinates()[0];
         corners = ring.map(c => { const ll = ol.proj.toLonLat(c); return { lon: ll[0], lat: ll[1] }; });
+      } else if (type === 'Point') {
+        const c = geom.getCoordinates();
+        const ll = ol.proj.toLonLat(c);
+        corners = [{ lon: ll[0], lat: ll[1] }];
       }
     });
   }
 
-  if (!corners || corners.length < 2) {
-    rvToast('No polygon found here. Try clicking on a parcel boundary.', 3000);
+  if (!corners || corners.length < 1) {
+    rvToast('No feature found here. Try clicking on a parcel boundary or control point.', 3000);
     RV.selectMode = false;
     document.getElementById('rvSelectBtn').classList.remove('rv-active');
     document.getElementById('rvMap').style.cursor = '';
