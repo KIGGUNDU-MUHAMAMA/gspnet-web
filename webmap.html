@@ -66210,14 +66210,15 @@ if (document.readyState !== 'loading') {
   let rvWasRotated = false;
   
   function rvUpdateRotation(heading) {
-    if (!window.RV || !window.RV.open || !window.RV.map) return;
+    const state = window._gspRoverState;
+    if (!state || !state.open || !state.map) return;
     
     // Auto-rotate only during Stakeout to keep North-Up for regular digitizing
-    if (window.RV.stakeoutIdx >= 0) {
-      window.RV.map.getView().setRotation(-heading * Math.PI / 180);
+    if (state.stakeoutIdx >= 0) {
+      state.map.getView().setRotation(-heading * Math.PI / 180);
       rvWasRotated = true;
     } else if (rvWasRotated) {
-      window.RV.map.getView().setRotation(0);
+      state.map.getView().setRotation(0);
       rvWasRotated = false;
     }
   }
