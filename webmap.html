@@ -63739,7 +63739,7 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
 #rvActionBar {
   position: absolute;
   left: 8px;
-  top: 60px;
+  top: 75px;
   bottom: auto;
   z-index: 20;
   display: flex;
@@ -64087,6 +64087,40 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
         <div class="rv-bm-img">⬜</div><span>None</span>
       </div>
     </div>
+
+    <!-- Top-left collapsible action bar (collapses downward) -->
+    <div id="rvActionBar">
+      <button id="rvActionToggle" title="Toggle tools">▲ Tools</button>
+      <div id="rvActionBtns">
+        <button class="rv-action-btn" id="rvMarkBtn" title="Mark Point">
+          <i class="fas fa-map-pin"></i><span>MARK</span>
+        </button>
+        <button class="rv-action-btn" id="rvSelectBtn" title="Select Parcel">
+          <i class="fas fa-vector-square"></i><span>SELECT</span>
+        </button>
+        <button class="rv-action-btn" id="rvControlBtn" title="Find Nearby Controls">
+          <i class="fas fa-crosshairs"></i><span>CONTROL</span>
+        </button>
+        <button class="rv-action-btn" id="rvRecordBtn" title="Record Boundary Walk">
+          <i class="fas fa-route"></i><span>WALK</span>
+        </button>
+        <button class="rv-action-btn" id="rvAreaBtn" title="Area from Points">
+          <i class="fas fa-draw-polygon"></i><span>AREA</span>
+        </button>
+        <button class="rv-action-btn" id="rvExportBtn" title="Export Data">
+          <i class="fas fa-file-export"></i><span>EXPORT</span>
+        </button>
+        <button class="rv-action-btn" id="rvBasemapBtn" title="Basemap">
+          <i class="fas fa-layer-group"></i><span>MAP</span>
+        </button>
+        <button class="rv-action-btn" id="rvPhotoBtn" title="Capture Geotagged Photo">
+          <i class="fas fa-camera"></i><span>PHOTO</span>
+        </button>
+        <button class="rv-action-btn" id="rvSettingsBtn" title="Settings">
+          <i class="fas fa-cog"></i><span>OPTS</span>
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- Record walk banner -->
@@ -64122,39 +64156,6 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
     <div id="rvCornerList"></div>
   </div>
 
-  <!-- Top-left collapsible action bar (collapses downward) -->
-  <div id="rvActionBar">
-    <button id="rvActionToggle" title="Toggle tools">▲ Tools</button>
-    <div id="rvActionBtns">
-      <button class="rv-action-btn" id="rvMarkBtn" title="Mark Point">
-        <i class="fas fa-map-pin"></i><span>MARK</span>
-      </button>
-      <button class="rv-action-btn" id="rvSelectBtn" title="Select Parcel">
-        <i class="fas fa-vector-square"></i><span>SELECT</span>
-      </button>
-      <button class="rv-action-btn" id="rvControlBtn" title="Find Nearby Controls">
-        <i class="fas fa-crosshairs"></i><span>CONTROL</span>
-      </button>
-      <button class="rv-action-btn" id="rvRecordBtn" title="Record Boundary Walk">
-        <i class="fas fa-route"></i><span>WALK</span>
-      </button>
-      <button class="rv-action-btn" id="rvAreaBtn" title="Area from Points">
-        <i class="fas fa-draw-polygon"></i><span>AREA</span>
-      </button>
-      <button class="rv-action-btn" id="rvExportBtn" title="Export Data">
-        <i class="fas fa-file-export"></i><span>EXPORT</span>
-      </button>
-      <button class="rv-action-btn" id="rvBasemapBtn" title="Basemap">
-        <i class="fas fa-layer-group"></i><span>MAP</span>
-      </button>
-      <button class="rv-action-btn" id="rvPhotoBtn" title="Capture Geotagged Photo">
-        <i class="fas fa-camera"></i><span>PHOTO</span>
-      </button>
-      <button class="rv-action-btn" id="rvSettingsBtn" title="Settings">
-        <i class="fas fa-cog"></i><span>OPTS</span>
-      </button>
-    </div>
-  </div>
 
   <!-- Hidden camera input -->
   <input type="file" id="rvCameraInput" accept="image/*" capture="environment" style="display:none;">
