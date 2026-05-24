@@ -108,7 +108,7 @@
     // WMS LAYER MANAGEMENT
     // ─────────────────────────────────────────────────────────────────────────
     function buildWmsParams() {
-        return {
+        const params = {
             SERVICE: 'WMS',
             VERSION: '1.3.0',
             REQUEST: 'GetMap',
@@ -120,6 +120,19 @@
             PRIORITY: 'leastCC',
             SHOWLOGO: 'false',
         };
+
+        // Clip WMS requests to the AOI to save CDSE tokens
+        if (state.aoiFeature) {
+            try {
+                const geom = state.aoiFeature.getGeometry().clone().transform('EPSG:3857', 'EPSG:4326');
+                const wktFormat = new ol.format.WKT();
+                params.GEOMETRY = wktFormat.writeGeometry(geom);
+            } catch (e) {
+                console.warn('[Sentinel] Could not generate WKT geometry:', e);
+            }
+        }
+
+        return params;
     }
 
     function createWmsLayer() {
@@ -244,6 +257,7 @@
 
             updateAoiStatusUI(`✓ ${fmtArea(areaSqKm)}`);
             toast(`AOI set: ${fmtArea(areaSqKm)}`, 'success');
+            if (state.isWmsVisible) addOrUpdateWmsLayer();
         });
 
         map.addInteraction(state.drawInteraction);
@@ -294,6 +308,7 @@
 
         updateAoiStatusUI(`✓ ${fmtArea(areaSqKm)} (extent)`);
         toast(`Using current extent as AOI: ${fmtArea(areaSqKm)}`, 'success');
+        if (state.isWmsVisible) addOrUpdateWmsLayer();
     }
 
     function clearAOI() {
@@ -306,6 +321,7 @@
         state.aoiFeature = null;
         state.aoiAreaSqKm = 0;
         updateAoiStatusUI('');
+        if (state.isWmsVisible) addOrUpdateWmsLayer();
     }
 
     function updateAoiStatusUI(text) {
