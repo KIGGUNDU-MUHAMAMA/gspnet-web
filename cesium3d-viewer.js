@@ -119,6 +119,15 @@
             if (statusEl) statusEl.textContent = 'Overlaying map layers…';
             addVectorLayers();
 
+            // ── Drape Sentinel WMS layer if one is active in the 2D map ──
+            if (typeof window.sentinelDrapeOn3D === 'function') {
+                try {
+                    window.sentinelDrapeOn3D(viewer);
+                } catch (e) {
+                    console.warn('[Cesium3D] Sentinel drape skipped:', e);
+                }
+            }
+
             // Hide loading
             if (loading) loading.classList.add('hidden');
 

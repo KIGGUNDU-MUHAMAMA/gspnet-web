@@ -1,0 +1,33 @@
+-- ============================================================
+-- GSP.NET Satellite Analytics — Supabase Setup Notes
+-- ============================================================
+-- No SQL functions are required for the gspnet-sentinel-analytics
+-- Edge Function because the AOI polygon is sent directly from the
+-- browser to the function body. No database tables are queried.
+--
+-- ── REQUIRED: Set the following secrets in Supabase Dashboard ──
+--    Dashboard → Edge Functions → Manage Secrets
+--
+--   SENTINEL_HUB_CLIENT_ID     = b0536412eb307480601521b3b8e03c7491646f9857b26d476664e6da1
+--   SENTINEL_HUB_CLIENT_SECRET = 6f18737fbcf9019bfedd23e55a01e9612811855f104e8af71b8d8943
+--
+-- ── OPTIONAL OVERRIDES ──
+--   SENTINEL_HUB_TOKEN_URL      = https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token
+--   SENTINEL_HUB_STATISTICS_URL = https://sh.dataspace.copernicus.eu/api/v1/statistics
+--
+-- ── DEPLOYMENT COMMAND ──
+--   supabase functions deploy gspnet-sentinel-analytics --no-verify-jwt
+--
+-- ── TESTING (curl) ──
+-- curl -X POST https://kwssgfanbntfjdclchfi.supabase.co/functions/v1/gspnet-sentinel-analytics \
+--   -H "Authorization: Bearer <ANON_KEY>" \
+--   -H "Content-Type: application/json" \
+--   -d '{
+--     "aoi": {
+--       "type": "Polygon",
+--       "coordinates": [[[32.5,0.3],[32.6,0.3],[32.6,0.4],[32.5,0.4],[32.5,0.3]]]
+--     },
+--     "date_from": "2024-01-01",
+--     "date_to": "2024-06-30",
+--     "interval": "P16D"
+--   }'
