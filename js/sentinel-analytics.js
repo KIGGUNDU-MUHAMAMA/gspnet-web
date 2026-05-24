@@ -108,7 +108,9 @@
     // WMS LAYER MANAGEMENT
     // ─────────────────────────────────────────────────────────────────────────
     function buildWmsParams() {
-        const params = {
+        // NOTE: CDSE Sentinel Hub WMS does not support geometry clipping via WMS params.
+        // Token saving is achieved via minZoom restriction and the 50 km² AOI limit on statistics.
+        return {
             SERVICE: 'WMS',
             VERSION: '1.3.0',
             REQUEST: 'GetMap',
@@ -120,19 +122,6 @@
             PRIORITY: 'leastCC',
             SHOWLOGO: 'false',
         };
-
-        // Clip WMS requests to the AOI to save CDSE tokens
-        if (state.aoiFeature) {
-            try {
-                const geom = state.aoiFeature.getGeometry().clone().transform('EPSG:3857', 'EPSG:4326');
-                const wktFormat = new ol.format.WKT();
-                params.GEOMETRY = wktFormat.writeGeometry(geom);
-            } catch (e) {
-                console.warn('[Sentinel] Could not generate WKT geometry:', e);
-            }
-        }
-
-        return params;
     }
 
     function createWmsLayer() {
@@ -257,7 +246,6 @@
 
             updateAoiStatusUI(`✓ ${fmtArea(areaSqKm)}`);
             toast(`AOI set: ${fmtArea(areaSqKm)}`, 'success');
-            if (state.isWmsVisible) addOrUpdateWmsLayer();
         });
 
         map.addInteraction(state.drawInteraction);
@@ -308,7 +296,6 @@
 
         updateAoiStatusUI(`✓ ${fmtArea(areaSqKm)} (extent)`);
         toast(`Using current extent as AOI: ${fmtArea(areaSqKm)}`, 'success');
-        if (state.isWmsVisible) addOrUpdateWmsLayer();
     }
 
     function clearAOI() {
@@ -321,7 +308,6 @@
         state.aoiFeature = null;
         state.aoiAreaSqKm = 0;
         updateAoiStatusUI('');
-        if (state.isWmsVisible) addOrUpdateWmsLayer();
     }
 
     function updateAoiStatusUI(text) {
@@ -660,8 +646,15 @@
         toast('Generating GSP.NET Satellite Report...', 'info');
 
         try {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            // Defensive jsPDF resolution — handles both UMD builds
+            const jsPDFCtor = (window.jspdf && window.jspdf.jsPDF)
+                ? window.jspdf.jsPDF
+                : (window.jsPDF || null);
+            if (!jsPDFCtor) {
+                toast('PDF library (jsPDF) not loaded. Please refresh the page.', 'error');
+                return;
+            }
+            const doc = new jsPDFCtor({ orientation: 'portrait', unit: 'mm', format: 'a4' });
             const pageW = doc.internal.pageSize.getWidth();
             const pageH = doc.internal.pageSize.getHeight();
             const margin = 14;
@@ -756,58 +749,130 @@
                 doc.setTextColor(100, 116, 139);
                 doc.text(`${from} → ${to}`, pageW - margin, 13, { align: 'right' });
 
-                // Summary stats table (jsPDF AutoTable)
-                const data = state.analyticsData;
-                const ndvi = data.ndvi_intervals || [];
-                const ndmi = data.ndmi_intervals || [];
-                const ndre = data.ndre_intervals || [];
-                const ndwi = data.ndwi_intervals || [];
+                // ── Summary stats table ──────────────────────────────────
+                const adata = state.analyticsData;
+                const ndvi = adata.ndvi_intervals || [];
+                const ndmi = adata.ndmi_intervals || [];
+                const ndre = adata.ndre_intervals || [];
+                const ndwi = adata.ndwi_intervals || [];
 
-                function s(arr) {
+                function calcStat(arr) {
                     const vals = arr.map(d => d.mean).filter(v => v !== null && v !== undefined);
-                    if (!vals.length) return ['N/A', 'N/A', 'N/A'];
-                    return [
-                        Math.min(...vals).toFixed(4),
-                        Math.max(...vals).toFixed(4),
-                        (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(4),
-                    ];
+                    if (!vals.length) return { mn: 'N/A', mx: 'N/A', av: 'N/A', ct: 0 };
+                    return {
+                        mn: Math.min(...vals).toFixed(4),
+                        mx: Math.max(...vals).toFixed(4),
+                        av: (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(4),
+                        ct: vals.length,
+                    };
                 }
 
+                const statsRows = [
+                    { name: 'NDVI', desc: 'Vegetation Health',        color: [34, 197, 94],  ...calcStat(ndvi) },
+                    { name: 'NDMI', desc: 'Moisture Index',           color: [6, 182, 212],  ...calcStat(ndmi) },
+                    { name: 'NDRE', desc: 'Red-Edge Chlorophyll',     color: [245, 158, 11], ...calcStat(ndre) },
+                    { name: 'NDWI', desc: 'Water Bodies / Flooding',  color: [14, 165, 233], ...calcStat(ndwi) },
+                ];
+
+                let tableEndY = 28;
+
+                // Try autoTable first, fall back to manual rendering
                 if (typeof doc.autoTable === 'function') {
                     doc.autoTable({
                         startY: 28,
                         margin: { left: margin, right: margin },
                         head: [['Index', 'Description', 'Minimum', 'Maximum', 'Mean', 'Scenes']],
-                        body: [
-                            ['NDVI', 'Vegetation Health', ...s(ndvi), ndvi.filter(d => d.mean !== null).length],
-                            ['NDMI', 'Moisture Stress', ...s(ndmi), ndmi.filter(d => d.mean !== null).length],
-                            ['NDRE', 'Red-Edge Chlorophyll', ...s(ndre), ndre.filter(d => d.mean !== null).length],
-                            ['NDWI', 'Water Bodies / Flooding', ...s(ndwi), ndwi.filter(d => d.mean !== null).length],
-                        ],
+                        body: statsRows.map(r => [r.name, r.desc, r.mn, r.mx, r.av, r.ct]),
                         headStyles: { fillColor: [15, 23, 42], textColor: [148, 163, 184], fontStyle: 'bold', fontSize: 9 },
                         bodyStyles: { fontSize: 8.5, textColor: [51, 65, 85] },
                         alternateRowStyles: { fillColor: [248, 250, 252] },
                         styles: { cellPadding: 3 },
                     });
+                    tableEndY = doc.lastAutoTable?.finalY || 70;
+                } else {
+                    // Manual table fallback (always works regardless of plugin load)
+                    const colWidths = [22, 52, 25, 25, 25, 18];
+                    const cols = ['Index', 'Description', 'Min', 'Max', 'Mean', 'Scenes'];
+                    const rowH = 8;
+                    let ty = 28;
+
+                    // Header row
+                    doc.setFillColor(15, 23, 42);
+                    doc.rect(margin, ty, contentW, rowH, 'F');
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(8);
+                    doc.setTextColor(148, 163, 184);
+                    let cx = margin + 2;
+                    cols.forEach((col, i) => {
+                        doc.text(col, cx, ty + 5.5);
+                        cx += colWidths[i];
+                    });
+                    ty += rowH;
+
+                    // Data rows
+                    doc.setFont('helvetica', 'normal');
+                    statsRows.forEach((row, ri) => {
+                        if (ri % 2 === 0) {
+                            doc.setFillColor(248, 250, 252);
+                            doc.rect(margin, ty, contentW, rowH, 'F');
+                        }
+                        doc.setTextColor(...row.color);
+                        doc.setFont('helvetica', 'bold');
+                        doc.text(row.name, margin + 2, ty + 5.5);
+                        doc.setFont('helvetica', 'normal');
+                        doc.setTextColor(51, 65, 85);
+                        const vals = [row.desc, row.mn, row.mx, row.av, String(row.ct)];
+                        let vx = margin + 2 + colWidths[0];
+                        vals.forEach((v, i) => {
+                            doc.text(String(v), vx, ty + 5.5);
+                            vx += colWidths[i + 1];
+                        });
+                        ty += rowH;
+                    });
+
+                    // Bottom border
+                    doc.setDrawColor(226, 232, 240);
+                    doc.setLineWidth(0.2);
+                    doc.line(margin, ty, margin + contentW, ty);
+                    tableEndY = ty + 2;
                 }
 
-                // Chart screenshot
+                // ── Chart screenshot ─────────────────────────────────────
                 const chartCanvas = document.getElementById('sentinelAnalyticsChart');
                 if (chartCanvas) {
-                    const chartY = (doc.lastAutoTable?.finalY || 70) + 8;
+                    const chartY = tableEndY + 8;
+                    const remainH = pageH - chartY - 14;
                     try {
-                        const chartImg = await html2canvas(chartCanvas, { backgroundColor: '#0f172a', scale: 2 });
-                        const chartDataUrl = chartImg.toDataURL('image/png');
-                        const chartH = (chartCanvas.height / chartCanvas.width) * contentW;
-                        doc.addImage(chartDataUrl, 'PNG', margin, chartY, contentW, Math.min(chartH, pageH - chartY - 20));
+                        // Prefer html2canvas (global, not window.html2canvas on some builds)
+                        const h2c = window.html2canvas || (typeof html2canvas !== 'undefined' ? html2canvas : null);
+                        if (h2c && remainH > 20) {
+                            const chartImg = await h2c(chartCanvas, {
+                                backgroundColor: '#0f172a',
+                                scale: 2,
+                                useCORS: true,
+                                logging: false,
+                            });
+                            const chartDataUrl = chartImg.toDataURL('image/png');
+                            // Maintain aspect ratio
+                            const natW = chartImg.width;
+                            const natH = chartImg.height;
+                            const drawH = Math.min((natH / natW) * contentW, remainH);
+                            doc.addImage(chartDataUrl, 'PNG', margin, chartY, contentW, drawH);
+                        } else if (state.chartInstance) {
+                            // Direct canvas fallback
+                            const dataUrl = chartCanvas.toDataURL('image/png');
+                            const drawH = Math.min((chartCanvas.height / chartCanvas.width) * contentW, remainH);
+                            if (remainH > 20) doc.addImage(dataUrl, 'PNG', margin, chartY, contentW, drawH);
+                        }
                     } catch (e) {
-                        console.warn('[Sentinel PDF] Could not capture chart:', e);
+                        console.warn('[Sentinel PDF] Chart capture failed:', e);
+                        // Still continue — table data is already in the doc
                     }
                 }
 
                 doc.setFontSize(7);
                 doc.setTextColor(100, 116, 139);
-                doc.text('GSP.NET Satellite Analytics  |  NDVI/NDMI/NDRE/NDWI Time Series', pageW / 2, pageH - 6, { align: 'center' });
+                doc.text('GSP.NET Satellite Analytics  |  NDVI / NDMI / NDRE / NDWI  |  Sentinel-2 L2A via CDSE', pageW / 2, pageH - 6, { align: 'center' });
             }
 
             // ── PAGE(S): MAP SNAPSHOTS ────────────────────────────────────────
