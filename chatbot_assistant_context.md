@@ -1,6 +1,6 @@
 # Geospatial Network Uganda (GSP.NET) - Complete AI Assistant Knowledge Base
 
-> **AI INSTRUCTION:** You are the official AI Assistant for GSP.NET (geospatialnetworkug.xyz). Answer ONLY using the information in this document. Be concise, professional, and use Markdown formatting. Do not invent features or tools not listed here. **When answering "how-to" questions or explaining features, ALWAYS check if a relevant Video Tutorial link is available in the documentation and provide it to the user at the end of your response to help them visually.**
+> **AI INSTRUCTION:** You are the official AI Assistant for GSP.NET (geospatialnetworkug.xyz). Answer ONLY using the information in this document. Be concise, professional, and use Markdown formatting. Do not invent features or tools not listed here. **When answering "how-to" questions or explaining features, ALWAYS check if a relevant Video Tutorial link is available in the documentation and provide it to the user at the end of your response.** Key platform features include: 2D/3D mapping, DTM/Contour generation, Satellite Analytics (NDVI/NDMI/NDRE/NDWI from Sentinel-2), 3D Condominium module, SurveySync Plugins, and professional PDF reporting.
 
 ---
 
@@ -106,10 +106,119 @@ Clicking **"3D"** after DTM generation opens an interactive Cesium/Three.js 3D V
 - **Features:** It includes sun lighting simulation, analysis modes (Hypsometric, Hillshade, Slope), a Section Clip Box to slice the terrain, and 3D distance measurements.
 - **Basemap Draping:** Toggle "Basemap" to automatically drape the current 2D satellite imagery directly over the 3D mesh.
 - **3D Exports:** You can capture viewpoints and export them as a professional **3D PDF**, or export the raw 3D mesh as STL, OBJ, GeoTIFF, or LAS.
+- **Sentinel Satellite Analytics (NEW):** The 3D Terrain panel includes a dedicated **"Satellite Analytics"** section (Section 12 in the left panel). This allows surveyors to load real Sentinel-2 multispectral imagery and compute vegetation, moisture, and water index statistics directly over the active project area. See **Section 5** below for full details and step-by-step instructions.
 
 ---
 
-## 5. 3D Condominium Module
+## 5. Sentinel Satellite Analytics
+
+GSP.NET integrates directly with the **Copernicus Data Space Ecosystem (CDSE)** to compute and visualise **Sentinel-2 multispectral vegetation and moisture indices** over any user-defined area of interest (AOI). This is found inside the **3D Terrain panel → Section 12: Satellite Analytics**.
+
+### What It Does
+- Fetches real Sentinel-2 Level-2A satellite imagery over your AOI from ESA's Copernicus archive.
+- Computes four key indices as time-series statistics:
+  - **NDVI** — Normalised Difference Vegetation Index (vegetation density & health)
+  - **NDMI** — Normalised Difference Moisture Index (vegetation water stress)
+  - **NDRE** — Normalised Difference Red-Edge Index (chlorophyll and crop stress)
+  - **NDWI** — Normalised Difference Water Index (open water and flooding)
+- Displays results as an **interactive time-series chart** and a **statistics table** (Min, Max, Mean, Scenes).
+- Allows surveyors to overlay the spectral layer live on the 2D map and drape it on the **Cesium 3D terrain**.
+- Generates a professional **multi-page A4 PDF Surveyor Report** with a cover page, statistics, interpretation notes, chart, and map snapshots.
+
+### System Limits (Token Conservation)
+| Limit | Value |
+|---|---|
+| Maximum AOI area | **50 km²** |
+| Maximum date range | **2 years** |
+| Minimum time interval | **10 days (P10D)** |
+| WMS map preview minimum zoom | **Zoom level 12** |
+
+---
+
+### Step-by-Step: Using Satellite Analytics (Under 3D Terrain)
+
+**Step 1 — Open the 3D Terrain Panel**
+1. In the main webmap, locate the right-side toolbar and click the **3D Terrain** button (mountain icon).
+2. The 3D Terrain panel opens on the left side of the screen.
+3. Scroll down inside the panel until you reach **Section 12: Satellite Analytics**.
+4. Click the section header to expand it.
+
+**Step 2 — Define Your Area of Interest (AOI)**
+
+You must define an AOI before running analytics. You have two options:
+
+- **Option A — Draw a Polygon:** Click **"✏ Draw AOI"**. Click on the map to place vertices and **double-click** to finish. The drawn polygon becomes your AOI. A size check confirms it is within the 50 km² limit.
+- **Option B — Use DTM Extent:** Click **"Use DTM Extent"**. The system automatically uses your existing terrain project boundary (or the current map view if no terrain extent exists) as the AOI.
+- To remove the AOI and start over, click **"Clear AOI"**.
+
+The AOI area is confirmed in the status indicator (e.g., `✓ 12.45 km²`).
+
+**Step 3 — Configure the Satellite Layer**
+1. In the **Spectral Index** dropdown, choose which index to display:
+   - `TRUE_COLOR` — Natural colour satellite view
+   - `FALSE_COLOR` — Colour Infrared (CIR) for vegetation assessment
+   - `NDVI` — Vegetation health map
+   - `NDMI` — Moisture stress map
+   - `NDWI` — Water/flooding extent map
+   - `SWIR` — Short-Wave Infrared for soil and geology
+2. Set the **Date Range** (From / To) for the satellite imagery. Dates should not exceed a 2-year window.
+3. Adjust the **Cloud Cover** slider (default 20%). Lower values return clearer scenes; higher values increase data availability in cloudy regions.
+4. Adjust the **Opacity** slider to blend the satellite layer with the basemap.
+5. Click **"Show Layer"** to load the satellite imagery onto the map. The layer will only display at **Zoom Level 12 or higher** to conserve API tokens.
+6. To update the layer after changing dates or index, click **"Apply"**.
+
+**Step 4 — Generate Time-Series Analytics**
+1. Ensure your AOI is set (Step 2) and your date range is configured (Step 3).
+2. Select a **Time Interval** from the dropdown:
+   - `10-day (P10D)` — Most detailed, best for short date ranges
+   - `16-day (P16D)` — Default, good balance of detail and token use
+   - `1-month (P1M)` — Best for long date ranges (> 1 year)
+3. Click **"Generate Analytics"**. A loading spinner will appear — this calls the CDSE Statistics API via a secure Supabase Edge Function. Typical response time is 15–45 seconds depending on AOI size and date range.
+4. Once complete, the following appear automatically:
+   - **Time-Series Chart** — Interactive Chart.js line chart showing NDVI, NDMI, NDRE, NDWI over time. Click legend entries to toggle individual indices on/off.
+   - **Statistics Summary Table** — Shows Min, Max, Mean, and number of Scenes for each index.
+
+**Step 5 — Capture Map Snapshots for Report**
+1. With the satellite layer showing on the map, click **"📷 Capture Map Snapshot"**.
+2. The system captures the current map view as an image and adds it to the **Snapshot Strip** below the button.
+3. Switch to a different spectral index (e.g., from NDVI to NDMI), apply the layer, and capture again.
+4. Repeat for each layer you want in the report. You can remove any snapshot by clicking the **×** on its thumbnail.
+
+**Step 6 — Generate the PDF Surveyor Report**
+1. Click **"⬇ Download Surveyor Report (PDF)"**.
+2. A professional multi-page A4 PDF is generated containing:
+   - **Page 1: Cover Page** — Project metadata, date range, AOI area, resolution, and index descriptions. Black & white for clean printing.
+   - **Page 2: Statistics & Chart** — Full statistics table, per-index interpretation notes (e.g., "High vegetation stress detected"), and the time-series chart.
+   - **Subsequent pages: Map Snapshots** — One page per captured snapshot, centred and aspect-ratio preserved with captions.
+3. The PDF is automatically named `GSPNET_Satellite_Report_<from>_to_<to>.pdf` and downloaded to your browser's download folder.
+
+**Step 7 — View on 3D Terrain (Optional)**
+1. After setting up the satellite layer, open the **Cesium 3D Viewer** by clicking the **3D** button.
+2. The active Sentinel imagery is automatically draped over the 3D terrain mesh, giving a stunning 3D perspective on vegetation health, moisture patterns, or flooding.
+3. You can rotate, tilt, and zoom the 3D globe to inspect the index from any angle.
+
+---
+
+### Common Questions
+
+**Q: Why does the satellite layer not appear on the map?**
+A: The Sentinel WMS layer only loads at **Zoom Level 12 or higher** to conserve processing tokens. Zoom in further on your project area and it will appear.
+
+**Q: Why does Generate Analytics return no data?**
+A: Possible reasons: (1) No AOI is set — draw a polygon or use DTM Extent first. (2) Cloud cover is too low for the region/period — increase the Max Cloud Cover slider. (3) Date range too short — try a longer range. (4) Network error — check your internet connection and try again.
+
+**Q: What are good NDVI values for healthy vegetation in Uganda?**
+A: NDVI > 0.6 = Dense healthy forest/vegetation. 0.4–0.6 = Moderate cropland/mixed canopy. 0.2–0.4 = Sparse vegetation/grassland. < 0.2 = Bare soil, urban, or water.
+
+**Q: Can I use this for crop monitoring?**
+A: Yes. Set monthly intervals (P1M) over a growing season to track NDVI changes. NDRE is especially useful for detecting nitrogen/chlorophyll deficiencies in crops before they are visible to the naked eye.
+
+**Q: Does using this feature consume tokens/credits?**
+A: Yes. Each "Generate Analytics" call uses CDSE Processing Units (PUs). To minimise usage: keep AOI areas small (< 10 km² for maximum savings), use longer intervals (P16D or P1M), and avoid very short date ranges. The map WMS preview is also restricted to Zoom 12+ to avoid unnecessary tile requests.
+
+---
+
+## 6. 3D Condominium Module
 GSP.NET fully supports vertical property registration (Condominiums).
 - **Importance:** As urban density increases, 2D mapping fails to represent stacked property ownership. The 3D Condominium module solves this by mapping individual units on specific floors.
 - **How to use:** Use the Building icon to start a "New Condominium". Follow the 7-step wizard: Property Info, Building Footprint (CSV), Vertical Configuration (floors/heights), Facade Images, Units Registration (CSV of unit coordinates), Unit Attributes, and Save. 
@@ -117,7 +226,7 @@ GSP.NET fully supports vertical property registration (Condominiums).
 
 ---
 
-## 6. The Mathematics Behind GSP.NET (Survey-Grade Math)
+## 7. The Mathematics Behind GSP.NET (Survey-Grade Math)
 
 GSP.NET does not use standard, inaccurate web-mapping formulas (like Haversine). It uses strict survey-grade math:
 
@@ -131,7 +240,7 @@ GSP.NET does not use standard, inaccurate web-mapping formulas (like Haversine).
 
 ---
 
-## 7. GSP SurveySync Plugins
+## 8. GSP SurveySync Plugins
 
 GSP SurveySync is a real-time data bridge between professional desktop surveying software (QGIS and AutoCAD/Civil 3D) and the GSPNET cloud webmap. It eliminates manual file transfer — polygons drawn in the field are broadcast live to the webmap for immediate review and database saving.
 
@@ -139,7 +248,7 @@ GSP SurveySync is a real-time data bridge between professional desktop surveying
 
 ---
 
-### 7.1 QGIS Plugin (v3.0)
+### 8.1 QGIS Plugin (v3.0)
 
 **What it does:**
 - Loads existing NLIS/survey parcels from the GSPNET database into QGIS as a read-only reference layer.
@@ -176,7 +285,7 @@ Complete all required fields: Client Name, Project Name, Coordinate System, Dist
 
 ---
 
-### 7.2 AutoCAD / Civil 3D Plugin (v2.0)
+### 8.2 AutoCAD / Civil 3D Plugin (v2.0)
 
 **What it does:** Adds 3 professional commands to AutoCAD and Civil 3D for exporting parcel coordinates and inserting formatted coordinate tables directly in the drawing.
 
@@ -237,7 +346,7 @@ Steps:
 
 ---
 
-### 7.3 Typical End-to-End Workflow
+### 8.3 Typical End-to-End Workflow
 
 **QGIS → Webmap:**
 Field surveyor loads reference layer → fills project details → draws parcels → clicks Send All → webmap reviewer sees live polygons → saves all to database.
@@ -247,7 +356,7 @@ Open drawing → type GSPEXPORT → select closed parcels → save CSV → CSV h
 
 ---
 
-### 7.4 Troubleshooting
+### 8.4 Troubleshooting
 
 | Problem | Solution |
 |---------|---------|
@@ -260,7 +369,7 @@ Open drawing → type GSPEXPORT → select closed parcels → save CSV → CSV h
 
 ---
 
-## 8. Video Tutorials & Media Library
+## 9. Video Tutorials & Media Library
 For visual guidance, always provide users with the following relevant video links based on their question:
 - **Locating Webmap:** [LOCATING GEOSPATIALNETWORKUG WEBMAP](https://youtu.be/ut-tX7GDSFs?si=yh7OfeQRXt5aavJ5)
 - **Login Page Features:** [FEATURES ON GEOSPATIALNETWORKUG LOGIN PAGE](https://youtu.be/RXAnJtH8RH4?si=pLLizJ-W97oJwDxO)
@@ -271,3 +380,4 @@ For visual guidance, always provide users with the following relevant video link
 - **Coord Search & Info Workflows:** [COORD SEARCH AND INFO BUTTON WORK FLOWS](https://youtu.be/RLen8aigI5w?si=7IOG3nbwFk4yzGgS)
 - **Exporting Satellite Images (GeoTIFF/PNG/JPG):** [EXTRACTOR BUTTON FOR GEOTIFF, PNG AND JPG SATELLITE IMAGES EXPORT](https://youtu.be/8luK0ke1bFQ?si=MbbaGnL5Ad4qLHQV)
 - **Exporting CAD/GIS Data (DXF/GeoJSON/KML):** [EXTRACTOR FOR DXF, GEOJSON AND KML IN SELECTED COORDINATE SYSTEM](https://youtu.be/wuXveXzZUzs?si=1xXrHO2eesIXalJ0)
+- **Satellite Analytics (NDVI/NDMI/NDWI):** No video tutorial yet — refer the user to the step-by-step guide in **Section 5** of this knowledge base.
