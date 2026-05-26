@@ -1,16 +1,16 @@
 /**
- * sentinel-analytics.js  v1.4
+ * sentinel-analytics.js  v1.3
  * ─────────────────────────────────────────────────────────────────────────────
  * GSP.NET Platform — Satellite Analytics Module
  * Handles:
- *  • OpenLayers WMS layer (CDSE) with GEOMETRY-clipped requests (token-safe)
- *  • AOI-first flow: Steps 2-4 are locked until AOI is defined
- *  • Dynamic AOI: draw polygon OR use DTM extent (max 50 km²)
+ *  • OpenLayers WMS layer (CDSE) with full controls
+ *  • Dynamic AOI: draw polygon OR use DTM extent
+ *  • Area limit enforcement (50 km²)
  *  • Supabase Edge Function → NDVI / NDMI / NDRE / NDWI time-series
  *  • Chart.js multi-index visualisation
  *  • Advanced statistics: min, max, mean, std-dev, trend, peak, trough, Δchange
- *  • Multi-snapshot capture (offscreen canvas composite)
- *  • Multi-page A4 PDF with centred headers, high-quality chart, bar chart
+ *  • Multi-snapshot capture (html2canvas + canvas composite fallback)
+ *  • Multi-page A4 PDF with fixed centred headers, high-quality chart, bar chart
  *  • Cesium 3D WMS draping bridge
  * ─────────────────────────────────────────────────────────────────────────────
  */
@@ -90,24 +90,6 @@
         const geom = feature.getGeometry().clone();
         geom.transform('EPSG:3857', 'EPSG:4326');
         return { type: 'Polygon', coordinates: geom.getCoordinates() };
-    }
-
-    /**
-     * Converts the AOI feature to a WKT POLYGON string in WGS-84.
-     * Passed to the WMS as a GEOMETRY parameter so Copernicus ONLY processes
-     * pixels inside the user's drawn polygon — saves processing tokens.
-     */
-    function featureToWgs84Wkt(feature) {
-        try {
-            const geom = feature.getGeometry().clone();
-            geom.transform('EPSG:3857', 'EPSG:4326');
-            const coords = geom.getCoordinates()[0]; // outer ring
-            const ring = coords.map(([lng, lat]) => `${lng.toFixed(6)} ${lat.toFixed(6)}`).join(',');
-            return `POLYGON((${ring}))`;
-        } catch (e) {
-            console.warn('[Sentinel WMS] WKT conversion failed:', e);
-            return null;
-        }
     }
 
     function buildWmsTime(from, to) { return `${from}/${to}`; }
@@ -210,24 +192,15 @@
     // WMS LAYER MANAGEMENT
     // ─────────────────────────────────────────────────────────────────────────
     function buildWmsParams() {
-        const params = {
-            SERVICE:  'WMS', VERSION: '1.3.0', REQUEST: 'GetMap',
-            FORMAT:   'image/png', TRANSPARENT: 'true',
+        return {
+            SERVICE: 'WMS', VERSION: '1.3.0', REQUEST: 'GetMap',
+            FORMAT: 'image/png', TRANSPARENT: 'true',
             LAYERS:   state.currentIndex,
             TIME:     buildWmsTime(state.currentDate.from, state.currentDate.to),
             MAXCC:    state.maxCC,
             PRIORITY: 'leastCC',
             SHOWLOGO: 'false',
         };
-        // ── TOKEN SAVER: clip to AOI polygon ──────────────────────────────────
-        // Passing a GEOMETRY (WKT) parameter tells Copernicus to only process
-        // the pixels inside the drawn polygon. Without this the entire map tile
-        // is processed even if only a tiny part is the area of interest.
-        if (state.aoiFeature) {
-            const wkt = featureToWgs84Wkt(state.aoiFeature);
-            if (wkt) params.GEOMETRY = wkt;
-        }
-        return params;
     }
 
     function createWmsLayer() {
@@ -320,13 +293,10 @@
             if (areaSqKm > MAX_AREA_SQ_KM) {
                 toast(`AOI too large (${fmtArea(areaSqKm)}). Max is ${MAX_AREA_SQ_KM} km².`, 'error');
                 state.aoiLayer.getSource().clear(); state.aoiFeature = null;
-                updateAoiStatusUI('');
-                updatePanelLockState(false);
-                return;
+                updateAoiStatusUI(''); return;
             }
             updateAoiStatusUI(`✓ ${fmtArea(areaSqKm)}`);
-            toast(`AOI set: ${fmtArea(areaSqKm)} — Steps 2, 3 & 4 are now unlocked.`, 'success');
-            updatePanelLockState(true);
+            toast(`AOI set: ${fmtArea(areaSqKm)}`, 'success');
         });
         map.addInteraction(state.drawInteraction);
     }
@@ -361,13 +331,10 @@
         if (areaSqKm > MAX_AREA_SQ_KM) {
             toast(`Extent too large (${fmtArea(areaSqKm)}). Max ${MAX_AREA_SQ_KM} km². Zoom in closer.`, 'error');
             state.aoiLayer.getSource().clear(); state.aoiFeature = null;
-            updateAoiStatusUI('');
-            updatePanelLockState(false);
-            return;
+            updateAoiStatusUI(''); return;
         }
         updateAoiStatusUI(`✓ ${fmtArea(areaSqKm)} (extent)`);
-        toast(`Using current extent as AOI: ${fmtArea(areaSqKm)} — Steps 2, 3 & 4 are now unlocked.`, 'success');
-        updatePanelLockState(true);
+        toast(`Using current extent as AOI: ${fmtArea(areaSqKm)}`, 'success');
     }
 
     function clearAOI() {
@@ -375,70 +342,11 @@
         if (state.aoiLayer) state.aoiLayer.getSource().clear();
         state.aoiFeature = null; state.aoiAreaSqKm = 0;
         updateAoiStatusUI('');
-        // Remove geometry clip from any live WMS layer and re-lock the panel
-        if (state.wmsLayer) { state.wmsLayer.getSource().updateParams(buildWmsParams()); }
-        updatePanelLockState(false);
     }
 
     function updateAoiStatusUI(text) {
         const el = document.getElementById('sentinelAoiStatus');
         if (el) el.textContent = text;
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // PANEL LOCK / UNLOCK — gates Steps 2, 3, 4 behind AOI definition
-    // ─────────────────────────────────────────────────────────────────────────
-    /**
-     * @param {boolean} aoiReady   — true when a valid AOI feature exists
-     * @param {boolean} [dataReady] — true when analytics have been fetched
-     */
-    function updatePanelLockState(aoiReady, dataReady = false) {
-        const banner = document.getElementById('sentinelLockBanner');
-        const step2  = document.getElementById('sentinelStep2');
-        const step3  = document.getElementById('sentinelStep3');
-        const step4  = document.getElementById('sentinelStep4');
-        const step1Num = document.querySelector(
-            '#satellite-analytics-content .step-num-1'
-        );
-
-        // Unlock Step 2 (layer controls) and Step 3 (analytics fetch) when AOI is set
-        if (banner) banner.style.display = aoiReady ? 'none' : 'flex';
-
-        if (step2) {
-            step2.style.opacity       = aoiReady ? '1'    : '0.35';
-            step2.style.pointerEvents = aoiReady ? 'auto' : 'none';
-            // Highlight the step number circle when active
-            const circle = step2.querySelector('div:first-child');
-            if (circle) {
-                circle.style.background = aoiReady ? '#3b82f6' : '#1e293b';
-                circle.style.color      = aoiReady ? '#fff'    : '#64748b';
-                circle.style.border     = aoiReady ? 'none'    : '1px solid #334155';
-            }
-        }
-
-        if (step3) {
-            step3.style.opacity       = aoiReady ? '1'    : '0.35';
-            step3.style.pointerEvents = aoiReady ? 'auto' : 'none';
-            const circle = step3.querySelector('div:first-child');
-            if (circle) {
-                circle.style.background = aoiReady ? '#22c55e' : '#1e293b';
-                circle.style.color      = aoiReady ? '#0f172a' : '#64748b';
-                circle.style.border     = aoiReady ? 'none'    : '1px solid #334155';
-            }
-        }
-
-        // Step 4 (capture & PDF) only unlocks after analytics data exists
-        if (step4) {
-            const s4Active = dataReady || (aoiReady && !!state.analyticsData);
-            step4.style.opacity       = s4Active ? '1'    : '0.35';
-            step4.style.pointerEvents = s4Active ? 'auto' : 'none';
-            const circle = step4.querySelector('div:first-child');
-            if (circle) {
-                circle.style.background = s4Active ? '#f59e0b' : '#1e293b';
-                circle.style.color      = s4Active ? '#0f172a' : '#64748b';
-                circle.style.border     = s4Active ? 'none'    : '1px solid #334155';
-            }
-        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -485,8 +393,6 @@
             renderChart(result);
             renderStatsTable(result);
             showAnalyticsPanels();
-            // Analytics are ready — unlock Step 4 (Capture & Export)
-            updatePanelLockState(true, true);
             toast('Satellite analytics loaded successfully!', 'success');
 
         } catch (e) {
@@ -1304,13 +1210,7 @@
     // ─────────────────────────────────────────────────────────────────────────
     // INIT
     // ─────────────────────────────────────────────────────────────────────────
-    function init() {
-        wireUI();
-        updateWmsStatusUI();
-        updateSnapshotStrip();
-        // Enforce locked state on page load (AOI not yet drawn)
-        updatePanelLockState(false);
-    }
+    function init() { wireUI(); updateWmsStatusUI(); updateSnapshotStrip(); }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
     else init();

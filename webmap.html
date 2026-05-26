@@ -17205,188 +17205,147 @@
                         </div>
                         <div class="terrain-3d-section-content" id="satellite-analytics-content">
 
-                            <!-- ══ STEP 1: DEFINE AOI (ALWAYS FIRST, ALWAYS ENABLED) ══════ -->
-                            <div style="background:linear-gradient(135deg,#0f172a,#1e293b);border-radius:8px;padding:10px 12px;margin-bottom:12px;border:1px solid #334155;">
-                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                                    <div style="width:22px;height:22px;border-radius:50%;background:#f59e0b;display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;color:#0f172a;flex-shrink:0;">1</div>
-                                    <div style="font-size:0.8rem;font-weight:700;color:#f1f5f9;">Define Area of Interest (AOI)</div>
+                            <!-- WMS STATUS BADGE -->
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:7px 10px;background:#0f172a;border-radius:6px;border:1px solid #1e293b;">
+                                <div>
+                                    <span id="sentinelWmsBadge" style="font-size:0.78rem;font-weight:600;color:#64748b;">○ Off</span>
+                                    <span style="font-size:0.7rem;color:#334155;margin-left:6px;">Sentinel WMS</span>
                                 </div>
-                                <p style="font-size:0.72rem;color:#64748b;margin:0 0 10px 0;line-height:1.5;">
-                                    <i class="fas fa-shield-alt" style="color:#f59e0b;margin-right:4px;"></i>
-                                    Required first — imagery will be <strong style="color:#f59e0b;">clipped to your AOI only</strong> to save processing tokens.
-                                </p>
-                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
-                                    <button id="sentinelDrawAoiBtn" type="button" class="terrain-btn terrain-btn-primary" style="font-size:0.78rem;">
-                                        <i class="fas fa-draw-polygon"></i> Draw Polygon
-                                    </button>
-                                    <button id="sentinelUseExtentBtn" type="button" class="terrain-btn terrain-btn-secondary" style="font-size:0.78rem;">
-                                        <i class="fas fa-expand-arrows-alt"></i> Use DTM Extent
-                                    </button>
+                                <button id="sentinelWmsToggle" class="sentinel-btn sentinel-btn-primary" style="padding:4px 10px;font-size:0.75rem;">Show Layer</button>
+                            </div>
+
+                            <!-- SPECTRAL INDEX SELECTOR -->
+                            <div class="form-group">
+                                <label for="sentinelIndexSel" style="font-size:0.8rem;font-weight:600;color:#94a3b8;"><i class="fas fa-layer-group" style="margin-right:5px;"></i>Spectral Index / Layer</label>
+                                <select id="sentinelIndexSel" class="form-select">
+                                    <option value="TRUE_COLOR">🌍 True Color (RGB)</option>
+                                    <option value="FALSE_COLOR">🔮 False Color (CIR)</option>
+                                    <option value="NDVI" selected>🌿 NDVI — Vegetation Health</option>
+                                    <option value="NDMI">💧 NDMI — Moisture Index</option>
+                                    <option value="NDWI">🌊 NDWI — Water Bodies</option>
+                                    <option value="MOISTURE_STRESS">🌡️ Moisture Stress</option>
+                                    <option value="SWIR">🔴 SWIR — Infrared</option>
+                                </select>
+                            </div>
+
+                            <!-- DATE RANGE -->
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
+                                <div class="form-group" style="margin:0;">
+                                    <label style="font-size:0.75rem;color:#64748b;">From</label>
+                                    <input type="date" id="sentinelDateFrom" class="form-input" style="font-size:0.78rem;padding:5px 7px;">
                                 </div>
-                                <div style="display:flex;align-items:center;justify-content:space-between;">
-                                    <span id="sentinelAoiStatus" style="font-size:0.75rem;color:#22c55e;font-weight:600;"></span>
-                                    <button id="sentinelClearAoiBtn" type="button" class="terrain-btn terrain-btn-danger" style="font-size:0.72rem;padding:4px 9px;">
-                                        <i class="fas fa-times"></i> Clear
-                                    </button>
+                                <div class="form-group" style="margin:0;">
+                                    <label style="font-size:0.75rem;color:#64748b;">To</label>
+                                    <input type="date" id="sentinelDateTo" class="form-input" style="font-size:0.78rem;padding:5px 7px;">
                                 </div>
                             </div>
 
-                            <!-- ══ LOCKED OVERLAY WRAPPER — hidden once AOI is set ═════════ -->
-                            <div id="sentinelLockedOverlay" style="position:relative;">
+                            <!-- CLOUD COVER SLIDER -->
+                            <div class="range-slider-wrapper" style="margin-bottom:8px;">
+                                <label style="font-size:0.78rem;">
+                                    <span><i class="fas fa-cloud" style="color:#94a3b8;"></i> Max Cloud Cover</span>
+                                    <span id="sentinelCloudCoverVal" style="color:#22c55e;font-weight:600;">20%</span>
+                                </label>
+                                <input type="range" id="sentinelCloudCover" class="range-slider" min="0" max="100" value="20" step="5">
+                            </div>
 
-                                <!-- Lock banner (shown until AOI set) -->
-                                <div id="sentinelLockBanner" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#1e293b;border-radius:6px;border:1px dashed #334155;margin-bottom:10px;">
-                                    <i class="fas fa-lock" style="color:#475569;font-size:0.85rem;"></i>
-                                    <span style="font-size:0.75rem;color:#475569;">Set your AOI above to unlock layer controls and analytics.</span>
+                            <!-- OPACITY SLIDER -->
+                            <div class="range-slider-wrapper" style="margin-bottom:10px;">
+                                <label style="font-size:0.78rem;">
+                                    <span><i class="fas fa-adjust" style="color:#94a3b8;"></i> Layer Opacity</span>
+                                    <span id="sentinelOpacityVal" style="color:#22c55e;font-weight:600;">75%</span>
+                                </label>
+                                <input type="range" id="sentinelOpacitySlider" class="range-slider" min="0" max="100" value="75" step="5">
+                            </div>
+
+                            <!-- APPLY LAYER BUTTON -->
+                            <button id="sentinelApplyLayerBtn" type="button" class="terrain-btn terrain-btn-info" style="width:100%;margin-bottom:12px;">
+                                <i class="fas fa-sync-alt"></i> Apply Layer to Map
+                            </button>
+
+                            <!-- DIVIDER -->
+                            <div style="border-top:1px solid #1e293b;margin:10px 0 12px;"></div>
+                            <div style="font-size:0.75rem;font-weight:700;color:#475569;letter-spacing:0.08em;margin-bottom:10px;">AREA OF INTEREST (AOI)</div>
+
+                            <!-- AOI CONTROLS -->
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
+                                <button id="sentinelDrawAoiBtn" type="button" class="terrain-btn terrain-btn-primary" style="font-size:0.78rem;">
+                                    <i class="fas fa-draw-polygon"></i> Draw Polygon
+                                </button>
+                                <button id="sentinelUseExtentBtn" type="button" class="terrain-btn terrain-btn-secondary" style="font-size:0.78rem;">
+                                    <i class="fas fa-expand-arrows-alt"></i> Use DTM Extent
+                                </button>
+                            </div>
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                                <span id="sentinelAoiStatus" style="font-size:0.75rem;color:#22c55e;font-weight:600;"></span>
+                                <button id="sentinelClearAoiBtn" type="button" class="terrain-btn terrain-btn-danger" style="font-size:0.72rem;padding:4px 9px;">
+                                    <i class="fas fa-times"></i> Clear AOI
+                                </button>
+                            </div>
+
+                            <!-- ANALYTICS INTERVAL -->
+                            <div class="form-group" style="margin-bottom:10px;">
+                                <label style="font-size:0.78rem;color:#64748b;"><i class="fas fa-calendar-alt" style="margin-right:4px;"></i>Statistics Interval</label>
+                                <select id="sentinelInterval" class="form-select" style="font-size:0.78rem;">
+                                    <option value="P10D">10-day intervals</option>
+                                    <option value="P16D" selected>16-day intervals (Recommended)</option>
+                                    <option value="P1M">Monthly intervals</option>
+                                </select>
+                            </div>
+
+                            <!-- FETCH BUTTON -->
+                            <button id="sentinelFetchBtn" type="button" class="terrain-btn terrain-btn-success" style="width:100%;font-size:0.88rem;padding:10px;">
+                                <i class="fas fa-satellite"></i> Generate Analytics
+                            </button>
+
+                            <!-- LOADING INDICATOR -->
+                            <div id="sentinelLoadingSpinner" style="display:none;align-items:center;justify-content:center;gap:8px;margin-top:10px;padding:8px;background:#0f172a;border-radius:6px;">
+                                <i class="fas fa-circle-notch fa-spin" style="color:#22c55e;"></i>
+                                <span style="font-size:0.78rem;color:#94a3b8;">Contacting CDSE API...</span>
+                            </div>
+
+                            <!-- DIVIDER -->
+                            <div style="border-top:1px solid #1e293b;margin:14px 0 12px;"></div>
+                            <div style="font-size:0.75rem;font-weight:700;color:#475569;letter-spacing:0.08em;margin-bottom:10px;">ANALYTICS RESULTS</div>
+
+                            <!-- STATS SUMMARY TABLE -->
+                            <div id="sentinelStatsPanel" style="display:none;margin-bottom:12px;">
+                                <div style="font-size:0.75rem;color:#64748b;margin-bottom:6px;">Index Summary Statistics</div>
+                                <div id="sentinelStatsTable"></div>
+                            </div>
+
+                            <!-- CHART PANEL -->
+                            <div id="sentinelChartPanel" style="display:none;margin-bottom:12px;">
+                                <div style="font-size:0.75rem;color:#64748b;margin-bottom:6px;">Time-Series Chart</div>
+                                <div style="background:#0f172a;border-radius:6px;padding:8px;height:200px;position:relative;">
+                                    <canvas id="sentinelAnalyticsChart"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- SNAPSHOT & REPORT PANEL -->
+                            <div id="sentinelReportPanel" style="display:block;">
+                                <div style="border-top:1px solid #1e293b;margin:10px 0 12px;"></div>
+                                <div style="font-size:0.75rem;font-weight:700;color:#475569;letter-spacing:0.08em;margin-bottom:8px;">MAP SNAPSHOTS FOR REPORT</div>
+                                <p style="font-size:0.72rem;color:#475569;margin-bottom:8px;">Switch spectral index on map, click Capture to add to report.</p>
+
+                                <!-- Snapshot strip -->
+                                <div id="sentinelSnapshotStrip" style="min-height:60px;background:#0f172a;border-radius:6px;padding:6px;margin-bottom:8px;overflow-x:auto;white-space:nowrap;">
+                                    <p style="font-size:0.75rem;color:#475569;text-align:center;padding:8px 0;">No snapshots yet.</p>
                                 </div>
 
-                                <!-- ══ STEP 2: CONFIGURE & PREVIEW LAYER ══════════════════ -->
-                                <div id="sentinelStep2" style="opacity:0.35;pointer-events:none;transition:opacity 0.3s;">
-                                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                                        <div style="width:22px;height:22px;border-radius:50%;background:#1e293b;border:1px solid #334155;display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;color:#64748b;flex-shrink:0;">2</div>
-                                        <div style="font-size:0.78rem;font-weight:700;color:#94a3b8;">Configure &amp; Preview Satellite Layer</div>
-                                    </div>
-
-                                    <!-- WMS STATUS BADGE -->
-                                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:7px 10px;background:#0f172a;border-radius:6px;border:1px solid #1e293b;">
-                                        <div>
-                                            <span id="sentinelWmsBadge" style="font-size:0.78rem;font-weight:600;color:#64748b;">○ Off</span>
-                                            <span style="font-size:0.7rem;color:#334155;margin-left:6px;">Sentinel WMS</span>
-                                        </div>
-                                        <button id="sentinelWmsToggle" class="sentinel-btn sentinel-btn-primary" style="padding:4px 10px;font-size:0.75rem;">Show Layer</button>
-                                    </div>
-
-                                    <!-- SPECTRAL INDEX SELECTOR -->
-                                    <div class="form-group">
-                                        <label for="sentinelIndexSel" style="font-size:0.8rem;font-weight:600;color:#94a3b8;"><i class="fas fa-layer-group" style="margin-right:5px;"></i>Spectral Index / Layer</label>
-                                        <select id="sentinelIndexSel" class="form-select">
-                                            <option value="TRUE_COLOR">🌍 True Color (RGB)</option>
-                                            <option value="FALSE_COLOR">🔮 False Color (CIR)</option>
-                                            <option value="NDVI" selected>🌿 NDVI — Vegetation Health</option>
-                                            <option value="NDMI">💧 NDMI — Moisture Index</option>
-                                            <option value="NDWI">🌊 NDWI — Water Bodies</option>
-                                            <option value="MOISTURE_STRESS">🌡️ Moisture Stress</option>
-                                            <option value="SWIR">🔴 SWIR — Infrared</option>
-                                        </select>
-                                    </div>
-
-                                    <!-- DATE RANGE -->
-                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
-                                        <div class="form-group" style="margin:0;">
-                                            <label style="font-size:0.75rem;color:#64748b;">From</label>
-                                            <input type="date" id="sentinelDateFrom" class="form-input" style="font-size:0.78rem;padding:5px 7px;">
-                                        </div>
-                                        <div class="form-group" style="margin:0;">
-                                            <label style="font-size:0.75rem;color:#64748b;">To</label>
-                                            <input type="date" id="sentinelDateTo" class="form-input" style="font-size:0.78rem;padding:5px 7px;">
-                                        </div>
-                                    </div>
-
-                                    <!-- CLOUD COVER SLIDER -->
-                                    <div class="range-slider-wrapper" style="margin-bottom:8px;">
-                                        <label style="font-size:0.78rem;">
-                                            <span><i class="fas fa-cloud" style="color:#94a3b8;"></i> Max Cloud Cover</span>
-                                            <span id="sentinelCloudCoverVal" style="color:#22c55e;font-weight:600;">20%</span>
-                                        </label>
-                                        <input type="range" id="sentinelCloudCover" class="range-slider" min="0" max="100" value="20" step="5">
-                                    </div>
-
-                                    <!-- OPACITY SLIDER -->
-                                    <div class="range-slider-wrapper" style="margin-bottom:10px;">
-                                        <label style="font-size:0.78rem;">
-                                            <span><i class="fas fa-adjust" style="color:#94a3b8;"></i> Layer Opacity</span>
-                                            <span id="sentinelOpacityVal" style="color:#22c55e;font-weight:600;">75%</span>
-                                        </label>
-                                        <input type="range" id="sentinelOpacitySlider" class="range-slider" min="0" max="100" value="75" step="5">
-                                    </div>
-
-                                    <!-- APPLY LAYER BUTTON -->
-                                    <button id="sentinelApplyLayerBtn" type="button" class="terrain-btn terrain-btn-info" style="width:100%;margin-bottom:4px;">
-                                        <i class="fas fa-sync-alt"></i> Apply / Show Layer
-                                    </button>
-                                    <p style="font-size:0.68rem;color:#475569;text-align:center;margin:0 0 10px;">Imagery is clipped to your AOI polygon only.</p>
-                                </div>
-
-                                <!-- ══ STEP 3: GENERATE ANALYTICS ════════════════════════ -->
-                                <div id="sentinelStep3" style="opacity:0.35;pointer-events:none;transition:opacity 0.3s;">
-                                    <div style="border-top:1px solid #1e293b;margin:4px 0 10px;"></div>
-                                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                                        <div style="width:22px;height:22px;border-radius:50%;background:#1e293b;border:1px solid #334155;display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;color:#64748b;flex-shrink:0;">3</div>
-                                        <div style="font-size:0.78rem;font-weight:700;color:#94a3b8;">Generate Time-Series Analytics</div>
-                                    </div>
-
-                                    <!-- ANALYTICS INTERVAL -->
-                                    <div class="form-group" style="margin-bottom:10px;">
-                                        <label style="font-size:0.78rem;color:#64748b;"><i class="fas fa-calendar-alt" style="margin-right:4px;"></i>Statistics Interval</label>
-                                        <select id="sentinelInterval" class="form-select" style="font-size:0.78rem;">
-                                            <option value="P10D">10-day intervals</option>
-                                            <option value="P16D" selected>16-day intervals (Recommended)</option>
-                                            <option value="P1M">Monthly intervals</option>
-                                        </select>
-                                    </div>
-
-                                    <!-- FETCH BUTTON -->
-                                    <button id="sentinelFetchBtn" type="button" class="terrain-btn terrain-btn-success" style="width:100%;font-size:0.88rem;padding:10px;">
-                                        <i class="fas fa-satellite"></i> Generate Analytics
-                                    </button>
-
-                                    <!-- LOADING INDICATOR -->
-                                    <div id="sentinelLoadingSpinner" style="display:none;align-items:center;justify-content:center;gap:8px;margin-top:10px;padding:8px;background:#0f172a;border-radius:6px;">
-                                        <i class="fas fa-circle-notch fa-spin" style="color:#22c55e;"></i>
-                                        <span style="font-size:0.78rem;color:#94a3b8;">Contacting CDSE API...</span>
-                                    </div>
-                                </div>
-
-                                <!-- ══ ANALYTICS RESULTS (shown after successful fetch) ══ -->
-                                <div style="border-top:1px solid #1e293b;margin:14px 0 12px;"></div>
-                                <div style="font-size:0.75rem;font-weight:700;color:#475569;letter-spacing:0.08em;margin-bottom:10px;">ANALYTICS RESULTS</div>
-
-                                <!-- STATS SUMMARY TABLE -->
-                                <div id="sentinelStatsPanel" style="display:none;margin-bottom:12px;">
-                                    <div style="font-size:0.75rem;color:#64748b;margin-bottom:6px;">Index Summary Statistics</div>
-                                    <div id="sentinelStatsTable"></div>
-                                </div>
-
-                                <!-- CHART PANEL -->
-                                <div id="sentinelChartPanel" style="display:none;margin-bottom:12px;">
-                                    <div style="font-size:0.75rem;color:#64748b;margin-bottom:6px;">Time-Series Chart</div>
-                                    <div style="background:#0f172a;border-radius:6px;padding:8px;height:200px;position:relative;">
-                                        <canvas id="sentinelAnalyticsChart"></canvas>
-                                    </div>
-                                </div>
-
-                                <!-- ══ STEP 4: CAPTURE & EXPORT ═════════════════════════ -->
-                                <div id="sentinelStep4" style="opacity:0.35;pointer-events:none;transition:opacity 0.3s;">
-                                    <div id="sentinelReportPanel" style="display:block;">
-                                        <div style="border-top:1px solid #1e293b;margin:10px 0 12px;"></div>
-                                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                                            <div style="width:22px;height:22px;border-radius:50%;background:#1e293b;border:1px solid #334155;display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;color:#64748b;flex-shrink:0;">4</div>
-                                            <div style="font-size:0.78rem;font-weight:700;color:#94a3b8;">Capture Snapshots &amp; Export PDF</div>
-                                        </div>
-                                        <p style="font-size:0.72rem;color:#475569;margin-bottom:8px;">Switch spectral index on map, click Capture to add to report.</p>
-
-                                        <!-- Snapshot strip -->
-                                        <div id="sentinelSnapshotStrip" style="min-height:60px;background:#0f172a;border-radius:6px;padding:6px;margin-bottom:8px;overflow-x:auto;white-space:nowrap;">
-                                            <p style="font-size:0.75rem;color:#475569;text-align:center;padding:8px 0;">No snapshots yet.</p>
-                                        </div>
-
-                                        <button id="sentinelCaptureBtn" type="button" class="terrain-btn terrain-btn-info" style="width:100%;margin-bottom:6px;font-size:0.82rem;">
-                                            <i class="fas fa-camera"></i> Capture Map Snapshot
-                                        </button>
-                                        <button id="sentinelPdfBtn" type="button" class="terrain-btn terrain-btn-success" style="width:100%;font-size:0.85rem;padding:10px;background:linear-gradient(135deg,#0f6b35,#166534);">
-                                            <i class="fas fa-file-pdf"></i> Download Surveyor Report (PDF)
-                                        </button>
-                                    </div>
-                                </div>
-
-                            </div><!-- /sentinelLockedOverlay -->
+                                <button id="sentinelCaptureBtn" type="button" class="terrain-btn terrain-btn-info" style="width:100%;margin-bottom:6px;font-size:0.82rem;">
+                                    <i class="fas fa-camera"></i> Capture Map Snapshot
+                                </button>
+                                <button id="sentinelPdfBtn" type="button" class="terrain-btn terrain-btn-success" style="width:100%;font-size:0.85rem;padding:10px;background:linear-gradient(135deg,#0f6b35,#166534);">
+                                    <i class="fas fa-file-pdf"></i> Download Surveyor Report (PDF)
+                                </button>
+                            </div>
 
                             <!-- Limit notice -->
                             <div style="margin-top:12px;padding:8px 10px;background:#0f172a;border-radius:6px;border-left:3px solid #f59e0b;">
                                 <p style="font-size:0.7rem;color:#64748b;margin:0;">
                                     <i class="fas fa-info-circle" style="color:#f59e0b;"></i>
                                     Max AOI: <strong style="color:#f59e0b;">50 km²</strong>. Max range: <strong style="color:#f59e0b;">2 years</strong>. Min interval: <strong style="color:#f59e0b;">10 days</strong>.
-                                    Imagery is <strong style="color:#f59e0b;">clipped to AOI</strong> — no tokens wasted on the rest of the globe.
                                 </p>
                             </div>
 
@@ -66417,7 +66376,7 @@ if (document.readyState !== 'loading') {
 </body>
 
 <!-- GSPNet Sentinel Analytics Module -->
-<script src="js/sentinel-analytics.js?v=1.3"></script>
+<script src="js/sentinel-analytics.js?v=1.2"></script>
 
 <style>
 /* ── Sentinel Analytics Button Styles ────────────────────────────────────── */
