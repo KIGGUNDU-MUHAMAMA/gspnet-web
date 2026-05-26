@@ -53,6 +53,12 @@ GSP.NET includes a powerful native **CAD Inspector** for working directly with C
 ### GSP Rover (Field Survey Mode)
 GSP Rover transforms your mobile device or PC into a professional GNSS surveying tool by connecting directly to external high-precision GNSS receivers (e.g., Emlid, Trimble, u-blox) or utilizing your device's internal GPS.
 
+> **⚠️ Important:** GSP Rover is the **field data capture mode** used in reconnaissance and boundary surveys. Do NOT confuse it with the **Extractor function** — the Extractor is a separate desktop tool for exporting map data (GeoTIFF, DXF, KML). Rover is for live GPS-based field work.
+
+**Video Tutorials:**
+- 📹 [Using GSP Rover to find and navigate to survey control points (Reconnaissance)](https://youtube.com/shorts/gjoApWIuZmI?si=hn-63uX4GIngpUG_)
+- 📹 [Using GSP Rover to find, navigate, capture coordinates, measure area, take photos, and export (CSV/KML/DXF) in the field](https://youtube.com/shorts/lAECHD4q_jE?si=gSsR2KM3_ZCGeH5W)
+
 **Importance:**
 Standard web maps rely on low-accuracy phone GPS (±5 meters), which is insufficient for cadastral boundaries. GSP Rover bridges the gap by allowing you to connect survey-grade RTK rovers via Bluetooth or USB to the web browser, bringing centimeter-level accuracy directly into GSP.NET.
 
@@ -67,7 +73,13 @@ Standard web maps rely on low-accuracy phone GPS (±5 meters), which is insuffic
    - A browser popup will appear. On PC, select the virtual COM port for your receiver. On mobile (Android Chrome), select your paired Bluetooth device (SPP) or USB OTG adapter.
    - The connection receives NMEA data via Web Serial API.
 4. Once connected, your high-precision coordinates will appear in the panel (Latitude, Longitude, Altitude, Satellites, and Accuracy).
-5. The crosshair on the map will now track your position using the external RTK data, allowing you to walk boundaries or capture high-precision points!
+5. The crosshair on the map will now track your position using the external RTK data, allowing you to walk boundaries or capture high-precision points.
+6. **In the field you can:**
+   - **Navigate to survey control points** — use the bearing/distance navigator to walk to any saved point.
+   - **Capture coordinates** — tap to record your current precise position.
+   - **Measure areas** — draw a polygon by walking the boundary and the area is calculated live.
+   - **Take photos** — attach geotagged photos to captured points for report documentation.
+   - **Export your work** — export all marked points and polygons as **CSV**, **KML**, or **DXF** directly from your phone or tablet in the field.
 
 ### Coordinate Search & Extractor
 - **Video Tutorial:** [LOCATE AND COORD SEARCH BUTTON FUNCTIONALITY. HOW TO USE](https://youtu.be/Qm-I5EgVPKc?si=CSHWqerhAq_m9z3a)
@@ -137,65 +149,69 @@ GSP.NET integrates directly with the **Copernicus Data Space Ecosystem (CDSE)** 
 
 ### Step-by-Step: Using Satellite Analytics (Under 3D Terrain)
 
-**Step 1 — Open the 3D Terrain Panel**
-1. In the main webmap, locate the right-side toolbar and click the **3D Terrain** button (mountain icon).
-2. The 3D Terrain panel opens on the left side of the screen.
-3. Scroll down inside the panel until you reach **Section 12: Satellite Analytics**.
-4. Click the section header to expand it.
+> **How the panel works:** The Satellite Analytics panel uses a **4-step guided flow**. Steps 2, 3, and 4 are **locked and greyed out** until you complete Step 1 (define your AOI). This is intentional — it ensures imagery is only fetched for your specific area, saving Copernicus processing tokens.
 
-**Step 2 — Define Your Area of Interest (AOI)**
+---
 
-You must define an AOI before running analytics. You have two options:
+**Step 1 — Open the Panel & Define Your Area of Interest (AOI)** *(Always unlocked — do this first)*
+1. In the main webmap, click the **3D Terrain** button (mountain icon) in the right-side toolbar.
+2. The 3D Terrain panel opens. Scroll down to **Section 12: Satellite Analytics** and click to expand it.
+3. At the top of the panel you will see **Step 1 — Define Area of Interest (AOI)**. This is always active.
+4. Choose one of two options:
+   - **Draw Polygon** — Click on the map to place boundary vertices; **double-click to finish**. The polygon is your AOI.
+   - **Use DTM Extent** — Automatically uses your existing terrain project boundary (or current map view if no terrain exists).
+5. The AOI area is confirmed in the status bar (e.g., `✓ 33.4 ha`). Maximum allowed AOI is **50 km²**.
+6. Once a valid AOI is set, **Steps 2, 3, and 4 will automatically unlock** (they animate from greyed-out to fully active).
+7. To start over, click **Clear** to remove the AOI — this re-locks Steps 2, 3, and 4.
 
-- **Option A — Draw a Polygon:** Click **"✏ Draw AOI"**. Click on the map to place vertices and **double-click** to finish. The drawn polygon becomes your AOI. A size check confirms it is within the 50 km² limit.
-- **Option B — Use DTM Extent:** Click **"Use DTM Extent"**. The system automatically uses your existing terrain project boundary (or the current map view if no terrain extent exists) as the AOI.
-- To remove the AOI and start over, click **"Clear AOI"**.
+---
 
-The AOI area is confirmed in the status indicator (e.g., `✓ 12.45 km²`).
-
-**Step 3 — Configure the Satellite Layer**
-1. In the **Spectral Index** dropdown, choose which index to display:
+**Step 2 — Configure & Preview the Satellite Layer** *(Unlocks after AOI is set)*
+1. In the **Spectral Index** dropdown, choose which index to display on the map:
    - `TRUE_COLOR` — Natural colour satellite view
-   - `FALSE_COLOR` — Colour Infrared (CIR) for vegetation assessment
+   - `FALSE_COLOR` — Colour Infrared (CIR) for vegetation
    - `NDVI` — Vegetation health map
    - `NDMI` — Moisture stress map
-   - `NDWI` — Water/flooding extent map
-   - `SWIR` — Short-Wave Infrared for soil and geology
-2. Set the **Date Range** (From / To) for the satellite imagery. Dates should not exceed a 2-year window.
-3. Adjust the **Cloud Cover** slider (default 20%). Lower values return clearer scenes; higher values increase data availability in cloudy regions.
-4. Adjust the **Opacity** slider to blend the satellite layer with the basemap.
-5. Click **"Show Layer"** to load the satellite imagery onto the map. The layer will only display at **Zoom Level 12 or higher** to conserve API tokens.
-6. To update the layer after changing dates or index, click **"Apply"**.
+   - `NDWI` — Water/flooding extent
+   - `SWIR` — Infrared for soil and geology
+2. Set the **Date Range** (From / To). Do not exceed a 2-year window.
+3. Adjust the **Cloud Cover** slider (default 20%). Lower = clearer scenes; higher = more data availability in cloudy areas.
+4. Adjust the **Opacity** slider to blend with the basemap.
+5. Click **"Apply / Show Layer"** to load the imagery onto the map. The layer only appears at **Zoom Level 12 or higher** to conserve tokens. The imagery is automatically **clipped to your AOI polygon** — no tokens are spent on the rest of the map.
+6. To update the layer after changing settings, click **"Apply / Show Layer"** again.
 
-**Step 4 — Generate Time-Series Analytics**
-1. Ensure your AOI is set (Step 2) and your date range is configured (Step 3).
-2. Select a **Time Interval** from the dropdown:
+---
+
+**Step 3 — Generate Time-Series Analytics** *(Unlocks after AOI is set)*
+1. Select a **Statistics Interval** from the dropdown:
    - `10-day (P10D)` — Most detailed, best for short date ranges
-   - `16-day (P16D)` — Default, good balance of detail and token use
+   - `16-day (P16D)` — Recommended default
    - `1-month (P1M)` — Best for long date ranges (> 1 year)
-3. Click **"Generate Analytics"**. A loading spinner will appear — this calls the CDSE Statistics API via a secure Supabase Edge Function. Typical response time is 15–45 seconds depending on AOI size and date range.
-4. Once complete, the following appear automatically:
-   - **Time-Series Chart** — Interactive Chart.js line chart showing NDVI, NDMI, NDRE, NDWI over time. Click legend entries to toggle individual indices on/off.
-   - **Statistics Summary Table** — Shows Min, Max, Mean, and number of Scenes for each index.
+2. Click **"Generate Analytics"**. A spinner shows while the system contacts the CDSE API via Supabase Edge Function. Typical wait: **15–45 seconds** depending on AOI size and date range.
+3. Once complete, the following appear automatically:
+   - **Time-Series Chart** — Interactive line chart (NDVI, NDMI, NDRE, NDWI). Click legend entries to toggle indices.
+   - **Statistics Table** — Min, Max, Mean, Std Dev, Trend, Peak, Trough, Δ Change for each index.
+4. **Step 4 (Capture & Export) now unlocks automatically** after a successful fetch.
 
-**Step 5 — Capture Map Snapshots for Report**
-1. With the satellite layer showing on the map, click **"📷 Capture Map Snapshot"**.
-2. The system captures the current map view as an image and adds it to the **Snapshot Strip** below the button.
-3. Switch to a different spectral index (e.g., from NDVI to NDMI), apply the layer, and capture again.
-4. Repeat for each layer you want in the report. You can remove any snapshot by clicking the **×** on its thumbnail.
+---
 
-**Step 6 — Generate the PDF Surveyor Report**
-1. Click **"⬇ Download Surveyor Report (PDF)"**.
-2. A professional multi-page A4 PDF is generated containing:
-   - **Page 1: Cover Page** — Project metadata, date range, AOI area, resolution, and index descriptions. Black & white for clean printing.
-   - **Page 2: Statistics & Chart** — Full statistics table, per-index interpretation notes (e.g., "High vegetation stress detected"), and the time-series chart.
-   - **Subsequent pages: Map Snapshots** — One page per captured snapshot, centred and aspect-ratio preserved with captions.
-3. The PDF is automatically named `GSPNET_Satellite_Report_<from>_to_<to>.pdf` and downloaded to your browser's download folder.
+**Step 4 — Capture Snapshots & Export PDF** *(Unlocks after Generate Analytics succeeds)*
+1. With the satellite layer active on the map, click **"📷 Capture Map Snapshot"** to add the current map view to the Snapshot Strip.
+2. Switch to a different spectral index, apply it, and capture again. Repeat for each layer you want in the report.
+3. Remove unwanted snapshots by clicking **×** on their thumbnail.
+4. Click **"⬇ Download Surveyor Report (PDF)"** to generate the full report:
+   - **Page 1: Cover Page** — Project metadata, date range, AOI area, index descriptions.
+   - **Page 2: Statistics & Chart** — Full stats table with interpretation notes and time-series chart.
+   - **Page 3: Comparative Bar Chart** — Side-by-side Min/Max/Mean comparison for all four indices.
+   - **Subsequent pages: Map Snapshots** — One page per captured snapshot with captions.
+5. The PDF downloads automatically as `GSPNET_Satellite_Report_<from>_to_<to>.pdf`.
 
-**Step 7 — View on 3D Terrain (Optional)**
-1. After setting up the satellite layer, open the **Cesium 3D Viewer** by clicking the **3D** button.
-2. The active Sentinel imagery is automatically draped over the 3D terrain mesh, giving a stunning 3D perspective on vegetation health, moisture patterns, or flooding.
-3. You can rotate, tilt, and zoom the 3D globe to inspect the index from any angle.
+---
+
+**Optional — View on 3D Terrain**
+1. After applying the satellite layer, click the **3D** button to open the Cesium 3D Viewer.
+2. The active Sentinel imagery is automatically draped over the 3D terrain mesh.
+3. Rotate, tilt, and zoom to inspect vegetation health, moisture, or flooding from any angle.
 
 ---
 
@@ -381,3 +397,5 @@ For visual guidance, always provide users with the following relevant video link
 - **Exporting Satellite Images (GeoTIFF/PNG/JPG):** [EXTRACTOR BUTTON FOR GEOTIFF, PNG AND JPG SATELLITE IMAGES EXPORT](https://youtu.be/8luK0ke1bFQ?si=MbbaGnL5Ad4qLHQV)
 - **Exporting CAD/GIS Data (DXF/GeoJSON/KML):** [EXTRACTOR FOR DXF, GEOJSON AND KML IN SELECTED COORDINATE SYSTEM](https://youtu.be/wuXveXzZUzs?si=1xXrHO2eesIXalJ0)
 - **Satellite Analytics (NDVI/NDMI/NDWI):** No video tutorial yet — refer the user to the step-by-step guide in **Section 5** of this knowledge base.
+- **GSP Rover — Navigating to Survey Control Points (Reconnaissance):** [Using GSP Rover to find and navigate to survey control points](https://youtube.com/shorts/gjoApWIuZmI?si=hn-63uX4GIngpUG_)
+- **GSP Rover — Full Field Workflow (Capture, Measure, Photo, Export):** [Using GSP Rover to navigate, capture coordinates, measure area, take photos and export CSV/KML/DXF in the field](https://youtube.com/shorts/lAECHD4q_jE?si=gSsR2KM3_ZCGeH5W)
