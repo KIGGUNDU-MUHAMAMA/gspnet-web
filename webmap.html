@@ -64583,8 +64583,21 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
 <div class="rv-modal-backdrop" id="rvLineStakeModal">
   <div class="rv-modal" style="max-width:380px;">
     <h3><i class="fas fa-ruler" style="color:var(--rv-amber)"></i> Line Staking</h3>
-    <div style="font-size:11px;color:var(--rv-txt2);margin-bottom:10px;">CRS: <b id="rvLsCrsLabel">—</b> &nbsp; Enter start and end coordinates:</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+    <div style="font-size:11px;color:var(--rv-txt2);margin-bottom:10px;">CRS: <b id="rvLsCrsLabel">—</b></div>
+    <div class="rv-form-row">
+      <label>Mode</label>
+      <select id="rvLsModeSel" class="rv-select" onchange="rvLsToggleMode()">
+        <option value="corners">Option 1: From Extracted Corners</option>
+        <option value="manual">Option 2: Manual Coordinates</option>
+      </select>
+    </div>
+    <!-- Mode: Corners -->
+    <div id="rvLsModeCorners" style="display:block;">
+      <div class="rv-form-row"><label>Start Point</label><select id="rvLsStartCorner" class="rv-select"></select></div>
+      <div class="rv-form-row"><label>End Point</label><select id="rvLsEndCorner" class="rv-select"></select></div>
+    </div>
+    <!-- Mode: Manual -->
+    <div id="rvLsModeManual" style="display:none;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
       <div><label style="font-size:10px;color:var(--rv-txt2);">START Easting</label><input id="rvLsStartE" class="rv-input" type="number" step="0.001" placeholder="Easting"></div>
       <div><label style="font-size:10px;color:var(--rv-txt2);">START Northing</label><input id="rvLsStartN" class="rv-input" type="number" step="0.001" placeholder="Northing"></div>
       <div><label style="font-size:10px;color:var(--rv-txt2);">END Easting</label><input id="rvLsEndE" class="rv-input" type="number" step="0.001" placeholder="Easting"></div>
@@ -64665,7 +64678,6 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
 <!-- GSP ROVER JAVASCRIPT                                         -->
 <!-- ============================================================ -->
 <script>
-(function() {
 'use strict';
 
 /* ================================================================
@@ -65840,30 +65852,25 @@ function rvRecordTick(lon, lat) {
    AREA CALCULATOR
 ================================================================ */
 function rvShowAreaModal() {
-  let pts;
-  let src;
-  if (RV.walkCoords.length >= 3) {
-    pts = RV.walkCoords;
-    src = 'walked boundary';
-  } else if (RV.corners.length >= 3) {
-    pts = RV.corners.map(c => [c.lon, c.lat]);
-    src = 'selected parcel corners';
-  } else if (RV.points.length >= 3) {
-    pts = RV.points.map(p => [p.lon, p.lat]);
-    src = 'marked points';
-  } else {
-    rvToast('Need ≥3 points (walk, corners, or marked)', 3000);
+  const sel = document.getElementById('rvAreaSrcSel');
+  sel.innerHTML = '';
+  
+  if (RV.points && RV.points.length >= 3) {
+    sel.innerHTML += '<option value="marked">Marked Points</option>';
+  }
+  if (RV.corners && RV.corners.length >= 3) {
+    sel.innerHTML += '<option value="extracted">Extracted Corners</option>';
+  }
+  
+  if (sel.options.length === 0) {
+    rvToast('Need ≥3 points (corners or marked points)', 3000);
     return;
   }
-  document.getElementById('rvAreaPtSource').textContent = src;
+  
+  sel.selectedIndex = 0;
+  rvAreaPopulatePicker(sel.value);
+  rvCalcAreaFromSel();
   document.getElementById('rvAreaModal').classList.add('rv-modal-open');
-
-  const area = rvPolyArea(pts);
-  const acres = area / 4046.856;
-  const ha    = area / 10000;
-  document.getElementById('rvAreaResult').textContent = area.toFixed(2) + ' m²';
-  document.getElementById('rvAreaResultSub').textContent =
-    `${ha.toFixed(4)} ha  |  ${acres.toFixed(4)} acres  |  ${(area/0.09290304).toFixed(2)} ft²`;
 }
 
 /* ================================================================
@@ -66502,11 +66509,49 @@ function rvStakeNow() {
 }
 
 // --- 6. Line Staking ---
+function rvLsToggleMode() {
+  const mode = document.getElementById('rvLsModeSel').value;
+  document.getElementById('rvLsModeCorners').style.display = mode === 'corners' ? 'block' : 'none';
+  document.getElementById('rvLsModeManual').style.display = mode === 'manual' ? 'grid' : 'none';
+}
+
+function rvPopulateLineStakeCorners() {
+  const sSel = document.getElementById('rvLsStartCorner');
+  const eSel = document.getElementById('rvLsEndCorner');
+  sSel.innerHTML = ''; eSel.innerHTML = '';
+  if (!RV.corners || RV.corners.length < 2) return;
+  RV.corners.forEach((c, i) => {
+    let cv;
+    try { cv = proj4('EPSG:4326', 'EPSG:'+RV.crs, [c.lon, c.lat]); } catch(e) {}
+    const opt = `<option value="${i}">P${i+1} ${cv ? `(${cv[0].toFixed(1)}, ${cv[1].toFixed(1)})` : ''}</option>`;
+    sSel.innerHTML += opt;
+    eSel.innerHTML += opt;
+  });
+  if (RV.corners.length > 1) {
+    eSel.selectedIndex = 1;
+  }
+}
+
 function rvComputeLineStake() {
-  const se = parseFloat(document.getElementById('rvLsStartE').value);
-  const sn = parseFloat(document.getElementById('rvLsStartN').value);
-  const ee = parseFloat(document.getElementById('rvLsEndE').value);
-  const en = parseFloat(document.getElementById('rvLsEndN').value);
+  let se, sn, ee, en;
+  const mode = document.getElementById('rvLsModeSel').value;
+  if (mode === 'corners') {
+    const sIdx = document.getElementById('rvLsStartCorner').value;
+    const eIdx = document.getElementById('rvLsEndCorner').value;
+    if (!sIdx || !eIdx || sIdx === eIdx) return alert("Select two different corner points.");
+    const c1 = RV.corners[sIdx], c2 = RV.corners[eIdx];
+    try {
+      const p1 = proj4('EPSG:4326', 'EPSG:'+RV.crs, [c1.lon, c1.lat]);
+      const p2 = proj4('EPSG:4326', 'EPSG:'+RV.crs, [c2.lon, c2.lat]);
+      se = p1[0]; sn = p1[1]; ee = p2[0]; en = p2[1];
+    } catch(e) { return alert("Coordinate projection error"); }
+  } else {
+    se = parseFloat(document.getElementById('rvLsStartE').value);
+    sn = document.getElementById('rvLsStartN').value ? parseFloat(document.getElementById('rvLsStartN').value) : NaN;
+    ee = parseFloat(document.getElementById('rvLsEndE').value);
+    en = document.getElementById('rvLsEndN').value ? parseFloat(document.getElementById('rvLsEndN').value) : NaN;
+  }
+  
   const int = parseFloat(document.getElementById('rvLsInterval').value);
   if (isNaN(se)||isNaN(sn)||isNaN(ee)||isNaN(en)||isNaN(int)||int<=0) return alert("Invalid inputs");
   
@@ -66769,6 +66814,7 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Line Stakeout button
   document.getElementById('rvLineBtn').addEventListener('click', function() {
+    rvPopulateLineStakeCorners();
     document.getElementById('rvLineStakeModal').classList.add('rv-modal-open');
   });
   
@@ -67077,7 +67123,6 @@ if (document.readyState !== 'loading') {
       rvUpdateRotation(event.webkitCompassHeading);
     }
   }, true);
-})();
 
 </script>
 
