@@ -64413,7 +64413,7 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
 </div>
 
 <!-- === Controls Modal === -->
-<div class="rv-modal-backdrop" id="rvControlModal">
+<div class="rv-modal-backdrop" id="rvControlModal" onclick="if(event.target===this) this.classList.remove('rv-modal-open')">
   <div class="rv-modal">
     <h3><i class="fas fa-crosshairs" style="color:var(--rv-amber)"></i> Nearby Controls</h3>
     <div style="font-size:11px;color:var(--rv-txt2);margin-bottom:8px;">Control points within 2km</div>
@@ -64427,7 +64427,7 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
 </div>
 
 <!-- === CRS Modal === -->
-<div class="rv-modal-backdrop" id="rvCrsModal">
+<div class="rv-modal-backdrop" id="rvCrsModal" onclick="if(event.target===this) this.classList.remove('rv-modal-open')">
   <div class="rv-modal">
     <h3>Coordinate System</h3>
     <select id="rvCrsSelect" size="10" style="width:100%;height:auto;">
@@ -65246,85 +65246,14 @@ function rvOnGNSSPosition() {
   rvCheckProximity(lat, lon);
 }
 
-/**
- * Connect to an external GNSS receiver via Web Serial API.
- */
+
 async function rvConnectGNSS() {
-  if (!('serial' in navigator)) {
-    rvToast('⚠ Web Serial not supported on this browser/device', 5000);
-    document.getElementById('rvSrcSel').value = 'phone';
-    RV.gnssMode = 'phone';
-    return false;
-  }
-  try {
-    // Allow standard Bluetooth SPP (Serial Port Profile) devices to show up on mobile Chrome
-    const port = await navigator.serial.requestPort({
-      allowedBluetoothServiceClassIds: [
-        '00001101-0000-1000-8000-00805f9b34fb' // SPP standard UUID
-      ]
-    });
-    // Try common GNSS baud rates: 115200 (u-blox, Emlid), 9600 (generic), 38400 (Trimble)
-    await port.open({ baudRate: 115200 });
-    RV.serialPort = port;
-    RV.serialReading = true;
-    RV.gnssMode = 'external';
-    rvToast('✓ External GNSS connected (115200 baud)', 3000);
-
-    // Stop phone GPS when GNSS is active
-    rvStopGPS();
-
-    // Start reading
-    rvSerialReadLoop(port);
-    return true;
-  } catch (err) {
-    console.warn('[GNSS] Connection failed:', err);
-    if (err.name !== 'NotFoundError') { // user cancelled port picker
-      rvToast('✕ GNSS connection failed: ' + err.message, 4000);
-    }
-    document.getElementById('rvSrcSel').value = 'phone';
-    RV.gnssMode = 'phone';
-    return false;
-  }
+  document.getElementById('rvGnssConnectModal').classList.add('rv-modal-open');
+  return new Promise(resolve => {
+    window._rvGnssResolve = resolve;
+  });
 }
 
-/**
- * Continuous read loop for serial GNSS data.
- */
-async function rvSerialReadLoop(port) {
-  const decoder = new TextDecoderStream();
-  const readableStreamClosed = port.readable.pipeTo(decoder.writable);
-  RV.serialReader = decoder.readable.getReader();
-
-  try {
-    while (RV.serialReading) {
-      const { value, done } = await RV.serialReader.read();
-      if (done) break;
-      if (!value) continue;
-
-      // Accumulate into buffer, process complete sentences
-      RV.nmeaBuffer += value;
-      const lines = RV.nmeaBuffer.split(/\r?\n/);
-      RV.nmeaBuffer = lines.pop(); // keep incomplete last line
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('$')) {
-          rvParseNMEA(trimmed);
-        }
-      }
-    }
-  } catch (err) {
-    if (RV.serialReading) {
-      console.warn('[GNSS] Read error:', err);
-      rvToast('⚠ GNSS read error — switching to phone GPS', 4000);
-      rvDisconnectGNSS();
-      rvStartGPS();
-    }
-  } finally {
-    RV.serialReader.releaseLock();
-    readableStreamClosed.catch(() => {});
-  }
-}
 
 /**
  * Disconnect from external GNSS receiver.
@@ -66827,7 +66756,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Area button
   document.getElementById('rvAreaBtn').addEventListener('click', rvShowAreaModal);
-  document.getElementById('rvAreaCalcBtn').addEventListener('click', rvShowAreaModal);
+  
+  // NTRIP button
+  document.getElementById('rvNtripBtn').addEventListener('click', function() {
+    document.getElementById('rvNtripModal').classList.add('rv-modal-open');
+  });
+  
+  // Input button
+  document.getElementById('rvInputBtn').addEventListener('click', function() {
+    document.getElementById('rvCoordInputModal').classList.add('rv-modal-open');
+  });
+  
+  // Line Stakeout button
+  document.getElementById('rvLineBtn').addEventListener('click', function() {
+    document.getElementById('rvLineStakeModal').classList.add('rv-modal-open');
+  });
+  
+  // Diagnostics button
+  document.getElementById('rvDiagBtn').addEventListener('click', function() {
+    document.getElementById('rvDiagModal').classList.add('rv-modal-open');
+  });
   document.getElementById('rvAreaCloseBtn').addEventListener('click', function() {
     document.getElementById('rvAreaModal').classList.remove('rv-modal-open');
   });
