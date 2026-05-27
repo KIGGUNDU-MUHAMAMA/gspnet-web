@@ -66964,8 +66964,6 @@ if (document.readyState !== 'loading') {
   }
 }
 
-})(); // end IIFE
-
 /* ================================================================
    GSP ROVER — PHOTO WATERMARK (self-contained, outside IIFE so
    camera input fires independently of IIFE scope)
@@ -67123,6 +67121,7 @@ if (document.readyState !== 'loading') {
       rvUpdateRotation(event.webkitCompassHeading);
     }
   }, true);
+})();
 
 </script>
 
