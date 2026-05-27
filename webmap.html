@@ -64496,10 +64496,10 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
     <div id="rvGnssConnMethod" style="font-size:11px;color:var(--rv-amber);margin-bottom:12px;padding:6px 10px;background:rgba(245,158,11,0.1);border-radius:6px;"></div>
     <div style="display:flex;gap:8px;margin-bottom:12px;">
       <button class="rv-btn-primary" style="flex:1;" onclick="rvConnectBluetooth()">
-        <i class="fas fa-bluetooth"></i> Bluetooth
+        <i class="fas fa-bluetooth"></i> Bluetooth (BLE)
       </button>
       <button class="rv-btn-secondary" style="flex:1;" onclick="rvConnectSerial()">
-        <i class="fas fa-usb"></i> USB/Serial
+        <i class="fas fa-usb"></i> Serial / BT (SPP)
       </button>
     </div>
     <div class="rv-form-row">
@@ -66372,6 +66372,22 @@ function rvNtripConnect(host, port, mount, user, pass) {
     RV.ntripSocket = new WebSocket(proxyUrl);
     RV.ntripSocket.binaryType = "arraybuffer";
     
+    RV.ntripSocket.onerror = (err) => {
+      console.error("NTRIP WebSocket Error:", err);
+      document.getElementById('rvNtripStatus').className = 'rv-ntrip-off';
+      document.getElementById('rvNtripStatus').innerHTML = '❌ CONNECTION FAILED';
+      document.getElementById('rvNtripNote').textContent = "WebSocket proxy unreachable or rejected.";
+    };
+    
+    RV.ntripSocket.onclose = () => {
+      document.getElementById('rvNtripStatus').className = 'rv-ntrip-off';
+      if (RV.ntripConnected) {
+        document.getElementById('rvNtripStatus').innerHTML = '⭕ DISCONNECTED';
+      }
+      RV.ntripConnected = false;
+      if (RV.ntripCorrAgeTimer) clearInterval(RV.ntripCorrAgeTimer);
+    };
+    
     RV.ntripSocket.onopen = () => {
       const auth = btoa(user + ':' + pass);
       const req = `GET /${mount} HTTP/1.0\r\nUser-Agent: NTRIP GSPRover/1.0\r\nAccept: */*\r\nConnection: close\r\nAuthorization: Basic ${auth}\r\nNtrip-Target: ${host}:${port}\r\n\r\n`;
@@ -66498,6 +66514,7 @@ function rvClearStakeQueue() {
 function rvStartQueueStake() {
   if (RV.stakeQueue.length === 0) return alert("Queue empty!");
   RV.isQueueStake = true;
+  RV.isLineStake = false;
   RV.corners = RV.stakeQueue.map(p => ({lon: p.lon, lat: p.lat, name: p.name}));
   document.getElementById('rvCoordInputModal').classList.remove('rv-modal-open');
   rvStartStakeout(0);
@@ -66555,6 +66572,9 @@ function rvComputeLineStake() {
   const int = parseFloat(document.getElementById('rvLsInterval').value);
   if (isNaN(se)||isNaN(sn)||isNaN(ee)||isNaN(en)||isNaN(int)||int<=0) return alert("Invalid inputs");
   
+  RV.activeLineStakeStart = { e: se, n: sn };
+  RV.activeLineStakeEnd = { e: ee, n: en };
+  
   const dx = ee - se;
   const dy = en - sn;
   const len = Math.sqrt(dx*dx + dy*dy);
@@ -66586,6 +66606,7 @@ function rvComputeLineStake() {
 
 function rvStartLineStake() {
   RV.isQueueStake = true;
+  RV.isLineStake = true;
   RV.corners = RV.lineStakes.map(p => ({lon: p.lon, lat: p.lat, name: 'CH '+ (typeof p.ch==='number'?p.ch.toFixed(2):p.ch) }));
   document.getElementById('rvLineStakeModal').classList.remove('rv-modal-open');
   rvStartStakeout(0);
@@ -66605,6 +66626,7 @@ function rvUpdateStakeout(userLat, userLon) {
   
   // Calculate N/S/E/W offsets using proj4
   let offsetStr = '';
+  let lineDistStr = '';
   try {
     const pU = proj4('EPSG:4326', 'EPSG:'+RV.crs, [userLon, userLat]);
     const pT = proj4('EPSG:4326', 'EPSG:'+RV.crs, [tgt.lon, tgt.lat]);
@@ -66612,9 +66634,20 @@ function rvUpdateStakeout(userLat, userLon) {
     const dN = pT[1] - pU[1];
     offsetStr += dN >= 0 ? `North: ${dN.toFixed(2)}m ` : `South: ${Math.abs(dN).toFixed(2)}m `;
     offsetStr += dE >= 0 ? `East: ${dE.toFixed(2)}m` : `West: ${Math.abs(dE).toFixed(2)}m`;
+    
+    // Cross track distance for line stakeout
+    if (RV.isLineStake && RV.activeLineStakeStart) {
+      const x0 = pU[0], y0 = pU[1];
+      const x1 = RV.activeLineStakeStart.e, y1 = RV.activeLineStakeStart.n;
+      const x2 = RV.activeLineStakeEnd.e, y2 = RV.activeLineStakeEnd.n;
+      const num = Math.abs((y2 - y1)*x0 - (x2 - x1)*y0 + x2*y1 - y2*x1);
+      const den = Math.sqrt(Math.pow(y2 - y1, 2) + Math.pow(x2 - x1, 2));
+      const crossTrack = num / den;
+      lineDistStr = ` | LineDist: ${crossTrack.toFixed(2)}m`;
+    }
   } catch(e) {}
   
-  document.getElementById('rvSoBearing').textContent = bear.toFixed(1) + '° ' + bearLbl + (offsetStr ? ' | ' + offsetStr : '');
+  document.getElementById('rvSoBearing').textContent = bear.toFixed(1) + '° ' + bearLbl + (offsetStr ? ' | ' + offsetStr : '') + lineDistStr;
 
   const pct = RV.stakeoutStart > 0 ? Math.min(100, (1 - dist/RV.stakeoutStart)*100) : 0;
   document.getElementById('rvSoProgressFill').style.width = pct + '%';
