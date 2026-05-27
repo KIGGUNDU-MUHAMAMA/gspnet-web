@@ -63626,6 +63626,70 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
   --rv-radius:   8px;
 }
 
+/* ======================== GSP ROVER — EXTENDED STYLES ======================== */
+/* NTRIP status badges */
+.rv-ntrip-badge{display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:0.5px;margin-left:6px;vertical-align:middle;}
+.rv-nbadge-off {background:rgba(100,116,139,0.25);color:#94a3b8;}
+.rv-nbadge-conn{background:rgba(245,158,11,0.25); color:#f59e0b;animation:rv-blink 1s infinite;}
+.rv-nbadge-ok  {background:rgba(34,197,94,0.25);  color:#22c55e;}
+.rv-nbadge-err {background:rgba(239,68,68,0.25);  color:#ef4444;}
+.rv-ntrip-off  {color:#64748b;font-size:12px;}
+.rv-ntrip-conn {color:#f59e0b;font-size:12px;}
+.rv-ntrip-ok   {color:#22c55e;font-size:12px;}
+.rv-ntrip-err  {color:#ef4444;font-size:12px;}
+@keyframes rv-blink{0%,100%{opacity:1}50%{opacity:.4}}
+/* GNSS source badge */
+.rv-gnss-badge {display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;}
+.rv-gnss-phone {background:rgba(59,130,246,0.2);color:#93c5fd;}
+.rv-gnss-ext   {background:rgba(34,197,94,0.2); color:#86efac;animation:rv-pulse 2s infinite;}
+@keyframes rv-pulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 8px rgba(34,197,94,0.5);}}
+/* Status bar row 4 (extended GNSS info, hidden by default) */
+.rv-sbar-row4  {display:flex;gap:8px;align-items:center;padding:3px 10px 3px;font-size:11px;border-top:1px solid rgba(255,255,255,0.06);flex-wrap:wrap;}
+/* Compass arrow widget */
+.rv-compass-wrap {display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;}
+.rv-compass-ring {position:relative;width:54px;height:54px;border-radius:50%;border:2px solid rgba(245,158,11,0.4);display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,rgba(15,23,42,0.9) 0%,rgba(30,41,59,0.95) 100%);box-shadow:0 0 12px rgba(245,158,11,0.2);}
+.rv-compass-n   {position:absolute;top:3px;left:50%;transform:translateX(-50%);font-size:8px;font-weight:800;color:#f59e0b;letter-spacing:1px;}
+.rv-compass-arrow{font-size:28px;color:#f59e0b;line-height:1;transition:transform 0.25s cubic-bezier(0.4,0,0.2,1);transform-origin:center;text-shadow:0 0 8px rgba(245,158,11,0.6);}
+/* Stakeout N/S/E/W offset text */
+.rv-so-offsets {font-size:11px;color:#93c5fd;margin-top:3px;letter-spacing:0.5px;font-variant-numeric:tabular-nums;}
+/* NTRIP preset buttons */
+.rv-preset-btn {flex:1;padding:8px 10px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);color:#f59e0b;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;transition:all 0.2s;letter-spacing:0.5px;}
+.rv-preset-btn:hover{background:rgba(245,158,11,0.28);transform:translateY(-1px);}
+.rv-preset-btn:active{transform:translateY(0);}
+/* Generic form rows */
+.rv-form-row{display:flex;flex-direction:column;gap:3px;margin-bottom:8px;}
+.rv-form-row label{font-size:10px;color:var(--rv-txt2);text-transform:uppercase;letter-spacing:0.7px;}
+.rv-input{background:rgba(255,255,255,0.05);border:1px solid var(--rv-border);color:var(--rv-txt1);padding:9px 11px;border-radius:8px;font-size:13px;width:100%;outline:none;transition:border-color 0.2s;}
+.rv-input:focus{border-color:var(--rv-amber);box-shadow:0 0 0 2px rgba(245,158,11,0.15);}
+.rv-select{background:rgba(255,255,255,0.05);border:1px solid var(--rv-border);color:var(--rv-txt1);padding:8px 10px;border-radius:8px;font-size:12px;outline:none;transition:border-color 0.2s;}
+.rv-select:focus{border-color:var(--rv-amber);}
+/* Area picker checkbox rows */
+.rv-area-pick-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid var(--rv-border);font-size:12px;cursor:pointer;transition:background 0.15s;}
+.rv-area-pick-row:hover{background:rgba(245,158,11,0.07);}
+.rv-area-pick-row input[type=checkbox]{accent-color:var(--rv-amber);width:14px;height:14px;}
+/* Manual stakeout queue list */
+.rv-ms-item{display:flex;align-items:center;gap:6px;padding:5px 8px;border-bottom:1px solid var(--rv-border);font-size:11px;transition:background 0.15s;}
+.rv-ms-item.rv-ms-active{background:rgba(245,158,11,0.1);border-left:3px solid var(--rv-amber);}
+.rv-ms-num{background:var(--rv-amber);color:#000;border-radius:4px;padding:1px 6px;font-weight:800;font-size:10px;flex-shrink:0;}
+.rv-ms-name{font-weight:700;flex:0 0 80px;color:var(--rv-txt1);}
+.rv-ms-coord{flex:1;color:var(--rv-txt2);font-size:10px;font-variant-numeric:tabular-nums;}
+.rv-ms-del{background:none;border:none;cursor:pointer;color:#ef4444;padding:3px 6px;border-radius:4px;font-size:13px;}
+.rv-ms-del:hover{background:rgba(239,68,68,0.15);}
+/* Line staking peg list */
+.rv-peg-row{display:flex;gap:8px;padding:5px 8px;border-bottom:1px solid rgba(255,255,255,0.05);font-size:11px;align-items:center;transition:background 0.15s;}
+.rv-peg-row:hover{background:rgba(245,158,11,0.06);}
+.rv-peg-name{font-weight:800;color:var(--rv-amber);min-width:62px;}
+.rv-peg-ch{color:#93c5fd;min-width:75px;font-size:10px;}
+.rv-peg-coord{color:var(--rv-txt2);font-size:10px;flex:1;font-variant-numeric:tabular-nums;}
+/* Arrival flash overlay */
+#rvArrivalFlash{position:absolute;inset:0;background:radial-gradient(ellipse,#22c55e 0%,#15803d 100%);opacity:0;pointer-events:none;z-index:9999;transition:opacity 0.1s ease-in;}
+/* GNSS diag log */
+#rvNmeaLog{background:rgba(0,0,0,0.7);border-radius:6px;padding:8px;font-size:9px;color:#4ade80;max-height:180px;overflow-y:auto;white-space:pre;font-family:'Courier New',monospace;border:1px solid rgba(34,197,94,0.2);}
+/* Connection modal status */
+#rvGnssConnStatus{font-size:12px;color:var(--rv-txt2);min-height:32px;padding:8px 10px;background:rgba(0,0,0,0.3);border-radius:6px;margin-bottom:10px;border-left:3px solid var(--rv-amber);transition:border-color 0.3s;}
+/* Futuristic scan line on stakeout panel */
+#rvStakeoutPanel::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(245,158,11,0.015) 2px,rgba(245,158,11,0.015) 4px);pointer-events:none;z-index:0;}
+
 /* ---- Overlay container ---- */
 #gspRoverOverlay {
   display: none;
@@ -64194,6 +64258,12 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
       <span class="rv-stat">Alt: <b id="rvAlt">—</b>m</span>
       <span class="rv-stat">Sats: <b id="rvSats">—</b></span>
       <span id="rvFixBadge">NO GPS</span>
+      <span id="rvNtripBadge" class="rv-ntrip-badge rv-nbadge-off">NTRIP: OFF</span>
+    </div>
+    <div class="rv-sbar-row4" id="rvGnssRow4" style="display:none;">
+      <span id="rvGnssSrcBadge" class="rv-gnss-badge rv-gnss-phone">📱 Phone GPS</span>
+      <span class="rv-stat">HDOP: <b id="rvHdop">—</b></span>
+      <span class="rv-stat">Corr: <b id="rvNtripCorrAge">—</b></span>
     </div>
   </div>
 
@@ -64250,6 +64320,18 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
         <button class="rv-action-btn" id="rvSettingsBtn" title="Settings">
           <i class="fas fa-cog"></i><span>OPTS</span>
         </button>
+        <button class="rv-action-btn" id="rvNtripBtn" title="NTRIP CORS Corrections">
+          <i class="fas fa-satellite-dish"></i><span>NTRIP</span>
+        </button>
+        <button class="rv-action-btn" id="rvInputBtn" title="Manual Coordinate Stakeout">
+          <i class="fas fa-keyboard"></i><span>INPUT</span>
+        </button>
+        <button class="rv-action-btn" id="rvLineBtn" title="Line Staking">
+          <i class="fas fa-ruler"></i><span>LINE</span>
+        </button>
+        <button class="rv-action-btn" id="rvDiagBtn" title="GNSS Diagnostics">
+          <i class="fas fa-terminal"></i><span>DIAG</span>
+        </button>
       </div>
     </div>
   </div>
@@ -64264,11 +64346,18 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
   <!-- Stakeout panel -->
   <div id="rvStakeoutPanel">
     <div class="rv-so-info">
-      <div>
+      <div style="flex:1;">
         <div class="rv-so-label" id="rvSoLabel">→ Target</div>
         <div class="rv-so-dist" id="rvSoDist">—</div>
+        <div class="rv-so-offsets"><span id="rvSoNS">—</span> &nbsp; <span id="rvSoEW">—</span></div>
       </div>
-      <div class="rv-so-bearing" id="rvSoBearing">—</div>
+      <div class="rv-compass-wrap">
+        <div class="rv-compass-ring">
+          <div class="rv-compass-n">N</div>
+          <div class="rv-compass-arrow" id="rvSoArrow">▲</div>
+        </div>
+        <div class="rv-so-bearing" id="rvSoBearing">—</div>
+      </div>
     </div>
     <div class="rv-so-progress"><div class="rv-so-progress-fill" id="rvSoProgressFill" style="width:0%"></div></div>
     <div class="rv-so-nav">
@@ -64277,6 +64366,8 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
       <button class="rv-exit-so" id="rvSoExitBtn">EXIT STAKEOUT</button>
     </div>
   </div>
+  <!-- Arrival flash -->
+  <div id="rvArrivalFlash"></div>
 
   <!-- Corner list panel -->
   <div id="rvCornerPanel">
@@ -64397,15 +64488,160 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
   </div>
 </div>
 
-<!-- === Area Result Modal === -->
+
+<!-- === GNSS Connection Modal === -->
+<div class="rv-modal-backdrop" id="rvGnssConnectModal">
+  <div class="rv-modal" style="max-width:340px;">
+    <h3><i class="fas fa-satellite" style="color:var(--rv-amber)"></i> Connect GNSS Receiver</h3>
+    <div id="rvGnssConnMethod" style="font-size:11px;color:var(--rv-amber);margin-bottom:12px;padding:6px 10px;background:rgba(245,158,11,0.1);border-radius:6px;"></div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button class="rv-btn-primary" style="flex:1;" onclick="rvConnectBluetooth()">
+        <i class="fas fa-bluetooth"></i> Bluetooth
+      </button>
+      <button class="rv-btn-secondary" style="flex:1;" onclick="rvConnectSerial()">
+        <i class="fas fa-usb"></i> USB/Serial
+      </button>
+    </div>
+    <div class="rv-form-row">
+      <label>Baud Rate (for USB/Serial)</label>
+      <select id="rvBaudSel" class="rv-select">
+        <option value="115200" selected>115200 — u-blox, Emlid, CHC</option>
+        <option value="38400">38400 — Trimble</option>
+        <option value="9600">9600 — Generic NMEA</option>
+        <option value="4800">4800 — Default NMEA</option>
+      </select>
+    </div>
+    <div id="rvGnssConnStatus">Ready to connect…</div>
+    <div style="font-size:10px;color:var(--rv-txt2);margin-bottom:12px;padding:8px;background:rgba(0,0,0,0.2);border-radius:6px;line-height:1.7;">
+      📱 <b>Android:</b> Pair CHC/Emlid in phone Bluetooth settings first, then tap “Bluetooth”.<br>
+      🖥 <b>PC/Desktop:</b> Connect USB cable or pair via Bluetooth, then tap “USB/Serial”.
+    </div>
+    <button class="rv-btn-secondary" style="width:100%;" onclick="
+      document.getElementById('rvGnssConnectModal').classList.remove('rv-modal-open');
+      document.getElementById('rvSrcSel').value='phone';
+      RV.gnssMode='phone';
+      if(window._rvGnssResolve){window._rvGnssResolve(false);window._rvGnssResolve=null;}
+    ">Cancel — Use Phone GPS</button>
+  </div>
+</div>
+
+<!-- === NTRIP CORS Modal === -->
+<div class="rv-modal-backdrop" id="rvNtripModal">
+  <div class="rv-modal" style="max-width:360px;">
+    <h3><i class="fas fa-satellite-dish" style="color:var(--rv-amber)"></i> NTRIP CORS Corrections</h3>
+    <div style="display:flex;gap:6px;margin-bottom:12px;">
+      <button class="rv-preset-btn" onclick="rvApplyNtripPreset('survnet')">SurvNet</button>
+      <button class="rv-preset-btn" onclick="rvApplyNtripPreset('eagle')">Eagle CORS</button>
+    </div>
+    <div class="rv-form-row"><label>Host / IP</label><input id="rvNtripHost" class="rv-input" value="survnet.xyz" autocomplete="off"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div class="rv-form-row"><label>Port</label><input id="rvNtripPort" class="rv-input" type="number" value="2102"></div>
+      <div class="rv-form-row"><label>Mountpoint</label><input id="rvNtripMount" class="rv-input" value="RTCM3X"></div>
+    </div>
+    <div class="rv-form-row"><label>Username</label><input id="rvNtripUser" class="rv-input" autocomplete="username"></div>
+    <div class="rv-form-row"><label>Password</label><input id="rvNtripPass" class="rv-input" type="password" autocomplete="current-password"></div>
+    <div style="background:var(--rv-bg2);border-radius:8px;padding:10px;margin:8px 0;">
+      <div id="rvNtripStatus" class="rv-ntrip-off">⭕ DISCONNECTED</div>
+      <div style="margin-top:6px;display:flex;gap:12px;font-size:11px;color:var(--rv-txt2);">
+        <span>Corr age: <b id="rvNtripCorrAgeM">—</b></span>
+        <span>RTCM: <b id="rvNtripBytes">0</b> B</span>
+      </div>
+      <div id="rvNtripNote" style="font-size:11px;color:#f87171;margin-top:4px;"></div>
+    </div>
+    <div class="rv-modal-btns">
+      <button class="rv-btn-primary" id="rvNtripConnBtn" onclick="rvNtripSaveAndConnect()"><i class="fas fa-plug"></i> Connect</button>
+      <button class="rv-btn-secondary" onclick="rvNtripDisconnect()">Disconnect</button>
+      <button class="rv-btn-secondary" onclick="document.getElementById('rvNtripModal').classList.remove('rv-modal-open')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- === Manual Coordinate Input / Stakeout Queue === -->
+<div class="rv-modal-backdrop" id="rvCoordInputModal">
+  <div class="rv-modal" style="max-width:360px;">
+    <h3><i class="fas fa-keyboard" style="color:var(--rv-amber)"></i> Stakeout Point</h3>
+    <div style="font-size:11px;color:var(--rv-txt2);margin-bottom:10px;">CRS: <b id="rvMsCrsLabel">—</b></div>
+    <div class="rv-form-row"><label>Point Name</label><input id="rvMsName" class="rv-input" placeholder="e.g. BM-001"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div class="rv-form-row"><label>Easting (E)</label><input id="rvMsEasting" class="rv-input" type="number" step="0.001" placeholder="485231.450"></div>
+      <div class="rv-form-row"><label>Northing (N)</label><input id="rvMsNorthing" class="rv-input" type="number" step="0.001" placeholder="38124.320"></div>
+    </div>
+    <div class="rv-form-row"><label>Elevation Z (optional)</label><input id="rvMsElev" class="rv-input" type="number" step="0.001" placeholder="1105.3"></div>
+    <div style="font-size:11px;font-weight:600;color:var(--rv-txt2);margin:6px 0 4px;">Stakeout Queue (<span id="rvMsQueueCount">0</span> pts)</div>
+    <div id="rvMsQueueList" style="max-height:100px;overflow-y:auto;margin-bottom:10px;border:1px solid var(--rv-border);border-radius:6px;"></div>
+    <div class="rv-modal-btns" style="flex-wrap:wrap;gap:6px;">
+      <button class="rv-btn-primary" onclick="rvAddManualStakePoint()"><i class="fas fa-plus"></i> Add to Queue</button>
+      <button class="rv-btn-primary" style="background:linear-gradient(135deg,#22c55e,#16a34a);" onclick="rvStakeNow()">▶ Stake Now</button>
+      <button class="rv-btn-secondary" onclick="rvStartQueueStake()">▶▶ Start Queue</button>
+      <button class="rv-btn-secondary" style="color:#ef4444;" onclick="rvClearStakeQueue()">🗑 Clear</button>
+      <button class="rv-btn-secondary" style="width:100%;" onclick="document.getElementById('rvCoordInputModal').classList.remove('rv-modal-open')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- === Line Staking Modal === -->
+<div class="rv-modal-backdrop" id="rvLineStakeModal">
+  <div class="rv-modal" style="max-width:380px;">
+    <h3><i class="fas fa-ruler" style="color:var(--rv-amber)"></i> Line Staking</h3>
+    <div style="font-size:11px;color:var(--rv-txt2);margin-bottom:10px;">CRS: <b id="rvLsCrsLabel">—</b> &nbsp; Enter start and end coordinates:</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+      <div><label style="font-size:10px;color:var(--rv-txt2);">START Easting</label><input id="rvLsStartE" class="rv-input" type="number" step="0.001" placeholder="Easting"></div>
+      <div><label style="font-size:10px;color:var(--rv-txt2);">START Northing</label><input id="rvLsStartN" class="rv-input" type="number" step="0.001" placeholder="Northing"></div>
+      <div><label style="font-size:10px;color:var(--rv-txt2);">END Easting</label><input id="rvLsEndE" class="rv-input" type="number" step="0.001" placeholder="Easting"></div>
+      <div><label style="font-size:10px;color:var(--rv-txt2);">END Northing</label><input id="rvLsEndN" class="rv-input" type="number" step="0.001" placeholder="Northing"></div>
+    </div>
+    <div class="rv-form-row"><label>Peg Interval (m)</label><input id="rvLsInterval" class="rv-input" type="number" value="10" step="0.5" style="width:120px;"></div>
+    <button class="rv-btn-secondary" style="width:100%;margin-bottom:8px;" onclick="rvComputeLineStake()">⚙️ Compute Pegs</button>
+    <div id="rvLsPegCount" style="font-size:11px;color:var(--rv-amber);margin-bottom:6px;"></div>
+    <div id="rvLsPegList" style="max-height:140px;overflow-y:auto;margin-bottom:10px;border:1px solid var(--rv-border);border-radius:6px;"></div>
+    <div class="rv-modal-btns">
+      <button class="rv-btn-primary" id="rvLsStakeBtn" disabled onclick="rvStartLineStake()">▶ Stake Line</button>
+      <button class="rv-btn-secondary" onclick="document.getElementById('rvLineStakeModal').classList.remove('rv-modal-open')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- === GNSS Diagnostics Modal === -->
+<div class="rv-modal-backdrop" id="rvDiagModal">
+  <div class="rv-modal" style="max-width:420px;">
+    <h3><i class="fas fa-terminal" style="color:var(--rv-amber)"></i> GNSS Diagnostics</h3>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px;">
+      <div style="background:var(--rv-bg2);border-radius:6px;padding:6px;text-align:center;">
+        <div style="font-size:10px;color:var(--rv-txt2);">Fix</div>
+        <div style="font-size:14px;font-weight:800;color:var(--rv-amber);" id="rvDiagFix">—</div>
+      </div>
+      <div style="background:var(--rv-bg2);border-radius:6px;padding:6px;text-align:center;">
+        <div style="font-size:10px;color:var(--rv-txt2);">Sats</div>
+        <div style="font-size:14px;font-weight:800;color:#93c5fd;" id="rvDiagSats">—</div>
+      </div>
+      <div style="background:var(--rv-bg2);border-radius:6px;padding:6px;text-align:center;">
+        <div style="font-size:10px;color:var(--rv-txt2);">HDOP</div>
+        <div style="font-size:14px;font-weight:800;color:#a78bfa;" id="rvDiagHdop">—</div>
+      </div>
+      <div style="background:var(--rv-bg2);border-radius:6px;padding:6px;text-align:center;">
+        <div style="font-size:10px;color:var(--rv-txt2);">RTCM</div>
+        <div style="font-size:14px;font-weight:800;color:#4ade80;" id="rvDiagRtcm">0 B</div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--rv-txt2);margin-bottom:4px;">Live NMEA stream (last 30 sentences):</div>
+    <pre id="rvNmeaLog"></pre>
+    <button class="rv-btn-secondary" style="width:100%;margin-top:10px;" onclick="document.getElementById('rvDiagModal').classList.remove('rv-modal-open')">Close</button>
+  </div>
+</div>
+
+<!-- === Area Result Modal (Enhanced) === -->
 <div class="rv-modal-backdrop" id="rvAreaModal">
   <div class="rv-modal">
     <h3><i class="fas fa-draw-polygon" style="color:var(--rv-amber)"></i> Area Calculator</h3>
-    <p style="font-size:12px;color:var(--rv-txt2);">Using <span id="rvAreaPtSource">marked points</span> as polygon vertices (in order captured):</p>
-    <div id="rvAreaResult" style="font-size:28px;font-weight:800;color:var(--rv-amber);text-align:center;margin:16px 0;">—</div>
-    <div id="rvAreaResultSub" style="font-size:13px;color:var(--rv-txt2);text-align:center;">—</div>
-    <div class="rv-modal-btns">
-      <button class="rv-btn-primary" id="rvAreaCalcBtn">Calculate</button>
+    <div class="rv-form-row" style="margin-bottom:10px;">
+      <label>Point Source</label>
+      <select id="rvAreaSrcSel" class="rv-select" onchange="rvAreaPopulatePicker(this.value);rvCalcAreaFromSel();"></select>
+    </div>
+    <div id="rvAreaPicker" style="display:none;max-height:140px;overflow-y:auto;margin-bottom:8px;border:1px solid var(--rv-border);border-radius:6px;"></div>
+    <div id="rvAreaResult" style="font-size:28px;font-weight:800;color:var(--rv-amber);text-align:center;margin:14px 0;">—</div>
+    <div id="rvAreaResultSub" style="font-size:12px;color:var(--rv-txt2);text-align:center;line-height:2;">—</div>
+    <div class="rv-modal-btns" style="margin-top:12px;">
+      <button class="rv-btn-primary" id="rvAreaCalcBtn" onclick="rvCalcAreaFromSel()">Recalculate</button>
       <button class="rv-btn-secondary" id="rvAreaCloseBtn">Close</button>
     </div>
   </div>
@@ -64471,11 +64707,15 @@ const RV = {
   toastTimer: null,
   alertedPoints: new Set(),   // proximity already alerted
   alertedEdges:  new Set(),
-  // --- GNSS / Web Serial ---
+  // --- GNSS / Web Serial / Bluetooth ---
   gnssMode: 'phone',          // 'phone' | 'external'
   serialPort: null,
   serialReader: null,
   serialReading: false,
+  btDevice: null,
+  btServer: null,
+  btRxChar: null,
+  btTxChar: null,
   nmeaBuffer: '',
   fixQuality: 0,              // GGA field 6 (0=nofix,1=GPS,2=DGPS,4=RTK Fixed,5=RTK Float)
   fixType: 'NO GPS',
@@ -64487,12 +64727,25 @@ const RV = {
   gnssAcc: null,              // estimated from HDOP
   gnssSpeed: null,
   gnssHeading: null,
+  gnssLog: [],                // last NMEA sentences
+  // --- NTRIP ---
+  ntripSocket: null,
+  ntripConnected: false,
+  ntripBytes: 0,
+  ntripLastCorr: null,
+  ntripCorrAgeTimer: null,
+  ntripSendGgaTimer: null,
+  // --- Manual/Line Stakeout ---
+  stakeQueue: [],             // manual points queue [{id,name,lon,lat,z},...]
+  lineStakes: [],             // computed line pegs
+  isQueueStake: false,
   // --- Session tracking ---
   sessionStart: null,         // Date when rover opened
   sessionId: null,
 };
 // Export state so external modules (e.g. photo watermark) can access it
 window._gspRoverState = RV;
+
 
 /* ================================================================
    HELPERS
@@ -66002,6 +66255,513 @@ function rvDoClose(downloadReport) {
     document.getElementById(id).classList.remove('rv-modal-open');
   });
 }
+
+/* ================================================================
+   NEW ROVER FEATURES (Phases 1-9)
+================================================================ */
+
+// --- 1. Molodensky Transform (Clarke 1880 / Arc 1960) ---
+proj4.defs("EPSG:21036","+proj=utm +zone=36 +south +a=6378249.145 +rf=293.465 +towgs84=-143,-90,-294,0,0,0,0 +units=m +no_defs");
+proj4.defs("EPSG:21037","+proj=utm +zone=37 +south +a=6378249.145 +rf=293.465 +towgs84=-143,-90,-294,0,0,0,0 +units=m +no_defs");
+
+// --- 2. Web Bluetooth API (CHC Receivers) ---
+async function rvConnectBluetooth() {
+  try {
+    RV.btDevice = await navigator.bluetooth.requestDevice({
+      filters: [{ services: ['0000ffe0-0000-1000-8000-00805f9b34fb'] }],
+      optionalServices: ['00001801-0000-1000-8000-00805f9b34fb']
+    });
+    document.getElementById('rvGnssConnStatus').innerHTML = 'Connecting to ' + RV.btDevice.name + '...';
+    RV.btServer = await RV.btDevice.gatt.connect();
+    const service = await RV.btServer.getPrimaryService('0000ffe0-0000-1000-8000-00805f9b34fb');
+    RV.btRxChar = await service.getCharacteristic('0000ffe1-0000-1000-8000-00805f9b34fb');
+    RV.btTxChar = RV.btRxChar; // Usually TX/RX are the same char in SPP over BLE
+    await RV.btRxChar.startNotifications();
+    RV.btRxChar.addEventListener('characteristicvaluechanged', rvReadBluetooth);
+    
+    RV.gnssMode = 'external';
+    document.getElementById('rvGnssConnectModal').classList.remove('rv-modal-open');
+    document.getElementById('rvSrcSel').value = 'external';
+    rvToast('✅ Bluetooth GNSS Connected!');
+    if(window._rvGnssResolve){window._rvGnssResolve(true); window._rvGnssResolve=null;}
+  } catch (err) {
+    console.error(err);
+    document.getElementById('rvGnssConnStatus').innerHTML = '<span style="color:#ef4444">Connection Failed: ' + err.message + '</span>';
+  }
+}
+
+function rvReadBluetooth(event) {
+  const value = event.target.value;
+  const decoder = new TextDecoder('utf-8');
+  RV.nmeaBuffer += decoder.decode(value);
+  rvProcessNmeaBuffer();
+}
+
+function rvDisconnectBluetooth() {
+  if (RV.btDevice && RV.btDevice.gatt.connected) {
+    RV.btDevice.gatt.disconnect();
+    rvToast('Bluetooth Disconnected');
+  }
+}
+
+// --- 3. Web Serial API (Desktop / USB / RS232) ---
+async function rvConnectSerial() {
+  try {
+    const baud = parseInt(document.getElementById('rvBaudSel').value);
+    RV.serialPort = await navigator.serial.requestPort();
+    await RV.serialPort.open({ baudRate: baud });
+    document.getElementById('rvGnssConnStatus').innerHTML = 'Serial Port Opened.';
+    RV.gnssMode = 'external';
+    document.getElementById('rvGnssConnectModal').classList.remove('rv-modal-open');
+    document.getElementById('rvSrcSel').value = 'external';
+    rvToast('✅ Serial GNSS Connected!');
+    if(window._rvGnssResolve){window._rvGnssResolve(true); window._rvGnssResolve=null;}
+    
+    RV.serialReading = true;
+    while (RV.serialPort.readable && RV.serialReading) {
+      RV.serialReader = RV.serialPort.readable.getReader();
+      try {
+        while (true) {
+          const { value, done } = await RV.serialReader.read();
+          if (done) break;
+          const decoder = new TextDecoder('utf-8');
+          RV.nmeaBuffer += decoder.decode(value);
+          rvProcessNmeaBuffer();
+        }
+      } catch (error) { console.error('Serial read error:', error); }
+      finally { RV.serialReader.releaseLock(); }
+    }
+  } catch (err) {
+    console.error(err);
+    document.getElementById('rvGnssConnStatus').innerHTML = '<span style="color:#ef4444">Serial Error: ' + err.message + '</span>';
+  }
+}
+
+function rvDisconnectSerial() {
+  RV.serialReading = false;
+  if (RV.serialReader) { RV.serialReader.cancel(); }
+  if (RV.serialPort) { RV.serialPort.close(); rvToast('Serial Disconnected'); }
+}
+
+function rvProcessNmeaBuffer() {
+  let lines = RV.nmeaBuffer.split(/\r?\n/);
+  RV.nmeaBuffer = lines.pop(); // keep remainder
+  for (let line of lines) {
+    if (line.startsWith('$')) {
+      rvProcessNmeaSentence(line);
+      RV.gnssLog.push(line);
+      if (RV.gnssLog.length > 30) RV.gnssLog.shift();
+      document.getElementById('rvNmeaLog').textContent = RV.gnssLog.join('\n');
+    }
+  }
+}
+
+// Override NMEA Parser to include Altitude and Status Updates
+function rvProcessNmeaSentence(nmea) {
+  const parts = nmea.split(',');
+  if (nmea.startsWith('$GPGGA') || nmea.startsWith('$GNGGA')) {
+    RV.fixQuality = parseInt(parts[6]) || 0;
+    RV.satCount = parseInt(parts[7]) || 0;
+    RV.hdop = parseFloat(parts[8]) || 0;
+    
+    const alt = parseFloat(parts[9]);
+    if (!isNaN(alt)) RV.gnssAlt = alt;
+
+    const latStr = parts[2], latDir = parts[3];
+    const lonStr = parts[4], lonDir = parts[5];
+    if (latStr && lonStr) {
+      let lat = parseInt(latStr.substring(0,2)) + parseFloat(latStr.substring(2))/60;
+      if (latDir === 'S') lat = -lat;
+      let lon = parseInt(lonStr.substring(0,3)) + parseFloat(lonStr.substring(3))/60;
+      if (lonDir === 'W') lon = -lon;
+      RV.gnssLat = lat;
+      RV.gnssLon = lon;
+      
+      const fixMap = {0:'NO FIX', 1:'GPS', 2:'DGPS', 4:'RTK FIX', 5:'RTK FLOAT'};
+      RV.fixType = fixMap[RV.fixQuality] || 'UNKNOWN';
+      RV.gnssAcc = RV.hdop * 2.5;
+
+      document.getElementById('rvFixBadge').className = 'rv-badge ' + (RV.fixQuality===4?'rv-badge-rtk':RV.fixQuality===5?'rv-badge-float':'rv-badge-nofix');
+      document.getElementById('rvFixBadge').innerHTML = '<i class="fas fa-satellite"></i> ' + RV.fixType;
+      document.getElementById('rvAccBadge').innerHTML = '±' + RV.gnssAcc.toFixed(1) + 'm';
+      
+      document.getElementById('rvDiagFix').textContent = RV.fixType;
+      document.getElementById('rvDiagFix').style.color = RV.fixQuality===4?'#4ade80':RV.fixQuality===5?'#fbbf24':'#f87171';
+      document.getElementById('rvDiagSats').textContent = RV.satCount;
+      document.getElementById('rvDiagHdop').textContent = RV.hdop.toFixed(2);
+
+      // Trigger NTRIP GGA send if active
+      rvNtripSendGGA(nmea);
+    }
+  }
+}
+
+// --- 4. NTRIP CORS Client ---
+function rvApplyNtripPreset(preset) {
+  if (preset === 'survnet') {
+    document.getElementById('rvNtripHost').value = 'survnet.xyz';
+    document.getElementById('rvNtripPort').value = '2102';
+    document.getElementById('rvNtripMount').value = 'RTCM3X';
+  } else if (preset === 'eagle') {
+    document.getElementById('rvNtripHost').value = 'cors.eagle.com';
+    document.getElementById('rvNtripPort').value = '2101';
+    document.getElementById('rvNtripMount').value = 'EAGLE_RTCM3';
+  }
+}
+
+function rvNtripSaveAndConnect() {
+  const host = document.getElementById('rvNtripHost').value;
+  const port = document.getElementById('rvNtripPort').value;
+  const mount = document.getElementById('rvNtripMount').value;
+  const user = document.getElementById('rvNtripUser').value;
+  const pass = document.getElementById('rvNtripPass').value;
+  
+  if (!host || !port || !mount || !user || !pass) {
+    alert("Please fill all NTRIP fields."); return;
+  }
+  
+  localStorage.setItem('gspNtripSettings', JSON.stringify({host,port,mount,user,pass}));
+  rvNtripConnect(host, port, mount, user, pass);
+}
+
+function rvNtripConnect(host, port, mount, user, pass) {
+  if (RV.ntripSocket) rvNtripDisconnect();
+  
+  document.getElementById('rvNtripStatus').className = 'rv-ntrip-on';
+  document.getElementById('rvNtripStatus').innerHTML = '🔄 CONNECTING...';
+  
+  // Connect via Cloudflare Worker WebSocket Proxy
+  const proxyUrl = 'wss://ntrip-proxy.gspnet.workers.dev/'; 
+  try {
+    RV.ntripSocket = new WebSocket(proxyUrl);
+    RV.ntripSocket.binaryType = "arraybuffer";
+    
+    RV.ntripSocket.onopen = () => {
+      const auth = btoa(user + ':' + pass);
+      const req = `GET /${mount} HTTP/1.0\r\nUser-Agent: NTRIP GSPRover/1.0\r\nAccept: */*\r\nConnection: close\r\nAuthorization: Basic ${auth}\r\nNtrip-Target: ${host}:${port}\r\n\r\n`;
+      RV.ntripSocket.send(req);
+      document.getElementById('rvNtripStatus').innerHTML = '✅ CONNECTED';
+      RV.ntripConnected = true;
+      RV.ntripBytes = 0;
+      RV.ntripLastCorr = Date.now();
+      
+      RV.ntripCorrAgeTimer = setInterval(() => {
+        const age = ((Date.now() - RV.ntripLastCorr)/1000).toFixed(1);
+        document.getElementById('rvNtripCorrAgeM').textContent = age + 's';
+      }, 1000);
+    };
+    
+    RV.ntripSocket.onmessage = async (e) => {
+      if (typeof e.data === 'string') {
+        if (e.data.includes('ICY 200 OK')) {
+          console.log('NTRIP Stream Started');
+        } else {
+          document.getElementById('rvNtripNote').textContent = e.data;
+        }
+      } else {
+        // Binary RTCM data
+        RV.ntripBytes += e.data.byteLength;
+        RV.ntripLastCorr = Date.now();
+        document.getElementById('rvNtripBytes').textContent = (RV.ntripBytes/1024).toFixed(1) + 'k';
+        document.getElementById('rvDiagRtcm').textContent = (RV.ntripBytes/1024).toFixed(1) + ' KB';
+        
+        // Forward to GNSS Receiver
+        if (RV.btTxChar) {
+          try { await RV.btTxChar.writeValue(e.data); } catch(err) {}
+        } else if (RV.serialPort && RV.serialPort.writable) {
+          const writer = RV.serialPort.writable.getWriter();
+          await writer.write(new Uint8Array(e.data));
+          writer.releaseLock();
+        }
+      }
+    };
+    
+    RV.ntripSocket.onclose = () => {
+      document.getElementById('rvNtripStatus').className = 'rv-ntrip-off';
+      document.getElementById('rvNtripStatus').innerHTML = '⭕ DISCONNECTED';
+      RV.ntripConnected = false;
+      clearInterval(RV.ntripCorrAgeTimer);
+    };
+  } catch (err) {
+    document.getElementById('rvNtripNote').textContent = err.message;
+  }
+}
+
+function rvNtripDisconnect() {
+  if (RV.ntripSocket) {
+    RV.ntripSocket.close();
+    RV.ntripSocket = null;
+  }
+}
+
+function rvNtripSendGGA(ggaString) {
+  if (RV.ntripConnected && RV.ntripSocket && RV.ntripSocket.readyState === WebSocket.OPEN) {
+    RV.ntripSocket.send(ggaString + "\r\n");
+  }
+}
+
+// Load NTRIP settings on start
+try {
+  const ntripSet = JSON.parse(localStorage.getItem('gspNtripSettings'));
+  if (ntripSet) {
+    document.getElementById('rvNtripHost').value = ntripSet.host;
+    document.getElementById('rvNtripPort').value = ntripSet.port;
+    document.getElementById('rvNtripMount').value = ntripSet.mount;
+    document.getElementById('rvNtripUser').value = ntripSet.user;
+    document.getElementById('rvNtripPass').value = ntripSet.pass;
+  }
+} catch(e) {}
+
+// --- 5. Manual Coordinates Stakeout ---
+function rvAddManualStakePoint() {
+  const name = document.getElementById('rvMsName').value.trim() || 'P' + (RV.stakeQueue.length + 1);
+  const eStr = document.getElementById('rvMsEasting').value;
+  const nStr = document.getElementById('rvMsNorthing').value;
+  const zStr = document.getElementById('rvMsElev').value;
+  if (!eStr || !nStr) return alert("Easting and Northing required");
+  
+  const E = parseFloat(eStr);
+  const N = parseFloat(nStr);
+  const Z = zStr ? parseFloat(zStr) : 0;
+  
+  // Inverse projection to lat/lon
+  let pt;
+  try {
+    pt = proj4('EPSG:'+RV.crs, 'EPSG:4326', [E, N]);
+  } catch(err) {
+    return alert("Invalid CRS transform");
+  }
+  
+  RV.stakeQueue.push({ id: Date.now(), name, e: E, n: N, z: Z, lon: pt[0], lat: pt[1] });
+  rvUpdateStakeQueueUI();
+  document.getElementById('rvMsName').value = '';
+}
+
+function rvUpdateStakeQueueUI() {
+  document.getElementById('rvMsQueueCount').textContent = RV.stakeQueue.length;
+  const list = document.getElementById('rvMsQueueList');
+  list.innerHTML = '';
+  RV.stakeQueue.forEach((pt, i) => {
+    const div = document.createElement('div');
+    div.style.padding = '6px';
+    div.style.borderBottom = '1px solid var(--rv-border)';
+    div.style.fontSize = '11px';
+    div.style.display = 'flex';
+    div.style.justifyContent = 'space-between';
+    div.innerHTML = `<span><b>${pt.name}</b> (${pt.e.toFixed(1)}, ${pt.n.toFixed(1)})</span>
+      <span style="color:#ef4444;cursor:pointer;" onclick="RV.stakeQueue.splice(${i},1);rvUpdateStakeQueueUI();">✖</span>`;
+    list.appendChild(div);
+  });
+}
+
+function rvClearStakeQueue() {
+  RV.stakeQueue = [];
+  rvUpdateStakeQueueUI();
+}
+
+function rvStartQueueStake() {
+  if (RV.stakeQueue.length === 0) return alert("Queue empty!");
+  RV.isQueueStake = true;
+  RV.corners = RV.stakeQueue.map(p => ({lon: p.lon, lat: p.lat, name: p.name}));
+  document.getElementById('rvCoordInputModal').classList.remove('rv-modal-open');
+  rvStartStakeout(0);
+}
+
+function rvStakeNow() {
+  rvAddManualStakePoint();
+  if (RV.stakeQueue.length > 0) rvStartQueueStake();
+}
+
+// --- 6. Line Staking ---
+function rvComputeLineStake() {
+  const se = parseFloat(document.getElementById('rvLsStartE').value);
+  const sn = parseFloat(document.getElementById('rvLsStartN').value);
+  const ee = parseFloat(document.getElementById('rvLsEndE').value);
+  const en = parseFloat(document.getElementById('rvLsEndN').value);
+  const int = parseFloat(document.getElementById('rvLsInterval').value);
+  if (isNaN(se)||isNaN(sn)||isNaN(ee)||isNaN(en)||isNaN(int)||int<=0) return alert("Invalid inputs");
+  
+  const dx = ee - se;
+  const dy = en - sn;
+  const len = Math.sqrt(dx*dx + dy*dy);
+  const count = Math.floor(len / int);
+  
+  RV.lineStakes = [];
+  for (let i=0; i<=count; i++) {
+    const pE = se + (dx/len) * (i*int);
+    const pN = sn + (dy/len) * (i*int);
+    let pt;
+    try { pt = proj4('EPSG:'+RV.crs, 'EPSG:4326', [pE, pN]); } catch(e) { continue; }
+    RV.lineStakes.push({ id: i, ch: i*int, lon: pt[0], lat: pt[1] });
+  }
+  if (len % int > 0.01) {
+    let pt;
+    try { pt = proj4('EPSG:'+RV.crs, 'EPSG:4326', [ee, en]); } catch(e) {}
+    if(pt) RV.lineStakes.push({ id: 'END', ch: len, lon: pt[0], lat: pt[1] });
+  }
+  
+  document.getElementById('rvLsPegCount').textContent = `Computed ${RV.lineStakes.length} pegs (Total length: ${len.toFixed(2)}m)`;
+  document.getElementById('rvLsStakeBtn').disabled = false;
+  
+  const list = document.getElementById('rvLsPegList');
+  list.innerHTML = '';
+  RV.lineStakes.forEach(p => {
+    list.innerHTML += `<div style="padding:4px;font-size:11px;border-bottom:1px solid var(--rv-border);">CH ${typeof p.ch==='number'?p.ch.toFixed(2):p.ch}m</div>`;
+  });
+}
+
+function rvStartLineStake() {
+  RV.isQueueStake = true;
+  RV.corners = RV.lineStakes.map(p => ({lon: p.lon, lat: p.lat, name: 'CH '+ (typeof p.ch==='number'?p.ch.toFixed(2):p.ch) }));
+  document.getElementById('rvLineStakeModal').classList.remove('rv-modal-open');
+  rvStartStakeout(0);
+}
+
+// --- 7. Override Stakeout UI to add Compass & N/S/E/W ---
+function rvUpdateStakeout(userLat, userLon) {
+  if (RV.stakeoutIdx < 0 || !RV.corners[RV.stakeoutIdx]) return;
+  const tgt = RV.corners[RV.stakeoutIdx];
+  const dist = rvHaversine(userLat, userLon, tgt.lat, tgt.lon);
+  const bear = rvBearing(userLat, userLon, tgt.lat, tgt.lon);
+  const bearLbl = rvBearingLabel(bear);
+
+  if (RV.stakeoutStart === null) RV.stakeoutStart = dist;
+
+  document.getElementById('rvSoDist').textContent = dist < 1000 ? dist.toFixed(2)+'m' : (dist/1000).toFixed(3)+'km';
+  
+  // Calculate N/S/E/W offsets using proj4
+  let offsetStr = '';
+  try {
+    const pU = proj4('EPSG:4326', 'EPSG:'+RV.crs, [userLon, userLat]);
+    const pT = proj4('EPSG:4326', 'EPSG:'+RV.crs, [tgt.lon, tgt.lat]);
+    const dE = pT[0] - pU[0];
+    const dN = pT[1] - pU[1];
+    offsetStr += dN >= 0 ? `North: ${dN.toFixed(2)}m ` : `South: ${Math.abs(dN).toFixed(2)}m `;
+    offsetStr += dE >= 0 ? `East: ${dE.toFixed(2)}m` : `West: ${Math.abs(dE).toFixed(2)}m`;
+  } catch(e) {}
+  
+  document.getElementById('rvSoBearing').textContent = bear.toFixed(1) + '° ' + bearLbl + (offsetStr ? ' | ' + offsetStr : '');
+
+  const pct = RV.stakeoutStart > 0 ? Math.min(100, (1 - dist/RV.stakeoutStart)*100) : 0;
+  document.getElementById('rvSoProgressFill').style.width = pct + '%';
+
+  // Draw bearing line
+  if (RV.stakeSource) {
+    RV.stakeSource.clear();
+    const from = ol.proj.fromLonLat([userLon, userLat]);
+    const to   = ol.proj.fromLonLat([tgt.lon, tgt.lat]);
+    const line = new ol.Feature({ geometry: new ol.geom.LineString([from, to]) });
+    RV.stakeSource.addFeature(line);
+  }
+
+  // Arrival flash & advance
+  if (dist <= RV.settings.arrivalThresh) {
+    document.body.style.transition = 'background 0.2s';
+    document.body.style.background = '#4ade80';
+    setTimeout(()=>document.body.style.background='', 200);
+    rvOnArrival();
+  }
+}
+
+function rvOnArrival() {
+  if (RV.settings.vibrate && navigator.vibrate) navigator.vibrate([200,100,200,100,400]);
+  const tName = RV.corners[RV.stakeoutIdx].name || `C${RV.stakeoutIdx+1}`;
+  rvToast(`🎯 Arrived at ${tName}!`, 4000);
+  
+  // Auto-mark point on arrival
+  rvSavePoint('Stake_'+tName, 'Auto-logged arrival', RV.gnssLon||RV.pos.coords.longitude, RV.gnssLat||RV.pos.coords.latitude, RV.gnssAcc||RV.pos.coords.accuracy, RV.gnssAlt||(RV.pos?RV.pos.coords.altitude:0));
+
+  // Auto advance
+  const nextIdx = RV.stakeoutIdx + 1;
+  if (nextIdx < RV.corners.length) {
+    setTimeout(() => rvStartStakeout(nextIdx), 3000);
+  } else {
+    setTimeout(rvStopStakeout, 3000);
+  }
+}
+
+// --- 8. Area Calculator Enhancements ---
+function rvAreaPopulatePicker(source) {
+  const picker = document.getElementById('rvAreaPicker');
+  picker.style.display = 'block';
+  picker.innerHTML = '';
+  
+  let list = [];
+  if (source === 'marked') {
+    list = RV.points;
+  } else if (source === 'extracted') {
+    list = RV.corners;
+  }
+  
+  list.forEach((pt, i) => {
+    const lbl = pt.name || `P${i+1}`;
+    picker.innerHTML += `<div style="padding:4px;font-size:11px;display:flex;align-items:center;gap:6px;">
+      <input type="checkbox" checked id="rvAreaCk${i}" value="${i}" onchange="rvCalcAreaFromSel()">
+      <label for="rvAreaCk${i}">${lbl}</label>
+    </div>`;
+  });
+}
+
+function rvCalcAreaFromSel() {
+  const source = document.getElementById('rvAreaSrcSel').value;
+  let rawList = source === 'marked' ? RV.points : RV.corners;
+  
+  // Filter by checked
+  let pts = [];
+  rawList.forEach((p, i) => {
+    const ck = document.getElementById('rvAreaCk'+i);
+    if (ck && ck.checked) pts.push(p);
+  });
+  
+  if (pts.length < 3) {
+    document.getElementById('rvAreaResult').textContent = '—';
+    document.getElementById('rvAreaResultSub').textContent = 'Select at least 3 points';
+    return;
+  }
+
+  // Reproject to active CRS for accurate planar area
+  try {
+    const coords = pts.map(p => proj4('EPSG:4326', 'EPSG:'+RV.crs, [p.lon, p.lat]));
+    coords.push(coords[0]); // close loop
+    
+    // Shoelace formula
+    let area = 0;
+    for (let i = 0; i < coords.length - 1; i++) {
+      area += coords[i][0]*coords[i+1][1] - coords[i+1][0]*coords[i][1];
+    }
+    area = Math.abs(area) / 2;
+    
+    // Perimeter
+    let perim = 0;
+    for (let i = 0; i < coords.length - 1; i++) {
+      const dx = coords[i+1][0] - coords[i][0];
+      const dy = coords[i+1][1] - coords[i][1];
+      perim += Math.sqrt(dx*dx + dy*dy);
+    }
+    
+    const ac = area / 4046.86;
+    const ha = area / 10000;
+    
+    document.getElementById('rvAreaResult').textContent = area.toFixed(1) + ' m²';
+    document.getElementById('rvAreaResultSub').innerHTML = `${ac.toFixed(3)} Acres &nbsp;|&nbsp; ${ha.toFixed(3)} Hectares<br>Perimeter: ${perim.toFixed(1)} m`;
+  } catch(err) {
+    document.getElementById('rvAreaResult').textContent = 'Error';
+    document.getElementById('rvAreaResultSub').textContent = 'CRS transform failed';
+  }
+}
+
+// Override open modal to populate picker
+document.getElementById('rvAreaCalcBtn').addEventListener('click', rvCalcAreaFromSel);
+try {
+  document.getElementById('rvBtnArea').addEventListener('click', () => {
+    document.getElementById('rvAreaSrcSel').innerHTML = `
+      <option value="marked">Marked Points (${RV.points.length})</option>
+      <option value="extracted">Extracted Bounds (${RV.corners.length})</option>
+    `;
+    rvAreaPopulatePicker('marked');
+    rvCalcAreaFromSel();
+  });
+} catch(e){}
 
 /* ================================================================
    WIRE UP UI
