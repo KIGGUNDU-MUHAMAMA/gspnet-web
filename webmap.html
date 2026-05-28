@@ -65447,6 +65447,11 @@ function rvStopGPS() {
 }
 
 function rvOnGPS(pos) {
+  if (RV.gnssMode === 'external') return; // Ignore internal GPS when using external GNSS rover
+  rvUpdatePosition(pos);
+}
+
+function rvUpdatePosition(pos) {
   RV.pos = pos;
   const { latitude: lat, longitude: lon, accuracy, altitude, altitudeAccuracy, heading, speed } = pos.coords;
 
@@ -65457,20 +65462,20 @@ function rvOnGPS(pos) {
   document.getElementById('rvAcc').textContent = accuracy != null ? accuracy.toFixed(1) : '—';
   document.getElementById('rvAlt').textContent = altitude != null ? altitude.toFixed(1) : '—';
 
-  // Fix badge
-  const badge = document.getElementById('rvFixBadge');
-  if (accuracy <= 1.5) {
-    badge.textContent = '● RTK FIXED'; badge.className='fix-good';
-  } else if (accuracy <= 5) {
-    badge.textContent = '◉ DGPS'; badge.className='fix-warn';
-  } else if (accuracy <= 20) {
-    badge.textContent = '◌ GPS'; badge.className='fix-warn';
-  } else {
-    badge.textContent = '✕ POOR'; badge.className='fix-bad';
+  // Fix badge (only update if not using external GNSS, external updates this itself based on NMEA)
+  if (RV.gnssMode !== 'external') {
+    const badge = document.getElementById('rvFixBadge');
+    if (accuracy <= 1.5) {
+      badge.textContent = '● RTK FIXED'; badge.className='fix-good';
+    } else if (accuracy <= 5) {
+      badge.textContent = '◉ DGPS'; badge.className='fix-warn';
+    } else if (accuracy <= 20) {
+      badge.textContent = '◌ GPS'; badge.className='fix-warn';
+    } else {
+      badge.textContent = '✕ POOR'; badge.className='fix-bad';
+    }
+    document.getElementById('rvSats').textContent = '—';
   }
-
-  // Satellites (not in standard API, show — )
-  document.getElementById('rvSats').textContent = '—';
 
   // Update map marker
   if (RV.map) {
@@ -65485,8 +65490,13 @@ function rvOnGPS(pos) {
   }
 
   // Stakeout update
-  if (RV.stakeoutIdx >= 0 && RV.corners.length > 0) {
+  if (RV.stakeoutIdx >= 0 && RV.corners && RV.corners.length > 0) {
     rvUpdateStakeout(lat, lon);
+  }
+  
+  // Line Stakeout update
+  if (RV.activeLineStakeStart && RV.activeLineStakeEnd) {
+    rvUpdateLineStakeout(lat, lon);
   }
 
   // Walk recording
@@ -66336,12 +66346,25 @@ function rvProcessNmeaSentence(nmea) {
 
       document.getElementById('rvFixBadge').className = 'rv-badge ' + (RV.fixQuality===4?'rv-badge-rtk':RV.fixQuality===5?'rv-badge-float':'rv-badge-nofix');
       document.getElementById('rvFixBadge').innerHTML = '<i class="fas fa-satellite"></i> ' + RV.fixType;
-      document.getElementById('rvAccBadge').innerHTML = '±' + RV.gnssAcc.toFixed(1) + 'm';
+      document.getElementById('rvSats').textContent = RV.satCount || '—';
       
       document.getElementById('rvDiagFix').textContent = RV.fixType;
       document.getElementById('rvDiagFix').style.color = RV.fixQuality===4?'#4ade80':RV.fixQuality===5?'#fbbf24':'#f87171';
       document.getElementById('rvDiagSats').textContent = RV.satCount;
       document.getElementById('rvDiagHdop').textContent = RV.hdop.toFixed(2);
+
+      // Trigger map and UI update
+      const fakePos = {
+        coords: {
+          latitude: lat,
+          longitude: lon,
+          accuracy: RV.gnssAcc,
+          altitude: RV.gnssAlt || 0,
+          heading: null,
+          speed: null
+        }
+      };
+      rvUpdatePosition(fakePos);
 
       // Trigger NTRIP GGA send if active
       rvNtripSendGGA(nmea);
