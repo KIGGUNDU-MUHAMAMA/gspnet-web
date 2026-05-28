@@ -66367,7 +66367,7 @@ function rvNtripConnect(host, port, mount, user, pass) {
   document.getElementById('rvNtripStatus').innerHTML = '🔄 CONNECTING...';
   
   // Connect via Cloudflare Worker WebSocket Proxy
-  const proxyUrl = 'wss://ntrip-proxy.gspnet.workers.dev/'; 
+  const proxyUrl = 'wss://ntrip-proxy.kiggundumuhamad.workers.dev/'; 
   try {
     RV.ntripSocket = new WebSocket(proxyUrl);
     RV.ntripSocket.binaryType = "arraybuffer";
