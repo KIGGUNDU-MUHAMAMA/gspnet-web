@@ -65478,7 +65478,7 @@ function rvUpdatePosition(pos) {
   }
 
   // Update map marker
-  if (RV.map) {
+  if (RV.map && RV.gpsSource) {
     RV.gpsSource.clear();
     const olCoord = ol.proj.fromLonLat([lon, lat]);
     // Accuracy circle
@@ -65487,6 +65487,11 @@ function rvUpdatePosition(pos) {
     // GPS dot
     const ptFeat = new ol.Feature({ geometry: new ol.geom.Point(olCoord), type: 'gps' });
     RV.gpsSource.addFeatures([circFeat, ptFeat]);
+
+    // Auto-center map if using external GNSS
+    if (RV.gnssMode === 'external') {
+      RV.map.getView().setCenter(olCoord);
+    }
   }
 
   // Stakeout update
@@ -66342,16 +66347,32 @@ function rvProcessNmeaSentence(nmea) {
       
       const fixMap = {0:'NO FIX', 1:'GPS', 2:'DGPS', 4:'RTK FIX', 5:'RTK FLOAT'};
       RV.fixType = fixMap[RV.fixQuality] || 'UNKNOWN';
-      RV.gnssAcc = RV.hdop * 2.5;
-
-      document.getElementById('rvFixBadge').className = 'rv-badge ' + (RV.fixQuality===4?'rv-badge-rtk':RV.fixQuality===5?'rv-badge-float':'rv-badge-nofix');
-      document.getElementById('rvFixBadge').innerHTML = '<i class="fas fa-satellite"></i> ' + RV.fixType;
-      document.getElementById('rvSats').textContent = RV.satCount || '—';
       
-      document.getElementById('rvDiagFix').textContent = RV.fixType;
-      document.getElementById('rvDiagFix').style.color = RV.fixQuality===4?'#4ade80':RV.fixQuality===5?'#fbbf24':'#f87171';
-      document.getElementById('rvDiagSats').textContent = RV.satCount;
-      document.getElementById('rvDiagHdop').textContent = RV.hdop.toFixed(2);
+      // Calculate realistic accuracy based on fix type
+      if (RV.fixQuality === 4) RV.gnssAcc = 0.015; // 1.5cm for RTK FIX
+      else if (RV.fixQuality === 5) RV.gnssAcc = 0.4;  // 40cm for RTK FLOAT
+      else if (RV.fixQuality === 2) RV.gnssAcc = RV.hdop * 0.8; // DGPS
+      else RV.gnssAcc = RV.hdop * 2.5; // Autonomous GPS
+
+      // Override fix badge explicitly for external GNSS
+      const fixBadge = document.getElementById('rvFixBadge');
+      if (fixBadge) {
+        fixBadge.className = 'rv-badge ' + (RV.fixQuality===4?'fix-good':RV.fixQuality===5?'fix-warn':'fix-bad');
+        fixBadge.innerHTML = (RV.fixQuality===4?'● ':'◉ ') + RV.fixType;
+      }
+      
+      const satsEl = document.getElementById('rvSats');
+      if (satsEl) satsEl.textContent = RV.satCount || '—';
+      
+      const diagFix = document.getElementById('rvDiagFix');
+      if (diagFix) {
+        diagFix.textContent = RV.fixType;
+        diagFix.style.color = RV.fixQuality===4?'#4ade80':RV.fixQuality===5?'#fbbf24':'#f87171';
+      }
+      const diagSats = document.getElementById('rvDiagSats');
+      if (diagSats) diagSats.textContent = RV.satCount;
+      const diagHdop = document.getElementById('rvDiagHdop');
+      if (diagHdop) diagHdop.textContent = RV.hdop.toFixed(2);
 
       // Trigger map and UI update
       const fakePos = {
