@@ -64782,7 +64782,24 @@ function rvSaveSettings() {
 }
 
 function rvToast(msg, dur=3500) {
-  const t = document.getElementById('rvAlertToast');
+  let t = document.getElementById('rvAlertToast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'rvAlertToast';
+    t.style.position = 'fixed';
+    t.style.bottom = '80px';
+    t.style.left = '50%';
+    t.style.transform = 'translateX(-50%)';
+    t.style.background = 'rgba(0,0,0,0.8)';
+    t.style.color = 'white';
+    t.style.padding = '10px 16px';
+    t.style.borderRadius = '20px';
+    t.style.fontSize = '14px';
+    t.style.zIndex = '99999';
+    t.style.textAlign = 'center';
+    t.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+    document.body.appendChild(t);
+  }
   t.textContent = msg;
   t.style.display = 'block';
   clearTimeout(RV.toastTimer);
@@ -66357,26 +66374,34 @@ function rvNtripSaveAndConnect() {
   }
   
   localStorage.setItem('gspNtripSettings', JSON.stringify({host,port,mount,user,pass}));
+  document.getElementById('rvNtripModal').classList.remove('rv-modal-open');
+  rvToast('🔄 Connecting to NTRIP...', 3000);
   rvNtripConnect(host, port, mount, user, pass);
 }
 
 function rvNtripConnect(host, port, mount, user, pass) {
   if (RV.ntripSocket) rvNtripDisconnect();
   
-  document.getElementById('rvNtripStatus').className = 'rv-ntrip-on';
+  document.getElementById('rvNtripStatus').className = 'rv-ntrip-conn';
   document.getElementById('rvNtripStatus').innerHTML = '🔄 CONNECTING...';
+  document.getElementById('rvNtripBadge').className = 'rv-ntrip-badge rv-ntrip-conn';
+  document.getElementById('rvNtripBadge').textContent = 'NTRIP: CONN';
   
   // Connect via Cloudflare Worker WebSocket Proxy
-  const proxyUrl = 'wss://ntrip-proxy.kiggundumuhamad.workers.dev/'; 
+  const proxyUrl = `wss://ntrip-proxy.kiggundumuhamad.workers.dev/?host=${host}&port=${port}`; 
   try {
     RV.ntripSocket = new WebSocket(proxyUrl);
     RV.ntripSocket.binaryType = "arraybuffer";
     
     RV.ntripSocket.onerror = (err) => {
       console.error("NTRIP WebSocket Error:", err);
-      document.getElementById('rvNtripStatus').className = 'rv-ntrip-off';
+      document.getElementById('rvNtripStatus').className = 'rv-ntrip-err';
       document.getElementById('rvNtripStatus').innerHTML = '❌ CONNECTION FAILED';
       document.getElementById('rvNtripNote').textContent = "WebSocket proxy unreachable or rejected.";
+      
+      document.getElementById('rvNtripBadge').className = 'rv-ntrip-badge rv-ntrip-err';
+      document.getElementById('rvNtripBadge').textContent = 'NTRIP: ERR';
+      rvToast('❌ NTRIP Connection Failed', 4000);
     };
     
     RV.ntripSocket.onclose = () => {
@@ -66384,13 +66409,16 @@ function rvNtripConnect(host, port, mount, user, pass) {
       if (RV.ntripConnected) {
         document.getElementById('rvNtripStatus').innerHTML = '⭕ DISCONNECTED';
       }
+      document.getElementById('rvNtripBadge').className = 'rv-ntrip-badge rv-ntrip-off';
+      document.getElementById('rvNtripBadge').textContent = 'NTRIP: OFF';
       RV.ntripConnected = false;
       if (RV.ntripCorrAgeTimer) clearInterval(RV.ntripCorrAgeTimer);
     };
     
     RV.ntripSocket.onopen = () => {
       const auth = btoa(user + ':' + pass);
-      const req = `GET /${mount} HTTP/1.0\r\nUser-Agent: NTRIP GSPRover/1.0\r\nAccept: */*\r\nConnection: close\r\nAuthorization: Basic ${auth}\r\nNtrip-Target: ${host}:${port}\r\n\r\n`;
+      // The Cloudflare Worker will extract the target from the URL, so we don't need Ntrip-Target here anymore
+      const req = `GET /${mount} HTTP/1.0\r\nUser-Agent: NTRIP GSPRover/1.0\r\nAccept: */*\r\nConnection: close\r\nAuthorization: Basic ${auth}\r\n\r\n`;
       RV.ntripSocket.send(req);
       document.getElementById('rvNtripStatus').innerHTML = '✅ CONNECTED';
       RV.ntripConnected = true;
@@ -66517,7 +66545,7 @@ function rvStartQueueStake() {
   RV.isLineStake = false;
   RV.corners = RV.stakeQueue.map(p => ({lon: p.lon, lat: p.lat, name: p.name}));
   document.getElementById('rvCoordInputModal').classList.remove('rv-modal-open');
-  rvStartStakeout(0);
+  window.rvGoToCorner(0);
 }
 
 function rvStakeNow() {
@@ -66609,7 +66637,7 @@ function rvStartLineStake() {
   RV.isLineStake = true;
   RV.corners = RV.lineStakes.map(p => ({lon: p.lon, lat: p.lat, name: 'CH '+ (typeof p.ch==='number'?p.ch.toFixed(2):p.ch) }));
   document.getElementById('rvLineStakeModal').classList.remove('rv-modal-open');
-  rvStartStakeout(0);
+  window.rvGoToCorner(0);
 }
 
 // --- 7. Override Stakeout UI to add Compass & N/S/E/W ---
@@ -66624,30 +66652,44 @@ function rvUpdateStakeout(userLat, userLon) {
 
   document.getElementById('rvSoDist').textContent = dist < 1000 ? dist.toFixed(2)+'m' : (dist/1000).toFixed(3)+'km';
   
-  // Calculate N/S/E/W offsets using proj4
+  // Calculate N/S/E/W offsets or Line offsets using proj4
   let offsetStr = '';
-  let lineDistStr = '';
   try {
     const pU = proj4('EPSG:4326', 'EPSG:'+RV.crs, [userLon, userLat]);
     const pT = proj4('EPSG:4326', 'EPSG:'+RV.crs, [tgt.lon, tgt.lat]);
-    const dE = pT[0] - pU[0];
-    const dN = pT[1] - pU[1];
-    offsetStr += dN >= 0 ? `North: ${dN.toFixed(2)}m ` : `South: ${Math.abs(dN).toFixed(2)}m `;
-    offsetStr += dE >= 0 ? `East: ${dE.toFixed(2)}m` : `West: ${Math.abs(dE).toFixed(2)}m`;
     
-    // Cross track distance for line stakeout
     if (RV.isLineStake && RV.activeLineStakeStart) {
       const x0 = pU[0], y0 = pU[1];
       const x1 = RV.activeLineStakeStart.e, y1 = RV.activeLineStakeStart.n;
       const x2 = RV.activeLineStakeEnd.e, y2 = RV.activeLineStakeEnd.n;
-      const num = Math.abs((y2 - y1)*x0 - (x2 - x1)*y0 + x2*y1 - y2*x1);
-      const den = Math.sqrt(Math.pow(y2 - y1, 2) + Math.pow(x2 - x1, 2));
-      const crossTrack = num / den;
-      lineDistStr = ` | LineDist: ${crossTrack.toFixed(2)}m`;
+      
+      const vx = x2 - x1, vy = y2 - y1;
+      const L = Math.sqrt(vx*vx + vy*vy);
+      if (L > 0) {
+        const wx = x0 - x1, wy = y0 - y1;
+        // User chainage
+        const chainage = (wx * vx + wy * vy) / L;
+        // Cross Product for left/right
+        const offset = (vx * wy - vy * wx) / L;
+        
+        const wx_tgt = pT[0] - x1, wy_tgt = pT[1] - y1;
+        const tgt_chainage = (wx_tgt * vx + wy_tgt * vy) / L;
+        
+        const along_diff = tgt_chainage - chainage;
+        const fwdDir = along_diff > 0 ? "⬆️ Fwd" : "⬇️ Back";
+        const goDir = offset > 0 ? "👉 Right" : "👈 Left";
+        
+        offsetStr = `<span style="color:#4ade80">${fwdDir} ${Math.abs(along_diff).toFixed(2)}m</span> | <span style="color:#f87171">${goDir} ${Math.abs(offset).toFixed(2)}m</span>`;
+      }
+    } else {
+      const dE = pT[0] - pU[0];
+      const dN = pT[1] - pU[1];
+      offsetStr += dN >= 0 ? `North: ${dN.toFixed(2)}m ` : `South: ${Math.abs(dN).toFixed(2)}m `;
+      offsetStr += dE >= 0 ? `East: ${dE.toFixed(2)}m` : `West: ${Math.abs(dE).toFixed(2)}m`;
     }
   } catch(e) {}
   
-  document.getElementById('rvSoBearing').textContent = bear.toFixed(1) + '° ' + bearLbl + (offsetStr ? ' | ' + offsetStr : '') + lineDistStr;
+  document.getElementById('rvSoBearing').innerHTML = bear.toFixed(1) + '° ' + bearLbl + (offsetStr ? '<br>' + offsetStr : '');
 
   const pct = RV.stakeoutStart > 0 ? Math.min(100, (1 - dist/RV.stakeoutStart)*100) : 0;
   document.getElementById('rvSoProgressFill').style.width = pct + '%';
@@ -66681,7 +66723,7 @@ function rvOnArrival() {
   // Auto advance
   const nextIdx = RV.stakeoutIdx + 1;
   if (nextIdx < RV.corners.length) {
-    setTimeout(() => rvStartStakeout(nextIdx), 3000);
+    setTimeout(() => window.rvGoToCorner(nextIdx), 3000);
   } else {
     setTimeout(rvStopStakeout, 3000);
   }
