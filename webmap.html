@@ -21009,7 +21009,7 @@
 
             // Define Environmental Layers (Wetlands, Forests, Protected Areas)
             const environmentalData = [
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson/uganda_wetlands.fgb', fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/geojeson/uganda_wetlands.fgb', title: 'NEMA WETLANDS' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson/uganda_wetlands.fgb', fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/geojeson/uganda_wetlands.fgb', title: 'NEMA' },
                 { url: 'https://data.geospatialnetworkug.xyz/WAKISO/uganda-forests-reserve.fgb', title: 'Uganda Forests Reserve' },
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson2/protectedareas.fgb', title: 'Protected Areas' }
             ];
@@ -22034,7 +22034,7 @@
 
                 // Only add label when zoomed in enough
                 if (resolution <= RES_THRESHOLD.LABELS) {
-                    let name = feature.get('waterwash') || feature.get('name') || feature.get('Name') || '';
+                    let name = feature.get('descriptio') || feature.get('waterwash') || feature.get('name') || feature.get('Name') || '';
                     if (name) {
                         const centroid = ol.extent.getCenter(geometry.getExtent());
                         styles.push(new ol.style.Style({
@@ -22068,7 +22068,7 @@
                     strategy: ol.loadingstrategy.bbox
                 });
                 
-                const isWetlands = config.name === 'NEMA WETLANDS';
+                const isWetlands = config.name === 'NEMA';
                 const isForest = config.name === 'Uganda Forests Reserve';
                 const isProtected = config.name === 'Protected Areas';
 
