@@ -23526,7 +23526,9 @@
 
                     // Format coordinates as PostGIS POINT using ST_MakePoint format
                     // We'll use RPC call if available, otherwise try direct insert
-                    const pointString = `(${flagData.lng},${flagData.lat})`;
+                    const pointString = (flagData.lng !== undefined && flagData.lat !== undefined) 
+                        ? `(${flagData.lng},${flagData.lat})` 
+                        : (flagData.coordinates || null);
 
                     console.log('Creating flag with data:', {
                         coordinates: pointString,
@@ -45921,7 +45923,8 @@ function smoothChaikin(points) {
                         
                         showToast('Feature deleted successfully & notified creator.', 'success');
                         closeModal('qcDeleteFeatureModal');
-                        document.getElementById('featureInfoContent').innerHTML = '<p>Feature has been deleted.</p>';
+                        const fInfo = document.getElementById('featureInfo');
+                        if (fInfo) fInfo.style.display = 'none';
                         
                     } catch (err) {
                         console.error('Delete error:', err);
