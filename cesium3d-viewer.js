@@ -204,8 +204,6 @@
             else                                   modeEl.textContent = '';
         }
     }
-        }
-    }
 
     // ── TREE BILLBOARD CANVAS — clean 2-tier lollipop design ─────────────────
     // Larger canvas (48×56) for crisp rendering at viewer zoom levels
