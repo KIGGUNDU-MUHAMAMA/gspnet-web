@@ -996,63 +996,101 @@
         const pp = document.getElementById('cesium3dProfilePanel');
         if (pp) pp.style.display = 'none';
         updateToolButtons();
-        if (typeof showToast === 'function') showToast('📏 Click two points on the terrain', 'info');
+        if (typeof showToast === 'function') showToast('📏 Click to draw profile · Right-click to finish', 'info');
 
         profileHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-        profileHandler.setInputAction(async evt => {
+        let movePos = null;
+
+        profileHandler.setInputAction(evt => {
             const ray = viewer.camera.getPickRay(evt.position);
             const pt  = viewer.scene.globe.pick(ray, viewer.scene);
             if (!pt) return;
             const c = Cesium.Cartographic.fromCartesian(pt);
             profilePoints.push({ lon: Cesium.Math.toDegrees(c.longitude), lat: Cesium.Math.toDegrees(c.latitude) });
-            if (profilePoints.length === 1) {
-                if (typeof showToast === 'function') showToast('Click the second point', 'info');
-            } else if (profilePoints.length >= 2) {
+            
+            updateProfilePreview(movePos);
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+        profileHandler.setInputAction(evt => {
+            if (profilePoints.length === 0) return;
+            const ray = viewer.camera.getPickRay(evt.endPosition);
+            const pt  = viewer.scene.globe.pick(ray, viewer.scene);
+            if (pt) {
+                const c = Cesium.Cartographic.fromCartesian(pt);
+                movePos = { lon: Cesium.Math.toDegrees(c.longitude), lat: Cesium.Math.toDegrees(c.latitude) };
+                updateProfilePreview(movePos);
+            }
+        }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+        profileHandler.setInputAction(async () => {
+            if (profilePoints.length >= 2) {
                 profileHandler.destroy(); profileHandler = null;
                 profileMode = false;
                 await generateProfile();
                 updateToolButtons();
+            } else {
+                if (typeof showToast === 'function') showToast('Need at least 2 points', 'warning');
             }
-        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+        }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
     }
 
-    async function generateProfile() {
-        if (!viewer || profilePoints.length < 2) return;
-        const [p1, p2] = profilePoints;
+    function updateProfilePreview(currentMovePos) {
+        if (!viewer) return;
+        if (profileLineEntity) { viewer.entities.remove(profileLineEntity); profileLineEntity = null; }
+        
+        const pts = [...profilePoints];
+        if (currentMovePos) pts.push(currentMovePos);
+        
+        if (pts.length < 2) return;
 
-        if (profileLineEntity) viewer.entities.remove(profileLineEntity);
         profileLineEntity = viewer.entities.add({
             polyline: {
-                positions    : [Cesium.Cartesian3.fromDegrees(p1.lon, p1.lat), Cesium.Cartesian3.fromDegrees(p2.lon, p2.lat)],
+                positions    : pts.map(p => Cesium.Cartesian3.fromDegrees(p.lon, p.lat)),
                 width        : 3,
                 material     : new Cesium.PolylineGlowMaterialProperty({ glowPower: 0.2, color: Cesium.Color.fromCssColorString('#38bdf8') }),
                 clampToGround: true
             }
         });
+    }
+
+    async function generateProfile() {
+        if (!viewer || profilePoints.length < 2) return;
+
+        // Make sure the final line is drawn exactly as the points (no mouse move trail)
+        updateProfilePreview(null);
 
         if (typeof showToast === 'function') showToast('⏳ Sampling terrain…', 'info');
         try {
-            const N     = CFG.profileSamples;
+            const pointsPerSegment = Math.max(10, Math.floor(CFG.profileSamples / (profilePoints.length - 1)));
             const carts = [];
-            for (let i = 0; i <= N; i++) {
-                const t = i / N;
-                carts.push(new Cesium.Cartographic(
-                    Cesium.Math.toRadians(p1.lon + (p2.lon - p1.lon) * t),
-                    Cesium.Math.toRadians(p1.lat + (p2.lat - p1.lat) * t)
-                ));
+            
+            for (let i = 0; i < profilePoints.length - 1; i++) {
+                const p1 = profilePoints[i];
+                const p2 = profilePoints[i+1];
+                for (let j = 0; j <= pointsPerSegment; j++) {
+                    if (i > 0 && j === 0) continue; // avoid duplicate points
+                    const t = j / pointsPerSegment;
+                    carts.push(new Cesium.Cartographic(
+                        Cesium.Math.toRadians(p1.lon + (p2.lon - p1.lon) * t),
+                        Cesium.Math.toRadians(p1.lat + (p2.lat - p1.lat) * t)
+                    ));
+                }
             }
+            
             const sampled   = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, carts);
             const heights   = sampled.map(p => p.height || 0);
             const distances = [0];
             const R = 6371000;
-            for (let i = 1; i <= N; i++) {
+            
+            for (let i = 1; i < sampled.length; i++) {
                 const a   = sampled[i - 1], b = sampled[i];
                 const dLa = b.latitude  - a.latitude;
                 const dLo = b.longitude - a.longitude;
                 const h   = Math.sin(dLa / 2) ** 2 + Math.cos(a.latitude) * Math.cos(b.latitude) * Math.sin(dLo / 2) ** 2;
                 distances.push(distances[i - 1] + R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)));
             }
-            profileData = { distances, heights, p1, p2 };
+            
+            profileData = { distances, heights };
             renderProfileChart();
             const pp = document.getElementById('cesium3dProfilePanel');
             if (pp) pp.style.display = 'flex';
