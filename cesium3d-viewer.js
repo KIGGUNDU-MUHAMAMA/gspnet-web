@@ -1,19 +1,237 @@
 // ============================================================
-// CESIUM 3D GLOBE VIEWER MODULE  (cesium3d-viewer.js)
-// GSP.NET Platform — Professional 3D Terrain Visualization
+// CESIUM 3D GLOBE VIEWER  (cesium3d-viewer.js)
+// GSPNET Platform — National Digital Twin for Uganda
+// v2.0  Engineering-Grade Upgrade
 // ============================================================
 (function () {
     'use strict';
 
-    // --- State ---
-    let viewer = null;
-    let initialCamera = null;
-    let captures = [];
-    let osmBuildingsTileset = null;
-    let currentImageryLayer = null;
-    const CESIUM_ION_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxMzJhN2ZkMi0wNmUxLTQ1MWMtOTRkZS0xZjA0OTYxMDg4NTEiLCJpZCI6NDI2MjM2LCJzdWIiOiJraWdndW5kdSBtdWhhbWFkIiwiaXNzIjoiaHR0cHM6Ly9pb24uY2VzaXVtLmNvbSIsImF1ZCI6Imdlb3NwYXRpYWwtbmV0d29rIiwiaWF0IjoxNzc3NjY0Mzk5fQ.NBpX1C09suQ4A2p6OiOqgEHQc2YYPTLTKp4FUF17sOc';
+    // ── CONFIGURATION ─────────────────────────────────────────────────────────
+    const CFG = {
+        token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxMzJhN2ZkMi0wNmUxLTQ1MWMtOTRkZS0xZjA0OTYxMDg4NTEiLCJpZCI6NDI2MjM2LCJzdWIiOiJraWdndW5kdSBtdWhhbWFkIiwiaXNzIjoiaHR0cHM6Ly9pb24uY2VzaXVtLmNvbSIsImF1ZCI6Imdlb3NwYXRpYWwtbmV0d29rIiwiaWF0IjoxNzc3NjY0Mzk5fQ.NBpX1C09suQ4A2p6OiOqgEHQc2YYPTLTKp4FUF17sOc',
+        terrainAsset     : 1,
+        osmBuildingsAsset: 96188,
+        ugandaRect       : [29.5, -1.5, 35.0, 4.5],   // [W,S,E,N]
+        elevMin          : -100,
+        elevMax          : 5200,     // Rwenzori
+        contourSpacing   : 100,      // metres
+        maxTrees         : 1500,
+        treeDensityPerKm2: 28,
+        batchSize        : 80,       // features per RAF frame
+        labelMaxDist     : 2000,     // metres camera height for labels
+        buildingSSE      : 8,        // OSM buildings screen-space error
+        profileSamples   : 80,       // terrain sample count for profile
+    };
 
-    // --- Basemap providers ---
+    // ── STATE ─────────────────────────────────────────────────────────────────
+    let viewer              = null;
+    let initialCamera       = null;
+    let captures            = [];
+    let currentImageryLayer = null;
+    let currentBasemapKey   = 'esri-satellite';
+    let osmBuildingsTileset = null;
+    let dtmEnabled          = false;
+    let contoursEnabled     = false;
+
+    // Per-layer entity tracking for visibility toggle
+    const layerEntityMap  = new Map();   // layerTitle → Set<entityId>
+    const layerVisibility = { 'gspnet-layer': true, 'survey-polygon': true };
+
+    // RAF feature batching queue
+    let featureQueue = [];
+    let rafId        = null;
+
+    // Reactive source WeakSet (prevent duplicate listeners)
+    const _reactiveSourceKeys = new WeakSet();
+
+    // AOI
+    let aoiMode          = false;
+    let aoiPoints        = [];
+    let aoiPreviewEntity = null;
+    let aoiPolygonEntity = null;
+    let aoiHandler       = null;
+    let aoiBbox          = null;   // {west,south,east,north} in degrees
+
+    // Elevation query
+    let elevQueryActive  = false;
+    let elevHandler      = null;
+
+    // Terrain profile
+    let profileMode      = false;
+    let profilePoints    = [];
+    let profileHandler   = null;
+    let profileLineEntity= null;
+    let profileData      = null;
+
+    // Vegetation
+    let vegetationEnabled    = false;
+    let vegetationCollection = null;
+    let _treeCanvas          = null;
+
+    // ── ELEVATION-RAMP CANVAS (Uganda palette) ────────────────────────────────
+    function buildElevationRampCanvas() {
+        const c = document.createElement('canvas');
+        c.width = 512; c.height = 1;
+        const ctx = c.getContext('2d');
+        const g = ctx.createLinearGradient(0, 0, 512, 0);
+        g.addColorStop(0.000, '#1a3a6b');  // deep blue  (below 0 m)
+        g.addColorStop(0.030, '#2d7a3a');  // forest grn (0–150 m)
+        g.addColorStop(0.150, '#3d9a48');  // med green  (150–600 m)
+        g.addColorStop(0.280, '#5dbb5c');  // lt green   (600–1200 m)
+        g.addColorStop(0.380, '#a3d168');  // yel-green  (1200–1700 m)
+        g.addColorStop(0.480, '#d4e87a');  // pale yel   (1700–2200 m)
+        g.addColorStop(0.580, '#f5c842');  // golden     (2200–2800 m)
+        g.addColorStop(0.680, '#e8823a');  // orange     (2800–3400 m)
+        g.addColorStop(0.780, '#c0392b');  // red        (3400–4200 m)
+        g.addColorStop(0.880, '#8e2dc1');  // purple     (4200–4800 m)
+        g.addColorStop(0.960, '#d5c4e0');  // lavender   (4800–5100 m)
+        g.addColorStop(1.000, '#ffffff');  // white      (5100+ Rwenzori)
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, 512, 1);
+        return c;
+    }
+
+    // ── GLOBE MATERIAL: DTM / CONTOUR / COMBINED ──────────────────────────────
+    function buildGlobeMaterial(showDtm, showContours) {
+        if (!showDtm && !showContours) return null;
+
+        if (showDtm && showContours) {
+            // Custom GLSL composite: elevation ramp + contour lines
+            const rampUrl = buildElevationRampCanvas().toDataURL();
+            return new Cesium.Material({
+                fabric: {
+                    uniforms: {
+                        image         : rampUrl,
+                        minimumHeight : CFG.elevMin,
+                        maximumHeight : CFG.elevMax,
+                        contourSpacing: CFG.contourSpacing,
+                    },
+                    source: `
+                        uniform sampler2D image;
+                        uniform float minimumHeight;
+                        uniform float maximumHeight;
+                        uniform float contourSpacing;
+
+                        czm_material czm_getMaterial(czm_materialInput materialInput) {
+                            czm_material material = czm_getDefaultMaterial(materialInput);
+                            float height = materialInput.height;
+
+                            // Elevation ramp
+                            float t = clamp((height - minimumHeight) / (maximumHeight - minimumHeight), 0.0, 1.0);
+                            vec4 ramp = texture2D(image, vec2(t, 0.5));
+                            material.diffuse = ramp.rgb;
+                            material.alpha   = 1.0;
+
+                            // Minor contours (every contourSpacing metres)
+                            float h    = height / contourSpacing;
+                            float frac = abs(fract(h) - 0.5) * 2.0;  // 0 at line, 1 midway
+                            float minor = clamp(1.0 - frac * 18.0, 0.0, 1.0);
+
+                            // Major contours (every 5× = 500 m default)
+                            float hM    = height / (contourSpacing * 5.0);
+                            float fracM = abs(fract(hM) - 0.5) * 2.0;
+                            float major = clamp(1.0 - fracM * 10.0, 0.0, 1.0);
+
+                            float blend = max(minor * 0.72, major);
+                            material.diffuse = mix(material.diffuse, vec3(0.02, 0.02, 0.08), blend * 0.82);
+
+                            return material;
+                        }
+                    `
+                }
+            });
+
+        } else if (showDtm) {
+            // Elevation ramp only
+            const rampUrl = buildElevationRampCanvas().toDataURL();
+            return new Cesium.Material({
+                fabric: {
+                    uniforms: {
+                        image        : rampUrl,
+                        minimumHeight: CFG.elevMin,
+                        maximumHeight: CFG.elevMax,
+                    },
+                    source: `
+                        uniform sampler2D image;
+                        uniform float minimumHeight;
+                        uniform float maximumHeight;
+
+                        czm_material czm_getMaterial(czm_materialInput materialInput) {
+                            czm_material material = czm_getDefaultMaterial(materialInput);
+                            float t = clamp((materialInput.height - minimumHeight) / (maximumHeight - minimumHeight), 0.0, 1.0);
+                            vec4 ramp = texture2D(image, vec2(t, 0.5));
+                            material.diffuse = ramp.rgb;
+                            material.alpha   = 1.0;
+                            return material;
+                        }
+                    `
+                }
+            });
+
+        } else {
+            // Contours only (built-in Cesium material — overlays on satellite)
+            return Cesium.Material.fromType('ElevationContour', {
+                color  : Cesium.Color.fromCssColorString('rgba(0,0,30,0.72)'),
+                spacing: CFG.contourSpacing,
+                width  : 1.4
+            });
+        }
+    }
+
+    function applyGlobeMaterial() {
+        if (!viewer) return;
+        viewer.scene.globe.material = buildGlobeMaterial(dtmEnabled, contoursEnabled);
+
+        if (dtmEnabled) {
+            // Remove satellite imagery — the terrain IS the visualisation
+            if (currentImageryLayer) {
+                viewer.imageryLayers.remove(currentImageryLayer, false);
+                currentImageryLayer = null;
+            }
+        } else if (!currentImageryLayer) {
+            // Restore basemap
+            switchBasemap(currentBasemapKey);
+        }
+
+        const modeEl = document.getElementById('cesium3dGlobeMode');
+        if (modeEl) {
+            if      (dtmEnabled && contoursEnabled) modeEl.textContent = '🗺 DTM + Contours';
+            else if (dtmEnabled)                   modeEl.textContent = '🗺 DTM View';
+            else if (contoursEnabled)              modeEl.textContent = '〰 Contours';
+            else                                   modeEl.textContent = '';
+        }
+    }
+
+    // ── TREE BILLBOARD CANVAS ─────────────────────────────────────────────────
+    function buildTreeCanvas() {
+        const c = document.createElement('canvas');
+        c.width = 28; c.height = 42;
+        const ctx = c.getContext('2d');
+        ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 3; ctx.shadowOffsetX = 1; ctx.shadowOffsetY = 2;
+        // Trunk
+        const tg = ctx.createLinearGradient(12, 30, 16, 42);
+        tg.addColorStop(0, '#6b3a2a'); tg.addColorStop(1, '#4a2218');
+        ctx.fillStyle = tg; ctx.fillRect(12, 32, 4, 10);
+        ctx.shadowBlur = 0;
+        // Crown bottom
+        const cb = ctx.createRadialGradient(14, 25, 2, 14, 23, 13);
+        cb.addColorStop(0, '#2e7d32'); cb.addColorStop(1, '#1b5e20');
+        ctx.fillStyle = cb; ctx.beginPath(); ctx.ellipse(14, 25, 13, 10, 0, 0, Math.PI * 2); ctx.fill();
+        // Crown mid
+        const cm = ctx.createRadialGradient(14, 17, 1, 14, 17, 11);
+        cm.addColorStop(0, '#43a047'); cm.addColorStop(1, '#2e7d32');
+        ctx.fillStyle = cm; ctx.beginPath(); ctx.ellipse(14, 17, 11, 9, 0, 0, Math.PI * 2); ctx.fill();
+        // Crown top
+        const ct = ctx.createRadialGradient(13, 9, 1, 14, 10, 8);
+        ct.addColorStop(0, '#66bb6a'); ct.addColorStop(1, '#43a047');
+        ctx.fillStyle = ct; ctx.beginPath(); ctx.ellipse(14, 10, 8, 7, 0, 0, Math.PI * 2); ctx.fill();
+        // Highlight
+        ctx.fillStyle = 'rgba(200,255,200,0.22)';
+        ctx.beginPath(); ctx.ellipse(11, 8, 4, 3, -0.3, 0, Math.PI * 2); ctx.fill();
+        return c;
+    }
+
+    // ── BASEMAP PROVIDERS ─────────────────────────────────────────────────────
     const BASEMAPS = {
         'esri-satellite': () => new Cesium.UrlTemplateImageryProvider({
             url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -41,630 +259,435 @@
         })
     };
 
-    // ========== PUBLIC: Launch 3D Globe ==========
+    // ── LAUNCH ────────────────────────────────────────────────────────────────
     window.launchCesium3DGlobe = async function () {
         const overlay = document.getElementById('cesium3dOverlay');
         if (!overlay) return;
         overlay.classList.add('active');
 
-        // Hide the project modal
         const modal = document.getElementById('terrainProjectModal');
         if (modal) modal.classList.remove('show');
 
-        const loading = document.getElementById('cesium3dLoading');
+        const loading  = document.getElementById('cesium3dLoading');
         const statusEl = document.getElementById('cesium3dLoadingStatus');
         if (loading) loading.classList.remove('hidden');
 
         try {
             if (statusEl) statusEl.textContent = 'Setting up Cesium Ion…';
-            Cesium.Ion.defaultAccessToken = CESIUM_ION_TOKEN;
+            Cesium.Ion.defaultAccessToken = CFG.token;
 
             if (statusEl) statusEl.textContent = 'Loading Cesium World Terrain…';
-            const terrainProvider = await Cesium.CesiumTerrainProvider.fromIonAssetId(1, {
+            const terrainProvider = await Cesium.CesiumTerrainProvider.fromIonAssetId(CFG.terrainAsset, {
                 requestVertexNormals: true,
-                requestWaterMask: true
+                requestWaterMask    : true
             });
 
-            if (statusEl) statusEl.textContent = 'Initializing 3D Viewer…';
+            if (statusEl) statusEl.textContent = 'Initialising 3D Viewer…';
 
-            // Destroy previous viewer if exists
-            if (viewer) {
-                try { viewer.destroy(); } catch (e) { /* ignore */ }
-                viewer = null;
-            }
+            // Reset previous viewer
+            if (viewer) { try { viewer.destroy(); } catch (e) {} viewer = null; }
+            featureQueue = []; rafId = null; layerEntityMap.clear();
+            dtmEnabled = false; contoursEnabled = false;
+            vegetationEnabled = false; vegetationCollection = null; _treeCanvas = null;
+            captures = []; aoiBbox = null; profileData = null;
 
-            // Clear container
             const container = document.getElementById('cesium3dContainer');
-            const existingWidget = container.querySelector('.cesium-viewer');
-            if (existingWidget) existingWidget.remove();
+            const old = container.querySelector('.cesium-viewer');
+            if (old) old.remove();
 
+            // ── CREATE VIEWER ────────────────────────────────────────────────
             viewer = new Cesium.Viewer('cesium3dContainer', {
-                terrainProvider: terrainProvider,
-                baseLayerPicker: false,
-                geocoder: false,
-                homeButton: false,
-                sceneModePicker: false,
-                selectionIndicator: false,
-                timeline: false,
-                animation: false,
-                fullscreenButton: false,
+                terrainProvider,
+                baseLayerPicker     : false,
+                geocoder            : false,
+                homeButton          : false,
+                sceneModePicker     : false,
+                selectionIndicator  : false,
+                timeline            : false,
+                animation           : false,
+                fullscreenButton    : false,
                 navigationHelpButton: false,
-                infoBox: false,
-                creditContainer: document.createElement('div'),
-                contextOptions: { webgl: { preserveDrawingBuffer: true } },
-                msaaSamples: 4
+                infoBox             : false,
+                creditContainer     : document.createElement('div'),
+                contextOptions      : { webgl: { preserveDrawingBuffer: true } },
+                msaaSamples         : 4
             });
 
-            // Remove default imagery and add Esri satellite
+            // ── SCENE QUALITY ─────────────────────────────────────────────────
+            const scene = viewer.scene;
+            scene.globe.maximumScreenSpaceError = 2;
+            scene.globe.depthTestAgainstTerrain = true;
+            scene.globe.enableLighting          = true;
+            scene.globe.showGroundAtmosphere    = true;
+
+            scene.skyAtmosphere.show             = true;
+            scene.skyAtmosphere.saturationShift  = 0.06;
+            scene.skyAtmosphere.brightnessShift  = 0.03;
+
+            scene.fog.enabled               = true;
+            scene.fog.density               = 0.00016;
+            scene.fog.screenSpaceErrorFactor= 4.0;
+
+            // Uganda equatorial lighting — 10:00 local
+            viewer.clock.currentTime   = Cesium.JulianDate.fromIso8601('2024-06-15T08:00:00Z');
+            viewer.clock.shouldAnimate = false;
+
+            // ── BASEMAP ───────────────────────────────────────────────────────
             viewer.imageryLayers.removeAll();
-            const provider = BASEMAPS['esri-satellite']();
-            currentImageryLayer = viewer.imageryLayers.addImageryProvider(provider);
+            currentImageryLayer = viewer.imageryLayers.addImageryProvider(BASEMAPS['esri-satellite']());
+            currentBasemapKey   = 'esri-satellite';
 
-            // Enable depth testing
-            viewer.scene.globe.depthTestAgainstTerrain = true;
-
-            // Fly to current map extent
-            if (statusEl) statusEl.textContent = 'Flying to current map extent…';
+            // ── FLY TO EXTENT ─────────────────────────────────────────────────
+            if (statusEl) statusEl.textContent = 'Flying to your area…';
             await flyToMapExtent();
 
-            // Store initial camera
             initialCamera = {
                 position: viewer.camera.position.clone(),
-                heading: viewer.camera.heading,
-                pitch: viewer.camera.pitch,
-                roll: viewer.camera.roll
+                heading : viewer.camera.heading,
+                pitch   : viewer.camera.pitch,
+                roll    : viewer.camera.roll
             };
 
-            // Add vector layers
+            // ── VECTOR LAYERS ─────────────────────────────────────────────────
             if (statusEl) statusEl.textContent = 'Overlaying map layers…';
             addVectorLayers();
 
-            // ── Drape Sentinel WMS layer if one is active in the 2D map ──
+            // ── SENTINEL DRAPE ────────────────────────────────────────────────
             if (typeof window.sentinelDrapeOn3D === 'function') {
-                try {
-                    window.sentinelDrapeOn3D(viewer);
-                } catch (e) {
-                    console.warn('[Cesium3D] Sentinel drape skipped:', e);
-                }
+                try { window.sentinelDrapeOn3D(viewer); } catch (e) {}
             }
 
-            // Hide loading
+            // ── ALTITUDE READOUT ──────────────────────────────────────────────
+            scene.postRender.addEventListener(updateAltitudeReadout);
+
             if (loading) loading.classList.add('hidden');
-
-            // Wire up controls
             wireControls();
-
-            if (typeof showToast === 'function') {
-                showToast('3D Globe loaded successfully', 'success');
-            }
+            if (typeof showToast === 'function') showToast('🌍 3D Globe loaded', 'success');
 
         } catch (err) {
-            console.error('Cesium 3D Globe error:', err);
+            console.error('[Cesium3D] Launch error:', err);
             if (loading) loading.classList.add('hidden');
-            if (typeof showToast === 'function') {
-                showToast('Error loading 3D Globe: ' + err.message, 'error');
-            }
+            if (typeof showToast === 'function') showToast('3D Globe error: ' + err.message, 'error');
         }
     };
 
-    // ========== Fly to current OL map extent ==========
+    function updateAltitudeReadout() {
+        if (!viewer) return;
+        const el = document.getElementById('cesium3dAltitude');
+        if (!el) return;
+        const h = viewer.camera.positionCartographic.height;
+        el.textContent = h > 1000 ? (h / 1000).toFixed(1) + ' km' : Math.round(h) + ' m';
+    }
+
+    // ── FLY TO MAP EXTENT ─────────────────────────────────────────────────────
     async function flyToMapExtent() {
-        if (!viewer || typeof map === 'undefined') return;
-
+        if (!viewer) return;
         try {
-            const olView = map.getView();
-            const extent = olView.calculateExtent(map.getSize());
-            // Transform from EPSG:3857 to EPSG:4326
-            const lonLatExtent = ol.proj.transformExtent(extent, 'EPSG:3857', 'EPSG:4326');
-
-            const west = lonLatExtent[0];
-            const south = lonLatExtent[1];
-            const east = lonLatExtent[2];
-            const north = lonLatExtent[3];
-
-            const rect = Cesium.Rectangle.fromDegrees(west, south, east, north);
-
+            const view   = map.getView();
+            const extent = view.calculateExtent(map.getSize());
+            const ll     = ol.proj.transformExtent(extent, 'EPSG:3857', 'EPSG:4326');
             viewer.camera.flyTo({
-                destination: rect,
-                orientation: {
-                    heading: 0.0,
-                    pitch: Cesium.Math.toRadians(-45),
-                    roll: 0.0
-                },
-                duration: 2.0
+                destination : Cesium.Rectangle.fromDegrees(ll[0], ll[1], ll[2], ll[3]),
+                orientation : { heading: 0, pitch: Cesium.Math.toRadians(-35), roll: 0 },
+                duration    : 2.0
             });
-
-            // Wait for flight to complete
-            await new Promise(r => setTimeout(r, 2500));
+            await new Promise(r => setTimeout(r, 2600));
         } catch (e) {
-            console.warn('Could not fly to map extent:', e);
-            // Fallback: fly to Uganda
-            viewer.camera.flyTo({
-                destination: Cesium.Rectangle.fromDegrees(29.5, -1.5, 35.0, 4.5),
-                duration: 2.0
-            });
-            await new Promise(r => setTimeout(r, 2500));
+            const [w, s, e2, n] = CFG.ugandaRect;
+            viewer.camera.flyTo({ destination: Cesium.Rectangle.fromDegrees(w, s, e2, n), duration: 2.0 });
+            await new Promise(r => setTimeout(r, 2600));
         }
     }
 
-    // ========== Collect all leaf OL layers recursively (handles LayerGroups) ==========
-    function collectLeafLayers(layerOrGroup) {
-        const results = [];
-        if (typeof layerOrGroup.getLayers === 'function') {
-            layerOrGroup.getLayers().getArray().forEach(child => {
-                results.push(...collectLeafLayers(child));
-            });
-        } else {
-            results.push(layerOrGroup);
-        }
-        return results;
+    // ── COLLECT LEAF OL LAYERS ────────────────────────────────────────────────
+    function collectLeafLayers(lg) {
+        const out = [];
+        if (typeof lg.getLayers === 'function') {
+            lg.getLayers().getArray().forEach(c => out.push(...collectLeafLayers(c)));
+        } else { out.push(lg); }
+        return out;
     }
 
-    // Tracks sources already wired with reactive addfeature listeners
-    const _reactiveSourceKeys = new WeakSet();
-
-    // ========== Add ALL vector layers + attach reactive listeners ==========
     function addVectorLayers() {
         if (!viewer || typeof map === 'undefined') return;
-
-        let vecCount = 0, featCount = 0;
         try {
-            const allLeafLayers = [];
-            map.getLayers().getArray().forEach(l => allLeafLayers.push(...collectLeafLayers(l)));
-
-            console.log(`[Cesium3D] Scanning ${allLeafLayers.length} layers for features`);
-
-            allLeafLayers.forEach(layer => {
-                const title = (layer.get('title') || layer.get('name') || '');
+            const all = [];
+            map.getLayers().getArray().forEach(l => all.push(...collectLeafLayers(l)));
+            all.forEach(layer => {
+                const title  = layer.get('title') || layer.get('name') || '';
                 const source = layer.getSource && layer.getSource();
                 if (!source || typeof source.getFeatures !== 'function') return;
 
-                // --- Reactive listener: pick up features as they stream in from FGB/Supabase ---
                 if (!_reactiveSourceKeys.has(source)) {
                     _reactiveSourceKeys.add(source);
-                    source.on('addfeature', function (evt) {
+                    source.on('addfeature', evt => {
                         if (!viewer) return;
-                        addVectorFeaturesToCesium([evt.feature], title);
+                        enqueueFeatures([evt.feature], title);
                     });
-                    console.log(`[Cesium3D] Reactive listener registered for "${title}"`);
                 }
 
-                // --- Snapshot: add whatever is already loaded right now ---
-                const features = source.getFeatures();
-                if (features.length === 0) return;
-
-                console.log(`[Cesium3D] "${title}": ${features.length} features (snapshot)`);
-                addVectorFeaturesToCesium(features, title);
-                vecCount++;
-                featCount += features.length;
+                const feats = source.getFeatures();
+                if (feats.length > 0) enqueueFeatures(feats, title);
             });
-
-            if (featCount === 0) {
-                console.warn('[Cesium3D] Snapshot empty — waiting for reactive listeners to pick up features as they load.');
-            }
-            console.log(`[Cesium3D] Done: ${vecCount} snapshot layers, ${featCount} features. Reactive listeners active.`);
-        } catch (e) {
-            console.warn('Error in addVectorLayers:', e);
-        }
+        } catch (e) { console.warn('[Cesium3D] addVectorLayers:', e); }
     }
 
-    // ========== Reload layers from map into Cesium on demand ==========
+    // ── RAF-CHUNKED FEATURE QUEUE ─────────────────────────────────────────────
+    function enqueueFeatures(features, layerTitle) {
+        for (let i = 0; i < features.length; i += CFG.batchSize) {
+            featureQueue.push({ batch: features.slice(i, i + CFG.batchSize), layerTitle });
+        }
+        if (!rafId) rafId = requestAnimationFrame(processQueue);
+    }
+
+    function processQueue() {
+        if (!viewer || featureQueue.length === 0) { rafId = null; return; }
+        const item = featureQueue.shift();
+        addVectorFeaturesToCesium(item.batch, item.layerTitle);
+        rafId = requestAnimationFrame(processQueue);
+    }
+
+    // ── PUBLIC: RELOAD LAYERS ─────────────────────────────────────────────────
     window.cesium3dReloadLayers = function () {
         if (!viewer) return;
-        // Remove old vector entities, keep listeners
-        const toRemove = viewer.entities.values.filter(e => {
-            const p = e.properties;
-            return p && p.layerType;
+        layerEntityMap.forEach(idSet => {
+            idSet.forEach(id => { const e = viewer.entities.getById(id); if (e) viewer.entities.remove(e); });
         });
-        toRemove.forEach(e => viewer.entities.remove(e));
+        layerEntityMap.clear();
+        featureQueue = [];
+        if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
         addVectorLayers();
-        if (typeof showToast === 'function') showToast('Layers refreshed from 2D map', 'success');
+        if (typeof showToast === 'function') showToast('Layers refreshed', 'success');
     };
 
-    function addWmsLayerToCesium(olLayer) {
-        try {
-            const source = olLayer.getSource();
-            const params = source.getParams ? source.getParams() : null;
-            const urls = source.getUrls ? source.getUrls() : null;
-            const url = urls && urls.length > 0 ? urls[0] : (source.getUrl ? source.getUrl() : null);
-
-            if (url && params) {
-                const wmsProvider = new Cesium.WebMapServiceImageryProvider({
-                    url: url,
-                    layers: params.LAYERS || params.layers || '',
-                    parameters: { transparent: true, format: 'image/png', ...params },
-                    credit: new Cesium.Credit('GSPNET')
-                });
-                viewer.imageryLayers.addImageryProvider(wmsProvider);
-            }
-        } catch (e) {
-            console.warn('Could not add WMS layer:', e);
-        }
-    }
-
-    // ========== Per-layer label field lookup (mirrors 2D style functions) ==========
-    // Sources: getFlatGeobufParcelStyle → nlis_id, getBlockBoundaryStyle → nlis_id,
-    //          getMukonoBlocksStyle → Number_, getProtectedAreasStyle → nlis_id,
-    //          getForestReservesStyle → Name/name, survey polygons → unique_id
+    // ── LABEL LOOKUP ──────────────────────────────────────────────────────────
     function getLabelText(feature, layerTitle) {
         const t = (layerTitle || '').toLowerCase();
-
-        // Forest reserves — Name field
-        if (t.includes('forest')) {
-            return feature.get('Name') || feature.get('name') || null;
-        }
-        // Mukono Blocks — unique Number_ field
-        if (t === 'mukono blocks') {
-            return feature.get('Number_') != null ? String(feature.get('Number_')) : null;
-        }
-        // Survey polygons — unique_id only
-        if (!t.includes('nlis') && !t.includes('nlsi') && !t.includes('block') &&
-            !t.includes('forest') && !t.includes('protected')) {
+        if (t.includes('forest')) return feature.get('Name') || feature.get('name') || null;
+        if (t === 'mukono blocks') return feature.get('Number_') != null ? String(feature.get('Number_')) : null;
+        if (!t.includes('nlis') && !t.includes('nlsi') && !t.includes('block') && !t.includes('forest') && !t.includes('protected')) {
             return feature.get('unique_id') != null ? String(feature.get('unique_id')) : null;
         }
-        // All other NLIS / Block / Protected layers → nlis_id
         const id = feature.get('nlis_id');
         return id != null ? String(id) : null;
     }
 
-    // ========== Compute polygon centroid in lon/lat degrees ==========
     function getRingCentroidLL(ring) {
-        // Simple bounding-box centroid (fast, good enough for label placement)
-        let sumX = 0, sumY = 0;
-        const n = ring.length - 1; // last point == first for closed ring
-        for (let i = 0; i < n; i++) { sumX += ring[i][0]; sumY += ring[i][1]; }
-        const ll = ol.proj.transform([sumX / n, sumY / n], 'EPSG:3857', 'EPSG:4326');
-        return ll; // [lon, lat]
+        let sx = 0, sy = 0;
+        const n = ring.length - 1;
+        for (let i = 0; i < n; i++) { sx += ring[i][0]; sy += ring[i][1]; }
+        return ol.proj.transform([sx / n, sy / n], 'EPSG:3857', 'EPSG:4326');
     }
 
-    function addVectorFeaturesToCesium(features, layerTitle) {
-        const titleLower = (layerTitle || '').toLowerCase();
-
-        // ── Layer classification ──────────────────────────────────────────────
-        const isMukonoBlock  = titleLower === 'mukono blocks';
-        const isForest       = titleLower.includes('forest');
-        const isProtected    = titleLower.includes('protected');
-        const isBlock        = titleLower.includes('block');  // includes mukono
-        const isNlis         = titleLower.includes('nlis') || titleLower.includes('nlsi');
-        const isGspnet       = isNlis || isBlock || isForest || isProtected;
-        const layerType      = isGspnet ? 'gspnet-layer' : 'survey-polygon';
-
-        // ── Outline colours ───────────────────────────────────────────────────
-        // GSPNET layers → red  |  Survey polygons → yellow
-        const outlineColorCss = isGspnet ? '#ef4444' : '#facc15';
-
-        // ── Label colour (white text, dark shadow for terrain readability) ────
-        const labelFillCss   = isGspnet ? '#ffffff' : '#ffffff';
-        const labelOutlineCss = isGspnet ? '#7f1d1d' : '#713f12';  // deep red / amber
-
-        // Cesium distanceDisplayCondition — labels only below 2 000 m camera height
-        const LABEL_MAX_DIST = 2000.0;
-
-        let added = 0;
+    // ── AOI INTERSECTION CHECK ────────────────────────────────────────────────
+    function featureIntersectsAoi(feature) {
+        if (!aoiBbox) return true;
         try {
-            features.forEach(feature => {
-                const geom = feature.getGeometry();
-                if (!geom) return;
-                const type = geom.getType();
+            const ext = feature.getGeometry().getExtent();
+            const ll  = ol.proj.transformExtent(ext, 'EPSG:3857', 'EPSG:4326');
+            return !(ll[2] < aoiBbox.west || ll[0] > aoiBbox.east || ll[3] < aoiBbox.south || ll[1] > aoiBbox.north);
+        } catch (e) { return true; }
+    }
 
-                // ── Polygon / MultiPolygon ────────────────────────────────────
-                if (type === 'Polygon' || type === 'MultiPolygon') {
-                    const polys = type === 'Polygon'
-                        ? [geom.getCoordinates()]
-                        : geom.getCoordinates();
+    // ── ADD VECTOR FEATURES (RAF-CHUNKED) ─────────────────────────────────────
+    function addVectorFeaturesToCesium(features, layerTitle) {
+        const tl          = (layerTitle || '').toLowerCase();
+        const isForest    = tl.includes('forest');
+        const isProtected = tl.includes('protected');
+        const isBlock     = tl.includes('block');
+        const isNlis      = tl.includes('nlis') || tl.includes('nlsi');
+        const isGspnet    = isNlis || isBlock || isForest || isProtected;
+        const layerType   = isGspnet ? 'gspnet-layer' : 'survey-polygon';
+        const lineColor   = isGspnet ? '#ef4444' : '#facc15';
+        const lblOut      = isGspnet ? '#7f1d1d' : '#713f12';
+        const visible     = layerVisibility[layerType] !== false;
 
-                    polys.forEach(polygonCoords => {
-                        const ring = polygonCoords[0];
-                        if (!ring || ring.length < 3) return;
+        if (!layerEntityMap.has(layerTitle)) layerEntityMap.set(layerTitle, new Set());
+        const idSet = layerEntityMap.get(layerTitle);
 
-                        // Convert ring to Cesium Cartesian3 positions
-                        const positions = ring.map(c => {
-                            const ll = ol.proj.transform(c, 'EPSG:3857', 'EPSG:4326');
-                            return Cesium.Cartesian3.fromDegrees(ll[0], ll[1]);
-                        });
+        features.forEach(feature => {
+            if (aoiBbox && !featureIntersectsAoi(feature)) return;
+            const geom = feature.getGeometry();
+            if (!geom) return;
+            const type = geom.getType();
 
-                        // ── Outline as a ground-clamped polyline (no fill) ──
-                        // Cesium classification polygons cannot have outlines,
-                        // so we draw a clampToGround polyline for the border.
-                        // Close the ring: last point = first point
-                        const outlinePositions = [...positions, positions[0]];
-                        viewer.entities.add({
-                            polyline: {
-                                positions: outlinePositions,
-                                width: isBlock ? 1.5 : 1.5,
-                                material: Cesium.Color.fromCssColorString(outlineColorCss),
-                                clampToGround: true
-                            },
-                            properties: { layerType }
-                        });
-
-                        // ── Centroid label (visible only when zoomed close) ──
-                        const labelText = getLabelText(feature, layerTitle);
-                        if (labelText) {
-                            const centLL = getRingCentroidLL(ring);
-                            viewer.entities.add({
-                                position: Cesium.Cartesian3.fromDegrees(centLL[0], centLL[1]),
-                                label: {
-                                    text: labelText,
-                                    font: isBlock || isForest || isProtected
-                                        ? 'bold 11px sans-serif'
-                                        : '10px sans-serif',
-                                    fillColor: Cesium.Color.fromCssColorString(labelFillCss),
-                                    outlineColor: Cesium.Color.fromCssColorString(labelOutlineCss),
-                                    outlineWidth: 2,
-                                    style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-                                    verticalOrigin: Cesium.VerticalOrigin.CENTER,
-                                    horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-                                    heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-                                    distanceDisplayCondition:
-                                        new Cesium.DistanceDisplayCondition(0, LABEL_MAX_DIST),
-                                    disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                                    pixelOffset: new Cesium.Cartesian2(0, 0),
-                                    scale: 1.0
-                                },
-                                properties: { layerType }
-                            });
-                        }
-
-                        added++;
+            if (type === 'Polygon' || type === 'MultiPolygon') {
+                const polys = type === 'Polygon' ? [geom.getCoordinates()] : geom.getCoordinates();
+                polys.forEach(polyCoords => {
+                    const ring = polyCoords[0];
+                    if (!ring || ring.length < 3) return;
+                    const pos = ring.map(c => {
+                        const ll = ol.proj.transform(c, 'EPSG:3857', 'EPSG:4326');
+                        return Cesium.Cartesian3.fromDegrees(ll[0], ll[1]);
                     });
-
-                // ── LineString / MultiLineString ──────────────────────────────
-                } else if (type === 'LineString' || type === 'MultiLineString') {
-                    const lines = type === 'LineString'
-                        ? [geom.getCoordinates()]
-                        : geom.getCoordinates();
-
-                    lines.forEach(lineCoords => {
-                        if (!lineCoords || lineCoords.length < 2) return;
-                        const positions = lineCoords.map(c => {
-                            const ll = ol.proj.transform(c, 'EPSG:3857', 'EPSG:4326');
-                            return Cesium.Cartesian3.fromDegrees(ll[0], ll[1]);
-                        });
-                        viewer.entities.add({
-                            polyline: {
-                                positions,
-                                width: 1.5,
-                                material: Cesium.Color.fromCssColorString(outlineColorCss),
-                                clampToGround: true
-                            },
-                            properties: { layerType }
-                        });
-                        added++;
-                    });
-
-                // ── Point ─────────────────────────────────────────────────────
-                } else if (type === 'Point') {
-                    const coords = geom.getCoordinates();
-                    const ll = ol.proj.transform(coords, 'EPSG:3857', 'EPSG:4326');
-                    const labelText = getLabelText(feature, layerTitle);
-                    const entity = {
-                        position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1]),
-                        point: {
-                            pixelSize: 6,
-                            color: Cesium.Color.fromCssColorString(outlineColorCss),
-                            outlineColor: Cesium.Color.WHITE,
-                            outlineWidth: 1,
-                            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+                    const oe = viewer.entities.add({
+                        polyline: {
+                            positions  : [...pos, pos[0]],
+                            width      : isBlock ? 1.8 : 1.5,
+                            material   : Cesium.Color.fromCssColorString(lineColor),
+                            clampToGround: true
                         },
                         properties: { layerType }
-                    };
-                    if (labelText) {
-                        entity.label = {
-                            text: labelText,
-                            font: '10px sans-serif',
-                            fillColor: Cesium.Color.fromCssColorString(labelFillCss),
-                            outlineColor: Cesium.Color.fromCssColorString(labelOutlineCss),
-                            outlineWidth: 2,
-                            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-                            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-                            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-                            distanceDisplayCondition:
-                                new Cesium.DistanceDisplayCondition(0, LABEL_MAX_DIST),
-                            disableDepthTestDistance: Number.POSITIVE_INFINITY,
-                            pixelOffset: new Cesium.Cartesian2(0, -10)
-                        };
+                    });
+                    oe.show = visible;
+                    idSet.add(oe.id);
+
+                    const lbl = getLabelText(feature, layerTitle);
+                    if (lbl) {
+                        const centLL = getRingCentroidLL(ring);
+                        const le = viewer.entities.add({
+                            position: Cesium.Cartesian3.fromDegrees(centLL[0], centLL[1]),
+                            label: {
+                                text        : lbl,
+                                font        : isBlock || isForest || isProtected ? 'bold 11px sans-serif' : '10px sans-serif',
+                                fillColor   : Cesium.Color.WHITE,
+                                outlineColor: Cesium.Color.fromCssColorString(lblOut),
+                                outlineWidth: 2,
+                                style       : Cesium.LabelStyle.FILL_AND_OUTLINE,
+                                verticalOrigin  : Cesium.VerticalOrigin.CENTER,
+                                horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+                                heightReference : Cesium.HeightReference.CLAMP_TO_GROUND,
+                                distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, CFG.labelMaxDist),
+                                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                            },
+                            properties: { layerType }
+                        });
+                        le.show = visible;
+                        idSet.add(le.id);
                     }
-                    viewer.entities.add(entity);
-                    added++;
-                }
-            });
-            if (added > 0) {
-                console.log(`[Cesium3D] "${layerTitle}": ${added} entities added (${layerType})`);
+                });
+
+            } else if (type === 'LineString' || type === 'MultiLineString') {
+                const lines = type === 'LineString' ? [geom.getCoordinates()] : geom.getCoordinates();
+                lines.forEach(lc => {
+                    if (!lc || lc.length < 2) return;
+                    const pos = lc.map(c => {
+                        const ll = ol.proj.transform(c, 'EPSG:3857', 'EPSG:4326');
+                        return Cesium.Cartesian3.fromDegrees(ll[0], ll[1]);
+                    });
+                    const le = viewer.entities.add({
+                        polyline  : { positions: pos, width: 1.5, material: Cesium.Color.fromCssColorString(lineColor), clampToGround: true },
+                        properties: { layerType }
+                    });
+                    le.show = visible;
+                    idSet.add(le.id);
+                });
+
+            } else if (type === 'Point') {
+                const ll = ol.proj.transform(geom.getCoordinates(), 'EPSG:3857', 'EPSG:4326');
+                const lbl = getLabelText(feature, layerTitle);
+                const pe = viewer.entities.add({
+                    position  : Cesium.Cartesian3.fromDegrees(ll[0], ll[1]),
+                    point     : {
+                        pixelSize      : 6,
+                        color          : Cesium.Color.fromCssColorString(lineColor),
+                        outlineColor   : Cesium.Color.WHITE,
+                        outlineWidth   : 1,
+                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+                    },
+                    label: lbl ? {
+                        text        : lbl,
+                        font        : '10px sans-serif',
+                        fillColor   : Cesium.Color.WHITE,
+                        outlineColor: Cesium.Color.fromCssColorString(lblOut),
+                        outlineWidth: 2,
+                        style       : Cesium.LabelStyle.FILL_AND_OUTLINE,
+                        verticalOrigin  : Cesium.VerticalOrigin.BOTTOM,
+                        heightReference : Cesium.HeightReference.CLAMP_TO_GROUND,
+                        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, CFG.labelMaxDist),
+                        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                        pixelOffset : new Cesium.Cartesian2(0, -10)
+                    } : undefined,
+                    properties: { layerType }
+                });
+                pe.show = visible;
+                idSet.add(pe.id);
             }
-        } catch (e) {
-            console.warn('Could not add vector features from "' + layerTitle + '":', e);
-        }
+        });
     }
 
-    // ========== Switch basemap ==========
+    // ── LAYER VISIBILITY ──────────────────────────────────────────────────────
+    function toggleLayerVisibility(layerType, visible) {
+        if (!viewer) return;
+        layerVisibility[layerType] = visible;
+        viewer.entities.values.forEach(e => {
+            const p = e.properties;
+            if (p && p.layerType && p.layerType.getValue() === layerType) e.show = visible;
+        });
+    }
+
+    // ── SWITCH BASEMAP ────────────────────────────────────────────────────────
     function switchBasemap(key) {
         if (!viewer) return;
+        currentBasemapKey = key;
+        if (dtmEnabled) return; // DTM mode: no imagery
         try {
             if (currentImageryLayer) {
                 viewer.imageryLayers.remove(currentImageryLayer, false);
+                currentImageryLayer = null;
             }
             const factory = BASEMAPS[key];
             if (!factory) return;
             const result = factory();
-            // Handle promise-based providers (Bing)
-            if (result instanceof Promise || (result && typeof result.then === 'function')) {
-                result.then(provider => {
-                    currentImageryLayer = viewer.imageryLayers.addImageryProvider(provider, 0);
-                });
+            if (result && typeof result.then === 'function') {
+                result.then(p => { currentImageryLayer = viewer.imageryLayers.addImageryProvider(p, 0); });
             } else {
                 currentImageryLayer = viewer.imageryLayers.addImageryProvider(result, 0);
             }
-        } catch (e) {
-            console.warn('Basemap switch error:', e);
-        }
+        } catch (e) { console.warn('[Cesium3D] Basemap switch:', e); }
     }
 
-    // ========== Vertical exaggeration ==========
+    // ── DTM / CONTOUR SETTERS ─────────────────────────────────────────────────
+    function setDtmMode(enabled) {
+        dtmEnabled = enabled;
+        applyGlobeMaterial();
+        const cb = document.getElementById('cesium3dDtmToggle');
+        if (cb) cb.checked = enabled;
+    }
+
+    function setContoursMode(enabled) {
+        contoursEnabled = enabled;
+        applyGlobeMaterial();
+        if (!dtmEnabled && !currentImageryLayer) switchBasemap(currentBasemapKey);
+    }
+
+    // ── VERTICAL EXAGGERATION ─────────────────────────────────────────────────
     function setVerticalExaggeration(val) {
         if (!viewer) return;
         viewer.scene.verticalExaggeration = parseFloat(val);
     }
 
-    // ========== Visual adjustments ==========
+    // ── IMAGERY ADJUSTMENTS ───────────────────────────────────────────────────
     function setImageryAdjustment(prop, val) {
         if (!viewer || !currentImageryLayer) return;
         const v = parseFloat(val) / 100;
-        switch (prop) {
-            case 'brightness': currentImageryLayer.brightness = v; break;
-            case 'contrast': currentImageryLayer.contrast = v; break;
-            case 'saturation': currentImageryLayer.saturation = v; break;
-        }
+        if (prop === 'brightness') currentImageryLayer.brightness = v;
+        else if (prop === 'contrast') currentImageryLayer.contrast = v;
+        else if (prop === 'saturation') currentImageryLayer.saturation = v;
     }
 
-    // ========== Capture viewpoint ==========
-    function captureViewpoint() {
-        if (!viewer) return;
-        try {
-            const canvas = viewer.scene.canvas;
-            const dataUrl = canvas.toDataURL('image/png');
-            const note = prompt('Add a note for this viewpoint capture:', 'Viewpoint ' + (captures.length + 1));
-            if (note === null) return; // cancelled
-
-            const capture = {
-                image: dataUrl,
-                note: note || 'Viewpoint ' + (captures.length + 1),
-                timestamp: new Date().toISOString(),
-                camera: {
-                    position: viewer.camera.position.clone(),
-                    heading: viewer.camera.heading,
-                    pitch: viewer.camera.pitch,
-                    roll: viewer.camera.roll
-                }
-            };
-            captures.push(capture);
-            updateCaptureStrip();
-
-            // Enable PDF button
-            const pdfBtn = document.getElementById('cesium3dPdfBtn');
-            if (pdfBtn) pdfBtn.disabled = false;
-
-            if (typeof showToast === 'function') {
-                showToast('Viewpoint captured: ' + capture.note, 'success');
-            }
-        } catch (e) {
-            console.error('Capture error:', e);
-        }
-    }
-
-    function updateCaptureStrip() {
-        const strip = document.getElementById('cesium3dCaptures');
-        if (!strip) return;
-        strip.innerHTML = '';
-        captures.forEach((cap, i) => {
-            const img = document.createElement('img');
-            img.src = cap.image;
-            img.className = 'cesium3d-cap-thumb';
-            img.title = cap.note;
-            img.addEventListener('click', () => {
-                // Fly back to captured viewpoint
-                viewer.camera.flyTo({
-                    destination: cap.camera.position,
-                    orientation: {
-                        heading: cap.camera.heading,
-                        pitch: cap.camera.pitch,
-                        roll: cap.camera.roll
-                    },
-                    duration: 1.5
-                });
-            });
-            strip.appendChild(img);
-        });
-    }
-
-    // ========== Export 3D PDF ==========
-    async function exportPdf() {
-        if (captures.length === 0) {
-            if (typeof showToast === 'function') showToast('No viewpoints captured yet', 'warning');
-            return;
-        }
-
-        try {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-            const pageW = doc.internal.pageSize.getWidth();
-            const pageH = doc.internal.pageSize.getHeight();
-
-            // Get project info
-            const projectName = document.getElementById('cesium3dProjectName')?.value || 'Untitled Project';
-            const location = document.getElementById('cesium3dLocation')?.value || '';
-            const supervisor = document.getElementById('cesium3dSupervisor')?.value || '';
-            const surveyor = document.getElementById('cesium3dSurveyor')?.value || '';
-
-            // Title page
-            doc.setFillColor(15, 23, 42);
-            doc.rect(0, 0, pageW, pageH, 'F');
-
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(28);
-            doc.text('3D Terrain Visualization Report', pageW / 2, 50, { align: 'center' });
-
-            doc.setFontSize(16);
-            doc.setTextColor(148, 163, 184);
-            doc.text(projectName, pageW / 2, 70, { align: 'center' });
-            if (location) doc.text('Location: ' + location, pageW / 2, 82, { align: 'center' });
-
-            doc.setFontSize(11);
-            doc.setTextColor(203, 213, 225);
-            const infoY = 110;
-            if (supervisor) doc.text('Supervisor: ' + supervisor, pageW / 2, infoY, { align: 'center' });
-            if (surveyor) doc.text('Surveyor: ' + surveyor, pageW / 2, infoY + 10, { align: 'center' });
-            doc.text('Date: ' + new Date().toLocaleDateString(), pageW / 2, infoY + 20, { align: 'center' });
-            doc.text('Captures: ' + captures.length, pageW / 2, infoY + 30, { align: 'center' });
-
-            doc.setFontSize(9);
-            doc.setTextColor(100, 116, 139);
-            doc.text('Generated by GSP.NET 3D Globe Viewer', pageW / 2, pageH - 15, { align: 'center' });
-
-            // Capture pages
-            for (let i = 0; i < captures.length; i++) {
-                doc.addPage('landscape');
-                doc.setFillColor(248, 250, 252);
-                doc.rect(0, 0, pageW, pageH, 'F');
-
-                // Header bar
-                doc.setFillColor(15, 23, 42);
-                doc.rect(0, 0, pageW, 18, 'F');
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(11);
-                doc.text(`Viewpoint ${i + 1} of ${captures.length}: ${captures[i].note}`, 10, 12);
-                doc.setFontSize(8);
-                doc.text(new Date(captures[i].timestamp).toLocaleString(), pageW - 10, 12, { align: 'right' });
-
-                // Image
-                const imgW = pageW - 20;
-                const imgH = pageH - 40;
-                doc.addImage(captures[i].image, 'PNG', 10, 22, imgW, imgH);
-
-                // Footer
-                doc.setTextColor(100, 116, 139);
-                doc.setFontSize(8);
-                doc.text(projectName + ' | GSP.NET 3D Report', 10, pageH - 5);
-                doc.text(`Page ${i + 2}`, pageW - 10, pageH - 5, { align: 'right' });
-            }
-
-            doc.save(`${projectName.replace(/[^a-zA-Z0-9]/g, '_')}_3D_Report.pdf`);
-            if (typeof showToast === 'function') showToast('3D PDF Report exported!', 'success');
-        } catch (e) {
-            console.error('PDF export error:', e);
-            if (typeof showToast === 'function') showToast('PDF export failed: ' + e.message, 'error');
-        }
-    }
-
-    // ========== Toggle OSM Buildings ==========
+    // ── OSM BUILDINGS (height-styled) ─────────────────────────────────────────
     async function toggleOsmBuildings(enabled) {
         if (!viewer) return;
         if (enabled) {
             try {
-                osmBuildingsTileset = await Cesium.Cesium3DTileset.fromIonAssetId(96188);
+                osmBuildingsTileset = await Cesium.Cesium3DTileset.fromIonAssetId(CFG.osmBuildingsAsset);
+                osmBuildingsTileset.maximumScreenSpaceError = CFG.buildingSSE;
+                osmBuildingsTileset.style = new Cesium.Cesium3DTileStyle({
+                    color: {
+                        conditions: [
+                            ['${feature["cesium#estimatedHeight"]} >= 80',  'color("rgba(249,115,22,0.93)")'],
+                            ['${feature["cesium#estimatedHeight"]} >= 40',  'color("rgba(59,130,246,0.90)")'],
+                            ['${feature["cesium#estimatedHeight"]} >= 15',  'color("rgba(148,163,184,0.87)")'],
+                            ['${feature["cesium#estimatedHeight"]} >= 5',   'color("rgba(203,213,225,0.84)")'],
+                            ['true',                                         'color("rgba(226,232,240,0.80)")'],
+                        ]
+                    }
+                });
                 viewer.scene.primitives.add(osmBuildingsTileset);
             } catch (e) {
-                console.warn('Could not load OSM buildings:', e);
+                console.warn('[Cesium3D] OSM buildings:', e);
+                if (typeof showToast === 'function') showToast('Buildings unavailable', 'warning');
             }
         } else {
             if (osmBuildingsTileset) {
@@ -674,138 +697,661 @@
         }
     }
 
-    // ========== Toggle layer visibility ==========
-    function toggleLayerVisibility(layerType, visible) {
+    // ── VEGETATION: OVERPASS + BillboardCollection ─────────────────────────────
+    async function toggleVegetation(enabled) {
+        vegetationEnabled = enabled;
         if (!viewer) return;
-        viewer.entities.values.forEach(entity => {
-            const props = entity.properties;
-            if (props && props.layerType && props.layerType.getValue() === layerType) {
-                entity.show = visible;
+        if (!enabled) {
+            if (vegetationCollection) { viewer.scene.primitives.remove(vegetationCollection); vegetationCollection = null; }
+            updateToolButtons();
+            return;
+        }
+        await loadVegetationForView();
+        updateToolButtons();
+    }
+
+    async function loadVegetationForView() {
+        if (!viewer || !vegetationEnabled) return;
+        const alt = viewer.camera.positionCartographic.height;
+        if (alt > 15000) {
+            if (typeof showToast === 'function') showToast('🌲 Zoom in closer to see trees', 'info');
+            return;
+        }
+        const rect = viewer.camera.computeViewRectangle(viewer.scene.globe.ellipsoid);
+        if (!rect) return;
+        const W = Cesium.Math.toDegrees(rect.west),  S = Cesium.Math.toDegrees(rect.south);
+        const E = Cesium.Math.toDegrees(rect.east),  N = Cesium.Math.toDegrees(rect.north);
+        const areakm2 = (E - W) * (N - S) * 111.32 * 111.32;
+        if (areakm2 > 2500) {
+            if (typeof showToast === 'function') showToast('🌲 Zoom in for vegetation detail', 'info');
+            return;
+        }
+        if (typeof showToast === 'function') showToast('🌿 Loading forest areas…', 'info');
+        try {
+            const bounds = `${S.toFixed(5)},${W.toFixed(5)},${N.toFixed(5)},${E.toFixed(5)}`;
+            const query  = `[out:json][timeout:14];(way[landuse=forest](${bounds});way[natural=wood](${bounds});way[natural=forest](${bounds});way[leisure=park](${bounds}););out geom;`;
+            const resp   = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
+            if (!resp.ok) throw new Error('Overpass API failed');
+            const data   = await resp.json();
+
+            if (vegetationCollection) viewer.scene.primitives.remove(vegetationCollection);
+            vegetationCollection = new Cesium.BillboardCollection({ scene: viewer.scene });
+
+            if (!_treeCanvas) _treeCanvas = buildTreeCanvas();
+            let totalTrees = 0;
+
+            for (const el of data.elements) {
+                if (totalTrees >= CFG.maxTrees) break;
+                const nodes = el.geometry;
+                if (!nodes || nodes.length < 3) continue;
+                let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
+                nodes.forEach(n => {
+                    if (n.lon == null) return;
+                    minLon = Math.min(minLon, n.lon); maxLon = Math.max(maxLon, n.lon);
+                    minLat = Math.min(minLat, n.lat); maxLat = Math.max(maxLat, n.lat);
+                });
+                if (!isFinite(minLon)) continue;
+
+                const pkm2 = (maxLon - minLon) * (maxLat - minLat) * 111.32 * 111.32;
+                const want = Math.min(Math.round(pkm2 * CFG.treeDensityPerKm2), 80);
+                let placed = 0, attempts = 0;
+
+                while (placed < want && attempts < want * 3 && totalTrees < CFG.maxTrees) {
+                    attempts++;
+                    const lon = minLon + Math.random() * (maxLon - minLon);
+                    const lat = minLat + Math.random() * (maxLat - minLat);
+                    if (!pointInPolygon(lon, lat, nodes)) continue;
+                    const sc = 0.65 + Math.random() * 0.8;
+                    vegetationCollection.add({
+                        position : Cesium.Cartesian3.fromDegrees(lon, lat, 0),
+                        image    : _treeCanvas,
+                        width    : 22 * sc,
+                        height   : 36 * sc,
+                        verticalOrigin : Cesium.VerticalOrigin.BOTTOM,
+                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, Math.min(alt * 1.8, 4000)),
+                        color: new Cesium.Color(
+                            0.80 + Math.random() * 0.20,
+                            0.85 + Math.random() * 0.15,
+                            0.72 + Math.random() * 0.18,
+                            0.88 + Math.random() * 0.12
+                        )
+                    });
+                    placed++; totalTrees++;
+                }
+            }
+            viewer.scene.primitives.add(vegetationCollection);
+            if (typeof showToast === 'function') showToast(`🌲 ${totalTrees} trees placed`, 'success');
+        } catch (e) {
+            console.warn('[Cesium3D] Vegetation:', e);
+            if (typeof showToast === 'function') showToast('Vegetation load failed', 'warning');
+        }
+    }
+
+    function pointInPolygon(x, y, nodes) {
+        let inside = false, n = nodes.length;
+        for (let i = 0, j = n - 1; i < n; j = i++) {
+            const ni = nodes[i], nj = nodes[j];
+            if (!ni || ni.lon == null || !nj || nj.lon == null) continue;
+            if (((ni.lat > y) !== (nj.lat > y)) && (x < (nj.lon - ni.lon) * (y - ni.lat) / (nj.lat - ni.lat) + ni.lon))
+                inside = !inside;
+        }
+        return inside;
+    }
+
+    // ── AOI DRAW TOOL ─────────────────────────────────────────────────────────
+    function startAoiDraw() {
+        if (!viewer) return;
+        if (aoiMode) { cancelAoiDraw(); return; }
+        aoiMode = true; aoiPoints = [];
+        updateToolButtons();
+        if (typeof showToast === 'function') showToast('Click to draw AOI polygon · Double-click to finish', 'info');
+        if (aoiHandler) aoiHandler.destroy();
+        aoiHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+
+        aoiHandler.setInputAction(evt => {
+            const ray = viewer.camera.getPickRay(evt.position);
+            const pt  = viewer.scene.globe.pick(ray, viewer.scene);
+            if (!pt) return;
+            const c = Cesium.Cartographic.fromCartesian(pt);
+            aoiPoints.push({ lon: Cesium.Math.toDegrees(c.longitude), lat: Cesium.Math.toDegrees(c.latitude) });
+            updateAoiPreview();
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+        aoiHandler.setInputAction(() => { if (aoiPoints.length >= 3) finishAoiDraw(); },
+            Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+    }
+
+    function updateAoiPreview() {
+        if (!viewer) return;
+        if (aoiPreviewEntity) viewer.entities.remove(aoiPreviewEntity);
+        if (aoiPoints.length < 2) return;
+        const pos = aoiPoints.map(p => Cesium.Cartesian3.fromDegrees(p.lon, p.lat));
+        aoiPreviewEntity = viewer.entities.add({
+            polyline: {
+                positions    : [...pos, pos[0]],
+                width        : 2.5,
+                material     : new Cesium.PolylineDashMaterialProperty({ color: Cesium.Color.YELLOW, dashLength: 14 }),
+                clampToGround: true
             }
         });
     }
 
-    // ========== Close viewer ==========
+    function finishAoiDraw() {
+        if (aoiPoints.length < 3) { cancelAoiDraw(); return; }
+        aoiMode = false;
+        if (aoiHandler) { aoiHandler.destroy(); aoiHandler = null; }
+        if (aoiPreviewEntity) { viewer.entities.remove(aoiPreviewEntity); aoiPreviewEntity = null; }
+        if (aoiPolygonEntity) viewer.entities.remove(aoiPolygonEntity);
+
+        aoiBbox = {
+            west : Math.min(...aoiPoints.map(p => p.lon)),
+            east : Math.max(...aoiPoints.map(p => p.lon)),
+            south: Math.min(...aoiPoints.map(p => p.lat)),
+            north: Math.max(...aoiPoints.map(p => p.lat))
+        };
+
+        const pos  = aoiPoints.map(p => Cesium.Cartesian3.fromDegrees(p.lon, p.lat));
+        aoiPolygonEntity = viewer.entities.add({
+            polygon: {
+                hierarchy         : new Cesium.PolygonHierarchy(pos),
+                material          : Cesium.Color.YELLOW.withAlpha(0.10),
+                outline           : true,
+                outlineColor      : Cesium.Color.YELLOW,
+                outlineWidth      : 2,
+                classificationType: Cesium.ClassificationType.TERRAIN,
+                heightReference   : Cesium.HeightReference.CLAMP_TO_GROUND
+            }
+        });
+
+        const badge = document.getElementById('cesium3dAoiBadge');
+        const info  = document.getElementById('cesium3dAoiInfo');
+        if (badge) badge.style.display = 'flex';
+        if (info) {
+            const wkm = ((aoiBbox.east - aoiBbox.west) * 111.32).toFixed(1);
+            const hkm = ((aoiBbox.north - aoiBbox.south) * 111.32).toFixed(1);
+            info.textContent = `AOI ${wkm} × ${hkm} km`;
+        }
+        updateToolButtons();
+        if (typeof showToast === 'function') showToast('✅ AOI set — new features filtered to this area', 'success');
+    }
+
+    function cancelAoiDraw() {
+        aoiMode = false; aoiPoints = [];
+        if (aoiHandler)      { aoiHandler.destroy(); aoiHandler = null; }
+        if (aoiPreviewEntity){ viewer.entities.remove(aoiPreviewEntity); aoiPreviewEntity = null; }
+        updateToolButtons();
+    }
+
+    function clearAoi() {
+        cancelAoiDraw();
+        aoiBbox = null;
+        if (aoiPolygonEntity) { viewer.entities.remove(aoiPolygonEntity); aoiPolygonEntity = null; }
+        const badge = document.getElementById('cesium3dAoiBadge');
+        if (badge) badge.style.display = 'none';
+        if (typeof showToast === 'function') showToast('AOI cleared', 'info');
+    }
+    window.clearAoi = clearAoi; // expose for inline onclick safety
+
+    // ── ELEVATION QUERY ───────────────────────────────────────────────────────
+    function toggleElevationQuery(enable) {
+        elevQueryActive = enable;
+        if (elevHandler) { elevHandler.destroy(); elevHandler = null; }
+        if (!enable) {
+            const popup = document.getElementById('cesium3dElevPopup');
+            if (popup) popup.style.display = 'none';
+            updateToolButtons();
+            return;
+        }
+        updateToolButtons();
+        if (typeof showToast === 'function') showToast('📍 Click terrain to read elevation', 'info');
+        elevHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+        elevHandler.setInputAction(async evt => {
+            const ray = viewer.camera.getPickRay(evt.position);
+            const pt  = viewer.scene.globe.pick(ray, viewer.scene);
+            if (!pt) return;
+            const c   = Cesium.Cartographic.fromCartesian(pt);
+            let height = c.height;
+            try {
+                const [sampled] = await Cesium.sampleTerrainMostDetailed(
+                    viewer.terrainProvider,
+                    [new Cesium.Cartographic(c.longitude, c.latitude)]
+                );
+                if (sampled && sampled.height != null) height = sampled.height;
+            } catch (e) {}
+            const lon = Cesium.Math.toDegrees(c.longitude);
+            const lat = Cesium.Math.toDegrees(c.latitude);
+            showElevPopup(lon, lat, height, evt.position);
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+    }
+
+    function showElevPopup(lon, lat, height, screenPos) {
+        const popup = document.getElementById('cesium3dElevPopup');
+        if (!popup) return;
+        document.getElementById('elevHeight').textContent = height.toFixed(1) + ' m';
+        document.getElementById('elevLon').textContent    = lon.toFixed(6) + '°E';
+        document.getElementById('elevLat').textContent    = (lat >= 0 ? lat.toFixed(6) + '°N' : Math.abs(lat).toFixed(6) + '°S');
+        popup.style.display = 'block';
+        popup.style.left    = Math.min(screenPos.x + 14, window.innerWidth  - 230) + 'px';
+        popup.style.top     = Math.min(screenPos.y - 90, window.innerHeight - 140) + 'px';
+    }
+
+    // ── TERRAIN PROFILE ───────────────────────────────────────────────────────
+    function startProfileTool() {
+        if (!viewer) return;
+        profileMode = true; profilePoints = [];
+        if (profileLineEntity) { viewer.entities.remove(profileLineEntity); profileLineEntity = null; }
+        if (profileHandler)    { profileHandler.destroy(); profileHandler = null; }
+        const pp = document.getElementById('cesium3dProfilePanel');
+        if (pp) pp.style.display = 'none';
+        updateToolButtons();
+        if (typeof showToast === 'function') showToast('📏 Click two points on the terrain', 'info');
+
+        profileHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+        profileHandler.setInputAction(async evt => {
+            const ray = viewer.camera.getPickRay(evt.position);
+            const pt  = viewer.scene.globe.pick(ray, viewer.scene);
+            if (!pt) return;
+            const c = Cesium.Cartographic.fromCartesian(pt);
+            profilePoints.push({ lon: Cesium.Math.toDegrees(c.longitude), lat: Cesium.Math.toDegrees(c.latitude) });
+            if (profilePoints.length === 1) {
+                if (typeof showToast === 'function') showToast('Click the second point', 'info');
+            } else if (profilePoints.length >= 2) {
+                profileHandler.destroy(); profileHandler = null;
+                profileMode = false;
+                await generateProfile();
+                updateToolButtons();
+            }
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+    }
+
+    async function generateProfile() {
+        if (!viewer || profilePoints.length < 2) return;
+        const [p1, p2] = profilePoints;
+
+        if (profileLineEntity) viewer.entities.remove(profileLineEntity);
+        profileLineEntity = viewer.entities.add({
+            polyline: {
+                positions    : [Cesium.Cartesian3.fromDegrees(p1.lon, p1.lat), Cesium.Cartesian3.fromDegrees(p2.lon, p2.lat)],
+                width        : 3,
+                material     : new Cesium.PolylineGlowMaterialProperty({ glowPower: 0.2, color: Cesium.Color.fromCssColorString('#38bdf8') }),
+                clampToGround: true
+            }
+        });
+
+        if (typeof showToast === 'function') showToast('⏳ Sampling terrain…', 'info');
+        try {
+            const N     = CFG.profileSamples;
+            const carts = [];
+            for (let i = 0; i <= N; i++) {
+                const t = i / N;
+                carts.push(new Cesium.Cartographic(
+                    Cesium.Math.toRadians(p1.lon + (p2.lon - p1.lon) * t),
+                    Cesium.Math.toRadians(p1.lat + (p2.lat - p1.lat) * t)
+                ));
+            }
+            const sampled   = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, carts);
+            const heights   = sampled.map(p => p.height || 0);
+            const distances = [0];
+            const R = 6371000;
+            for (let i = 1; i <= N; i++) {
+                const a   = sampled[i - 1], b = sampled[i];
+                const dLa = b.latitude  - a.latitude;
+                const dLo = b.longitude - a.longitude;
+                const h   = Math.sin(dLa / 2) ** 2 + Math.cos(a.latitude) * Math.cos(b.latitude) * Math.sin(dLo / 2) ** 2;
+                distances.push(distances[i - 1] + R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)));
+            }
+            profileData = { distances, heights, p1, p2 };
+            renderProfileChart();
+            const pp = document.getElementById('cesium3dProfilePanel');
+            if (pp) pp.style.display = 'flex';
+        } catch (e) {
+            console.warn('[Cesium3D] Profile:', e);
+            if (typeof showToast === 'function') showToast('Profile failed', 'error');
+        }
+    }
+
+    function renderProfileChart() {
+        if (!profileData) return;
+        const canvas = document.getElementById('cesium3dProfileCanvas');
+        if (!canvas) return;
+        const W   = canvas.offsetWidth  || 600;
+        const H   = canvas.offsetHeight || 160;
+        canvas.width = W; canvas.height = H;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, W, H);
+
+        const { distances, heights } = profileData;
+        const maxD = distances[distances.length - 1];
+        const maxH = Math.max(...heights), minH = Math.min(...heights);
+        const rng  = maxH - minH || 1;
+        const pad  = { l: 52, r: 12, t: 16, b: 32 };
+        const cW   = W - pad.l - pad.r, cH = H - pad.t - pad.b;
+        const tx   = d => pad.l + (d / maxD) * cW;
+        const ty   = h => pad.t + cH - ((h - minH) / rng) * cH;
+
+        // Grid
+        ctx.strokeStyle = 'rgba(56,189,248,0.12)'; ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+            const y = pad.t + (i / 4) * cH;
+            ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cW, y); ctx.stroke();
+        }
+
+        // Area fill
+        ctx.beginPath();
+        heights.forEach((h, i) => i === 0 ? ctx.moveTo(tx(distances[i]), ty(h)) : ctx.lineTo(tx(distances[i]), ty(h)));
+        ctx.lineTo(tx(maxD), H - pad.b); ctx.lineTo(pad.l, H - pad.b); ctx.closePath();
+        const fg = ctx.createLinearGradient(0, pad.t, 0, H - pad.b);
+        fg.addColorStop(0, 'rgba(56,189,248,0.52)'); fg.addColorStop(1, 'rgba(56,189,248,0.04)');
+        ctx.fillStyle = fg; ctx.fill();
+
+        // Line
+        ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2.2; ctx.lineJoin = 'round';
+        ctx.beginPath();
+        heights.forEach((h, i) => i === 0 ? ctx.moveTo(tx(distances[i]), ty(h)) : ctx.lineTo(tx(distances[i]), ty(h)));
+        ctx.stroke();
+
+        // Y labels
+        ctx.fillStyle = '#94a3b8'; ctx.font = '10px sans-serif'; ctx.textAlign = 'right';
+        for (let i = 0; i <= 4; i++) {
+            ctx.fillText(Math.round(minH + rng * (4 - i) / 4) + 'm', pad.l - 5, pad.t + (i / 4) * cH + 4);
+        }
+        // X labels
+        ctx.textAlign = 'center';
+        for (let i = 0; i <= 4; i++) {
+            const d = maxD * i / 4;
+            ctx.fillText(d > 1000 ? (d / 1000).toFixed(1) + 'km' : Math.round(d) + 'm', tx(d), H - 9);
+        }
+
+        // Stats
+        const fmt = v => v > 1000 ? (v / 1000).toFixed(2) + ' km' : Math.round(v) + ' m';
+        const setTx = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+        setTx('profileDist',  fmt(maxD));
+        setTx('profileMaxH',  Math.round(maxH) + ' m');
+        setTx('profileMinH',  Math.round(minH) + ' m');
+        setTx('profileRelief', Math.round(maxH - minH) + ' m');
+    }
+
+    function exportProfileCsv() {
+        if (!profileData) return;
+        const { distances, heights } = profileData;
+        let csv = 'Distance_m,Elevation_m\n';
+        distances.forEach((d, i) => { csv += `${d.toFixed(2)},${(heights[i] || 0).toFixed(2)}\n`; });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = 'terrain_profile.csv'; a.click();
+        URL.revokeObjectURL(a.href);
+    }
+
+    // ── TOOL BUTTON STATES ────────────────────────────────────────────────────
+    function updateToolButtons() {
+        const states = {
+            cesium3dAoiBtn    : aoiMode,
+            cesium3dElevBtn   : elevQueryActive,
+            cesium3dProfileBtn: profileMode,
+            cesium3dTreeBtn   : vegetationEnabled
+        };
+        Object.entries(states).forEach(([id, active]) => {
+            const el = document.getElementById(id);
+            if (el) { el.classList.toggle('tool-active', active); el.setAttribute('aria-pressed', String(active)); }
+        });
+    }
+
+    // ── CAPTURE + PDF ─────────────────────────────────────────────────────────
+    function captureViewpoint() {
+        if (!viewer) return;
+        try {
+            const dataUrl = viewer.scene.canvas.toDataURL('image/png');
+            const note    = prompt('Capture note:', 'View ' + (captures.length + 1));
+            if (note === null) return;
+            const cap = {
+                image    : dataUrl,
+                note     : note || 'View ' + (captures.length + 1),
+                timestamp: new Date().toISOString(),
+                camera   : { position: viewer.camera.position.clone(), heading: viewer.camera.heading, pitch: viewer.camera.pitch, roll: viewer.camera.roll }
+            };
+            captures.push(cap);
+            updateCaptureStrip();
+            const pdfBtn = document.getElementById('cesium3dPdfBtn');
+            if (pdfBtn) pdfBtn.disabled = false;
+            if (typeof showToast === 'function') showToast('📸 ' + cap.note, 'success');
+        } catch (e) { console.error('[Cesium3D] Capture:', e); }
+    }
+
+    function updateCaptureStrip() {
+        const strip = document.getElementById('cesium3dCaptures');
+        if (!strip) return;
+        strip.innerHTML = '';
+        captures.forEach(cap => {
+            const img = document.createElement('img');
+            img.src = cap.image; img.className = 'cesium3d-cap-thumb'; img.title = cap.note;
+            img.onclick = () => viewer.camera.flyTo({ destination: cap.camera.position, orientation: { heading: cap.camera.heading, pitch: cap.camera.pitch, roll: cap.camera.roll }, duration: 1.5 });
+            strip.appendChild(img);
+        });
+    }
+
+    async function exportPdf() {
+        if (captures.length === 0) { if (typeof showToast === 'function') showToast('No captures yet', 'warning'); return; }
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc   = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            const pW    = doc.internal.pageSize.getWidth();
+            const pH    = doc.internal.pageSize.getHeight();
+            const proj  = document.getElementById('cesium3dProjectName')?.value  || 'GSPNET Digital Twin';
+            const loc   = document.getElementById('cesium3dLocation')?.value      || '';
+            const sup   = document.getElementById('cesium3dSupervisor')?.value    || '';
+            const sur   = document.getElementById('cesium3dSurveyor')?.value      || '';
+
+            // Cover
+            doc.setFillColor(15, 23, 42); doc.rect(0, 0, pW, pH, 'F');
+            doc.setTextColor(255, 255, 255); doc.setFontSize(24);
+            doc.text('3D Digital Twin — Terrain Report', pW / 2, 42, { align: 'center' });
+            doc.setFontSize(14); doc.setTextColor(148, 163, 184);
+            doc.text(proj, pW / 2, 58, { align: 'center' });
+            if (loc) doc.text('📍 ' + loc, pW / 2, 70, { align: 'center' });
+            doc.setFontSize(10); doc.setTextColor(203, 213, 225);
+            if (sup) doc.text('Supervisor: ' + sup, pW / 2, 96, { align: 'center' });
+            if (sur) doc.text('Surveyor: '   + sur, pW / 2, 106, { align: 'center' });
+            doc.text('Date: ' + new Date().toLocaleDateString(), pW / 2, 116, { align: 'center' });
+            doc.text('Captured Views: ' + captures.length, pW / 2, 126, { align: 'center' });
+            if (aoiBbox) {
+                const wk = ((aoiBbox.east - aoiBbox.west) * 111.32).toFixed(1);
+                const hk = ((aoiBbox.north - aoiBbox.south) * 111.32).toFixed(1);
+                doc.text(`AOI: ${wk} × ${hk} km`, pW / 2, 136, { align: 'center' });
+            }
+            doc.setFontSize(8); doc.setTextColor(100, 116, 139);
+            doc.text('Generated by GSPNET Digital Twin Platform — geospatialnetworkug.xyz', pW / 2, pH - 10, { align: 'center' });
+
+            for (let i = 0; i < captures.length; i++) {
+                doc.addPage('landscape');
+                doc.setFillColor(248, 250, 252); doc.rect(0, 0, pW, pH, 'F');
+                doc.setFillColor(15, 23, 42); doc.rect(0, 0, pW, 15, 'F');
+                doc.setTextColor(255, 255, 255); doc.setFontSize(9);
+                doc.text(`View ${i + 1}: ${captures[i].note}`, 8, 10);
+                doc.setFontSize(7); doc.text(new Date(captures[i].timestamp).toLocaleString(), pW - 8, 10, { align: 'right' });
+                doc.addImage(captures[i].image, 'PNG', 8, 18, pW - 16, pH - 36);
+                doc.setTextColor(100, 116, 139); doc.setFontSize(7);
+                doc.text(proj + ' | GSPNET', 8, pH - 3);
+                doc.text('Page ' + (i + 2), pW - 8, pH - 3, { align: 'right' });
+            }
+
+            if (profileData) {
+                doc.addPage('landscape');
+                doc.setFillColor(248, 250, 252); doc.rect(0, 0, pW, pH, 'F');
+                doc.setFillColor(15, 23, 42); doc.rect(0, 0, pW, 15, 'F');
+                doc.setTextColor(255, 255, 255); doc.setFontSize(9);
+                doc.text('Terrain Profile', 8, 10);
+                const pc = document.getElementById('cesium3dProfileCanvas');
+                if (pc) doc.addImage(pc.toDataURL('image/png'), 'PNG', 8, 20, pW - 16, 80);
+                const { distances, heights } = profileData;
+                const maxD = distances[distances.length - 1];
+                doc.setTextColor(30, 30, 30); doc.setFontSize(9);
+                const sy = 110;
+                doc.text('Distance: ' + (maxD > 1000 ? (maxD / 1000).toFixed(2) + ' km' : Math.round(maxD) + ' m'), 12, sy);
+                doc.text('Max Elev: '  + Math.round(Math.max(...heights)) + ' m', 12, sy + 8);
+                doc.text('Min Elev: '  + Math.round(Math.min(...heights)) + ' m', 12, sy + 16);
+                doc.text('Relief: '    + Math.round(Math.max(...heights) - Math.min(...heights)) + ' m', 12, sy + 24);
+            }
+
+            doc.save((proj.replace(/[^a-zA-Z0-9]/g, '_') || 'GSPNET') + '_3D_Report.pdf');
+            if (typeof showToast === 'function') showToast('📄 PDF exported!', 'success');
+        } catch (e) {
+            console.error('[Cesium3D] PDF:', e);
+            if (typeof showToast === 'function') showToast('PDF failed: ' + e.message, 'error');
+        }
+    }
+
+    // ── CLOSE VIEWER ──────────────────────────────────────────────────────────
     function closeViewer() {
         const overlay = document.getElementById('cesium3dOverlay');
         if (overlay) overlay.classList.remove('active');
 
-        if (viewer) {
-            try { viewer.destroy(); } catch (e) { /* ignore */ }
-            viewer = null;
-        }
-        currentImageryLayer = null;
-        osmBuildingsTileset = null;
-        captures = [];
+        if (aoiHandler)     { aoiHandler.destroy();     aoiHandler     = null; }
+        if (elevHandler)    { elevHandler.destroy();     elevHandler    = null; }
+        if (profileHandler) { profileHandler.destroy();  profileHandler = null; }
+        if (rafId)          { cancelAnimationFrame(rafId); rafId = null; }
 
-        const strip = document.getElementById('cesium3dCaptures');
-        if (strip) strip.innerHTML = '';
-        const pdfBtn = document.getElementById('cesium3dPdfBtn');
-        if (pdfBtn) pdfBtn.disabled = true;
+        if (viewer) { try { viewer.destroy(); } catch (e) {} viewer = null; }
+        currentImageryLayer = null; osmBuildingsTileset = null;
+        vegetationCollection = null; aoiPolygonEntity = null; aoiPreviewEntity = null; profileLineEntity = null;
+        captures = []; profileData = null;
+
+        const strip = document.getElementById('cesium3dCaptures');    if (strip) strip.innerHTML = '';
+        const pdfBtn = document.getElementById('cesium3dPdfBtn');     if (pdfBtn) pdfBtn.disabled = true;
+        const pp = document.getElementById('cesium3dProfilePanel');   if (pp) pp.style.display = 'none';
+        const ep = document.getElementById('cesium3dElevPopup');      if (ep)  ep.style.display = 'none';
+        const badge = document.getElementById('cesium3dAoiBadge');    if (badge) badge.style.display = 'none';
     }
 
-    // ========== Wire all controls ==========
+    // ── WIRE CONTROLS ─────────────────────────────────────────────────────────
     function wireControls() {
-        // Settings panel toggle
-        const settingsBtn = document.getElementById('cesium3dSettingsBtn');
-        const settingsBarBtn = document.getElementById('cesium3dSettingsBarBtn');
+        // Panel toggle
         const panel = document.getElementById('cesium3dPanel');
-        const panelClose = document.getElementById('cesium3dPanelClose');
+        const togglePanel = () => { if (panel) panel.classList.toggle('visible'); };
+        const sb  = document.getElementById('cesium3dSettingsBtn');    if (sb)  sb.onclick  = togglePanel;
+        const sbb = document.getElementById('cesium3dSettingsBarBtn'); if (sbb) sbb.onclick = togglePanel;
+        const pc  = document.getElementById('cesium3dPanelClose');     if (pc)  pc.onclick  = () => panel?.classList.remove('visible');
 
-        function togglePanel() {
-            if (panel) panel.classList.toggle('visible');
-        }
-        if (settingsBtn) settingsBtn.onclick = togglePanel;
-        if (settingsBarBtn) settingsBarBtn.onclick = togglePanel;
-        if (panelClose) panelClose.onclick = () => panel.classList.remove('visible');
+        // Basemap
+        document.querySelectorAll('input[name="cesium3dBasemap"]').forEach(r => {
+            r.addEventListener('change', () => {
+                if (dtmEnabled) setDtmMode(false);
+                switchBasemap(r.value);
+            });
+        });
 
-        // Basemap radio buttons
-        document.querySelectorAll('input[name="cesium3dBasemap"]').forEach(radio => {
-            radio.addEventListener('change', () => switchBasemap(radio.value));
+        // DTM + Contours
+        const dtmCb = document.getElementById('cesium3dDtmToggle');
+        if (dtmCb) dtmCb.addEventListener('change', () => setDtmMode(dtmCb.checked));
+        const conCb = document.getElementById('cesium3dContourToggle');
+        if (conCb) conCb.addEventListener('change', () => setContoursMode(conCb.checked));
+
+        // Contour spacing
+        const cSpacing = document.getElementById('cesium3dContourSpacing');
+        if (cSpacing) cSpacing.addEventListener('change', () => {
+            CFG.contourSpacing = parseFloat(cSpacing.value) || 100;
+            if (contoursEnabled || (dtmEnabled && contoursEnabled)) applyGlobeMaterial();
         });
 
         // OSM Buildings
-        const osmBldg = document.getElementById('cesium3dOsmBuildings');
-        if (osmBldg) osmBldg.addEventListener('change', () => toggleOsmBuildings(osmBldg.checked));
+        const osmCb = document.getElementById('cesium3dOsmBuildings');
+        if (osmCb) osmCb.addEventListener('change', () => toggleOsmBuildings(osmCb.checked));
 
-        // Layer toggles
-        const gspnetToggle = document.getElementById('cesium3dGspnetLayers');
-        if (gspnetToggle) gspnetToggle.addEventListener('change', () =>
-            toggleLayerVisibility('gspnet-layer', gspnetToggle.checked));
+        // Vegetation
+        const vegCb = document.getElementById('cesium3dVegetation');
+        if (vegCb) vegCb.addEventListener('change', async () => { await toggleVegetation(vegCb.checked); });
 
-        const polyToggle = document.getElementById('cesium3dSurveyPolygons');
-        if (polyToggle) polyToggle.addEventListener('change', () =>
-            toggleLayerVisibility('survey-polygon', polyToggle.checked));
+        // Layer visibility
+        const gn = document.getElementById('cesium3dGspnetLayers');
+        if (gn) gn.addEventListener('change', () => toggleLayerVisibility('gspnet-layer', gn.checked));
+        const sp = document.getElementById('cesium3dSurveyPolygons');
+        if (sp) sp.addEventListener('change', () => toggleLayerVisibility('survey-polygon', sp.checked));
 
-        // Vertical exaggeration (panel)
-        const vertExag = document.getElementById('cesium3dVertExag');
-        const vertExagVal = document.getElementById('cesium3dVertExagVal');
-        const vertExagBar = document.getElementById('cesium3dVertExagBar');
-        const vertExagBarVal = document.getElementById('cesium3dVertExagBarVal');
+        // Vertical exag
+        const ve    = document.getElementById('cesium3dVertExag');
+        const veVal = document.getElementById('cesium3dVertExagVal');
+        const veBar = document.getElementById('cesium3dVertExagBar');
+        const veBarV= document.getElementById('cesium3dVertExagBarVal');
+        const syncEx = v => {
+            setVerticalExaggeration(v);
+            const t = parseFloat(v).toFixed(1) + '×';
+            if (veVal)  veVal.textContent  = t;
+            if (veBarV) veBarV.textContent = t;
+            if (ve)     ve.value           = v;
+            if (veBar)  veBar.value        = v;
+        };
+        if (ve)    ve.addEventListener('input',    () => syncEx(ve.value));
+        if (veBar) veBar.addEventListener('input', () => syncEx(veBar.value));
 
-        function syncExag(val) {
-            setVerticalExaggeration(val);
-            if (vertExagVal) vertExagVal.textContent = parseFloat(val).toFixed(1) + '×';
-            if (vertExagBarVal) vertExagBarVal.textContent = parseFloat(val).toFixed(1) + '×';
-            if (vertExag) vertExag.value = val;
-            if (vertExagBar) vertExagBar.value = val;
-        }
-        if (vertExag) vertExag.addEventListener('input', () => syncExag(vertExag.value));
-        if (vertExagBar) vertExagBar.addEventListener('input', () => syncExag(vertExagBar.value));
-
-        // Brightness/Contrast/Saturation
+        // Brightness / Contrast / Saturation
         ['Brightness', 'Contrast', 'Saturation'].forEach(prop => {
-            const slider = document.getElementById('cesium3d' + prop);
-            const valEl = document.getElementById('cesium3d' + prop + 'Val');
-            if (slider) {
-                slider.addEventListener('input', () => {
-                    setImageryAdjustment(prop.toLowerCase(), slider.value);
-                    if (valEl) valEl.textContent = slider.value + '%';
-                });
-            }
+            const sl = document.getElementById('cesium3d' + prop);
+            const vl = document.getElementById('cesium3d' + prop + 'Val');
+            if (sl) sl.addEventListener('input', () => {
+                setImageryAdjustment(prop.toLowerCase(), sl.value);
+                if (vl) vl.textContent = sl.value + '%';
+            });
         });
 
-        // Capture
-        const captureBtn = document.getElementById('cesium3dCaptureBtn');
-        if (captureBtn) captureBtn.onclick = captureViewpoint;
-
-        // PDF export
-        const pdfBtn = document.getElementById('cesium3dPdfBtn');
-        if (pdfBtn) pdfBtn.onclick = exportPdf;
+        // Capture + PDF
+        const capBtn = document.getElementById('cesium3dCaptureBtn'); if (capBtn) capBtn.onclick = captureViewpoint;
+        const pdfBtn = document.getElementById('cesium3dPdfBtn');     if (pdfBtn) pdfBtn.onclick = exportPdf;
 
         // Reset camera
         const resetBtn = document.getElementById('cesium3dResetBtn');
         if (resetBtn) resetBtn.onclick = () => {
-            if (initialCamera) {
-                viewer.camera.flyTo({
-                    destination: initialCamera.position,
-                    orientation: {
-                        heading: initialCamera.heading,
-                        pitch: initialCamera.pitch,
-                        roll: initialCamera.roll
-                    },
-                    duration: 1.5
-                });
-            }
+            if (initialCamera) viewer.camera.flyTo({
+                destination : initialCamera.position,
+                orientation : { heading: initialCamera.heading, pitch: initialCamera.pitch, roll: initialCamera.roll },
+                duration    : 1.5
+            });
         };
 
-        // Reload Layers button
-        const reloadLayersBtn = document.getElementById('cesium3dReloadLayersBtn');
-        if (reloadLayersBtn) reloadLayersBtn.onclick = () => window.cesium3dReloadLayers();
+        // Reload layers
+        const rlBtn = document.getElementById('cesium3dReloadLayersBtn');
+        if (rlBtn) rlBtn.onclick = () => window.cesium3dReloadLayers();
 
         // Close
         const closeBtn = document.getElementById('cesium3dCloseBtn');
         if (closeBtn) closeBtn.onclick = closeViewer;
+
+        // ── ANALYSIS TOOL BUTTONS ─────────────────────────────────────────────
+        const aoiBtn = document.getElementById('cesium3dAoiBtn');
+        if (aoiBtn) aoiBtn.onclick = startAoiDraw;
+
+        const clrAoiBtn = document.getElementById('cesium3dClearAoiBtn');
+        if (clrAoiBtn) clrAoiBtn.onclick = clearAoi;
+
+        const clrAoiBadgeBtn = document.getElementById('cesium3dAoiBadgeClose');
+        if (clrAoiBadgeBtn) clrAoiBadgeBtn.onclick = clearAoi;
+
+        const elevBtn = document.getElementById('cesium3dElevBtn');
+        if (elevBtn) elevBtn.onclick = () => toggleElevationQuery(!elevQueryActive);
+
+        const profBtn = document.getElementById('cesium3dProfileBtn');
+        if (profBtn) profBtn.onclick = startProfileTool;
+
+        const treeBtn = document.getElementById('cesium3dTreeBtn');
+        if (treeBtn) treeBtn.onclick = async () => { await toggleVegetation(!vegetationEnabled); };
+
+        // Profile panel controls
+        const ppClose  = document.getElementById('cesium3dProfileClose');
+        if (ppClose) ppClose.onclick = () => { const pp = document.getElementById('cesium3dProfilePanel'); if (pp) pp.style.display = 'none'; };
+        const ppCsv    = document.getElementById('cesium3dProfileCsvBtn');
+        if (ppCsv) ppCsv.onclick = exportProfileCsv;
+
+        // Elevation popup close
+        const epClose  = document.getElementById('cesium3dElevClose');
+        if (epClose) epClose.onclick = () => toggleElevationQuery(false);
+
+        // Refresh vegetation on camera stop
+        viewer.camera.moveEnd.addEventListener(() => { if (vegetationEnabled) loadVegetationForView(); });
     }
 
-    // ========== Init: Wire launch button ==========
+    // ── INIT ──────────────────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', function () {
-        const launchBtn = document.getElementById('launchCesium3DBtn');
-        if (launchBtn) {
-            launchBtn.addEventListener('click', function () {
-                window.launchCesium3DGlobe();
-            });
-        }
+        const btn = document.getElementById('launchCesium3DBtn');
+        if (btn) btn.addEventListener('click', () => window.launchCesium3DGlobe());
     });
 
 })();
