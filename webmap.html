@@ -20995,7 +20995,7 @@
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson/mukono.nlis1.fgb', title: 'Mukono NLIS 1' },
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson/mukono.nlis2.fgb', title: 'Mukono NLIS 2' },
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson/mukono.blocks.fgb', title: 'Mukono Blocks' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/protectedareas.fgb', title: 'Protected Areas' },
+
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson2/rukingiri.nlis.fgb', title: 'Rukungiri NLIS' },
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson2/rukungiriblocks.fgb', title: 'Rukungiri Blocks' },
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson2/Ssoroti.nlis.fgb', title: 'Soroti NLIS' },
@@ -21004,8 +21004,14 @@
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson2/tororoblocks.fgb', title: 'Tororo Blocks' },
                 { url: 'https://data.geospatialnetworkug.xyz/WAKISO/wakiso.nlis1.fgb', title: 'Wakiso NLIS 1' },
                 { url: 'https://data.geospatialnetworkug.xyz/WAKISO/wakiso.nlis2.fgb', title: 'Wakiso NLIS 2' },
-                { url: 'https://data.geospatialnetworkug.xyz/WAKISO/wakisoblocks.fgb', title: 'Wakiso Blocks' },
-                { url: 'https://data.geospatialnetworkug.xyz/WAKISO/uganda-forests-reserve.fgb', title: 'Uganda Forests Reserve' }
+                { url: 'https://data.geospatialnetworkug.xyz/WAKISO/wakisoblocks.fgb', title: 'Wakiso Blocks' }
+            ];
+
+            // Define Environmental Layers (Wetlands, Forests, Protected Areas)
+            const environmentalData = [
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson/uganda_wetlands.fgb', fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/geojeson/uganda_wetlands.fgb', title: 'NEMA WETLANDS' },
+                { url: 'https://data.geospatialnetworkug.xyz/WAKISO/uganda-forests-reserve.fgb', title: 'Uganda Forests Reserve' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/protectedareas.fgb', title: 'Protected Areas' }
             ];
 
             // Create buffered extent function for FlatGeobuf loading strategy
@@ -21988,6 +21994,161 @@
             }
 
 
+
+            // Wetlands style
+            const wetlandsCanvas = document.createElement('canvas');
+            wetlandsCanvas.width = 10;
+            wetlandsCanvas.height = 10;
+            const wetlandsCtx = wetlandsCanvas.getContext('2d');
+            wetlandsCtx.strokeStyle = 'rgba(0, 119, 255, 0.3)'; // Faint blue
+            wetlandsCtx.lineWidth = 1;
+            wetlandsCtx.setLineDash([3, 4]); // Broken lines
+            wetlandsCtx.beginPath();
+            wetlandsCtx.moveTo(0, 5);
+            wetlandsCtx.lineTo(10, 5);
+            wetlandsCtx.moveTo(5, 0);
+            wetlandsCtx.lineTo(5, 10);
+            wetlandsCtx.stroke();
+            const wetlandsPattern = wetlandsCtx.createPattern(wetlandsCanvas, 'repeat');
+
+            function getWetlandsStyle(feature) {
+                const geometry = feature.getGeometry();
+                if (!geometry) return [];
+                const styles = [];
+
+                // Boundary + Fill
+                styles.push(new ol.style.Style({
+                    fill: new ol.style.Fill({
+                        color: wetlandsPattern
+                    }),
+                    stroke: new ol.style.Stroke({
+                        color: '#2ecc71', // Green boundary
+                        width: 2,
+                        lineCap: 'round',
+                        lineJoin: 'round'
+                    })
+                }));
+
+                const view = map.getView();
+                const resolution = view.getResolution();
+
+                // Only add label when zoomed in enough
+                if (resolution <= RES_THRESHOLD.LABELS) {
+                    let name = feature.get('waterwash') || feature.get('name') || feature.get('Name') || '';
+                    if (name) {
+                        const centroid = ol.extent.getCenter(geometry.getExtent());
+                        styles.push(new ol.style.Style({
+                            geometry: new ol.geom.Point(centroid),
+                            text: new ol.style.Text({
+                                text: name.toString(),
+                                font: 'bold 12px sans-serif',
+                                fill: new ol.style.Fill({ color: '#2ecc71' }),
+                                stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                                textAlign: 'center',
+                                textBaseline: 'middle',
+                                offsetY: 0
+                            })
+                        }));
+                    }
+                }
+                return styles;
+            }
+
+            // Create Environmental Layers Group
+            const environmentalLayersArray = [];
+            const environmentalConfigs = environmentalData.map(layerData => ({
+                name: layerData.title,
+                url: layerData.url,
+                fallbackUrl: layerData.fallbackUrl || null,
+                visible: false
+            }));
+
+            environmentalConfigs.forEach(config => {
+                const source = new ol.source.Vector({
+                    strategy: ol.loadingstrategy.bbox
+                });
+                
+                const isWetlands = config.name === 'NEMA WETLANDS';
+                const isForest = config.name === 'Uganda Forests Reserve';
+                const isProtected = config.name === 'Protected Areas';
+
+                const layer = new ol.layer.Vector({
+                    title: config.name,
+                    source: source,
+                    maxResolution: 10,
+                    style: isWetlands ? 
+                        function(feature) { return getWetlandsStyle(feature); } :
+                        isForest ?
+                        function (feature) { return getForestReservesStyle(feature); } :
+                        isProtected ?
+                        function (feature) { return getProtectedAreasStyle(feature); } : null,
+                    visible: config.visible
+                });
+
+                layer._fgbUrl = config.url;
+                layer._fgbFallbackUrl = config.fallbackUrl;
+                layer._fgbLoaded = false;
+                const warmupUrls = [config.url];
+                if (config.fallbackUrl) warmupUrls.push(config.fallbackUrl);
+                registerFlatGeobufWarmupUrls(config.name, warmupUrls);
+
+                source.on('addfeature', function (evt) {
+                    const feature = evt.feature;
+                    if (feature && typeof feature.set === 'function') {
+                        feature.set('__layerTitle', config.name, true);
+                    }
+                });
+
+                layer.on('change:visible', function () {
+                    if (this.getVisible()) {
+                        markLayerFastRender(config.name);
+                        setTimeout(() => this.changed(), FGB_FAST_RENDER_WINDOW_MS + 50);
+                    }
+
+                    if (this.getVisible() && !this._fgbLoaded) {
+                        this._fgbLoaded = true;
+                        const urls = [this._fgbUrl];
+                        if (this._fgbFallbackUrl) urls.push(this._fgbFallbackUrl);
+                        let urlIndex = 0;
+                        const src = this.getSource();
+
+                        src.once('error', function (evt) {
+                            console.error(`[FGB] Source error for ${config.name}:`, evt.error || evt);
+                        });
+
+                        const tryNextUrl = () => {
+                            if (urlIndex >= urls.length) return;
+                            const url = urls[urlIndex];
+                            urlIndex++;
+                            try {
+                                const loader = flatgeobuf.createLoader(
+                                    src,
+                                    url,
+                                    "EPSG:4326",
+                                    function (extent) { return [extent]; }, 
+                                    true                                     
+                                );
+                                src.setLoader(loader);
+                                src.refresh();
+                            } catch (err) {
+                                tryNextUrl();
+                            }
+                        };
+                        tryNextUrl();
+                    }
+                });
+
+                environmentalLayersArray.push(layer);
+            });
+
+            const environmentalLayerGroup = new ol.layer.Group({
+                title: 'ENVIRONMENTAL LAYERS',
+                layers: environmentalLayersArray,
+                zIndex: 890 // Below GSPNET Layers but above basemaps
+            });
+
+            // Add Environmental Layers Group to map
+            map.addLayer(environmentalLayerGroup);
 
             const extractorSource = new ol.source.Vector();
             const extractorLayer = new ol.layer.Vector({
