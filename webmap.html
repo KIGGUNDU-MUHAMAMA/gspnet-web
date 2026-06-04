@@ -45870,7 +45870,7 @@ function smoothChaikin(points) {
                                 reporter_contact: currentUser ? currentUser.email : '',
                                 reason: 'DELETION: ' + finalReason,
                                 survey_unique_id: featureRecord.unique_id,
-                                polygon_feature_id: featureRecord.id,
+                                polygon_feature_id: table === 'polygon_features' ? featureRecord.id : null,
                                 survey_layer_name: featureRecord.layer_name || layerName
                             };
                             
