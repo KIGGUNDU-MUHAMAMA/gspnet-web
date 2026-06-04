@@ -45912,8 +45912,11 @@ function smoothChaikin(points) {
                         
                         // 2. Perform Hard Delete from DB
                         if (table === 'polygon_features') {
-                            const { error: delErr } = await supabase.from('polygon_features').delete().eq('unique_id', uid);
+                            const { data: delData, error: delErr } = await supabase.from('polygon_features').delete().eq('unique_id', uid).select();
                             if (delErr) throw delErr;
+                            if (!delData || delData.length === 0) {
+                                throw new Error('Database deletion blocked by Row Level Security. Please update your Supabase RLS policies on "polygon_features" to allow Admins/RSUs to DELETE records they didn\\'t create.');
+                            }
                         } else if (table === 'map_features') {
                             const { error: delErr } = await supabase.from('map_features').delete().eq('id', uid);
                             if (delErr) throw delErr;
@@ -48647,7 +48650,9 @@ function smoothChaikin(points) {
 
                 // Auto-scroll to bottom
                 const messagesList = document.getElementById('messagesList');
-                messagesList.scrollTop = messagesList.scrollHeight;
+                if (messagesList) {
+                    messagesList.scrollTop = messagesList.scrollHeight;
+                }
             }
 
             // Render message in UI (WhatsApp-style)
@@ -48732,7 +48737,9 @@ function smoothChaikin(points) {
                 `;
                 }
 
-                messagesList.appendChild(messageElement);
+                if (messagesList) {
+                    messagesList.appendChild(messageElement);
+                }
             }
 
             // Format message content (bold, italics, mentions)
@@ -48929,14 +48936,27 @@ function smoothChaikin(points) {
 
                 try {
                     // Check if user is authenticated
-                    if (!supabase || !chatState.currentUser) {
-                        console.log('User not authenticated - message not sent:', content);
-                        showToast('Please log in to send messages', 'warning');
+                    if (!supabase || !chatState.currentUser || chatState.currentUser.id === 'demo-user') {
+                        console.log('User not fully authenticated in chatState, attempting to fetch context...');
+                        try {
+                            const ctx = await getCurrentAuthenticatedUserContext();
+                            if (ctx && ctx.id) {
+                                chatState.currentUser = {
+                                    id: ctx.id,
+                                    username: ctx.displayName || ctx.email || 'Admin'
+                                };
+                            } else {
+                                throw new Error("No valid user context");
+                            }
+                        } catch (e) {
+                            console.log('User not authenticated - message not sent:', content);
+                            showToast('Please log in to send messages', 'warning');
 
-                        // Clear input
-                        const messageInput = document.getElementById('messageInput');
-                        if (messageInput) messageInput.value = '';
-                        return;
+                            // Clear input
+                            const messageInput = document.getElementById('messageInput');
+                            if (messageInput) messageInput.value = '';
+                            return;
+                        }
                     }
 
                     // Use only the most basic columns that definitely exist
