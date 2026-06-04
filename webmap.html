@@ -45712,33 +45712,32 @@ function smoothChaikin(points) {
                 if (flagRows.length === 0) {
                     flagsSection.innerHTML = '<h4 style="margin:12px 0 6px;color:#2c3e50;">Quality flags</h4>' +
                         '<p style="font-size:12px;color:#666;">No quality flag has been submitted for this parcel.</p>';
-                    return;
+                } else {
+                    let fh = '<h4 style="margin:12px 0 6px;color:#2c3e50;">Quality flags</h4>';
+                    fh += '<p style="font-size:11px;color:#666;margin:0 0 8px;">Newest first. Each entry shows the latest status for that submission.</p>';
+
+                    flagRows.forEach((flag, idx) => {
+                        const cur = flag.current_flag_type || flag.flag_type;
+                        fh += `<div style="margin-bottom:14px;padding:10px;border:1px solid #e0e0e0;border-radius:6px;background:#fafafa;">`;
+                        fh += `<div style="font-weight:700;margin-bottom:6px;">Flag #${idx + 1} · <span class="flag-indicator ${cur}"></span>${escapeFeatureInfoHtml(qualityFlagTypeLabel(cur))}</div>`;
+                        fh += '<table border="0" style="font-size:12px;width:100%;">';
+                        const add = (k, v) => {
+                            if (v === null || v === undefined || v === '') return;
+                            fh += '<tr><td style="padding:3px 6px 3px 0;color:#555;width:40%;vertical-align:top;">' + escapeFeatureInfoHtml(k) + '</td><td style="padding:3px 0;vertical-align:top;">' + escapeFeatureInfoHtml(v) + '</td></tr>';
+                        };
+                        add('Reporter', flag.reporter_name);
+                        add('Contact', flag.reporter_contact);
+                        add('Reason', flag.reason);
+                        add('District (flag)', flag.district);
+                        add('County (flag)', flag.county);
+                        add('Submitted', typeof formatDate === 'function' ? formatDate(flag.created_at) : flag.created_at);
+                        add('Updated', typeof formatDate === 'function' ? formatDate(flag.updated_at) : flag.updated_at);
+                        add('Status', flag.status);
+                        fh += '</table></div>';
+                    });
+
+                    flagsSection.innerHTML = fh;
                 }
-
-                let fh = '<h4 style="margin:12px 0 6px;color:#2c3e50;">Quality flags</h4>';
-                fh += '<p style="font-size:11px;color:#666;margin:0 0 8px;">Newest first. Each entry shows the latest status for that submission.</p>';
-
-                flagRows.forEach((flag, idx) => {
-                    const cur = flag.current_flag_type || flag.flag_type;
-                    fh += `<div style="margin-bottom:14px;padding:10px;border:1px solid #e0e0e0;border-radius:6px;background:#fafafa;">`;
-                    fh += `<div style="font-weight:700;margin-bottom:6px;">Flag #${idx + 1} · <span class="flag-indicator ${cur}"></span>${escapeFeatureInfoHtml(qualityFlagTypeLabel(cur))}</div>`;
-                    fh += '<table border="0" style="font-size:12px;width:100%;">';
-                    const add = (k, v) => {
-                        if (v === null || v === undefined || v === '') return;
-                        fh += '<tr><td style="padding:3px 6px 3px 0;color:#555;width:40%;vertical-align:top;">' + escapeFeatureInfoHtml(k) + '</td><td style="padding:3px 0;vertical-align:top;">' + escapeFeatureInfoHtml(v) + '</td></tr>';
-                    };
-                    add('Reporter', flag.reporter_name);
-                    add('Contact', flag.reporter_contact);
-                    add('Reason', flag.reason);
-                    add('District (flag)', flag.district);
-                    add('County (flag)', flag.county);
-                    add('Submitted', typeof formatDate === 'function' ? formatDate(flag.created_at) : flag.created_at);
-                    add('Updated', typeof formatDate === 'function' ? formatDate(flag.updated_at) : flag.updated_at);
-                    add('Status', flag.status);
-                    fh += '</table></div>';
-                });
-
-                flagsSection.innerHTML = fh;
 
                 // --- Quality Control Deletion ---
                 let isAuthorized = false;
@@ -45889,6 +45888,25 @@ function smoothChaikin(points) {
                                 await createCorroborationCaseForFlag(newFlag, featureRecord, currentUser);
                             } catch (caseErr) {
                                 console.warn('[QC Delete] Could not create corroboration case:', caseErr);
+                            }
+                            
+                            // Send chat and inbox messages for deletion
+                            try {
+                                const delMsg = `🚨 QC DELETION: Parcel ${featureRecord.unique_id} (${featureRecord.layer_name || layerName}) was deleted by Admin. Reason: ${finalReason}`;
+                                if (window.sendMessage) {
+                                    await window.sendMessage(delMsg);
+                                }
+                                if (featureRecord.created_by && featureRecord.created_by !== currentUser.id && window.supabase) {
+                                    await supabase.from('private_messages').insert([{
+                                        sender_id: currentUser.id,
+                                        receiver_id: featureRecord.created_by,
+                                        sender_username: currentUser.displayName || 'Admin',
+                                        receiver_username: featureRecord.surveyor || 'Surveyor',
+                                        content: delMsg
+                                    }]);
+                                }
+                            } catch (msgErr) {
+                                console.warn('[QC Delete] Could not send chatroom/inbox messages:', msgErr);
                             }
                         }
                         
