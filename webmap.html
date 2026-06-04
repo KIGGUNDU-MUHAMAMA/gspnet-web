@@ -45915,7 +45915,7 @@ function smoothChaikin(points) {
                             const { data: delData, error: delErr } = await supabase.from('polygon_features').delete().eq('unique_id', uid).select();
                             if (delErr) throw delErr;
                             if (!delData || delData.length === 0) {
-                                throw new Error('Database deletion blocked by Row Level Security. Please update your Supabase RLS policies on "polygon_features" to allow Admins/RSUs to DELETE records they didn\\'t create.');
+                                throw new Error("Database deletion blocked by Row Level Security. Please update your Supabase RLS policies on 'polygon_features' to allow Admins/RSUs to DELETE records they didn't create.");
                             }
                         } else if (table === 'map_features') {
                             const { error: delErr } = await supabase.from('map_features').delete().eq('id', uid);
