@@ -96,7 +96,8 @@
         if (!showDtm && !showContours) return null;
 
         if (showDtm && showContours) {
-            // Custom GLSL composite: elevation ramp + contour lines
+            // ── Combined: elevation ramp + contour lines via custom GLSL ──────────
+            // FIX: use texture() not texture2D() — CesiumJS 1.123 runs WebGL2 / GLSL ES 3.00
             const rampUrl = buildElevationRampCanvas().toDataURL();
             return new Cesium.Material({
                 fabric: {
@@ -106,70 +107,44 @@
                         maximumHeight : CFG.elevMax,
                         contourSpacing: CFG.contourSpacing,
                     },
-                    source: `
-                        uniform sampler2D image;
-                        uniform float minimumHeight;
-                        uniform float maximumHeight;
-                        uniform float contourSpacing;
-
-                        czm_material czm_getMaterial(czm_materialInput materialInput) {
-                            czm_material material = czm_getDefaultMaterial(materialInput);
-                            float height = materialInput.height;
-
-                            // Elevation ramp
-                            float t = clamp((height - minimumHeight) / (maximumHeight - minimumHeight), 0.0, 1.0);
-                            vec4 ramp = texture2D(image, vec2(t, 0.5));
-                            material.diffuse = ramp.rgb;
-                            material.alpha   = 1.0;
-
-                            // Minor contours (every contourSpacing metres)
-                            float h    = height / contourSpacing;
-                            float frac = abs(fract(h) - 0.5) * 2.0;  // 0 at line, 1 midway
-                            float minor = clamp(1.0 - frac * 18.0, 0.0, 1.0);
-
-                            // Major contours (every 5× = 500 m default)
-                            float hM    = height / (contourSpacing * 5.0);
-                            float fracM = abs(fract(hM) - 0.5) * 2.0;
-                            float major = clamp(1.0 - fracM * 10.0, 0.0, 1.0);
-
-                            float blend = max(minor * 0.72, major);
-                            material.diffuse = mix(material.diffuse, vec3(0.02, 0.02, 0.08), blend * 0.82);
-
-                            return material;
-                        }
-                    `
+                    source: [
+                        'uniform sampler2D image;',
+                        'uniform float minimumHeight;',
+                        'uniform float maximumHeight;',
+                        'uniform float contourSpacing;',
+                        'czm_material czm_getMaterial(czm_materialInput materialInput) {',
+                        '    czm_material material = czm_getDefaultMaterial(materialInput);',
+                        '    float height = materialInput.height;',
+                        '    float t = clamp((height - minimumHeight) / (maximumHeight - minimumHeight), 0.0, 1.0);',
+                        '    vec4 ramp = texture(image, vec2(t, 0.5));',   // WebGL2 texture()
+                        '    material.diffuse = ramp.rgb;',
+                        '    material.alpha = 1.0;',
+                        '    float h = height / contourSpacing;',
+                        '    float frac = abs(fract(h) - 0.5) * 2.0;',
+                        '    float minor = clamp(1.0 - frac * 18.0, 0.0, 1.0);',
+                        '    float hM = height / (contourSpacing * 5.0);',
+                        '    float fracM = abs(fract(hM) - 0.5) * 2.0;',
+                        '    float major = clamp(1.0 - fracM * 10.0, 0.0, 1.0);',
+                        '    float blend = max(minor * 0.72, major);',
+                        '    material.diffuse = mix(material.diffuse, vec3(0.02, 0.02, 0.08), blend * 0.82);',
+                        '    return material;',
+                        '}'
+                    ].join('\n')
                 }
             });
 
         } else if (showDtm) {
-            // Elevation ramp only
-            const rampUrl = buildElevationRampCanvas().toDataURL();
-            return new Cesium.Material({
-                fabric: {
-                    uniforms: {
-                        image        : rampUrl,
-                        minimumHeight: CFG.elevMin,
-                        maximumHeight: CFG.elevMax,
-                    },
-                    source: `
-                        uniform sampler2D image;
-                        uniform float minimumHeight;
-                        uniform float maximumHeight;
-
-                        czm_material czm_getMaterial(czm_materialInput materialInput) {
-                            czm_material material = czm_getDefaultMaterial(materialInput);
-                            float t = clamp((materialInput.height - minimumHeight) / (maximumHeight - minimumHeight), 0.0, 1.0);
-                            vec4 ramp = texture2D(image, vec2(t, 0.5));
-                            material.diffuse = ramp.rgb;
-                            material.alpha   = 1.0;
-                            return material;
-                        }
-                    `
-                }
-            });
+            // ── DTM only: use Cesium built-in ElevationRamp — no custom GLSL needed ──
+            // This avoids ALL WebGL/GLSL version issues; the built-in material is
+            // already compiled against the correct GLSL ES version by Cesium.
+            const mat = Cesium.Material.fromType('ElevationRamp');
+            mat.uniforms.image         = buildElevationRampCanvas().toDataURL();
+            mat.uniforms.minimumHeight = CFG.elevMin;
+            mat.uniforms.maximumHeight = CFG.elevMax;
+            return mat;
 
         } else {
-            // Contours only (built-in Cesium material — overlays on satellite)
+            // ── Contours only: built-in ElevationContour — overlays on satellite ──
             return Cesium.Material.fromType('ElevationContour', {
                 color  : Cesium.Color.fromCssColorString('rgba(0,0,30,0.72)'),
                 spacing: CFG.contourSpacing,
@@ -202,32 +177,56 @@
         }
     }
 
-    // ── TREE BILLBOARD CANVAS ─────────────────────────────────────────────────
+    // ── TREE BILLBOARD CANVAS — clean 2-tier lollipop design ─────────────────
+    // Larger canvas (48×56) for crisp rendering at viewer zoom levels
     function buildTreeCanvas() {
+        const W = 48, H = 56;
         const c = document.createElement('canvas');
-        c.width = 28; c.height = 42;
+        c.width = W; c.height = H;
         const ctx = c.getContext('2d');
-        ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 3; ctx.shadowOffsetX = 1; ctx.shadowOffsetY = 2;
-        // Trunk
-        const tg = ctx.createLinearGradient(12, 30, 16, 42);
-        tg.addColorStop(0, '#6b3a2a'); tg.addColorStop(1, '#4a2218');
-        ctx.fillStyle = tg; ctx.fillRect(12, 32, 4, 10);
-        ctx.shadowBlur = 0;
-        // Crown bottom
-        const cb = ctx.createRadialGradient(14, 25, 2, 14, 23, 13);
-        cb.addColorStop(0, '#2e7d32'); cb.addColorStop(1, '#1b5e20');
-        ctx.fillStyle = cb; ctx.beginPath(); ctx.ellipse(14, 25, 13, 10, 0, 0, Math.PI * 2); ctx.fill();
-        // Crown mid
-        const cm = ctx.createRadialGradient(14, 17, 1, 14, 17, 11);
-        cm.addColorStop(0, '#43a047'); cm.addColorStop(1, '#2e7d32');
-        ctx.fillStyle = cm; ctx.beginPath(); ctx.ellipse(14, 17, 11, 9, 0, 0, Math.PI * 2); ctx.fill();
-        // Crown top
-        const ct = ctx.createRadialGradient(13, 9, 1, 14, 10, 8);
-        ct.addColorStop(0, '#66bb6a'); ct.addColorStop(1, '#43a047');
-        ctx.fillStyle = ct; ctx.beginPath(); ctx.ellipse(14, 10, 8, 7, 0, 0, Math.PI * 2); ctx.fill();
-        // Highlight
-        ctx.fillStyle = 'rgba(200,255,200,0.22)';
-        ctx.beginPath(); ctx.ellipse(11, 8, 4, 3, -0.3, 0, Math.PI * 2); ctx.fill();
+
+        const cx = W / 2; // 24
+
+        // Drop shadow under crown
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.40)';
+        ctx.shadowBlur  = 5;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 3;
+
+        // Trunk — warm brown pillar
+        const tg = ctx.createLinearGradient(cx - 3, 38, cx + 3, H);
+        tg.addColorStop(0, '#7c4a2a');
+        tg.addColorStop(1, '#4e2810');
+        ctx.fillStyle = tg;
+        ctx.beginPath();
+        ctx.roundRect(cx - 3, 39, 6, H - 39, 2);
+        ctx.fill();
+
+        // Crown — single lush circle with radial gradient
+        const rg = ctx.createRadialGradient(cx - 4, 18, 2, cx, 22, 19);
+        rg.addColorStop(0.00, '#81c784');  // bright highlight centre
+        rg.addColorStop(0.35, '#4caf50');  // mid green
+        rg.addColorStop(0.70, '#2e7d32');  // deep green edge
+        rg.addColorStop(1.00, '#1b5e20');  // dark outer rim
+        ctx.fillStyle = rg;
+        ctx.beginPath();
+        ctx.arc(cx, 22, 19, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // Specular highlight (top-left shine)
+        ctx.save();
+        ctx.globalAlpha = 0.30;
+        const sg = ctx.createRadialGradient(cx - 7, 12, 0, cx - 6, 14, 10);
+        sg.addColorStop(0, '#ffffff');
+        sg.addColorStop(1, 'transparent');
+        ctx.fillStyle = sg;
+        ctx.beginPath();
+        ctx.arc(cx, 22, 19, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
         return c;
     }
 
@@ -672,19 +671,30 @@
         if (enabled) {
             try {
                 osmBuildingsTileset = await Cesium.Cesium3DTileset.fromIonAssetId(CFG.osmBuildingsAsset);
-                osmBuildingsTileset.maximumScreenSpaceError = CFG.buildingSSE;
+
+                // Add to scene first, then configure
+                viewer.scene.primitives.add(osmBuildingsTileset);
+
+                // SSE=2 → show fine LOD tiles; default 16 is blocky
+                osmBuildingsTileset.maximumScreenSpaceError = 2;
+
+                // FIX: 3D Tile Style color() uses hex + alpha float, NOT rgba() strings
+                // 'color("rgba(...)")' is invalid — must be color('#hex', alpha)
                 osmBuildingsTileset.style = new Cesium.Cesium3DTileStyle({
+                    defines: {
+                        Height: '${feature["cesium#estimatedHeight"]}'
+                    },
                     color: {
                         conditions: [
-                            ['${feature["cesium#estimatedHeight"]} >= 80',  'color("rgba(249,115,22,0.93)")'],
-                            ['${feature["cesium#estimatedHeight"]} >= 40',  'color("rgba(59,130,246,0.90)")'],
-                            ['${feature["cesium#estimatedHeight"]} >= 15',  'color("rgba(148,163,184,0.87)")'],
-                            ['${feature["cesium#estimatedHeight"]} >= 5',   'color("rgba(203,213,225,0.84)")'],
-                            ['true',                                         'color("rgba(226,232,240,0.80)")'],
+                            ['${Height} >= 80',  "color('#f97316', 0.94)"],  // tall — orange
+                            ['${Height} >= 40',  "color('#3b82f6', 0.91)"],  // high-rise — blue
+                            ['${Height} >= 15',  "color('#94a3b8', 0.88)"],  // mid-rise — steel
+                            ['${Height} >= 5',   "color('#cbd5e1', 0.85)"],  // low-rise — light
+                            ['true',             "color('#e2e8f0', 0.80)"]
                         ]
                     }
                 });
-                viewer.scene.primitives.add(osmBuildingsTileset);
+
             } catch (e) {
                 console.warn('[Cesium3D] OSM buildings:', e);
                 if (typeof showToast === 'function') showToast('Buildings unavailable', 'warning');
@@ -734,14 +744,11 @@
             if (!resp.ok) throw new Error('Overpass API failed');
             const data   = await resp.json();
 
-            if (vegetationCollection) viewer.scene.primitives.remove(vegetationCollection);
-            vegetationCollection = new Cesium.BillboardCollection({ scene: viewer.scene });
-
-            if (!_treeCanvas) _treeCanvas = buildTreeCanvas();
-            let totalTrees = 0;
+            // ── PHASE 1: Collect candidate positions (CPU-only, fast) ────────────
+            const candidates = [];  // {lon, lat, scale, r, g, b, a}
 
             for (const el of data.elements) {
-                if (totalTrees >= CFG.maxTrees) break;
+                if (candidates.length >= CFG.maxTrees) break;
                 const nodes = el.geometry;
                 if (!nodes || nodes.length < 3) continue;
                 let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
@@ -753,35 +760,72 @@
                 if (!isFinite(minLon)) continue;
 
                 const pkm2 = (maxLon - minLon) * (maxLat - minLat) * 111.32 * 111.32;
-                const want = Math.min(Math.round(pkm2 * CFG.treeDensityPerKm2), 80);
+                // Reduce per-polygon cap to 50 for faster loading
+                const want = Math.min(Math.round(pkm2 * CFG.treeDensityPerKm2), 50);
                 let placed = 0, attempts = 0;
 
-                while (placed < want && attempts < want * 3 && totalTrees < CFG.maxTrees) {
+                while (placed < want && attempts < want * 4 && candidates.length < CFG.maxTrees) {
                     attempts++;
                     const lon = minLon + Math.random() * (maxLon - minLon);
                     const lat = minLat + Math.random() * (maxLat - minLat);
                     if (!pointInPolygon(lon, lat, nodes)) continue;
-                    const sc = 0.65 + Math.random() * 0.8;
-                    vegetationCollection.add({
-                        position : Cesium.Cartesian3.fromDegrees(lon, lat, 0),
-                        image    : _treeCanvas,
-                        width    : 22 * sc,
-                        height   : 36 * sc,
-                        verticalOrigin : Cesium.VerticalOrigin.BOTTOM,
-                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-                        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, Math.min(alt * 1.8, 4000)),
-                        color: new Cesium.Color(
-                            0.80 + Math.random() * 0.20,
-                            0.85 + Math.random() * 0.15,
-                            0.72 + Math.random() * 0.18,
-                            0.88 + Math.random() * 0.12
-                        )
+                    candidates.push({
+                        lon, lat,
+                        scale: 0.70 + Math.random() * 0.75,
+                        r: 0.82 + Math.random() * 0.18,
+                        g: 0.88 + Math.random() * 0.12,
+                        b: 0.74 + Math.random() * 0.16,
+                        a: 0.90 + Math.random() * 0.10
                     });
-                    placed++; totalTrees++;
+                    placed++;
                 }
             }
+
+            if (candidates.length === 0) {
+                if (typeof showToast === 'function') showToast('No forests found in view', 'info');
+                return;
+            }
+
+            // ── PHASE 2: Batch terrain-height sampling (single async call) ───────
+            // FIX: Removing HeightReference.CLAMP_TO_GROUND eliminates the
+            // per-billboard per-frame height query that caused the severe slowdown.
+            // Instead we sample ALL positions once at terrain level 11 (~60m res).
+            if (typeof showToast === 'function')
+                showToast(`🌿 Sampling terrain for ${candidates.length} trees…`, 'info');
+
+            const cartoPos = candidates.map(c =>
+                new Cesium.Cartographic(
+                    Cesium.Math.toRadians(c.lon),
+                    Cesium.Math.toRadians(c.lat)
+                )
+            );
+            // Level 11 ≈ 60 m resolution — fast and accurate enough for tree placement
+            const sampled = await Cesium.sampleTerrain(viewer.terrainProvider, 11, cartoPos);
+
+            // ── PHASE 3: Build BillboardCollection with exact sampled heights ────
+            if (vegetationCollection) viewer.scene.primitives.remove(vegetationCollection);
+            vegetationCollection = new Cesium.BillboardCollection({ scene: viewer.scene });
+            if (!_treeCanvas) _treeCanvas = buildTreeCanvas();
+
+            const visRange = new Cesium.DistanceDisplayCondition(0, Math.min(alt * 2.2, 5000));
+
+            candidates.forEach((c, i) => {
+                const h = (sampled[i] && sampled[i].height != null) ? sampled[i].height : 0;
+                vegetationCollection.add({
+                    position       : Cesium.Cartesian3.fromDegrees(c.lon, c.lat, h),
+                    image          : _treeCanvas,
+                    width          : 24 * c.scale,
+                    height         : 36 * c.scale,
+                    verticalOrigin : Cesium.VerticalOrigin.BOTTOM,
+                    // NO heightReference → no per-frame terrain query = fast rendering
+                    distanceDisplayCondition: visRange,
+                    color: new Cesium.Color(c.r, c.g, c.b, c.a)
+                });
+            });
+
             viewer.scene.primitives.add(vegetationCollection);
-            if (typeof showToast === 'function') showToast(`🌲 ${totalTrees} trees placed`, 'success');
+            if (typeof showToast === 'function') showToast(`🌲 ${candidates.length} trees placed`, 'success');
+
         } catch (e) {
             console.warn('[Cesium3D] Vegetation:', e);
             if (typeof showToast === 'function') showToast('Vegetation load failed', 'warning');
