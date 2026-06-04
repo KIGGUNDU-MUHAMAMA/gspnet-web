@@ -22034,7 +22034,7 @@
 
                 // Only add label when zoomed in enough
                 if (resolution <= RES_THRESHOLD.LABELS) {
-                    let name = feature.get('descriptio') || feature.get('waterwash') || feature.get('name') || feature.get('Name') || '';
+                    let name = feature.get('class_name') || feature.get('descriptio') || feature.get('waterwash') || feature.get('name') || feature.get('Name') || '';
                     if (name) {
                         const centroid = ol.extent.getCenter(geometry.getExtent());
                         styles.push(new ol.style.Style({
