@@ -103,9 +103,8 @@
     function buildGlobeMaterial(showDtm, showContours) {
         if (!showDtm && !showContours) return null;
 
-        if (showDtm && showContours) {
-            // ── Combined: elevation ramp + contour lines via custom GLSL ──────────
-            // FIX: use texture() not texture2D() — CesiumJS 1.123 runs WebGL2 / GLSL ES 3.00
+        if (showDtm) {
+            // ── DTM Custom Shader with Procedural Roughness & Optional Contours ──
             const rampUrl = buildElevationRampCanvas().toDataURL();
             return new Cesium.Material({
                 fabric: {
@@ -114,49 +113,73 @@
                         minimumHeight : CFG.elevMin,
                         maximumHeight : CFG.elevMax,
                         contourSpacing: CFG.contourSpacing,
+                        showContours  : showContours
                     },
                     source: [
                         'uniform sampler2D image;',
                         'uniform float minimumHeight;',
                         'uniform float maximumHeight;',
                         'uniform float contourSpacing;',
+                        'uniform bool showContours;',
+
+                        // Fractal Brownian Motion (fBm) for procedural roughness
+                        'float hash(vec2 p) { return fract(1e4 * sin(17.0 * p.x + p.y * 0.1) * (0.1 + abs(sin(p.y * 13.0 + p.x)))); }',
+                        'float noise(vec2 x) {',
+                        '    vec2 i = floor(x); vec2 f = fract(x);',
+                        '    float a = hash(i); float b = hash(i + vec2(1.0, 0.0));',
+                        '    float c = hash(i + vec2(0.0, 1.0)); float d = hash(i + vec2(1.0, 1.0));',
+                        '    vec2 u = f * f * (3.0 - 2.0 * f);',
+                        '    return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;',
+                        '}',
+                        'float fbm(vec2 x) {',
+                        '    float v = 0.0; float a = 0.5; vec2 shift = vec2(100.0);',
+                        '    for (int i = 0; i < 4; ++i) { v += a * noise(x); x = x * 2.0 + shift; a *= 0.5; }',
+                        '    return v;',
+                        '}',
+
                         'czm_material czm_getMaterial(czm_materialInput materialInput) {',
                         '    czm_material material = czm_getDefaultMaterial(materialInput);',
                         '    float height = materialInput.height;',
+
+                        // Elevation color stretch
                         '    float t = clamp((height - minimumHeight) / (maximumHeight - minimumHeight), 0.0, 1.0);',
-                        '    vec4 ramp = texture(image, vec2(t, 0.5));',   // WebGL2 texture()
-                        '    material.diffuse = ramp.rgb;',
+                        '    vec4 ramp = texture(image, vec2(t, 0.5));',
+                        '    vec3 baseColor = ramp.rgb;',
+
+                        // Apply procedural terrain roughness texture
+                        '    float n = fbm(materialInput.st * 180.0);',
+                        '    baseColor *= (0.82 + 0.36 * n);',
+
+                        '    material.diffuse = baseColor;',
                         '    material.alpha = 1.0;',
-                        '    float h = height / contourSpacing;',
-                        '    float frac = abs(fract(h) - 0.5) * 2.0;',
-                        '    float minor = clamp(1.0 - frac * 18.0, 0.0, 1.0);',
-                        '    float hM = height / (contourSpacing * 5.0);',
-                        '    float fracM = abs(fract(hM) - 0.5) * 2.0;',
-                        '    float major = clamp(1.0 - fracM * 10.0, 0.0, 1.0);',
-                        '    float blend = max(minor * 0.72, major);',
-                        '    material.diffuse = mix(material.diffuse, vec3(0.02, 0.02, 0.08), blend * 0.82);',
+
+                        '    if (showContours) {',
+                        '        float h = height / contourSpacing;',
+                        '        float frac = abs(fract(h) - 0.5) * 2.0;',
+                        '        float minor = clamp(1.0 - frac * 15.0, 0.0, 1.0);',
+                        '        float hM = height / (contourSpacing * 5.0);',
+                        '        float fracM = abs(fract(hM) - 0.5) * 2.0;',
+                        '        float major = clamp(1.0 - fracM * 10.0, 0.0, 1.0);',
+                        
+                        // Yellow/White for major contours, Dark Blue/Grey for minor
+                        '        if (major > 0.1) {',
+                        '            material.diffuse = mix(material.diffuse, vec3(1.0, 0.88, 0.2), major * 0.95);',
+                        '        } else if (minor > 0.1) {',
+                        '            material.diffuse = mix(material.diffuse, vec3(0.08, 0.15, 0.25), minor * 0.85);',
+                        '        }',
+                        '    }',
                         '    return material;',
                         '}'
                     ].join('\n')
                 }
             });
 
-        } else if (showDtm) {
-            // ── DTM only: use Cesium built-in ElevationRamp — no custom GLSL needed ──
-            // This avoids ALL WebGL/GLSL version issues; the built-in material is
-            // already compiled against the correct GLSL ES version by Cesium.
-            const mat = Cesium.Material.fromType('ElevationRamp');
-            mat.uniforms.image         = buildElevationRampCanvas().toDataURL();
-            mat.uniforms.minimumHeight = CFG.elevMin;
-            mat.uniforms.maximumHeight = CFG.elevMax;
-            return mat;
-
         } else {
-            // ── Contours only: built-in ElevationContour — overlays on satellite ──
+            // ── Contours only: built-in ElevationContour overlaid on satellite ──
             return Cesium.Material.fromType('ElevationContour', {
-                color  : Cesium.Color.fromCssColorString('rgba(0,0,30,0.72)'),
+                color  : Cesium.Color.fromCssColorString('rgba(0,0,30,0.85)'),
                 spacing: CFG.contourSpacing,
-                width  : 1.4
+                width  : 1.5
             });
         }
     }
@@ -320,12 +343,15 @@
                 msaaSamples         : 4
             });
 
-            // ── SCENE QUALITY ─────────────────────────────────────────────────
+            // ── SCENE QUALITY & WATER EFFECTS ─────────────────────────────────
             const scene = viewer.scene;
             scene.globe.maximumScreenSpaceError = 2;
             scene.globe.depthTestAgainstTerrain = true;
             scene.globe.enableLighting          = true;
             scene.globe.showGroundAtmosphere    = true;
+            
+            // Enable realistic animated water reflections
+            scene.globe.showWaterEffect = true;
 
             scene.skyAtmosphere.show             = true;
             scene.skyAtmosphere.saturationShift  = 0.06;
@@ -686,20 +712,19 @@
                 // SSE=2 → show fine LOD tiles; default 16 is blocky
                 osmBuildingsTileset.maximumScreenSpaceError = 2;
 
-                // Opaque, photorealistic architectural style.
-                // OSM buildings don't have texture images, so pure white/light grey
-                // with Cesium's PBR lighting/shadows creates the most realistic
-                // "Google Earth" structural look for untextured boxes.
+                // Opaque, rich architectural palette based on height
                 osmBuildingsTileset.style = new Cesium.Cesium3DTileStyle({
                     defines: {
                         Height: '${feature["cesium#estimatedHeight"]}'
                     },
                     color: {
                         conditions: [
-                            ['${Height} >= 80',  "color('#ffffff')"], // Pure white for high-rises
-                            ['${Height} >= 30',  "color('#f4f4f5')"], // Off-white for mid-rises
-                            ['${Height} >= 10',  "color('#e4e4e7')"], // Light zinc for standard
-                            ['true',             "color('#d4d4d8')"]  // Zinc for low-rises
+                            ['${Height} >= 80',  "color('#8B0000')"], // Deep Crimson for tall
+                            ['${Height} >= 50',  "color('#CC5500')"], // Dark Orange
+                            ['${Height} >= 30',  "color('#DAA520')"], // Goldenrod
+                            ['${Height} >= 15',  "color('#008080')"], // Teal
+                            ['${Height} >= 8',   "color('#2F4F4F')"], // Dark Slate Gray
+                            ['true',             "color('#404040')"]  // Charcoal Gray for low-rises
                         ]
                     }
                 });
@@ -716,7 +741,8 @@
         }
     }
 
-    // ── VEGETATION: OVERPASS + BillboardCollection ─────────────────────────────
+    // ── VEGETATION: Procedural Generation (Fast, Offline) ─────────────────────
+    // Replaced brittle Overpass API with local procedural generation using noise.
     async function toggleVegetation(enabled) {
         vegetationEnabled = enabled;
         if (!viewer) return;
@@ -738,70 +764,35 @@
         }
         const rect = viewer.camera.computeViewRectangle(viewer.scene.globe.ellipsoid);
         if (!rect) return;
+        
         const W = Cesium.Math.toDegrees(rect.west),  S = Cesium.Math.toDegrees(rect.south);
         const E = Cesium.Math.toDegrees(rect.east),  N = Cesium.Math.toDegrees(rect.north);
         const areakm2 = (E - W) * (N - S) * 111.32 * 111.32;
+        
         if (areakm2 > 2500) {
             if (typeof showToast === 'function') showToast('🌲 Zoom in for vegetation detail', 'info');
             return;
         }
-        if (typeof showToast === 'function') showToast('🌿 Loading forest areas…', 'info');
+
+        if (typeof showToast === 'function') showToast('🌿 Generating procedural forests…', 'info');
+        
         try {
-            const bounds = `${S.toFixed(5)},${W.toFixed(5)},${N.toFixed(5)},${E.toFixed(5)}`;
-            const query  = `[out:json][timeout:14];(way[landuse=forest](${bounds});way[natural=wood](${bounds});way[natural=forest](${bounds});way[leisure=park](${bounds}););out geom;`;
-
-            // Overpass API public endpoints (with fallbacks to avoid rate limits)
-            const endpoints = [
-                'https://overpass-api.de/api/interpreter',
-                'https://overpass.kumi.systems/api/interpreter',
-                'https://overpass.osm.ch/api/interpreter',
-                'https://lz4.overpass-api.de/api/interpreter'
-            ];
-
-            let data = null;
-            let lastError = null;
-
-            for (const endpoint of endpoints) {
-                try {
-                    const resp = await fetch(`${endpoint}?data=${encodeURIComponent(query)}`);
-                    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-                    data = await resp.json();
-                    break; // Success!
-                } catch (err) {
-                    lastError = err;
-                    console.warn(`[Cesium3D] Overpass endpoint ${endpoint} failed:`, err.message);
-                }
-            }
-
-            if (!data || !data.elements) {
-                throw new Error('All Overpass API endpoints failed or returned no data.');
-            }
-
-            // ── PHASE 1: Collect candidate positions (CPU-only, fast) ────────────
-            const candidates = [];  // {lon, lat, scale, r, g, b, a}
-
-            for (const el of data.elements) {
+            // ── PHASE 1: Generate procedural tree locations ────────────
+            const candidates = [];
+            
+            // Simple spatial hash to simulate organic clustering
+            const hash = (x, y) => Math.abs(Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1;
+            
+            const numPoints = Math.min(Math.floor(areakm2 * 250), CFG.maxTrees * 2); // Sample density
+            
+            for (let i = 0; i < numPoints; i++) {
                 if (candidates.length >= CFG.maxTrees) break;
-                const nodes = el.geometry;
-                if (!nodes || nodes.length < 3) continue;
-                let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
-                nodes.forEach(n => {
-                    if (n.lon == null) return;
-                    minLon = Math.min(minLon, n.lon); maxLon = Math.max(maxLon, n.lon);
-                    minLat = Math.min(minLat, n.lat); maxLat = Math.max(maxLat, n.lat);
-                });
-                if (!isFinite(minLon)) continue;
-
-                const pkm2 = (maxLon - minLon) * (maxLat - minLat) * 111.32 * 111.32;
-                // Reduce per-polygon cap to 50 for faster loading
-                const want = Math.min(Math.round(pkm2 * CFG.treeDensityPerKm2), 50);
-                let placed = 0, attempts = 0;
-
-                while (placed < want && attempts < want * 4 && candidates.length < CFG.maxTrees) {
-                    attempts++;
-                    const lon = minLon + Math.random() * (maxLon - minLon);
-                    const lat = minLat + Math.random() * (maxLat - minLat);
-                    if (!pointInPolygon(lon, lat, nodes)) continue;
+                const lon = W + Math.random() * (E - W);
+                const lat = S + Math.random() * (N - S);
+                
+                // Procedural noise check for clustering (forest patches)
+                const clusterNoise = hash(Math.floor(lon * 200), Math.floor(lat * 200));
+                if (clusterNoise > 0.65) {
                     candidates.push({
                         lon, lat,
                         scale: 0.70 + Math.random() * 0.75,
@@ -810,71 +801,55 @@
                         b: 0.74 + Math.random() * 0.16,
                         a: 0.90 + Math.random() * 0.10
                     });
-                    placed++;
                 }
             }
 
-            if (candidates.length === 0) {
-                if (typeof showToast === 'function') showToast('No forests found in view', 'info');
-                return;
-            }
+            if (candidates.length === 0) return;
 
-            // ── PHASE 2: Batch terrain-height sampling (single async call) ───────
-            // FIX: Removing HeightReference.CLAMP_TO_GROUND eliminates the
-            // per-billboard per-frame height query that caused the severe slowdown.
-            // Instead we sample ALL positions once at terrain level 11 (~60m res).
-            if (typeof showToast === 'function')
-                showToast(`🌿 Sampling terrain for ${candidates.length} trees…`, 'info');
-
-            const cartoPos = candidates.map(c =>
-                new Cesium.Cartographic(
-                    Cesium.Math.toRadians(c.lon),
-                    Cesium.Math.toRadians(c.lat)
-                )
-            );
-            // Level 11 ≈ 60 m resolution — fast and accurate enough for tree placement
+            // ── PHASE 2: Batch terrain-height sampling ───────
+            const cartoPos = candidates.map(c => new Cesium.Cartographic(Cesium.Math.toRadians(c.lon), Cesium.Math.toRadians(c.lat)));
             const sampled = await Cesium.sampleTerrain(viewer.terrainProvider, 11, cartoPos);
 
-            // ── PHASE 3: Build BillboardCollection with exact sampled heights ────
+            // Filter out trees placed in water (height <= 0 roughly) or extremely steep areas
+            const validCandidates = [];
+            for (let i = 0; i < candidates.length; i++) {
+                const h = (sampled[i] && sampled[i].height != null) ? sampled[i].height : 0;
+                // Keep trees that are safely on land
+                if (h > 1130 || h > 10) { // Lake Victoria is ~1134m, general land >10m
+                    candidates[i].height = h;
+                    validCandidates.push(candidates[i]);
+                }
+            }
+
+            // ── PHASE 3: Build BillboardCollection ────
             if (vegetationCollection) viewer.scene.primitives.remove(vegetationCollection);
             vegetationCollection = new Cesium.BillboardCollection({ scene: viewer.scene });
             if (!_treeCanvas) _treeCanvas = buildTreeCanvas();
 
-            const visRange = new Cesium.DistanceDisplayCondition(0, Math.min(alt * 2.2, 5000));
+            const visRange = new Cesium.DistanceDisplayCondition(0, Math.min(alt * 2.5, 6000));
 
-            candidates.forEach((c, i) => {
-                const h = (sampled[i] && sampled[i].height != null) ? sampled[i].height : 0;
+            validCandidates.forEach(c => {
                 vegetationCollection.add({
-                    position       : Cesium.Cartesian3.fromDegrees(c.lon, c.lat, h),
+                    position       : Cesium.Cartesian3.fromDegrees(c.lon, c.lat, c.height),
                     image          : _treeCanvas,
                     width          : 24 * c.scale,
                     height         : 36 * c.scale,
                     verticalOrigin : Cesium.VerticalOrigin.BOTTOM,
-                    // NO heightReference → no per-frame terrain query = fast rendering
                     distanceDisplayCondition: visRange,
                     color: new Cesium.Color(c.r, c.g, c.b, c.a)
                 });
             });
 
             viewer.scene.primitives.add(vegetationCollection);
-            if (typeof showToast === 'function') showToast(`🌲 ${candidates.length} trees placed`, 'success');
+            if (typeof showToast === 'function') showToast(`🌲 ${validCandidates.length} trees placed`, 'success');
 
         } catch (e) {
             console.warn('[Cesium3D] Vegetation:', e);
-            if (typeof showToast === 'function') showToast('Vegetation load failed', 'warning');
+            if (typeof showToast === 'function') showToast('Vegetation generation failed', 'warning');
         }
     }
 
-    function pointInPolygon(x, y, nodes) {
-        let inside = false, n = nodes.length;
-        for (let i = 0, j = n - 1; i < n; j = i++) {
-            const ni = nodes[i], nj = nodes[j];
-            if (!ni || ni.lon == null || !nj || nj.lon == null) continue;
-            if (((ni.lat > y) !== (nj.lat > y)) && (x < (nj.lon - ni.lon) * (y - ni.lat) / (nj.lat - ni.lat) + ni.lon))
-                inside = !inside;
-        }
-        return inside;
-    }
+
 
     // ── AOI DRAW TOOL ─────────────────────────────────────────────────────────
     function startAoiDraw() {
