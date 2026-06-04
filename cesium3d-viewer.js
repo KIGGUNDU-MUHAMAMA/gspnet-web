@@ -68,10 +68,7 @@
     let vegetationCollection = null;
     let _treeCanvas          = null;
 
-    // ── ELEVATION-RAMP CANVAS (Uganda Topo Palette) ───────────────────────────
-    // Uganda's elevation is mostly 900m - 1500m. Old palette was 0-5100m,
-    // which caused the whole country to render as a single green color.
-    // This new palette maps the core variations directly to the 600m-2000m range.
+    // ── ELEVATION-RAMP CANVAS (Standard Topo Palette) ─────────────────────────
     function buildElevationRampCanvas() {
         const c = document.createElement('canvas');
         c.width = 512; c.height = 1;
@@ -79,20 +76,21 @@
         const g = ctx.createLinearGradient(0, 0, 512, 0);
 
         // Map relative to CFG.elevMin (-100) and CFG.elevMax (5200)
-        // Total range = 5300m
         const getT = (m) => Math.max(0, Math.min(1, (m - CFG.elevMin) / (CFG.elevMax - CFG.elevMin)));
 
-        g.addColorStop(getT(-100), '#000000'); // Black (below sea level/errors)
-        g.addColorStop(getT(500),  '#4a7c59'); // Lowlands / Rift Valley (dark green)
-        g.addColorStop(getT(900),  '#88a064'); // Plateau base (olive green)
-        g.addColorStop(getT(1100), '#c8c27a'); // Kampala/Victoria level (yellow-green)
-        g.addColorStop(getT(1300), '#e3c984'); // Hills (warm yellow/sand)
-        g.addColorStop(getT(1600), '#d69e63'); // Highlands (light brown/orange)
-        g.addColorStop(getT(2000), '#a86540'); // High mountains base (deep brown)
-        g.addColorStop(getT(3000), '#7a4231'); // High peaks (dark reddish brown)
-        g.addColorStop(getT(4000), '#6e5e6e'); // Alpine / Rock (purple-grey)
-        g.addColorStop(getT(4500), '#a5a3aa'); // Snow line (light grey)
-        g.addColorStop(getT(5100), '#ffffff'); // Rwenzori peaks (white)
+        // Steep gradient tailored for Uganda's plateau (1000m - 1800m)
+        g.addColorStop(getT(-100), '#000000'); // Errors
+        g.addColorStop(getT(800),  '#2a5a3b'); // Dark Green (Lowlands)
+        g.addColorStop(getT(1100), '#5b8c5a'); // Mid Green
+        g.addColorStop(getT(1150), '#8dae58'); // Light Green (Lake Victoria basin)
+        g.addColorStop(getT(1200), '#d9d068'); // Yellow-Green
+        g.addColorStop(getT(1300), '#e6b741'); // Yellow/Orange
+        g.addColorStop(getT(1400), '#d68a33'); // Orange/Brown (Hills)
+        g.addColorStop(getT(1600), '#a35427'); // Brown
+        g.addColorStop(getT(2000), '#6b3c22'); // Dark Brown
+        g.addColorStop(getT(3000), '#665d58'); // Grey
+        g.addColorStop(getT(4500), '#9c9a98'); // Light Grey
+        g.addColorStop(getT(5100), '#ffffff'); // Snow (Rwenzori)
 
         ctx.fillStyle = g;
         ctx.fillRect(0, 0, 512, 1);
@@ -146,12 +144,13 @@
                         '    vec4 ramp = texture(image, vec2(t, 0.5));',
                         '    vec3 baseColor = ramp.rgb;',
 
-                        // Apply procedural terrain roughness texture
+                        // Apply procedural terrain roughness texture (bump mapping)
                         '    float n = fbm(materialInput.st * 180.0);',
-                        '    baseColor *= (0.82 + 0.36 * n);',
+                        '    baseColor *= (0.65 + 0.55 * n);', // Stronger roughness contrast
 
                         '    material.diffuse = baseColor;',
-                        '    material.alpha = 1.0;',
+                        // Semi-transparent alpha to let satellite basemap (roads/water) shine through!
+                        '    material.alpha = 0.60;',
 
                         '    if (showContours) {',
                         '        float h = height / contourSpacing;',
@@ -161,11 +160,13 @@
                         '        float fracM = abs(fract(hM) - 0.5) * 2.0;',
                         '        float major = clamp(1.0 - fracM * 10.0, 0.0, 1.0);',
                         
-                        // Yellow/White for major contours, Dark Blue/Grey for minor
+                        // Professional contours: subtle darkening
                         '        if (major > 0.1) {',
-                        '            material.diffuse = mix(material.diffuse, vec3(1.0, 0.88, 0.2), major * 0.95);',
+                        '            material.diffuse = mix(material.diffuse, vec3(0.15, 0.12, 0.10), major * 0.8);',
+                        '            material.alpha = max(material.alpha, major * 0.9);',
                         '        } else if (minor > 0.1) {',
-                        '            material.diffuse = mix(material.diffuse, vec3(0.08, 0.15, 0.25), minor * 0.85);',
+                        '            material.diffuse = mix(material.diffuse, vec3(0.25, 0.22, 0.20), minor * 0.6);',
+                        '            material.alpha = max(material.alpha, minor * 0.7);',
                         '        }',
                         '    }',
                         '    return material;',
@@ -188,14 +189,10 @@
         if (!viewer) return;
         viewer.scene.globe.material = buildGlobeMaterial(dtmEnabled, contoursEnabled);
 
-        if (dtmEnabled) {
-            // Remove satellite imagery — the terrain IS the visualisation
-            if (currentImageryLayer) {
-                viewer.imageryLayers.remove(currentImageryLayer, false);
-                currentImageryLayer = null;
-            }
-        } else if (!currentImageryLayer) {
-            // Restore basemap
+        // DO NOT remove the satellite imagery! 
+        // Our new DTM shader has alpha=0.6, so blending the DTM color WITH the 
+        // satellite map provides the terrain colors AND the roads, water, and forests.
+        if (!currentImageryLayer) {
             switchBasemap(currentBasemapKey);
         }
 
@@ -205,6 +202,8 @@
             else if (dtmEnabled)                   modeEl.textContent = '🗺 DTM View';
             else if (contoursEnabled)              modeEl.textContent = '〰 Contours';
             else                                   modeEl.textContent = '';
+        }
+    }
         }
     }
 
@@ -724,7 +723,7 @@
                             ['${Height} >= 30',  "color('#DAA520')"], // Goldenrod
                             ['${Height} >= 15',  "color('#008080')"], // Teal
                             ['${Height} >= 8',   "color('#2F4F4F')"], // Dark Slate Gray
-                            ['true',             "color('#404040')"]  // Charcoal Gray for low-rises
+                            ['true',             "color('#00008B')"]  // Dark Blue for low-rises
                         ]
                     }
                 });
