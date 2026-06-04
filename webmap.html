@@ -45875,7 +45875,7 @@ function smoothChaikin(points) {
                                 block: featureRecord.block_number || null,
                                 plot: featureRecord.plot_number || null,
                                 is_untitled: featureRecord.layer_name ? featureRecord.layer_name.includes('UNTITLED') : false,
-                                flag_type: 'deleted', // Special flag type!
+                                flag_type: 'red', // 'deleted' violates DB check constraint
                                 reporter_name: currentUser ? currentUser.displayName : 'Admin',
                                 reporter_contact: currentUser ? currentUser.email : '',
                                 reason: 'DELETION: ' + finalReason,
