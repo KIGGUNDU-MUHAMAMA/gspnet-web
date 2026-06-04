@@ -149,8 +149,8 @@
                         '    baseColor *= (0.65 + 0.55 * n);', // Stronger roughness contrast
 
                         '    material.diffuse = baseColor;',
-                        // Semi-transparent alpha to let satellite basemap (roads/water) shine through!
-                        '    material.alpha = 0.60;',
+                        // Fully opaque DTM
+                        '    material.alpha = 1.00;',
 
                         '    if (showContours) {',
                         '        float h = height / contourSpacing;',
@@ -709,19 +709,21 @@
                 // SSE=2 → show fine LOD tiles; default 16 is blocky
                 osmBuildingsTileset.maximumScreenSpaceError = 2;
 
-                // Opaque, rich architectural palette based on height
+                // Light, pastel architectural palette based on height
+                // Lighter colors reflect Cesium's sun shadows, preventing congested areas
+                // from looking like a single giant blob of dark color.
                 osmBuildingsTileset.style = new Cesium.Cesium3DTileStyle({
                     defines: {
                         Height: '${feature["cesium#estimatedHeight"]}'
                     },
                     color: {
                         conditions: [
-                            ['${Height} >= 80',  "color('#8B0000')"], // Deep Crimson for tall
-                            ['${Height} >= 50',  "color('#CC5500')"], // Dark Orange
-                            ['${Height} >= 30',  "color('#DAA520')"], // Goldenrod
-                            ['${Height} >= 15',  "color('#008080')"], // Teal
-                            ['${Height} >= 8',   "color('#2F4F4F')"], // Dark Slate Gray
-                            ['true',             "color('#00008B')"]  // Dark Blue for low-rises
+                            ['${Height} >= 80',  "color('#F08080')"], // Light Coral for tall
+                            ['${Height} >= 50',  "color('#F4A460')"], // Sandy Brown
+                            ['${Height} >= 30',  "color('#F0E68C')"], // Khaki
+                            ['${Height} >= 15',  "color('#ADD8E6')"], // Light Blue
+                            ['${Height} >= 8',   "color('#B0C4DE')"], // Light Steel Blue
+                            ['true',             "color('#F5F5F5')"]  // White Smoke for low-rises
                         ]
                     }
                 });
