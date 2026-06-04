@@ -45739,8 +45739,16 @@ function smoothChaikin(points) {
                 flagsSection.innerHTML = fh;
 
                 // --- Quality Control Deletion ---
-                const roleHint = localStorage.getItem('supabase.profile.role') || '';
-                const isAuthorized = roleHint.toUpperCase() === 'RSU' || roleHint.toUpperCase() === 'ADMIN';
+                let isAuthorized = false;
+                try {
+                    const ctx = await getCurrentAuthenticatedUserContext();
+                    const role = ctx?.role || localStorage.getItem('supabase.profile.role') || '';
+                    const email = ctx?.email || '';
+                    isAuthorized = email === 'kiggundumuhamad@gmail.com' || role.toUpperCase() === 'RSU' || role.toUpperCase() === 'ADMIN';
+                } catch (e) {
+                    const roleHint = localStorage.getItem('supabase.profile.role') || '';
+                    isAuthorized = roleHint.toUpperCase() === 'RSU' || roleHint.toUpperCase() === 'ADMIN';
+                }
                 const validLayersForDeletion = [
                     'Survey Polygons', 'BLB-UNTITLED', 'UNTITLED UTM ZONE 36S', 
                     'UNTITLED UTM ZONE 36N', 'TITLE TRACTS UTM ZONE 36S', 'TITLE TRACTS UTM ZONE 36N'
@@ -45928,7 +45936,7 @@ function smoothChaikin(points) {
             };
 
             // Feature info panel functionality for the info button only
-            map.on('click', function (evt) {
+            map.on('click', async function (evt) {
                 if (featureInfo.style.display === 'block') {
                     const pixel = evt.pixel;
 
@@ -46014,8 +46022,16 @@ function smoothChaikin(points) {
                         
                         // --- Quality Control Deletion for Symbols Library ---
                         if (props.symbol_key) {
-                            const roleHint = localStorage.getItem('supabase.profile.role') || '';
-                            const isAuthorized = roleHint.toUpperCase() === 'RSU' || roleHint.toUpperCase() === 'ADMIN';
+                            let isAuthorized = false;
+                            try {
+                                const ctx = await getCurrentAuthenticatedUserContext();
+                                const role = ctx?.role || localStorage.getItem('supabase.profile.role') || '';
+                                const email = ctx?.email || '';
+                                isAuthorized = email === 'kiggundumuhamad@gmail.com' || role.toUpperCase() === 'RSU' || role.toUpperCase() === 'ADMIN';
+                            } catch (e) {
+                                const roleHint = localStorage.getItem('supabase.profile.role') || '';
+                                isAuthorized = roleHint.toUpperCase() === 'RSU' || roleHint.toUpperCase() === 'ADMIN';
+                            }
                             
                             if (isAuthorized) {
                                 const featureId = feature.getId() || props.id;
