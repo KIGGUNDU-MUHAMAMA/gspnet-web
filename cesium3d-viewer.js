@@ -68,24 +68,32 @@
     let vegetationCollection = null;
     let _treeCanvas          = null;
 
-    // ── ELEVATION-RAMP CANVAS (Uganda palette) ────────────────────────────────
+    // ── ELEVATION-RAMP CANVAS (Uganda Topo Palette) ───────────────────────────
+    // Uganda's elevation is mostly 900m - 1500m. Old palette was 0-5100m,
+    // which caused the whole country to render as a single green color.
+    // This new palette maps the core variations directly to the 600m-2000m range.
     function buildElevationRampCanvas() {
         const c = document.createElement('canvas');
         c.width = 512; c.height = 1;
         const ctx = c.getContext('2d');
         const g = ctx.createLinearGradient(0, 0, 512, 0);
-        g.addColorStop(0.000, '#1a3a6b');  // deep blue  (below 0 m)
-        g.addColorStop(0.030, '#2d7a3a');  // forest grn (0–150 m)
-        g.addColorStop(0.150, '#3d9a48');  // med green  (150–600 m)
-        g.addColorStop(0.280, '#5dbb5c');  // lt green   (600–1200 m)
-        g.addColorStop(0.380, '#a3d168');  // yel-green  (1200–1700 m)
-        g.addColorStop(0.480, '#d4e87a');  // pale yel   (1700–2200 m)
-        g.addColorStop(0.580, '#f5c842');  // golden     (2200–2800 m)
-        g.addColorStop(0.680, '#e8823a');  // orange     (2800–3400 m)
-        g.addColorStop(0.780, '#c0392b');  // red        (3400–4200 m)
-        g.addColorStop(0.880, '#8e2dc1');  // purple     (4200–4800 m)
-        g.addColorStop(0.960, '#d5c4e0');  // lavender   (4800–5100 m)
-        g.addColorStop(1.000, '#ffffff');  // white      (5100+ Rwenzori)
+
+        // Map relative to CFG.elevMin (-100) and CFG.elevMax (5200)
+        // Total range = 5300m
+        const getT = (m) => Math.max(0, Math.min(1, (m - CFG.elevMin) / (CFG.elevMax - CFG.elevMin)));
+
+        g.addColorStop(getT(-100), '#000000'); // Black (below sea level/errors)
+        g.addColorStop(getT(500),  '#4a7c59'); // Lowlands / Rift Valley (dark green)
+        g.addColorStop(getT(900),  '#88a064'); // Plateau base (olive green)
+        g.addColorStop(getT(1100), '#c8c27a'); // Kampala/Victoria level (yellow-green)
+        g.addColorStop(getT(1300), '#e3c984'); // Hills (warm yellow/sand)
+        g.addColorStop(getT(1600), '#d69e63'); // Highlands (light brown/orange)
+        g.addColorStop(getT(2000), '#a86540'); // High mountains base (deep brown)
+        g.addColorStop(getT(3000), '#7a4231'); // High peaks (dark reddish brown)
+        g.addColorStop(getT(4000), '#6e5e6e'); // Alpine / Rock (purple-grey)
+        g.addColorStop(getT(4500), '#a5a3aa'); // Snow line (light grey)
+        g.addColorStop(getT(5100), '#ffffff'); // Rwenzori peaks (white)
+
         ctx.fillStyle = g;
         ctx.fillRect(0, 0, 512, 1);
         return c;
@@ -678,19 +686,20 @@
                 // SSE=2 → show fine LOD tiles; default 16 is blocky
                 osmBuildingsTileset.maximumScreenSpaceError = 2;
 
-                // FIX: 3D Tile Style color() uses hex + alpha float, NOT rgba() strings
-                // 'color("rgba(...)")' is invalid — must be color('#hex', alpha)
+                // Opaque, photorealistic architectural style.
+                // OSM buildings don't have texture images, so pure white/light grey
+                // with Cesium's PBR lighting/shadows creates the most realistic
+                // "Google Earth" structural look for untextured boxes.
                 osmBuildingsTileset.style = new Cesium.Cesium3DTileStyle({
                     defines: {
                         Height: '${feature["cesium#estimatedHeight"]}'
                     },
                     color: {
                         conditions: [
-                            ['${Height} >= 80',  "color('#f97316', 0.94)"],  // tall — orange
-                            ['${Height} >= 40',  "color('#3b82f6', 0.91)"],  // high-rise — blue
-                            ['${Height} >= 15',  "color('#94a3b8', 0.88)"],  // mid-rise — steel
-                            ['${Height} >= 5',   "color('#cbd5e1', 0.85)"],  // low-rise — light
-                            ['true',             "color('#e2e8f0', 0.80)"]
+                            ['${Height} >= 80',  "color('#ffffff')"], // Pure white for high-rises
+                            ['${Height} >= 30',  "color('#f4f4f5')"], // Off-white for mid-rises
+                            ['${Height} >= 10',  "color('#e4e4e7')"], // Light zinc for standard
+                            ['true',             "color('#d4d4d8')"]  // Zinc for low-rises
                         ]
                     }
                 });
@@ -740,9 +749,33 @@
         try {
             const bounds = `${S.toFixed(5)},${W.toFixed(5)},${N.toFixed(5)},${E.toFixed(5)}`;
             const query  = `[out:json][timeout:14];(way[landuse=forest](${bounds});way[natural=wood](${bounds});way[natural=forest](${bounds});way[leisure=park](${bounds}););out geom;`;
-            const resp   = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
-            if (!resp.ok) throw new Error('Overpass API failed');
-            const data   = await resp.json();
+
+            // Overpass API public endpoints (with fallbacks to avoid rate limits)
+            const endpoints = [
+                'https://overpass-api.de/api/interpreter',
+                'https://overpass.kumi.systems/api/interpreter',
+                'https://overpass.osm.ch/api/interpreter',
+                'https://lz4.overpass-api.de/api/interpreter'
+            ];
+
+            let data = null;
+            let lastError = null;
+
+            for (const endpoint of endpoints) {
+                try {
+                    const resp = await fetch(`${endpoint}?data=${encodeURIComponent(query)}`);
+                    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                    data = await resp.json();
+                    break; // Success!
+                } catch (err) {
+                    lastError = err;
+                    console.warn(`[Cesium3D] Overpass endpoint ${endpoint} failed:`, err.message);
+                }
+            }
+
+            if (!data || !data.elements) {
+                throw new Error('All Overpass API endpoints failed or returned no data.');
+            }
 
             // ── PHASE 1: Collect candidate positions (CPU-only, fast) ────────────
             const candidates = [];  // {lon, lat, scale, r, g, b, a}
