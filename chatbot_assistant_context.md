@@ -424,3 +424,11 @@ For visual guidance, always provide users with the following relevant video link
 - **Satellite Analytics (NDVI/NDMI/NDWI):** No video tutorial yet — refer the user to the step-by-step guide in **Section 5** of this knowledge base.
 - **GSP Rover — Navigating to Survey Control Points (Reconnaissance):** [Using GSP Rover to find and navigate to survey control points](https://youtube.com/shorts/gjoApWIuZmI?si=hn-63uX4GIngpUG_)
 - **GSP Rover — Full Field Workflow (Capture, Measure, Photo, Export):** [Using GSP Rover to navigate, capture coordinates, measure area, take photos and export CSV/KML/DXF in the field](https://youtube.com/shorts/lAECHD4q_jE?si=gSsR2KM3_ZCGeH5W)
+
+---
+
+## 10. Social Chat & Profile Settings
+GSP.NET includes a built-in realtime social chat system for professionals to communicate, share insights, and discuss projects.
+- **Profile Configuration:** It is highly recommended to set up your profile to make communication smoother. To do so, open the Chat Panel (chat bubble icon), click the **Gear Icon** (Profile Configuration) at the top right, upload a profile picture, set your Username, and add a short bio.
+- **Profile Prompts:** If you haven't updated your profile, a small non-intrusive prompt ("Please set up profile") will appear under the gear icon when you open the chat.
+- **Resilience:** The chat system is highly resilient. Users can still send and receive private messages, room posts, and automated notifications (like Flagging or Deletions) even if their profiles (or the recipient's profiles) are completely blank. The system intelligently falls back to displaying their email prefix or 'Unknown User' to prevent any disruptions.
