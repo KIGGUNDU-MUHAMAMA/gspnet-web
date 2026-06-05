@@ -45896,6 +45896,20 @@ function smoothChaikin(points) {
                                 if (window.sendMessage) {
                                     await window.sendMessage(delMsg);
                                 }
+                                
+                                // Broadcast to the new ChatSystem Room Posts!
+                                if (window.supabase) {
+                                    const { data: roomData } = await supabase.from('chat_rooms').select('id').order('created_at', { ascending: true }).limit(1);
+                                    if (roomData && roomData.length > 0) {
+                                        await supabase.from('room_posts').insert([{
+                                            room_id: roomData[0].id,
+                                            user_id: currentUser.id,
+                                            username: currentUser.displayName || 'Admin',
+                                            content: delMsg
+                                        }]);
+                                    }
+                                }
+
                                 if (featureRecord.created_by && featureRecord.created_by !== currentUser.id && window.supabase) {
                                     await supabase.from('private_messages').insert([{
                                         sender_id: currentUser.id,
@@ -45923,15 +45937,28 @@ function smoothChaikin(points) {
                         }
                         
                         // 3. Update Map visually
-                        if (table === 'polygon_features' && featureOlId) {
-                            // Find and remove from map sources
-                            map.getLayers().forEach(layer => {
-                                if (layer instanceof ol.layer.Vector) {
-                                    const source = layer.getSource();
-                                    if (source && typeof source.getFeatureById === 'function') {
-                                        const f = source.getFeatureById(featureOlId) || source.getFeatures().find(ft => ft.get('unique_id') === uid);
-                                        if (f) source.removeFeature(f);
+                        if (table === 'polygon_features') {
+                            if (featureOlId) {
+                                // Find and remove from map sources
+                                map.getLayers().forEach(layer => {
+                                    if (layer instanceof ol.layer.Vector) {
+                                        const source = layer.getSource();
+                                        if (source && typeof source.getFeatureById === 'function') {
+                                            const f = source.getFeatureById(featureOlId) || source.getFeatures().find(ft => ft.get('unique_id') === uid);
+                                            if (f) source.removeFeature(f);
+                                        }
                                     }
+                                });
+                            }
+                            // Force refresh data
+                            if (typeof window.loadPolygonsForExtent === 'function') {
+                                const ext = map.getView().calculateExtent(map.getSize());
+                                window.loadPolygonsForExtent(ext);
+                            }
+                            map.getLayers().forEach(layer => {
+                                if (typeof layer.getSource === 'function') {
+                                    const src = layer.getSource();
+                                    if (src && typeof src.refresh === 'function') src.refresh();
                                 }
                             });
                         } else if (table === 'map_features') {
