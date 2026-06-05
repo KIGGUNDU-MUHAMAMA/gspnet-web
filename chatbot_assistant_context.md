@@ -98,6 +98,16 @@ A massive collaborative cartographic catalog featuring 240+ standardized symbols
 - **How to use:** Open the Symbols Library, select a category, and click the map to place a symbol. 
 - **Collaboration:** Symbols placed on the map are visible to all users (collaborative mode), enabling real-time multi-user mapping and quality control.
 
+### Step-by-Step: Quality Control (QC) Deletion
+The QC Delete function allows authorized users (like RSU Supervisors or Admins) to permanently delete inaccurate or duplicate survey parcels from the database.
+1. Ensure the `Parcels (NLIS)` layer is toggled ON in the Layer Switcher.
+2. Click on the target parcel on the map. The feature will be highlighted and the **Feature Info Panel** will open.
+3. In the Feature Info Panel, verify the parcel details to ensure it is the correct feature.
+4. Click the red **"Delete Feature (QC)"** button at the bottom of the panel.
+5. A confirmation modal will appear. You **must** select a reason for deletion from the dropdown (e.g., "Duplicate Feature", "Incorrect Geometry", etc.). If you select "Other", you must provide details.
+6. Click **"Confirm Deletion"**.
+7. The system will permanently delete the feature from the Supabase database, instantly remove it from the webmap, and broadcast a Chat Room message and private inbox notification to the surveyor who originally uploaded it.
+
 ---
 
 ## 4. Terrain Intelligence & 3D Tools
@@ -119,6 +129,21 @@ Clicking **"3D"** after DTM generation opens an interactive Cesium/Three.js 3D V
 - **Basemap Draping:** Toggle "Basemap" to automatically drape the current 2D satellite imagery directly over the 3D mesh.
 - **3D Exports:** You can capture viewpoints and export them as a professional **3D PDF**, or export the raw 3D mesh as STL, OBJ, GeoTIFF, or LAS.
 - **Sentinel Satellite Analytics (NEW):** The 3D Terrain panel includes a dedicated **"Satellite Analytics"** section (Section 12 in the left panel). This allows surveyors to load real Sentinel-2 multispectral imagery and compute vegetation, moisture, and water index statistics directly over the active project area. See **Section 5** below for full details and step-by-step instructions.
+
+### Step-by-Step: Using the Cesium 3D Viewer
+1. In the main webmap, ensure you have drawn a DTM boundary or zoomed to your project area, then click the **3D Terrain** button (mountain icon).
+2. Generate a DTM or simply click the **"3D"** button at the top right of the map interface to launch the Cesium Viewer globally.
+3. The Cesium viewer will open in full-screen mode, draping the active 2D basemap (Satellite, Street, etc.) over the global 3D terrain.
+4. **Navigation:** Left-click and drag to pan; Right-click and drag to zoom; Middle-click (scroll wheel) and drag to tilt and rotate the 3D camera.
+5. **Tools Panel (Left Side):** 
+   - Use the **Imagery Adjustment** sliders to change Brightness, Contrast, and Saturation.
+   - Use the **Vertical Exaggeration** slider to amplify flat terrain features.
+   - Toggle **OSM Buildings** to show 3D city models where available.
+6. **Bottom Control Bar:**
+   - **Capture:** Click the Camera icon to take a snapshot of the current view. Snapshots are added to a filmstrip at the bottom.
+   - **PDF:** Once snapshots are captured, click the PDF icon to export a professional 3D Viewport Report containing all captured images.
+   - **AOI & Profile:** Draw an Area of Interest to clip the view, or draw a profile line to see cross-sectional elevations.
+   - **Reload:** If you added new vectors in the 2D map, click the Reload icon to pull them into the 3D viewer without closing it.
 
 ---
 
