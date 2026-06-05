@@ -62600,17 +62600,7 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
 
                 <!-- Flag Parcel Section -->
                 <div class="quality-section active" id="flagSection">
-                    <div class="section-header">
-                        <h4>Flag a survey polygon</h4>
-                        <p class="section-description">Link a quality flag to a published survey parcel by unique ID (BLB-UNTITLED and UTM title/untitled layers).</p>
-                    </div>
-
                     <form id="flagParcelForm" novalidate>
-                        <div class="quality-flag-notice" role="note">
-                            <strong>Survey polygon quality assurance</strong>
-                            <p style="margin:8px 0 0 0;">Flags apply only to published survey polygons in the layers below (primary deliverables that are updated regularly). Where you identify a defect or ambiguity, <strong>corroboration</strong> with the licensed surveyor or firm that produced the work is the preferred first step. Within <strong>14 calendar days</strong>, please use <strong>Chat</strong> to share evidence, request clarification, and align on corrective action before any formal escalation.</p>
-                        </div>
-
                         <div class="form-group">
                             <label for="flagSurveyLayer">Survey polygon layer <span class="required">*</span></label>
                             <select id="flagSurveyLayer" class="form-select" required>
@@ -62621,7 +62611,6 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                                 <option value="TITLE TRACTS UTM ZONE 36S">TITLE TRACTS UTM ZONE 36S</option>
                                 <option value="TITLE TRACTS UTM ZONE 36N">TITLE TRACTS UTM ZONE 36N</option>
                             </select>
-                            <small class="form-help">Choose the layer that matches the parcel ID you are flagging.</small>
                         </div>
 
                         <div class="form-group">
@@ -62635,7 +62624,6 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                                     <i class="fas fa-search-location"></i> Verify on map
                                 </button>
                             </div>
-                            <small class="form-help">Must match the ID stored for that polygon (case-insensitive lookup).</small>
                         </div>
 
                         <div id="flagSurveyVerifySummary" class="flag-verify-summary" style="display: none;"></div>
@@ -62646,7 +62634,6 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                             <select id="flagDistrictFallback" class="form-select">
                                 <option value="">Select district</option>
                             </select>
-                            <small class="form-help">This parcel record does not include a district value, so select the district manually to complete the flag.</small>
                         </div>
 
                         <div class="form-group">
@@ -62664,7 +62651,6 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                                 <option value="yellow">Needs review</option>
                                 <option value="green">Verified / trusted data</option>
                             </select>
-                            <small class="form-help">Map tint: red = disputed or unreliable; blue = under review; green = verified.</small>
                         </div>
 
                         <div class="form-group">
@@ -62678,7 +62664,6 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                                     class="required">*</span></label>
                             <input type="text" id="reporterContact" class="form-input" required
                                 placeholder="Phone: +256... or Email: name@example.com">
-                            <small class="form-help">Enter phone number or email address</small>
                         </div>
 
                         <div class="form-group">
@@ -62697,11 +62682,6 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
 
                 <!-- Check Flags Section -->
                 <div class="quality-section" id="checkSection">
-                    <div class="section-header">
-                        <h4>Find Parcel Case</h4>
-                        <p class="section-description">Look up a survey parcel by layer and unique ID, then open its flag information and corroboration case.</p>
-                    </div>
-
                     <!-- Filters -->
                     <div class="filters-section">
                         <div class="form-group">
@@ -62721,9 +62701,6 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                             <input type="text" id="checkSurveyUniqueId" class="form-input" placeholder="e.g. TT36N-069">
                         </div>
 
-                        <div class="form-group" style="grid-column:1/-1;">
-                            <small class="form-help">Use the exact parcel layer and unique ID. If a quality flag exists, the system will open the parcel summary, flag information, and corroboration case directly.</small>
-                        </div>
 
                         <button type="button" class="btn btn-primary" id="searchFlagsBtn">
                             <i class="fas fa-search"></i> Find Parcel Case
@@ -62757,7 +62734,6 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                         <div id="flagsList" class="flags-list">
                             <div class="empty-state">
                                 <i class="fas fa-search"></i>
-                                <p>Select a survey layer and enter a parcel unique ID to open its flag and corroboration case.</p>
                             </div>
                         </div>
                         <div id="flagsLoading" class="loading-state" style="display: none;">
