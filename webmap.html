@@ -58278,6 +58278,20 @@ function smoothChaikin(points) {
                         ChatSystem.users.set(user.id, user);
                     });
 
+                    // Synthesize dummy users for active threads missing from profiles
+                    ChatSystem.inboxThreads.forEach((thread, uidStr) => {
+                        if (!ChatSystem.users.has(uidStr) && ChatSystem.currentUser && uidStr !== String(ChatSystem.currentUser.id)) {
+                            const dummyUser = {
+                                id: uidStr,
+                                username: 'Unknown User ' + uidStr.substring(0, 4),
+                                is_online: false
+                            };
+                            ChatSystem.users.set(uidStr, dummyUser);
+                            filteredUsers.push(dummyUser);
+                            console.log(`⚠️ Synthesized dummy user for active thread: ${uidStr}`);
+                        }
+                    });
+
                     console.log('Rendering users list...');
                     renderUsersList(filteredUsers);
                     console.log(`✅ Successfully loaded and displayed ${filteredUsers.length} users`);
