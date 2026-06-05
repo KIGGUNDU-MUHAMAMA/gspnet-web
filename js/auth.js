@@ -26,7 +26,7 @@ async function handleSignIn() {
   }
 
   const { data: profile, error: profileError } = await supabase
-    .from("vsl_profiles")
+    .from("profiles")
     .select("role")
     .eq("id", data.user.id)
     .single();
@@ -61,7 +61,7 @@ async function handleSignUp() {
   }
   if (data.user) {
     const payload = { id: data.user.id, email: data.user.email, role: selectedRole };
-    await supabase.from("vsl_profiles").upsert(payload);
+    await supabase.from("profiles").upsert(payload);
   }
   setStatus(statusEl, "User created. If email confirmation is enabled, verify inbox.");
 }
