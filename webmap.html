@@ -23172,7 +23172,7 @@
                 let profile = null;
                 try {
                     const { data, error: profileError } = await supabase
-                        .from('user_profiles')
+                        .from('profiles')
                         .select('*')
                         .eq('id', user.id)
                         .maybeSingle();
@@ -23199,7 +23199,7 @@
                 if (!email) return null;
                 try {
                     const { data, error } = await supabase
-                        .from('user_profiles')
+                        .from('profiles')
                         .select('*')
                         .ilike('email', email)
                         .maybeSingle();
@@ -23794,7 +23794,7 @@
             async function loadRsuCandidates() {
                 try {
                     const { data, error } = await supabase
-                        .from('user_profiles')
+                        .from('profiles')
                         .select('*')
                         .eq('role', CORROBORATION_RSU_ROLE)
                         .order('username', { ascending: true });
@@ -23842,7 +23842,7 @@
                 if (updateError) throw updateError;
 
                 const rsuProfile = ChatSystem.users.get(rsuUserId) || await (async () => {
-                    const { data, error } = await supabase.from('user_profiles').select('*').eq('id', rsuUserId).maybeSingle();
+                    const { data, error } = await supabase.from('profiles').select('*').eq('id', rsuUserId).maybeSingle();
                     if (error) throw error;
                     return data;
                 })();
@@ -48604,11 +48604,26 @@ function smoothChaikin(points) {
                 }
             }
 
+            // Check if profile prompt needs to be shown
+            window.checkProfilePrompt = function() {
+                const prompt = document.getElementById('profile-update-prompt');
+                if (!prompt || typeof ChatSystem === 'undefined' || !ChatSystem.currentUser) return;
+                
+                const needsProfile = !ChatSystem.currentUser.avatar_url;
+                if (needsProfile && chatState.isOpen) {
+                    prompt.style.display = 'block';
+                } else {
+                    prompt.style.display = 'none';
+                }
+            };
+
             // Toggle chat panel
             function toggleChatPanel() {
                 const panel = document.getElementById('chatPanel');
                 chatState.isOpen = !chatState.isOpen;
                 panel.classList.toggle('open', chatState.isOpen);
+                
+                if (typeof window.checkProfilePrompt === 'function') window.checkProfilePrompt();
 
                 if (chatState.isOpen) {
                     if (typeof ChatSystem !== 'undefined' && ChatSystem.initialized &&
@@ -48942,9 +48957,12 @@ function smoothChaikin(points) {
 
                     chatState.onlineUsers.clear();
                     users.forEach(user => {
+                        const fullUser = typeof ChatSystem !== 'undefined' ? ChatSystem.users.get(String(user.user_id)) : null;
+                        const displayName = fullUser ? getChatUserDisplayName(fullUser) : user.username;
+                        
                         chatState.onlineUsers.set(user.user_id, {
                             id: user.user_id,
-                            username: user.username,
+                            username: displayName,
                             status: 'online'
                         });
                     });
@@ -57509,12 +57527,43 @@ function smoothChaikin(points) {
 
                         console.log('✅ User authenticated:', ChatSystem.currentUser);
 
-                        // Create or update user profile
+                        // Load user profile instead of aggressively upserting all possible columns
                         try {
-                            await createOrUpdateUserProfile(ChatSystem.currentUser);
-                            console.log('✅ User profile created/updated');
+                            const { data: existingProfile, error: profileErr } = await supabase
+                                .from('profiles')
+                                .select('*')
+                                .eq('id', user.id)
+                                .maybeSingle();
+
+                            if (profileErr) {
+                                throw profileErr;
+                            }
+
+                            if (existingProfile) {
+                                // Merge existing DB profile into currentUser
+                                ChatSystem.currentUser = { ...ChatSystem.currentUser, ...existingProfile };
+                                if (!ChatSystem.currentUser.username) {
+                                    ChatSystem.currentUser.username = ChatSystem.currentUser.email?.split('@')[0] || 'User';
+                                }
+                                console.log('✅ User profile loaded:', ChatSystem.currentUser);
+                            } else {
+                                // Just try a minimal insert if not exists
+                                const { data: newProfile, error: insertErr } = await supabase.from('profiles').upsert([{
+                                    id: user.id,
+                                    username: ChatSystem.currentUser.username
+                                }], { onConflict: 'id', ignoreDuplicates: false }).select().maybeSingle();
+                                
+                                if (insertErr) {
+                                    throw insertErr;
+                                }
+                                
+                                if (newProfile) {
+                                    ChatSystem.currentUser = { ...ChatSystem.currentUser, ...newProfile };
+                                    console.log('✅ User profile created:', ChatSystem.currentUser);
+                                }
+                            }
                         } catch (profileError) {
-                            console.warn('⚠️ Could not create/update profile:', profileError);
+                            console.warn('⚠️ Could not load/create profile:', profileError);
                         }
                     } else {
                         // Demo mode
@@ -57531,8 +57580,8 @@ function smoothChaikin(points) {
                     setupSocialChatEventListeners();
 
                     // Load initial data
-                    await loadChatRooms();
                     await loadUsersList();
+                    await loadChatRooms();
 
                     // Play synthetic notification chime (Web Audio API)
             function playNotificationSound() {
@@ -57576,6 +57625,7 @@ function smoothChaikin(points) {
                     await syncLocalReadStateToServer();
                     await refreshRoomUnreadCounts();
                     await refreshInboxSummaries();
+                    if (typeof window.checkProfilePrompt === 'function') window.checkProfilePrompt();
 
                     console.log('✅ Social Chat System initialized successfully');
 
@@ -58142,12 +58192,19 @@ function smoothChaikin(points) {
                 const dislikes = reactions.filter(r => r.reaction_type === 'dislike').length;
                 const userReaction = reactions.find(r => r.user_id === ChatSystem.currentUser.id);
                 const commentsCount = comments.length;
+                
+                const fullUser = ChatSystem.users.get(String(post.user_id));
+                const displayName = fullUser ? getChatUserDisplayName(fullUser) : (post.username || 'User');
+                const avatarChar = displayName.charAt(0).toUpperCase();
+                const avatarStyle = fullUser && fullUser.avatar_url 
+                    ? `style="background-image: url('${escapeHtml(fullUser.avatar_url)}'); background-size: cover; background-position: center; color: transparent;"`
+                    : '';
 
                 postElement.innerHTML = `
                 <div class="post-header">
-                    <div class="post-avatar">${post.username.charAt(0).toUpperCase()}</div>
+                    <div class="post-avatar" ${avatarStyle}>${avatarChar}</div>
                     <div class="post-user-info">
-                        <div class="post-username">@${post.username}</div>
+                        <div class="post-username">@${displayName}</div>
                         <div class="post-time">${formatTime(post.created_at)}</div>
                     </div>
                 </div>
@@ -58218,18 +58275,26 @@ function smoothChaikin(points) {
                     return '<div class="no-comments">No comments yet. Be the first to comment!</div>';
                 }
 
-                return comments.map(comment => `
-                <div class="comment-item">
-                    <div class="comment-avatar">${comment.username.charAt(0).toUpperCase()}</div>
-                    <div class="comment-content">
-                        <div class="comment-header">
-                            <span class="comment-username">@${comment.username}</span>
-                            <span class="comment-time">${formatTime(comment.created_at)}</span>
+                return comments.map(comment => {
+                    const fullUser = ChatSystem.users.get(String(comment.user_id));
+                    const displayName = fullUser ? getChatUserDisplayName(fullUser) : (comment.username || 'User');
+                    const avatarChar = displayName.charAt(0).toUpperCase();
+                    const avatarStyle = fullUser && fullUser.avatar_url 
+                        ? `style="background-image: url('${escapeHtml(fullUser.avatar_url)}'); background-size: cover; background-position: center; color: transparent;"`
+                        : '';
+                    
+                    return `
+                    <div class="comment-item">
+                        <div class="comment-avatar" ${avatarStyle}>${avatarChar}</div>
+                        <div class="comment-content">
+                            <div class="comment-header">
+                                <span class="comment-username">@${displayName}</span>
+                                <span class="comment-time">${formatTime(comment.created_at)}</span>
+                            </div>
+                            <div class="comment-text">${escapeHtml(comment.content)}</div>
                         </div>
-                        <div class="comment-text">${escapeHtml(comment.content)}</div>
                     </div>
-                </div>
-            `).join('');
+                `}).join('');
             }
 
             // ============================================
@@ -58244,7 +58309,7 @@ function smoothChaikin(points) {
 
                     // First, try to load ALL users (to debug)
                     let query = supabase
-                        .from('user_profiles')
+                        .from('profiles')
                         .select('*')
                         .order('username');
 
@@ -58265,18 +58330,18 @@ function smoothChaikin(points) {
 
                     console.log(`📊 Found ${users?.length || 0} total users in database`);
 
-                    // Filter out current user if authenticated
+                    // Store ALL users in ChatSystem so we can lookup current user too
+                    ChatSystem.users.clear();
+                    (users || []).forEach(user => {
+                        ChatSystem.users.set(String(user.id), user);
+                    });
+
+                    // Filter out current user if authenticated for the UI list
                     let filteredUsers = users || [];
                     if (ChatSystem.currentUser && ChatSystem.currentUser.id) {
-                        filteredUsers = filteredUsers.filter(user => user.id !== ChatSystem.currentUser.id);
+                        filteredUsers = filteredUsers.filter(user => String(user.id) !== String(ChatSystem.currentUser.id));
                         console.log(`📊 After filtering current user: ${filteredUsers.length} users`);
                     }
-
-                    // Store users in ChatSystem
-                    ChatSystem.users.clear();
-                    filteredUsers.forEach(user => {
-                        ChatSystem.users.set(user.id, user);
-                    });
 
                     // Synthesize dummy users for active threads missing from profiles
                     ChatSystem.inboxThreads.forEach((thread, uidStr) => {
@@ -58302,6 +58367,14 @@ function smoothChaikin(points) {
                     renderUsersList([]);
                     showUserMessage(`Error: ${error.message}`, 'error');
                 }
+            }
+
+            // Helper for deriving display name
+            function getChatUserDisplayName(user) {
+                if (!user) return 'Unknown User';
+                let validUsername = (user.username && user.username.toLowerCase() !== 'unknown') ? user.username : null;
+                let validDisplayName = (user.display_name && user.display_name.toLowerCase() !== 'unknown') ? user.display_name : null;
+                return validUsername || validDisplayName || user.email?.split('@')[0] || 'User';
             }
 
             // Render users list
@@ -58348,7 +58421,7 @@ function smoothChaikin(points) {
                     }
 
                     const uidStr = String(user.id);
-                    const displayName = user.username || user.display_name || user.email?.split('@')[0] || 'User';
+                    const displayName = getChatUserDisplayName(user);
                     const firstLetter = displayName.charAt(0).toUpperCase();
                     const thread = ChatSystem.inboxThreads.get(uidStr);
                     const previewRaw = thread?.preview || '';
@@ -58365,8 +58438,9 @@ function smoothChaikin(points) {
                     const userElement = document.createElement('div');
                     userElement.className = 'user-item';
                     userElement.dataset.userId = user.id;
+                    const avatarStyle = user.avatar_url ? `style="background-image: url('${escapeHtml(user.avatar_url)}'); background-size: cover; background-position: center; color: transparent;"` : '';
                     userElement.innerHTML = `
-                    <div class="user-avatar">${firstLetter}</div>
+                    <div class="user-avatar" ${avatarStyle}>${firstLetter}</div>
                     <div class="user-info">
                         <div class="user-name-line">
                             <span class="user-name">${escapeHtml(displayName)}</span>
@@ -58410,10 +58484,28 @@ function smoothChaikin(points) {
                     selectedElement.classList.add('selected');
                 }
 
-                // Update chat partner name
+                // Update chat partner name and avatar
                 const partnerNameEl = document.getElementById('chat-partner-name');
+                const partnerAvatarEl = document.getElementById('chat-partner-avatar');
+                const displayName = getChatUserDisplayName(user);
+                
                 if (partnerNameEl) {
-                    partnerNameEl.textContent = user.username || user.display_name || user.email?.split('@')[0] || 'Unknown User';
+                    partnerNameEl.textContent = displayName;
+                }
+                
+                if (partnerAvatarEl) {
+                    partnerAvatarEl.style.display = 'flex';
+                    if(user.avatar_url) {
+                        partnerAvatarEl.style.backgroundImage = `url('${escapeHtml(user.avatar_url)}')`;
+                        partnerAvatarEl.style.backgroundSize = 'cover';
+                        partnerAvatarEl.style.backgroundPosition = 'center';
+                        partnerAvatarEl.style.color = 'transparent';
+                        partnerAvatarEl.textContent = displayName.charAt(0).toUpperCase();
+                    } else {
+                        partnerAvatarEl.style.backgroundImage = 'none';
+                        partnerAvatarEl.style.color = 'white';
+                        partnerAvatarEl.textContent = displayName.charAt(0).toUpperCase();
+                    }
                 }
 
                 // Activate sliding layout natively
@@ -58560,7 +58652,25 @@ function smoothChaikin(points) {
                     const messageElement = document.createElement('div');
                     messageElement.className = `message-item ${isSent ? 'sent' : 'received'} ${isGrouped ? 'grouped' : ''}`;
 
+                    let avatarHtml = '';
+                    if (!isSent) {
+                        const partner = ChatSystem.currentChatPartner;
+                        const partnerName = getChatUserDisplayName(partner);
+                        const avatarStyle = "width: 28px; height: 28px; border-radius: 50%; background-color: var(--chat-primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 12px; margin-right: 8px; flex-shrink: 0;";
+                        
+                        if (!isGrouped) {
+                            if (partner && partner.avatar_url) {
+                                avatarHtml = `<div class="message-avatar" style="${avatarStyle} background-image: url('${escapeHtml(partner.avatar_url)}'); background-size: cover; background-position: center; color: transparent;">${partnerName.charAt(0).toUpperCase()}</div>`;
+                            } else {
+                                avatarHtml = `<div class="message-avatar" style="${avatarStyle}">${partnerName.charAt(0).toUpperCase()}</div>`;
+                            }
+                        } else {
+                            avatarHtml = `<div class="message-avatar-placeholder" style="width: 36px; flex-shrink: 0;"></div>`;
+                        }
+                    }
+
                     messageElement.innerHTML = `
+                    ${avatarHtml}
                     <div class="message-bubble">
                         <div class="message-text">${escapeHtml(message.content || '')}</div>
                         ${message.image_url ? `
@@ -58590,23 +58700,17 @@ function smoothChaikin(points) {
             // UTILITY FUNCTIONS
             // ============================================
 
-            // Create or update user profile
+            // Create or update user profile (Minimal version)
             async function createOrUpdateUserProfile(user) {
                 try {
                     const { data, error } = await supabase
-                        .from('user_profiles')
+                        .from('profiles')
                         .upsert([{
                             id: user.id,
-                            username: user.username,
-                            display_name: user.username,
-                            full_name: user.displayName || user.username,
-                            email: user.email || null,
-                            role: user.role || localStorage.getItem('supabase.profile.role') || 'general',
-                            is_online: true,
-                            last_seen: new Date().toISOString()
-                        }], { onConflict: 'id' })
+                            username: user.username
+                        }], { onConflict: 'id', ignoreDuplicates: true })
                         .select()
-                        .single();
+                        .maybeSingle();
 
                     if (error) throw error;
                     return data;
@@ -58671,6 +58775,66 @@ function smoothChaikin(points) {
                                 }
                             }
                             scheduleSocialChatBadgeRefresh();
+                        }
+                    )
+                    .subscribe();
+
+                // Subscribe to profile updates
+                const profilesChannel = supabase
+                    .channel('profiles_updates')
+                    .on('postgres_changes',
+                        { event: 'UPDATE', schema: 'public', table: 'profiles' },
+                        (payload) => {
+                            console.log('👤 Profile change received:', payload);
+                            if (payload.new && payload.new.id) {
+                                // Update ChatSystem cache
+                                ChatSystem.users.set(String(payload.new.id), payload.new);
+                                
+                                // Re-render users list
+                                if (typeof renderUsersList === 'function') {
+                                    renderUsersList(Array.from(ChatSystem.users.values()));
+                                }
+                                
+                                // Re-render chat if the active partner updated their profile
+                                if (ChatSystem.currentChatPartner && String(ChatSystem.currentChatPartner.id) === String(payload.new.id)) {
+                                    ChatSystem.currentChatPartner = payload.new;
+                                    const displayName = getChatUserDisplayName(payload.new);
+                                    const partnerNameEl = document.getElementById('chat-partner-name');
+                                    if (partnerNameEl) partnerNameEl.textContent = displayName;
+                                    
+                                    const partnerAvatarEl = document.getElementById('chat-partner-avatar');
+                                    if (partnerAvatarEl) {
+                                        if (payload.new.avatar_url) {
+                                            partnerAvatarEl.style.backgroundImage = `url('${escapeHtml(payload.new.avatar_url)}')`;
+                                            partnerAvatarEl.style.backgroundSize = 'cover';
+                                            partnerAvatarEl.style.backgroundPosition = 'center';
+                                            partnerAvatarEl.style.color = 'transparent';
+                                            partnerAvatarEl.textContent = displayName.charAt(0).toUpperCase();
+                                        } else {
+                                            partnerAvatarEl.style.backgroundImage = 'none';
+                                            partnerAvatarEl.style.color = 'white';
+                                            partnerAvatarEl.textContent = displayName.charAt(0).toUpperCase();
+                                        }
+                                    }
+                                    
+                                    // Re-render messages to show new avatar
+                                    if (ChatSystem.currentMode === 'inbox' && typeof loadConversation === 'function') {
+                                        loadConversation(payload.new.id, { showUnreadDivider: false });
+                                    }
+                                }
+                                
+                                // Re-render room posts if in room
+                                if (ChatSystem.currentMode === 'rooms' && typeof loadRoomPosts === 'function') {
+                                    loadRoomPosts(ChatSystem.currentRoom);
+                                }
+
+                                // Re-render online users if online
+                                if (chatState.onlineUsers.has(payload.new.id)) {
+                                    const existing = chatState.onlineUsers.get(payload.new.id);
+                                    existing.username = getChatUserDisplayName(payload.new);
+                                    if (typeof renderOnlineUsers === 'function') renderOnlineUsers();
+                                }
+                            }
                         }
                     )
                     .subscribe();
@@ -58754,24 +58918,23 @@ function smoothChaikin(points) {
                         }
                     });
 
-                ChatSystem.subscriptions.push(postsChannel, commentsChannel, reactionsChannel, messagesChannel, presenceChannel);
+                ChatSystem.subscriptions.push(postsChannel, commentsChannel, reactionsChannel, messagesChannel, presenceChannel, profilesChannel);
             }
 
             // Update user presence
             async function updateUserPresence() {
+                // Supabase realtime channel already tracks presence.
+                // We shouldn't force 'is_online' column updates if it doesn't exist.
                 try {
-                    const { data, error } = await supabase
-                        .from('user_profiles')
-                        .update({
-                            is_online: true,
-                            last_seen: new Date().toISOString()
-                        })
+                    // Try to just touch last_seen if it exists, otherwise fail silently
+                    const { error } = await supabase
+                        .from('profiles')
+                        .update({ last_seen: new Date().toISOString() })
                         .eq('id', ChatSystem.currentUser.id);
-
                     if (error) throw error;
-
                 } catch (error) {
-                    console.error('❌ Error updating user presence:', error);
+                    // This is expected if 'last_seen' doesn't exist, we can ignore
+                    console.warn('⚠️ Could not update user last_seen in DB, relying on realtime presence.');
                 }
             }
 
@@ -58946,6 +59109,8 @@ function smoothChaikin(points) {
 
                     const partnerNameEl = document.getElementById('chat-partner-name');
                     if (partnerNameEl) partnerNameEl.textContent = 'Select a user';
+                    const partnerAvatarEl = document.getElementById('chat-partner-avatar');
+                    if (partnerAvatarEl) partnerAvatarEl.style.display = 'none';
                 });
 
                 // Enter key handlers: Shift+Enter sends, Enter inserts newline
@@ -59395,12 +59560,153 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                 }
             };
 
+            // Profile Manager
+            const ProfileManager = {
+                modal: null,
+                init() {
+                    this.modal = document.getElementById('profile-edit-modal');
+                    const btn = document.getElementById('inbox-profile-btn');
+                    const headerBtn = document.getElementById('headerProfileBtn');
+                    const closeBtn = document.getElementById('profile-modal-close');
+                    const cancelBtn = document.getElementById('profile-cancel-btn');
+                    const saveBtn = document.getElementById('profile-save-btn');
+                    const imageInput = document.getElementById('profile-image-input');
+                    const imageBtn = document.getElementById('profile-image-btn');
+                    
+                    if(btn) btn.addEventListener('click', () => this.open());
+                    if(headerBtn) headerBtn.addEventListener('click', () => this.open());
+                    if(closeBtn) closeBtn.addEventListener('click', () => this.close());
+                    if(cancelBtn) cancelBtn.addEventListener('click', () => this.close());
+                    
+                    if(imageBtn && imageInput) {
+                        imageBtn.addEventListener('click', () => imageInput.click());
+                        imageInput.addEventListener('change', (e) => this.handleImageSelect(e));
+                    }
+                    
+                    if(saveBtn) saveBtn.addEventListener('click', () => this.save());
+                },
+                
+                async open() {
+                    if(!ChatSystem.currentUser) {
+                        if(typeof showUserMessage === 'function') showUserMessage('You must be logged in to edit profile.', 'error');
+                        return;
+                    }
+                    const usernameInput = document.getElementById('profile-username-input');
+                    const preview = document.getElementById('profile-avatar-preview');
+                    
+                    const { data, error } = await supabase.from('profiles').select('*').eq('id', ChatSystem.currentUser.id).maybeSingle();
+                    let username = ChatSystem.currentUser.username || ChatSystem.currentUser.display_name || ChatSystem.currentUser.email?.split('@')[0] || '';
+                    let avatar = ChatSystem.currentUser.avatar_url || null;
+                    if(data) {
+                        if(data.username) username = data.username;
+                        if(data.avatar_url) avatar = data.avatar_url;
+                    }
+                    
+                    usernameInput.value = username;
+                    
+                    if (avatar) {
+                        preview.innerHTML = '';
+                        preview.style.backgroundImage = `url(${avatar})`;
+                    } else {
+                        preview.style.backgroundImage = 'none';
+                        preview.innerHTML = `<i class="fas fa-camera"></i>`;
+                    }
+                    
+                    this.modal.style.display = 'flex';
+                },
+                
+                close() {
+                    if(this.modal) this.modal.style.display = 'none';
+                    const imgInput = document.getElementById('profile-image-input');
+                    if(imgInput) imgInput.value = '';
+                },
+                
+                handleImageSelect(e) {
+                    const file = e.target.files[0];
+                    if(!file) return;
+                    const preview = document.getElementById('profile-avatar-preview');
+                    const reader = new FileReader();
+                    reader.onload = (re) => {
+                        preview.innerHTML = '';
+                        preview.style.backgroundImage = `url(${re.target.result})`;
+                    };
+                    reader.readAsDataURL(file);
+                },
+                
+                async save() {
+                    const saveBtn = document.getElementById('profile-save-btn');
+                    const originalText = saveBtn.innerHTML;
+                    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+                    saveBtn.disabled = true;
+                    
+                    try {
+                        const usernameInput = document.getElementById('profile-username-input');
+                        const fileInput = document.getElementById('profile-image-input');
+                        const file = fileInput.files[0];
+                        
+                        let avatarUrl = undefined;
+                        
+                        if (file) {
+                            const ext = file.name.split('.').pop() || 'png';
+                            const key = `images/chat/profile_${ChatSystem.currentUser.id}_${Date.now()}.${ext}`; 
+                            const uploadUrl = `https://nlis-image-upload.kiggundumuhamad.workers.dev/${key}`;
+                            
+                            const res = await fetch(uploadUrl, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': file.type },
+                                body: file
+                            });
+                            
+                            if (!res.ok) throw new Error('Image upload failed');
+                            const resData = await res.json();
+                            avatarUrl = resData.previewUrl;
+                        }
+                        
+                        const updates = { username: usernameInput.value };
+                        if (avatarUrl) updates.avatar_url = avatarUrl;
+                        const upsertData = { id: ChatSystem.currentUser.id, username: updates.username };
+                        if (updates.avatar_url) upsertData.avatar_url = updates.avatar_url;
+                        
+                        const { error } = await supabase.from('profiles').upsert([upsertData], { onConflict: 'id' });
+                        if (error) throw error;
+                        
+                        if (ChatSystem.currentUser) {
+                            ChatSystem.currentUser.username = updates.username;
+                            if (avatarUrl) ChatSystem.currentUser.avatar_url = avatarUrl;
+                            
+                            const cached = ChatSystem.users.get(String(ChatSystem.currentUser.id));
+                            if(cached) {
+                                cached.username = updates.username;
+                                if(avatarUrl) cached.avatar_url = avatarUrl;
+                            }
+                            
+                            if(typeof renderUsersList === 'function') {
+                                const listToRender = Array.from(ChatSystem.users.values()).filter(u => String(u.id) !== String(ChatSystem.currentUser.id));
+                                renderUsersList(listToRender);
+                            }
+                            if (typeof window.checkProfilePrompt === 'function') window.checkProfilePrompt();
+                        }
+                        
+                        if(typeof showUserMessage === 'function') showUserMessage('Profile updated successfully!', 'success');
+                        this.close();
+                        
+                    } catch(err) {
+                        console.error('Error saving profile:', err);
+                        if(typeof showUserMessage === 'function') showUserMessage('Error saving profile: ' + err.message, 'error');
+                    } finally {
+                        saveBtn.innerHTML = originalText;
+                        saveBtn.disabled = false;
+                    }
+                }
+            };
+
             // Initialize when DOM is ready
             document.addEventListener('DOMContentLoaded', function () {
                 // Initialize after a short delay to ensure other systems are ready
                 setTimeout(() => {
                     initializeSocialChat();
                     GeminiBot.init(); // Initialize the Gemini Bot
+                    ProfileManager.init(); // Initialize Profile Manager
                 }, 1000);
             });
 
@@ -59424,6 +59730,15 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                     <button type="button" class="chat-mute-btn" id="chatMuteBtn" title="Mute notifications">
                         <i class="fas fa-bell"></i>
                     </button>
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <button type="button" class="icon-btn" id="headerProfileBtn" title="Profile Configuration">
+                            <i class="fas fa-user-cog"></i>
+                        </button>
+                        <div id="profile-update-prompt" style="display: none; position: absolute; top: 130%; right: -5px; background: #eab308; color: white; padding: 6px 10px; border-radius: 4px; font-size: 12px; font-weight: 500; white-space: nowrap; box-shadow: 0 4px 6px rgba(0,0,0,0.15); z-index: 1000; animation: pulse 2s infinite;">
+                            <div style="position: absolute; top: -4px; right: 12px; width: 8px; height: 8px; background: inherit; transform: rotate(45deg);"></div>
+                            Please set up profile
+                        </div>
+                    </div>
                     <button type="button" class="icon-btn" id="propertySearchBtn" title="Property Search">
                         <i class="fas fa-search-location"></i>
                     </button>
@@ -59473,6 +59788,7 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                 <div class="inbox-layout">
                     <div class="users-list">
                         <div class="inbox-toolbar">
+                            <button type="button" id="inbox-profile-btn" class="inbox-profile-btn" title="Edit Profile" style="padding: 6px 12px; background: var(--chat-primary); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 6px;"><i class="fas fa-user-edit"></i> Profile</button>
                             <input type="text" id="user-search" placeholder="Search users..." class="user-search-input">
                             <button type="button" id="mark-all-inbox-read-btn" class="inbox-mark-read-btn" title="Mark all inbox threads as read">Mark all read</button>
                         </div>
@@ -59482,7 +59798,10 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                     </div>
                     <div class="chat-conversation">
                         <div class="conversation-header">
-                            <span id="chat-partner-name">Select a user</span>
+                            <div class="partner-info-wrap" style="display: flex; align-items: center; gap: 10px;">
+                                <div id="chat-partner-avatar" class="user-avatar" style="width: 32px; height: 32px; font-size: 14px; display: none;"></div>
+                                <span id="chat-partner-name">Select a user</span>
+                            </div>
                             <div class="conversation-actions">
                                 <button id="back-to-users" class="back-btn" title="Back to users">
                                     <i class="fas fa-arrow-left"></i>
@@ -59544,6 +59863,30 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                             <div style="font-size: 9px; color: var(--chat-text-secondary); text-align: center; opacity: 0.8;">AI can make mistakes. Verify important info.</div>
                             <div id="bot-diagnostics-line" style="font-size: 9px; color: var(--chat-text-secondary); text-align: center; opacity: 0.6;">Backend: unknown | Last error: none</div>
                         </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Profile Edit Modal -->
+            <div id="profile-edit-modal" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+                <div style="background: var(--chat-surface, #fff); border-radius: 8px; width: 90%; max-width: 400px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--chat-border, #eee); padding-bottom: 12px;">
+                        <h3 style="margin: 0; font-size: 16px; color: var(--chat-text, #333);">Edit Profile</h3>
+                        <button type="button" id="profile-modal-close" style="background: transparent; border: none; font-size: 20px; cursor: pointer; color: #999;">&times;</button>
+                    </div>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
+                        <div id="profile-avatar-preview" style="width: 100px; height: 100px; border-radius: 50%; background-color: var(--chat-primary, #007bff); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 36px; background-size: cover; background-position: center; border: 2px solid #eee;">
+                            <i class="fas fa-camera"></i>
+                        </div>
+                        <input type="file" id="profile-image-input" accept="image/*" style="display: none;" />
+                        <button type="button" id="profile-image-btn" style="padding: 6px 12px; background: #eee; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; font-size: 12px;">Change Avatar</button>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <label for="profile-username-input" style="font-size: 12px; font-weight: 500; color: var(--chat-text-secondary, #666);">Username</label>
+                        <input type="text" id="profile-username-input" placeholder="Your name" style="padding: 8px 12px; border: 1px solid var(--chat-border, #ccc); border-radius: 4px; font-size: 14px; background: var(--chat-bg, #fff); color: var(--chat-text, #333);" />
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+                        <button type="button" id="profile-cancel-btn" style="padding: 8px 16px; background: transparent; border: 1px solid var(--chat-border, #ccc); border-radius: 4px; cursor: pointer; color: var(--chat-text, #333);">Cancel</button>
+                        <button type="button" id="profile-save-btn" style="padding: 8px 16px; background: var(--chat-primary, #007bff); border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: 500; display: flex; align-items: center; gap: 6px;">Save Changes</button>
                     </div>
                 </div>
             </div>
