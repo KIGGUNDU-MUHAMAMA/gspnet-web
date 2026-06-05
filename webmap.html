@@ -57990,7 +57990,7 @@ function smoothChaikin(points) {
                     const postData = {
                         room_id: ChatSystem.currentRoom,
                         user_id: ChatSystem.currentUser.id,
-                        username: ChatSystem.currentUser.username,
+                        username: ChatSystem.currentUser ? getChatUserDisplayName(ChatSystem.currentUser) : 'Unknown User',
                         content: content.trim(),
                         coordinates: coordinates,
                         zoom_level: coordinates ? map.getView().getZoom() : null,
@@ -58570,7 +58570,7 @@ function smoothChaikin(points) {
                     const messageData = {
                         sender_id: ChatSystem.currentUser.id,
                         receiver_id: receiverId,
-                        sender_username: ChatSystem.currentUser.username,
+                        sender_username: ChatSystem.currentUser ? getChatUserDisplayName(ChatSystem.currentUser) : 'Unknown User',
                         receiver_username: receiver ? getChatUserDisplayName(receiver) : 'Unknown User',
                         content: content.trim(),
                         image_url: imageUrl
