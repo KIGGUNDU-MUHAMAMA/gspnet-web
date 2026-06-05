@@ -58571,7 +58571,7 @@ function smoothChaikin(points) {
                         sender_id: ChatSystem.currentUser.id,
                         receiver_id: receiverId,
                         sender_username: ChatSystem.currentUser.username,
-                        receiver_username: receiver.username,
+                        receiver_username: receiver ? getChatUserDisplayName(receiver) : 'Unknown User',
                         content: content.trim(),
                         image_url: imageUrl
                     };
