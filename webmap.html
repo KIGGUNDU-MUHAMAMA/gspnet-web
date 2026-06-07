@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="Permissions-Policy" content="geolocation=()">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <title>GEOSPATIALNETWORKUG - WEB MAPPING PLATFORM</title>
@@ -6147,6 +6147,8 @@
             display: flex;
             flex-direction: column;
             height: 100%;
+            overflow: hidden;
+            touch-action: none; /* prevent page-level pinch zoom */
         }
 
         header {
@@ -6158,6 +6160,8 @@
             gap: 10px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             z-index: 1000;
+            touch-action: manipulation; /* allow tap/scroll, block pinch zoom */
+            flex-shrink: 0;
         }
 
         .header-top {
@@ -8644,6 +8648,7 @@
             gap: 15px;
             flex-direction: column;
             position: relative;
+            min-height: 0; /* prevent flex child from overflowing */
         }
 
         .map-container {
@@ -8653,6 +8658,8 @@
             overflow: hidden;
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
             transition: margin-right 0.3s ease;
+            touch-action: auto; /* allow OpenLayers to handle all touch gestures on the map */
+            min-height: 0;
         }
 
         #map {
@@ -10407,6 +10414,11 @@
             right: 10px;
             font-size: 1.5rem;
             cursor: pointer;
+        }
+
+        .map-bottom-controls {
+            touch-action: manipulation; /* allow tap/scroll, block pinch zoom */
+            flex-shrink: 0;
         }
 
         .map-controls-row {
@@ -14776,6 +14788,27 @@
 </head>
 
 <body>
+    <!-- Mobile touch-zoom guard: prevent page-level pinch zoom while allowing map zoom -->
+    <script>
+    (function() {
+        // iOS Safari: block the proprietary gesturestart zoom
+        document.addEventListener('gesturestart', function(e) {
+            e.preventDefault();
+        }, { passive: false });
+
+        // Block multi-finger touch zoom on the page, but allow it inside the map
+        document.addEventListener('touchstart', function(e) {
+            if (e.touches.length > 1) {
+                var target = e.target;
+                var mapEl = document.getElementById('map');
+                // If the touch is inside the map container, let OpenLayers handle it
+                if (mapEl && mapEl.contains(target)) return;
+                // Otherwise prevent the browser zoom gesture
+                e.preventDefault();
+            }
+        }, { passive: false });
+    })();
+    </script>
     <div class="app-container">
         <header>
             <div class="header-top">
