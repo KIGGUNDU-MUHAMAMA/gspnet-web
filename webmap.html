@@ -3960,26 +3960,26 @@
 
         .print-dialog-content {
             background-color: #fff;
-            margin: 20px auto;
+            margin: 2vh auto;
             padding: 0;
-            border-radius: 8px;
+            border-radius: 12px;
             width: 95%;
-            max-width: 1400px;
-            max-height: 90vh;
+            max-width: 1000px;
+            max-height: 96vh;
             display: flex;
             flex-direction: column;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
         }
 
         .print-dialog-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px 30px;
+            padding: 15px 25px;
             border-bottom: 2px solid #e0e0e0;
             background: linear-gradient(135deg, #1a2a6c, #3498db);
             color: white;
-            border-radius: 8px 8px 0 0;
         }
 
         .print-dialog-header h2 {
@@ -4011,28 +4011,27 @@
             display: flex;
             flex: 1;
             overflow: hidden;
-            min-height: 500px;
         }
 
         .print-form-panel {
-            width: 40%;
-            padding: 25px;
+            width: 50%;
+            padding: 20px;
             overflow-y: auto;
             border-right: 1px solid #e0e0e0;
-            background: #f9f9f9;
+            background: #fdfdfd;
         }
 
         .print-form-panel h3 {
             margin-top: 0;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             color: #1a2a6c;
-            font-size: 18px;
+            font-size: 16px;
             border-bottom: 2px solid #3498db;
-            padding-bottom: 10px;
+            padding-bottom: 8px;
         }
 
         .print-form-panel .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 12px;
         }
 
         .print-form-panel .form-group label {
@@ -4045,10 +4044,10 @@
 
         .print-form-panel .form-group input {
             width: 100%;
-            padding: 10px;
+            padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
-            font-size: 14px;
+            font-size: 13px;
             transition: border-color 0.3s;
             box-sizing: border-box;
         }
@@ -4061,7 +4060,7 @@
 
         .print-form-panel .form-row {
             display: flex;
-            gap: 15px;
+            gap: 10px;
         }
 
         .print-form-panel .form-row .form-group {
@@ -4069,8 +4068,8 @@
         }
 
         .print-preview-panel {
-            width: 60%;
-            padding: 25px;
+            width: 50%;
+            padding: 20px;
             display: flex;
             flex-direction: column;
             background: #fff;
@@ -4078,9 +4077,9 @@
 
         .print-preview-panel h3 {
             margin-top: 0;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             color: #1a2a6c;
-            font-size: 18px;
+            font-size: 16px;
         }
 
         .print-preview-panel h3 small {
@@ -4091,12 +4090,13 @@
 
         .print-map-preview {
             flex: 1;
-            min-height: 500px;
+            min-height: 350px;
             width: 100%;
             border: 2px solid #ddd;
-            border-radius: 4px;
+            border-radius: 8px;
             position: relative;
             background: #f0f0f0;
+            overflow: hidden;
         }
 
         .print-map-preview .ol-viewport {
@@ -4105,7 +4105,7 @@
         }
 
         .preview-controls {
-            margin-top: 15px;
+            margin-top: 10px;
             display: flex;
             gap: 10px;
         }
@@ -4127,40 +4127,87 @@
 
         .print-options-panel {
             display: flex;
-            gap: 30px;
-            padding: 20px 30px;
+            gap: 10px;
+            padding: 12px 20px;
             border-top: 1px solid #e0e0e0;
             background: #f5f5f5;
             align-items: center;
+            justify-content: center;
+            flex-wrap: wrap; /* allow wrap on small screens */
         }
 
         .print-option-group {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 5px;
         }
 
         .print-option-group label {
             font-weight: 600;
             color: #333;
             white-space: nowrap;
+            font-size: 13px;
         }
 
         .print-option-group select {
-            padding: 8px 12px;
+            padding: 6px 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
-            font-size: 14px;
-            min-width: 150px;
+            font-size: 13px;
+            min-width: 100px;
+        }
+
+        .print-option-btn {
+            padding: 6px 12px;
+            background: #3498db;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: background 0.3s;
+            white-space: nowrap;
+        }
+
+        .print-option-btn:hover {
+            background: #2980b9;
         }
 
         .print-dialog-footer {
-            padding: 20px 30px;
+            padding: 15px 25px;
             border-top: 1px solid #e0e0e0;
             display: flex;
-            justify-content: flex-end;
-            gap: 15px;
+            justify-content: center;
+            gap: 12px;
             background: #fff;
+        }
+
+        /* Mobile Responsiveness for Print Modal */
+        @media (max-width: 768px) {
+            .print-dialog-body {
+                flex-direction: column;
+                overflow-y: auto; /* allow full scroll on mobile */
+            }
+            .print-form-panel, .print-preview-panel {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid #e0e0e0;
+                overflow-y: visible; /* rely on body scroll */
+            }
+            .print-map-preview {
+                min-height: 250px;
+            }
+            .print-options-panel {
+                justify-content: flex-start;
+            }
+            .print-form-panel .form-row {
+                flex-direction: column;
+                gap: 0;
+            }
         }
 
         .btn-cancel,
@@ -4276,9 +4323,7 @@
         }
 
         /* Project Library Styles */
-        .project-library-panel,
         .polygon-import-panel,
-        .parcel-search-panel,
         .polygon-import-modal {
             position: absolute !important;
             right: 0 !important;
@@ -4294,6 +4339,40 @@
             flex-direction: column;
             overflow: hidden;
             transition: transform 0.3s ease;
+            border-left: 1px solid #e0e0e0;
+        }
+
+        .project-library-panel {
+            position: absolute !important;
+            right: 0 !important;
+            top: 0 !important;
+            width: 400px !important;
+            max-width: 100% !important;
+            height: 100% !important;
+            background: white !important;
+            box-shadow: -4px 0 25px rgba(0, 0, 0, 0.15) !important;
+            z-index: 1001 !important;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-left: 1px solid #e0e0e0;
+        }
+
+        .parcel-search-panel {
+            position: absolute !important;
+            right: 0 !important;
+            top: 0 !important;
+            width: 400px !important;
+            max-width: 100% !important;
+            height: 100% !important;
+            background: white !important;
+            box-shadow: -4px 0 25px rgba(0, 0, 0, 0.15) !important;
+            z-index: 1001 !important;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             border-left: 1px solid #e0e0e0;
         }
 
@@ -4315,9 +4394,7 @@
                 margin-right: 350px;
             }
 
-            .project-library-panel,
-            .polygon-import-panel,
-            .parcel-search-panel {
+            .polygon-import-panel {
                 width: 350px;
                 min-width: 350px;
                 max-width: 350px;
@@ -4329,9 +4406,9 @@
             .project-library-panel,
             .polygon-import-panel,
             .parcel-search-panel {
-                width: 85%;
-                min-width: 300px;
-                max-width: 85%;
+                width: 85% !important;
+                min-width: 300px !important;
+                max-width: 85% !important;
             }
 
             .main-content.panel-open .map-container {
@@ -4427,17 +4504,29 @@
             background: #a8a8a8 !important;
         }
 
-        /* Parcel Search specific styling to match Project Library */
+        /* Parcel Search specific styling to match GSP.NET Update Panel */
         .parcel-search-panel-header {
-            background: linear-gradient(135deg, #1a2a6c, #3498db);
+            background: linear-gradient(135deg, #1a2a6c, #3498db) !important;
+            color: white !important;
+            padding: 15px 20px !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        .parcel-search-panel-body {
+            background: white !important;
+            padding: 20px !important;
         }
 
         .parcel-search-form {
-            margin-bottom: 20px;
+            margin-bottom: 25px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
         }
 
         .parcel-search-form .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
 
         .parcel-search-form .form-group label {
@@ -4457,6 +4546,8 @@
             font-size: 14px;
             margin-bottom: 10px;
             box-sizing: border-box;
+            background: white;
+            transition: all 0.2s;
         }
 
         .parcel-search-form .form-input:focus,
@@ -4464,6 +4555,47 @@
             outline: none;
             border-color: #3498db;
             box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .parcel-search-panel .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .parcel-search-panel .form-actions button {
+            flex: 1;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .parcel-search-panel .form-actions button[type="submit"] {
+            background: #3498db;
+            color: white;
+        }
+
+        .parcel-search-panel .form-actions button[type="submit"]:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
+        }
+
+        .parcel-search-panel .form-actions button#parcelSearchCancel {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .parcel-search-panel .form-actions button#parcelSearchCancel:hover {
+            background: #7f8c8d;
         }
 
         .parcel-search-results {
@@ -4528,13 +4660,13 @@
         }
 
         .project-library-header {
-            background: linear-gradient(135deg, #1a2a6c, #3498db);
-            color: white;
-            padding: 15px 20px;
+            background: linear-gradient(135deg, #1a2a6c, #3498db) !important;
+            color: white !important;
+            padding: 15px 20px !important;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
         }
 
         .project-library-header h3 {
@@ -4546,8 +4678,101 @@
         }
 
         .project-library-close {
-            background: none;
+            background: rgba(255, 255, 255, 0.15);
             border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 5px 10px;
+            line-height: 1;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .project-library-close:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: scale(1.05);
+        }
+
+        /* Update internal layout for Project Library to match sleek style */
+        .project-library-panel .form-group {
+            margin-bottom: 12px;
+        }
+
+        .project-library-panel .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+            font-size: 0.9rem;
+        }
+
+        .project-library-panel .form-input,
+        .project-library-panel .form-select,
+        .project-library-panel textarea,
+        .project-library-panel select,
+        .project-library-panel input[type="text"] {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+            background: white;
+            transition: all 0.2s;
+        }
+
+        .project-library-panel .form-input:focus,
+        .project-library-panel .form-select:focus,
+        .project-library-panel textarea:focus,
+        .project-library-panel select:focus,
+        .project-library-panel input[type="text"]:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .project-library-panel .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .project-library-panel .form-actions button {
+            flex: 1;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .project-library-panel .form-actions .upload-btn {
+            background: #3498db;
+            color: white;
+        }
+
+        .project-library-panel .form-actions .upload-btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
+        }
+
+        .project-library-panel .form-actions .secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .project-library-panel .form-actions .secondary:hover {
+            background: #7f8c8d;
+        }
             color: white;
             font-size: 1.5rem;
             cursor: pointer;
@@ -14645,7 +14870,7 @@
                     </div>
 
                     <!-- Project Library Button -->
-                    <button type="button" class="control-btn" id="projectLibraryBtn" title="Project Library">
+                    <button type="button" class="control-btn" id="projectLibraryBtn" title="Project Library" onclick="toggleProjectLibraryPanel(event)">
                         <i class="fas fa-folder-open"></i> <span>PROJECT LIBRARY</span>
                     </button>
 
@@ -15738,26 +15963,28 @@
 
                             <h3>Surveyor Information</h3>
 
-                            <div class="form-group">
-                                <label for="printSurveyorName">Surveyor Name *</label>
-                                <input type="text" id="printSurveyorName" placeholder="Surveyor name" required>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="printSurveyorContact">Surveyor Contact *</label>
-                                <input type="text" id="printSurveyorContact" placeholder="Contact" required>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="printSurveyorName">Surveyor Name *</label>
+                                    <input type="text" id="printSurveyorName" placeholder="Surveyor name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="printSurveyorContact">Surveyor Contact *</label>
+                                    <input type="text" id="printSurveyorContact" placeholder="Contact" required>
+                                </div>
                             </div>
 
                             <h3>Supervisor Information</h3>
 
-                            <div class="form-group">
-                                <label for="printSupervisorName">Supervisor Name</label>
-                                <input type="text" id="printSupervisorName" placeholder="Supervisor name">
-                            </div>
-
-                            <div class="form-group">
-                                <label for="printCompany">Company</label>
-                                <input type="text" id="printCompany" placeholder="Company name">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="printSupervisorName">Supervisor Name</label>
+                                    <input type="text" id="printSupervisorName" placeholder="Supervisor name">
+                                </div>
+                                <div class="form-group">
+                                    <label for="printCompany">Company</label>
+                                    <input type="text" id="printCompany" placeholder="Company name">
+                                </div>
                             </div>
                         </div>
 
@@ -15776,7 +16003,7 @@
                     <!-- Print Options -->
                     <div class="print-options-panel">
                         <div class="print-option-group">
-                            <label for="printOrientation">Page Orientation:</label>
+                            <label for="printOrientation">Orientation:</label>
                             <select id="printOrientation">
                                 <option value="portrait" selected>Portrait</option>
                                 <option value="landscape">Landscape</option>
@@ -15784,21 +16011,21 @@
                         </div>
 
                         <div class="print-option-group">
-                            <label for="printScale">Map Scale:</label>
+                            <label for="printScale">Scale:</label>
                             <select id="printScale">
                                 <option value="auto">Auto</option>
                                 <option value="1:500">1:500</option>
                                 <option value="1:1000">1:1000</option>
                                 <option value="1:2000">1:2000</option>
-                                <option value="1:5000">1:5,000</option>
-                                <option value="1:10000">1:10,000</option>
-                                <option value="1:25000">1:25,000</option>
-                                <option value="1:50000">1:50,000</option>
+                                <option value="1:5000">1:5k</option>
+                                <option value="1:10000">1:10k</option>
+                                <option value="1:25000">1:25k</option>
+                                <option value="1:50000">1:50k</option>
                             </select>
                         </div>
 
                         <div class="print-option-group">
-                            <label for="printFormat">Export Format:</label>
+                            <label for="printFormat">Format:</label>
                             <select id="printFormat">
                                 <option value="pdf">PDF</option>
                                 <option value="print">Print</option>
@@ -15806,13 +16033,19 @@
                         </div>
 
                         <div class="print-option-group">
-                            <label for="printCRS">Coordinate System:</label>
+                            <label for="printCRS">Grid CRS:</label>
                             <select id="printCRS">
                                 <option value="none">No Grid</option>
-                                <option value="EPSG:32636">WGS84 UTM Zone 36N (EPSG:32636)</option>
-                                <option value="EPSG:21096">Arc1960 UTM Zone 36N (EPSG:21096)</option>
-                                <option value="EPSG:4326">WGS84 Geographic (EPSG:4326)</option>
+                                <option value="EPSG:32636">WGS84 UTM 36N</option>
+                                <option value="EPSG:21096">Arc1960 UTM 36N</option>
+                                <option value="EPSG:4326">WGS84 Geographic</option>
                             </select>
+                        </div>
+                        
+                        <div class="print-option-group">
+                            <button type="button" class="print-option-btn" id="toggleParcelSelection" title="Enable Parcel Selection">
+                                <i class="fas fa-mouse-pointer"></i> Select Parcels
+                            </button>
                         </div>
                     </div>
 
@@ -47188,6 +47421,23 @@ function smoothChaikin(points) {
                     }
                 });
 
+                // Create highlight layer for parcel selection
+                window.previewHighlightSource = new ol.source.Vector();
+                const previewHighlightLayer = new ol.layer.Vector({
+                    source: window.previewHighlightSource,
+                    style: new ol.style.Style({
+                        fill: new ol.style.Fill({
+                            color: 'rgba(173, 216, 230, 0.5)' // Light blue
+                        }),
+                        stroke: new ol.style.Stroke({
+                            color: '#0078D7', // Darker blue border
+                            width: 2
+                        })
+                    }),
+                    zIndex: 9999 // Ensure it's on top
+                });
+                layers.push(previewHighlightLayer);
+
                 // Create controls array (OpenLayers 7 doesn't have ol.control.defaults)
                 const previewControls = [
                     new ol.control.Zoom(),
@@ -47213,6 +47463,9 @@ function smoothChaikin(points) {
                         if (previewContainer && previewContainer.offsetWidth > 0) {
                             window.printPreviewMap.updateSize();
                         }
+                        
+                        // Add click listener for parcel selection
+                        window.printPreviewMap.on('singleclick', handlePreviewMapClick);
                     }
                 }, 200);
             }
@@ -47259,6 +47512,67 @@ function smoothChaikin(points) {
                         syncPreviewMap();
                     }
                 });
+            }
+
+            // Parcel selection toggle
+            const toggleParcelSelectionBtn = document.getElementById('toggleParcelSelection');
+            window.isParcelSelectionEnabled = false;
+            
+            if (toggleParcelSelectionBtn) {
+                toggleParcelSelectionBtn.addEventListener('click', function () {
+                    window.isParcelSelectionEnabled = !window.isParcelSelectionEnabled;
+                    if (window.isParcelSelectionEnabled) {
+                        this.style.backgroundColor = '#0078D7';
+                        this.style.color = '#fff';
+                        showToast('Parcel Selection Mode Enabled. Click parcels on the preview map.', 'info');
+                    } else {
+                        this.style.backgroundColor = '';
+                        this.style.color = '';
+                        // Optionally clear selection:
+                        // if (window.previewHighlightSource) window.previewHighlightSource.clear();
+                        showToast('Parcel Selection Mode Disabled.', 'info');
+                    }
+                });
+            }
+
+            // Global listener for preview map clicks (we'll attach it when the map is created)
+            function handlePreviewMapClick(evt) {
+                if (!window.isParcelSelectionEnabled) return;
+                
+                const map = evt.map;
+                const clickedFeature = map.forEachFeatureAtPixel(evt.pixel, function(feature, layer) {
+                    // Ignore our own highlight layer
+                    if (layer && layer.get('zIndex') === 9999) return null;
+                    return feature;
+                });
+
+                if (clickedFeature && window.previewHighlightSource) {
+                    // Check if feature already selected
+                    const clickedId = clickedFeature.getId() || clickedFeature.get('id') || clickedFeature.get('OBJECTID') || clickedFeature.get('fid');
+                    let alreadySelected = false;
+                    
+                    window.previewHighlightSource.getFeatures().forEach(f => {
+                        const fid = f.getId() || f.get('id') || f.get('OBJECTID') || f.get('fid');
+                        if (fid === clickedId && clickedId !== undefined) {
+                            alreadySelected = true;
+                            window.previewHighlightSource.removeFeature(f); // Deselect
+                        } else if (clickedId === undefined) {
+                            // fallback comparison by geometry
+                            if (f.getGeometry().getExtent().join(',') === clickedFeature.getGeometry().getExtent().join(',')) {
+                                alreadySelected = true;
+                                window.previewHighlightSource.removeFeature(f);
+                            }
+                        }
+                    });
+
+                    if (!alreadySelected) {
+                        // Clone and add
+                        const clone = clickedFeature.clone();
+                        // Important: carry over the ID for toggling
+                        if (clickedId !== undefined) clone.setId(clickedId);
+                        window.previewHighlightSource.addFeature(clone);
+                    }
+                }
             }
 
             // Preview print
@@ -47464,7 +47778,8 @@ function smoothChaikin(points) {
             }
 
             // Capture map image at high resolution
-            function captureMapImage(scale = 2) {
+            // targetWidth/targetHeight: optional pixel dimensions to render the map at a specific aspect ratio
+            function captureMapImage(scale = 2, targetWidth = null, targetHeight = null) {
                 if (!window.printPreviewMap) {
                     console.error('Print preview map not initialized');
                     return Promise.resolve(null);
@@ -47477,9 +47792,9 @@ function smoothChaikin(points) {
                         return;
                     }
 
-                    // Calculate high-resolution size
-                    const width = Math.floor(mapSize[0] * scale);
-                    const height = Math.floor(mapSize[1] * scale);
+                    // Use target dimensions if provided, otherwise scale from screen
+                    const width = targetWidth ? Math.floor(targetWidth) : Math.floor(mapSize[0] * scale);
+                    const height = targetHeight ? Math.floor(targetHeight) : Math.floor(mapSize[1] * scale);
 
                     // Get current view
                     const view = window.printPreviewMap.getView();
@@ -47493,7 +47808,8 @@ function smoothChaikin(points) {
                             tempLayers.push(new ol.layer.Tile({
                                 source: layer.getSource(),
                                 opacity: layer.getOpacity(),
-                                visible: layer.getVisible()
+                                visible: layer.getVisible(),
+                                zIndex: layer.getZIndex()
                             }));
                         } else if (layer instanceof ol.layer.VectorImage) {
                             // *** CRITICAL: Support VectorImage layers (contours) in export ***
@@ -47502,20 +47818,23 @@ function smoothChaikin(points) {
                                 style: layer.getStyle(),
                                 opacity: layer.getOpacity(),
                                 visible: layer.getVisible(),
-                                declutter: true
+                                declutter: true,
+                                zIndex: layer.getZIndex()
                             }));
                         } else if (layer instanceof ol.layer.Vector) {
                             tempLayers.push(new ol.layer.Vector({
                                 source: layer.getSource(),
                                 style: layer.getStyle(),
                                 opacity: layer.getOpacity(),
-                                visible: layer.getVisible()
+                                visible: layer.getVisible(),
+                                zIndex: layer.getZIndex()
                             }));
                         } else if (layer instanceof ol.layer.Image) {
                             tempLayers.push(new ol.layer.Image({
                                 source: layer.getSource(),
                                 opacity: layer.getOpacity(),
-                                visible: layer.getVisible()
+                                visible: layer.getVisible(),
+                                zIndex: layer.getZIndex()
                             }));
                         }
                     });
@@ -47844,10 +48163,15 @@ function smoothChaikin(points) {
                         .print-layout {
                             width: 100%;
                             height: 100%;
+                            display: flex;
+                            flex-direction: column;
+                            box-sizing: border-box;
+                            overflow: hidden;
                         }
                         
                         /* Header Section - Restructured */
                         .print-header-section {
+                            flex-shrink: 0;
                             border: 3px solid #000;
                             padding: 10px 12px;
                             margin-bottom: 10px;
@@ -47917,17 +48241,20 @@ function smoothChaikin(points) {
                         
                         /* Map Section - Fixed stretching */
                         .print-map-section {
+                            flex: 1;
+                            display: flex;
+                            flex-direction: column;
                             border: 3px solid #000;
                             padding: 5px;
                             margin: 10px 0;
                             background: #fff;
-                            min-height: 450px;
+                            min-height: 200px;
                             position: relative;
                         }
                         .print-map-container {
+                            flex: 1;
                             width: 100%;
                             height: 100%;
-                            min-height: 450px;
                             border: 2px solid #333;
                             background: #f5f5f5;
                             display: flex;
@@ -47937,11 +48264,10 @@ function smoothChaikin(points) {
                             overflow: hidden;
                         }
                         .print-map-container img {
-                            width: 100%;
-                            height: 100%;
-                            object-fit: contain;
-                            object-position: center;
+                            max-width: 100%;
+                            max-height: 100%;
                             display: block;
+                            margin: auto;
                         }
                         .map-scale-info {
                             position: absolute;
@@ -47962,6 +48288,7 @@ function smoothChaikin(points) {
                         
                         /* Bottom Section with Signatures */
                         .print-bottom-section {
+                            flex-shrink: 0;
                             border: 3px solid #000;
                             padding: 12px;
                             margin-top: 10px;
@@ -48046,6 +48373,7 @@ function smoothChaikin(points) {
                         
                         /* Disclaimer Section */
                         .print-disclaimer-section {
+                            flex-shrink: 0;
                             border: 3px solid #000;
                             padding: 10px;
                             margin-top: 10px;
@@ -48119,7 +48447,7 @@ function smoothChaikin(points) {
                         <!-- Map Section -->
                         <div class="print-map-section">
                             <div class="print-map-container">
-                                ${mapCanvas ? `<img src="${mapCanvas}" alt="Map Preview" style="width: 100%; height: 100%; object-fit: contain; object-position: center;">` : '<div style="text-align: center; color: #666; padding: 50px;">Map preview will appear here</div>'}
+                                ${mapCanvas ? `<img src="${mapCanvas}" alt="Map Preview" style="max-width: 100%; max-height: 100%; display: block; margin: auto;">` : '<div style="text-align: center; color: #666; padding: 50px;">Map preview will appear here</div>'}
                                 ${gridlinesSVG ? `<svg style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5;" viewBox="0 0 ${mapWidth} ${mapHeight}" preserveAspectRatio="xMidYMid meet">${gridlinesSVG}</svg>` : ''}
                                 <div class="map-scale-info">Scale: ${printData.scale === 'auto' ? 'Auto' : printData.scale}</div>
                                 ${printData.crs && printData.crs !== 'none' ? `<div style="position: absolute; bottom: 8px; left: 120px; background: rgba(255, 255, 255, 0.95); padding: 4px 8px; border: 1px solid #000; font-size: 9px; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.2); z-index: 10;">CRS: ${printData.crs}</div>` : ''}
@@ -48201,14 +48529,62 @@ function smoothChaikin(points) {
                 // Create a temporary div with the preview content, capture it, then convert to PDF
                 const tempDiv = document.createElement('div');
                 tempDiv.style.position = 'absolute';
+                const isLandscape = printData.orientation === 'landscape';
                 tempDiv.style.left = '-9999px';
-                tempDiv.style.width = '297mm'; // A3 width
-                tempDiv.style.height = '420mm'; // A3 height
+                tempDiv.style.width = isLandscape ? '420mm' : '297mm'; // A3 dimensions
+                tempDiv.style.height = isLandscape ? '297mm' : '420mm';
                 tempDiv.style.background = '#fff';
                 document.body.appendChild(tempDiv);
 
-                // Generate HTML content
+                // Step 1: Render layout with current map image to measure the map container
                 tempDiv.innerHTML = generatePreviewHTMLForPDF(printData, mapCanvas, qrCodeUrl, scaleBarSVG, gridlinesSVG, mapWidth, mapHeight, pageSize, symbolsLegendHtml);
+
+                // Force layout calculation
+                tempDiv.offsetHeight;
+
+                // Step 2: Measure the actual map container dimensions within the rendered layout
+                const mapContainer = tempDiv.querySelector('[data-map-container]');
+                let finalMapCanvas = mapCanvas;
+                let finalMapWidth = mapWidth;
+                let finalMapHeight = mapHeight;
+                let finalScaleBarSVG = scaleBarSVG;
+                let finalGridlinesSVG = gridlinesSVG;
+
+                if (mapContainer && window.printPreviewMap) {
+                    const containerWidth = mapContainer.clientWidth;
+                    const containerHeight = mapContainer.clientHeight;
+
+                    if (containerWidth > 0 && containerHeight > 0) {
+                        // Step 3: Re-capture the map at the exact aspect ratio of the PDF container
+                        // Use 2x resolution for quality
+                        const captureWidth = containerWidth * 2;
+                        const captureHeight = containerHeight * 2;
+
+                        try {
+                            const resizedMapCanvas = await captureMapImage(2, captureWidth, captureHeight);
+                            if (resizedMapCanvas) {
+                                finalMapCanvas = resizedMapCanvas;
+                                finalMapWidth = captureWidth;
+                                finalMapHeight = captureHeight;
+
+                                // Regenerate scale bar and gridlines for the new dimensions
+                                const view = window.printPreviewMap.getView();
+                                const resolution = view ? view.getResolution() : null;
+                                finalScaleBarSVG = generateScaleBar(printData.scale, finalMapWidth, finalMapHeight, resolution);
+
+                                if (printData.crs && printData.crs !== 'none' && view) {
+                                    const extent = view.calculateExtent(window.printPreviewMap.getSize());
+                                    finalGridlinesSVG = generateGridlinesSVG(printData.crs, printData.scale, extent, finalMapWidth, finalMapHeight);
+                                }
+                            }
+                        } catch (e) {
+                            console.warn('Could not re-capture map at PDF aspect ratio, using original:', e);
+                        }
+                    }
+                }
+
+                // Step 4: Re-render with the correctly-sized map image
+                tempDiv.innerHTML = generatePreviewHTMLForPDF(printData, finalMapCanvas, qrCodeUrl, finalScaleBarSVG, finalGridlinesSVG, finalMapWidth, finalMapHeight, pageSize, symbolsLegendHtml);
 
                 // Wait for images to load
                 await new Promise(resolve => {
@@ -48244,8 +48620,9 @@ function smoothChaikin(points) {
 
                 try {
                     // Capture the content at high resolution for quality PDF export
+                    // Using scale: 2 instead of 4 to prevent massive file sizes
                     const canvas = await html2canvas(tempDiv, {
-                        scale: 4, // Increased from 2 to 4 for very high resolution
+                        scale: 2, 
                         useCORS: true,
                         logging: false,
                         backgroundColor: '#ffffff',
@@ -48267,7 +48644,8 @@ function smoothChaikin(points) {
                     const pageHeight = pdf.internal.pageSize.getHeight();
 
                     // Add image to PDF (fit to page)
-                    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pageWidth, pageHeight);
+                    // Use JPEG instead of PNG for massive file size reduction (200MB -> ~2MB)
+                    pdf.addImage(canvas.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, pageWidth, pageHeight);
 
                     // Save PDF
                     const fileName = `Map_Print_${printData.heading.replace(/[^a-z0-9]/gi, '_')}_${new Date().getTime()}.pdf`;
@@ -48286,9 +48664,9 @@ function smoothChaikin(points) {
             function generatePreviewHTMLForPDF(printData, mapCanvas, qrCodeUrl, scaleBarSVG, gridlinesSVG, mapWidth, mapHeight, pageSize, symbolsLegendHtml = '') {
                 // This will return the inner HTML content (without html/body tags)
                 return `
-                <div class="print-layout" style="width: 100%; height: 100%; font-family: 'Arial', 'Helvetica', sans-serif; font-size: 11px; color: #000; background: #fff;">
+                <div class="print-layout" style="width: 100%; height: 100%; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; font-family: 'Arial', 'Helvetica', sans-serif; font-size: 11px; color: #000; background: #fff;">
                     <!-- Header Section -->
-                    <div style="border: 3px solid #000; padding: 10px 12px; margin-bottom: 10px; background: #fff;">
+                    <div style="flex-shrink: 0; border: 3px solid #000; padding: 10px 12px; margin-bottom: 10px; background: #fff;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">
                             <div style="text-align: center; font-size: 22px; font-weight: bold; flex: 1; color: #000;">${printData.heading}</div>
                             <div style="font-weight: bold; font-size: 14px; color: #1a2a6c; white-space: nowrap;">GSP.NET UGANDA</div>
@@ -48325,9 +48703,9 @@ function smoothChaikin(points) {
                     </div>
                     
                     <!-- Map Section -->
-                    <div style="border: 3px solid #000; padding: 5px; margin: 10px 0; background: #fff; min-height: 450px; position: relative;">
-                        <div style="width: 100%; height: 100%; min-height: 450px; border: 2px solid #333; background: #f5f5f5; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;">
-                            ${mapCanvas ? `<img src="${mapCanvas}" alt="Map Preview" style="width: 100%; height: 100%; object-fit: contain; object-position: center; display: block;">` : '<div style="text-align: center; color: #666; padding: 50px;">Map preview will appear here</div>'}
+                    <div style="flex: 1; border: 3px solid #000; padding: 5px; margin: 10px 0; background: #fff; position: relative; display: flex; flex-direction: column; min-height: 200px;">
+                        <div data-map-container style="flex: 1; width: 100%; border: 2px solid #333; background: #f5f5f5; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;">
+                            ${mapCanvas ? `<img src="${mapCanvas}" alt="Map Preview" style="width: 100%; height: 100%; display: block;">` : '<div style="text-align: center; color: #666; padding: 50px;">Map preview will appear here</div>'}
                             ${gridlinesSVG ? `<svg style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5;" viewBox="0 0 ${mapWidth} ${mapHeight}" preserveAspectRatio="xMidYMid meet">${gridlinesSVG}</svg>` : ''}
                             <div style="position: absolute; bottom: 8px; left: 8px; background: rgba(255, 255, 255, 0.95); padding: 4px 8px; border: 1px solid #000; font-size: 9px; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.2); z-index: 10;">Scale: ${printData.scale === 'auto' ? 'Auto' : printData.scale}</div>
                             ${printData.crs && printData.crs !== 'none' ? `<div style="position: absolute; bottom: 8px; left: 120px; background: rgba(255, 255, 255, 0.95); padding: 4px 8px; border: 1px solid #000; font-size: 9px; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.2); z-index: 10;">CRS: ${printData.crs}</div>` : ''}
@@ -48336,7 +48714,7 @@ function smoothChaikin(points) {
                     </div>
                     
                     <!-- Bottom Section -->
-                    <div style="border: 3px solid #000; padding: 12px; margin-top: 10px; display: flex; justify-content: space-between; gap: 15px; background: #fff; align-items: stretch;">
+                    <div style="flex-shrink: 0; border: 3px solid #000; padding: 12px; margin-top: 10px; display: flex; justify-content: space-between; gap: 15px; background: #fff; align-items: stretch;">
                         <!-- Surveyor Section -->
                         <div style="flex: 1; border: 2px solid #000; padding: 10px; background: #fafafa;">
                             <h4 style="margin: 0 0 10px 0; font-size: 11px; font-weight: bold; color: #1a2a6c; border-bottom: 1px solid #000; padding-bottom: 5px;">SURVEYOR INFORMATION</h4>
@@ -48384,7 +48762,7 @@ function smoothChaikin(points) {
                     </div>
                     
                     <!-- Disclaimer Section -->
-                    <div style="border: 3px solid #000; padding: 10px; margin-top: 10px; background: #fff;">
+                    <div style="flex-shrink: 0; border: 3px solid #000; padding: 10px; margin-top: 10px; background: #fff;">
                         <p style="font-size: 9px; color: #333; text-align: center; line-height: 1.4; margin: 0;">
                             <strong>DISCLAIMER:</strong> This map is provided "as is" without warranty. GSP.NET UGANDA does not verify all data and assumes no liability for errors, omissions, or damages. Users must independently verify all information.
                         </p>
@@ -62535,30 +62913,9 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                         });
                     }
 
-                    // Project Library button
-                    const projectLibraryBtn = document.getElementById('projectLibraryBtn');
+                    // Project Library button logic is now handled via global toggleProjectLibraryPanel function
                     const projectLibraryPanel = document.getElementById('projectLibraryPanel');
                     const closeProjectLibrary = document.getElementById('closeProjectLibrary');
-
-                    if (projectLibraryBtn && projectLibraryPanel) {
-                        projectLibraryBtn.addEventListener('click', function (e) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            const mainContent = document.querySelector('.main-content');
-                            if (projectLibraryPanel.classList.contains('active')) {
-                                projectLibraryPanel.classList.remove('active');
-                                if (mainContent) mainContent.classList.remove('panel-open');
-                            } else {
-                                // Close other panels first
-                                document.querySelectorAll('.project-library-panel, .polygon-import-panel, .parcel-search-panel').forEach(p => p.classList.remove('active'));
-                                projectLibraryPanel.classList.add('active');
-                                if (mainContent) mainContent.classList.add('panel-open');
-                            }
-                        });
-                        console.log('Project Library: Panel toggle button handler attached');
-                    } else {
-                        console.warn('Project Library: projectLibraryBtn or projectLibraryPanel not found');
-                    }
 
                     if (closeProjectLibrary && projectLibraryPanel) {
                         closeProjectLibrary.addEventListener('click', function (e) {
@@ -68232,6 +68589,35 @@ if (document.readyState !== 'loading') {
   }, true);
 })();
 
+</script>
+
+<script>
+    // Global function to toggle the Project Library Panel
+    window.toggleProjectLibraryPanel = function(e) {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        console.log('[Global] toggleProjectLibraryPanel called');
+        const panel = document.getElementById('projectLibraryPanel');
+        const mainContent = document.querySelector('.main-content');
+        if (!panel) {
+            console.error('[Global] projectLibraryPanel not found');
+            return;
+        }
+
+        if (panel.classList.contains('active')) {
+            panel.classList.remove('active');
+            if (mainContent) mainContent.classList.remove('panel-open');
+        } else {
+            // Close other right-side panels first
+            document.querySelectorAll('.project-library-panel, .polygon-import-panel, .parcel-search-panel, .polygon-import-modal').forEach(function(p) {
+                p.classList.remove('active');
+            });
+            panel.classList.add('active');
+            if (mainContent) mainContent.classList.add('panel-open');
+        }
+    };
 </script>
 
 </body>

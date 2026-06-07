@@ -301,12 +301,12 @@ function initCADClose(){
 function initBadge(){var b=document.getElementById('dxfOverlayBadgeClear');if(b)b.addEventListener('click',removeDXF);}
 
 function initToolbar(){
-  var snapBtn=document.getElementById('dxf-snap-toggle');
-  if(snapBtn)snapBtn.addEventListener('click',function(){
-    S.snapEnabled=!S.snapEnabled;var m=window.map;
-    if(m&&S.snapInteraction){if(S.snapEnabled)m.addInteraction(S.snapInteraction);else m.removeInteraction(S.snapInteraction);}
-    snapBtn.innerHTML='<i class="fas fa-magnet"></i> Snap: '+(S.snapEnabled?'ON':'OFF');
-    snapBtn.style.borderColor=S.snapEnabled?'#22c55e':'#475569';});
+  var undoBtn=document.getElementById('dxf-undo-btn');
+  if(undoBtn)undoBtn.addEventListener('click',function(){
+    if(S.drawInteraction) {
+      S.drawInteraction.removeLastPoint();
+    }
+  });
   var traceBtn=document.getElementById('dxf-trace-btn');
   if(traceBtn)traceBtn.addEventListener('click',function(){
     var m=window.map;if(!m)return;
@@ -316,7 +316,9 @@ function initToolbar(){
     var draw=new ol.interaction.Draw({source:S.tracedSource,type:'Polygon'});
     draw.on('drawend',function(evt){S.tracedFeatures.push(evt.feature);var sb2=document.getElementById('dxf-save-traced-btn');if(sb2)sb2.disabled=false;setStatus('Polygon traced. Click Save or trace another.','success');traceBtn.style.background='#1d4ed8';});
     draw.on('drawstart',function(){traceBtn.style.background='#7c3aed';});
-    S.drawInteraction=draw;m.addInteraction(draw);setStatus('Click corners to trace. Double-click to finish.','');});
+    S.drawInteraction=draw;m.addInteraction(draw);
+    if(S.snapInteraction){m.removeInteraction(S.snapInteraction);m.addInteraction(S.snapInteraction);}
+    setStatus('Click corners to trace. Double-click to finish.','');});
   var clrBtn=document.getElementById('dxf-clear-trace-btn');
   if(clrBtn)clrBtn.addEventListener('click',function(){var m=window.map;if(m&&S.drawInteraction){m.removeInteraction(S.drawInteraction);S.drawInteraction=null;}if(S.tracedSource)S.tracedSource.clear();S.tracedFeatures=[];var sb2=document.getElementById('dxf-save-traced-btn');if(sb2)sb2.disabled=true;setStatus('Drawing cleared.','');});
   var saveBtn=document.getElementById('dxf-save-traced-btn');
