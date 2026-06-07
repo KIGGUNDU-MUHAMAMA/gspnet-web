@@ -5403,10 +5403,11 @@
         .coord-results-table th,
         .coord-results-table td {
             border: 1px solid #ddd;
+            padding: 8px;
+        }
 
-            /* Polygon Import Modal Styles */
-            /* Ensure main-content is positioned relative for absolute panels */
-            .main-content {
+        /* Polygon Import Modal Styles */
+        .main-content {
                 position: relative;
             }
 
@@ -5416,224 +5417,183 @@
                 height: 100% !important;
                 width: 100% !important;
                 background: #ffffff !important;
-                box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15) !important;
+                box-shadow: -10px 0 40px rgba(0, 0, 0, 0.1) !important;
             }
 
-            .polygon-import-modal .polygon-import-header {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%) !important;
-                color: white !important;
+            .polygon-import-panel {
+                background: #ffffff !important;
+                box-shadow: -10px 0 40px rgba(0, 0, 0, 0.1) !important;
+            }
+
+            .polygon-import-modal .polygon-import-header,
+            .polygon-import-panel .polygon-import-panel-header {
+                background: #ffffff !important;
+                color: #1e293b !important;
                 padding: 22px 28px !important;
                 display: flex !important;
                 justify-content: space-between !important;
                 align-items: center !important;
-                box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-                border-bottom: 3px solid rgba(255, 255, 255, 0.2) !important;
+                border-bottom: 1px solid #e2e8f0 !important;
                 position: relative !important;
-                overflow: hidden !important;
             }
 
-            .polygon-import-modal .polygon-import-header::before {
-                content: '' !important;
-                position: absolute !important;
-                top: 0 !important;
-                left: 0 !important;
-                right: 0 !important;
-                bottom: 0 !important;
-                background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%) !important;
-                pointer-events: none !important;
-            }
-
-            .polygon-import-modal .polygon-import-header h3 {
+            .polygon-import-modal .polygon-import-header h3,
+            .polygon-import-panel .polygon-import-panel-header h3 {
                 margin: 0 !important;
-                font-size: 1.35rem !important;
+                font-size: 1.25rem !important;
                 font-weight: 700 !important;
                 display: flex !important;
                 align-items: center !important;
-                gap: 14px !important;
-                letter-spacing: 0.5px !important;
-                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
-                position: relative !important;
-                z-index: 1 !important;
+                gap: 10px !important;
+                color: #1e293b !important;
             }
 
-            .polygon-import-modal .polygon-import-header h3 i {
-                font-size: 1.4rem !important;
-                opacity: 1 !important;
-                filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.2)) !important;
+            .polygon-import-modal .polygon-import-header h3 i,
+            .polygon-import-panel .polygon-import-panel-header h3 i {
+                font-size: 1.25rem !important;
+                color: #3b82f6 !important;
             }
 
-            .polygon-import-modal .polygon-import-close {
-                background: rgba(255, 255, 255, 0.2) !important;
-                border: 2px solid rgba(255, 255, 255, 0.3) !important;
-                color: white !important;
+            .polygon-import-modal .polygon-import-close,
+            .polygon-import-panel .polygon-import-panel-close,
+            .polygon-import-panel .polygon-import-panel-back {
+                background: transparent !important;
+                border: none !important;
+                color: #64748b !important;
                 font-size: 1.8rem !important;
                 cursor: pointer !important;
-                padding: 8px 12px !important;
+                padding: 4px 8px !important;
                 line-height: 1 !important;
-                border-radius: 8px !important;
-                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-                width: 40px !important;
-                height: 40px !important;
+                border-radius: 6px !important;
+                transition: all 0.2s ease !important;
                 display: flex !important;
                 align-items: center !important;
                 justify-content: center !important;
-                position: relative !important;
-                z-index: 1 !important;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+            }
+            .polygon-import-panel .polygon-import-panel-back {
+                font-size: 1.4rem !important;
             }
 
-            .polygon-import-modal .polygon-import-close:hover {
-                background: rgba(255, 255, 255, 0.35) !important;
-                border-color: rgba(255, 255, 255, 0.5) !important;
-                transform: scale(1.1) rotate(90deg) !important;
-                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2) !important;
+            .polygon-import-modal .polygon-import-close:hover,
+            .polygon-import-panel .polygon-import-panel-close:hover,
+            .polygon-import-panel .polygon-import-panel-back:hover {
+                background: #f1f5f9 !important;
+                color: #ef4444 !important;
+            }
+            .polygon-import-panel .polygon-import-panel-back:hover {
+                color: #2563eb !important;
             }
 
-            .polygon-import-modal .polygon-import-close:active {
-                transform: scale(0.95) rotate(90deg) !important;
-                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
-            }
-
-            .polygon-import-modal .polygon-import-body {
+            .polygon-import-modal .polygon-import-body,
+            .polygon-import-panel .polygon-import-panel-body {
                 flex: 1 !important;
                 overflow-y: auto !important;
                 overflow-x: hidden !important;
-                padding: 28px 32px !important;
-                background: linear-gradient(to bottom, #ffffff 0%, #f8f9fa 100%) !important;
-                color: #2c3e50 !important;
-                position: relative !important;
+                padding: 24px 28px !important;
+                background: #ffffff !important;
+                color: #334155 !important;
             }
 
-            .polygon-import-modal .polygon-import-body form {
-                width: 100% !important;
-                display: block !important;
+            .polygon-import-modal .polygon-import-body::-webkit-scrollbar,
+            .polygon-import-panel .polygon-import-panel-body::-webkit-scrollbar {
+                width: 8px !important;
             }
 
-            .polygon-import-modal .polygon-import-body::-webkit-scrollbar {
-                width: 10px !important;
+            .polygon-import-modal .polygon-form-section-title,
+            .polygon-import-panel .dock-section h4 {
+                font-size: 0.85rem !important;
+                font-weight: 700 !important;
+                color: #94a3b8 !important;
+                text-transform: uppercase !important;
+                letter-spacing: 0.5px !important;
+                margin-top: 24px !important;
+                margin-bottom: 12px !important;
+                border-bottom: 1px solid #f1f5f9 !important;
+                padding-bottom: 4px !important;
+                display: flex !important;
+                align-items: center !important;
+                gap: 8px !important;
+            }
+            .polygon-import-modal .polygon-form-section-title:first-child,
+            .polygon-import-panel .dock-section:first-child h4 {
+                margin-top: 0 !important;
             }
 
-            .polygon-import-modal .polygon-import-body::-webkit-scrollbar-track {
-                background: #f1f1f1 !important;
-                border-radius: 10px !important;
-            }
-
-            .polygon-import-modal .polygon-import-body::-webkit-scrollbar-thumb {
-                background: linear-gradient(135deg, #667eea, #764ba2) !important;
-                border-radius: 10px !important;
-                border: 2px solid #f1f1f1 !important;
-            }
-
-            .polygon-import-modal .polygon-import-body::-webkit-scrollbar-thumb:hover {
-                background: linear-gradient(135deg, #764ba2, #667eea) !important;
-            }
-
-            @media (max-width: 1200px) {
-                .polygon-import-modal {
-                    width: 350px;
-                    min-width: 350px;
-                    max-width: 350px;
+            /* Width overrides for desktop vs mobile */
+            @media (min-width: 769px) {
+                .polygon-import-modal,
+                .polygon-import-panel {
+                    width: 450px !important;
+                    min-width: 450px !important;
+                    max-width: 450px !important;
                 }
             }
 
             @media (max-width: 768px) {
-                .polygon-import-modal {
-                    width: 85%;
-                    min-width: 300px;
-                    max-width: 85%;
+                .polygon-import-modal,
+                .polygon-import-panel {
+                    width: 100% !important;
+                    min-width: 100% !important;
+                    max-width: 100% !important;
+                }
+                .polygon-import-modal .polygon-import-body,
+                .polygon-import-panel .polygon-import-panel-body {
+                    padding-bottom: 100px !important; /* Mobile safe area */
                 }
             }
 
-            /* Scoped styles for polygon import modal form */
             .polygon-import-modal .polygon-form-group {
-                margin-bottom: 20px !important;
+                margin-bottom: 16px !important;
             }
 
             .polygon-import-modal .polygon-form-group label {
                 display: block !important;
-                margin-bottom: 10px !important;
-                margin-top: 0 !important;
-                font-weight: 700 !important;
-                color: #34495e !important;
-                font-size: 0.95rem !important;
-                letter-spacing: 0.3px !important;
-                line-height: 1.5 !important;
-                text-transform: uppercase !important;
+                margin-bottom: 6px !important;
+                font-weight: 600 !important;
+                color: #475569 !important;
                 font-size: 0.85rem !important;
             }
 
             .polygon-import-modal .polygon-form-group .required {
-                color: #e74c3c !important;
-                margin-left: 4px !important;
-                font-weight: 700 !important;
+                color: #ef4444 !important;
             }
 
             .polygon-import-modal .polygon-form-group input,
             .polygon-import-modal .polygon-form-group select,
             .polygon-import-modal .polygon-form-group textarea {
                 width: 100% !important;
-                padding: 14px 18px !important;
-                border: 2px solid #e0e0e0 !important;
-                border-radius: 8px !important;
-                font-size: 14px !important;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
-                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                padding: 10px 14px !important;
+                border: 1px solid #e2e8f0 !important;
+                border-radius: 6px !important;
+                font-size: 0.9rem !important;
+                font-family: inherit !important;
+                transition: all 0.2s ease !important;
                 box-sizing: border-box !important;
-                background: #ffffff !important;
-                color: #2c3e50 !important;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
-                margin: 0 !important;
-                line-height: 1.5 !important;
-            }
-
-            .polygon-import-modal .polygon-form-group input[type="text"],
-            .polygon-import-modal .polygon-form-group input[type="email"],
-            .polygon-import-modal .polygon-form-group input[type="number"] {
-                -webkit-appearance: none !important;
-                -moz-appearance: none !important;
-                appearance: none !important;
-            }
-
-            .polygon-import-modal .polygon-form-group input:hover,
-            .polygon-import-modal .polygon-form-group select:hover,
-            .polygon-import-modal .polygon-form-group textarea:hover {
-                border-color: #bdc3c7 !important;
+                background: #f8fafc !important;
+                color: #1e293b !important;
             }
 
             .polygon-import-modal .polygon-form-group input:focus,
             .polygon-import-modal .polygon-form-group select:focus,
             .polygon-import-modal .polygon-form-group textarea:focus {
                 outline: none !important;
-                border-color: #667eea !important;
-                box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2), 0 4px 8px rgba(102, 126, 234, 0.1) !important;
+                border-color: #3b82f6 !important;
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
                 background: #ffffff !important;
-                transform: translateY(-1px) !important;
             }
 
             .polygon-import-modal .polygon-form-group input::placeholder,
             .polygon-import-modal .polygon-form-group textarea::placeholder {
-                color: #95a5a6 !important;
-                opacity: 0.7 !important;
-            }
-
-            .polygon-import-modal .polygon-form-group select {
-                cursor: pointer !important;
-                appearance: none !important;
-                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E") !important;
-                background-repeat: no-repeat !important;
-                background-position: right 12px center !important;
-                padding-right: 40px !important;
+                color: #94a3b8 !important;
             }
 
             .polygon-import-modal .polygon-form-group textarea {
                 resize: vertical !important;
-                min-height: 90px !important;
-                line-height: 1.5 !important;
             }
 
             .polygon-import-modal .polygon-form-row {
                 display: flex !important;
-                gap: 16px !important;
+                gap: 12px !important;
             }
 
             .polygon-import-modal .polygon-form-row .polygon-form-group {
@@ -5641,49 +5601,47 @@
             }
 
             .polygon-import-modal .polygon-form-footer {
-                margin-top: 20px !important;
-                padding-top: 0 !important;
-                border-top: none !important;
+                margin-top: 24px !important;
                 display: flex !important;
                 justify-content: flex-end !important;
-                gap: 10px !important;
-                background: transparent !important;
-                margin-left: 0 !important;
-                margin-right: 0 !important;
-                padding-left: 0 !important;
-                padding-right: 0 !important;
-                padding-bottom: 0 !important;
+                gap: 12px !important;
             }
 
             .polygon-import-modal .polygon-form-btn {
-                background: linear-gradient(to bottom, #3498db, #2980b9) !important;
-                color: white !important;
-                border: none !important;
                 padding: 10px 20px !important;
                 border-radius: 6px !important;
-                cursor: pointer !important;
                 font-weight: 600 !important;
-                transition: all 0.3s !important;
-                display: inline-block !important;
-                margin-top: 0 !important;
+                font-size: 0.9rem !important;
+                cursor: pointer !important;
+                transition: all 0.2s ease !important;
+                border: none !important;
             }
 
-            .polygon-import-modal .polygon-form-btn:hover {
-                background: linear-gradient(to bottom, #3cb0fd, #3498db) !important;
+            .polygon-import-modal .polygon-form-btn-submit {
+                background: #2563eb !important;
+                color: #ffffff !important;
+            }
+
+            .polygon-import-modal .polygon-form-btn-submit:hover {
+                background: #1d4ed8 !important;
+                transform: translateY(-1px) !important;
+                box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2) !important;
             }
 
             .polygon-import-modal .polygon-form-btn-cancel {
-                background: #95a5a6 !important;
-                color: white !important;
+                background: #f1f5f9 !important;
+                color: #475569 !important;
             }
 
             .polygon-import-modal .polygon-form-btn-cancel:hover {
-                background: #7f8c8d !important;
+                background: #e2e8f0 !important;
+                color: #1e293b !important;
             }
 
             .polygon-import-modal .polygon-form-btn:disabled {
                 opacity: 0.6 !important;
                 cursor: not-allowed !important;
+            }                cursor: not-allowed !important;
             }
 
             /* Parcel Search Modal Styles */
@@ -15331,11 +15289,12 @@
             <div class="polygon-import-modal" id="polygonImportModal">
                 <div class="polygon-import-content">
                     <div class="polygon-import-header">
-                        <h3><i class="fas fa-database"></i> Polygon Import - Project Information</h3>
+                        <h3><i class="fas fa-info-circle"></i> Project Information</h3>
                         <button class="polygon-import-close" id="polygonImportClose">&times;</button>
                     </div>
                     <div class="polygon-import-body">
                         <form id="polygonImportForm">
+                            <div class="polygon-form-section-title">Project Details</div>
                             <div class="polygon-form-group">
                                 <label for="polygonClient">Client <span class="required">*</span></label>
                                 <input type="text" id="polygonClient" name="client" required>
@@ -15347,19 +15306,25 @@
                             </div>
 
                             <div class="polygon-form-group">
-                                <label for="polygonCoordinateSystem">Coordinate System <span
-                                        class="required">*</span></label>
+                                <label for="polygonCoordinateSystem">Coordinate System <span class="required">*</span></label>
                                 <select id="polygonCoordinateSystem" name="coordinateSystem" required>
                                     <!-- Will be populated from UGANDA_COORDINATE_SYSTEMS -->
                                 </select>
                             </div>
 
-                            <div class="polygon-form-group">
-                                <label for="polygonDistrict">District <span class="required">*</span></label>
-                                <select id="polygonDistrict" name="district" required>
-                                    <option value="">-- Select District --</option>
-                                    <!-- Will be populated from UGANDA_DISTRICTS -->
-                                </select>
+                            <div class="polygon-form-section-title">Location Details</div>
+                            <div class="polygon-form-row">
+                                <div class="polygon-form-group">
+                                    <label for="polygonDistrict">District <span class="required">*</span></label>
+                                    <select id="polygonDistrict" name="district" required>
+                                        <option value="">-- Select District --</option>
+                                        <!-- Will be populated from UGANDA_DISTRICTS -->
+                                    </select>
+                                </div>
+                                <div class="polygon-form-group">
+                                    <label for="polygonCounty">County</label>
+                                    <input type="text" id="polygonCounty" name="county">
+                                </div>
                             </div>
 
                             <div class="polygon-form-row">
@@ -15374,19 +15339,17 @@
                                 </div>
                             </div>
 
-                            <div class="polygon-form-group">
-                                <label for="polygonCounty">County</label>
-                                <input type="text" id="polygonCounty" name="county">
-                            </div>
+                            <div class="polygon-form-section-title">Personnel</div>
+                            <div class="polygon-form-row">
+                                <div class="polygon-form-group">
+                                    <label for="polygonSurveyor">Surveyor <span class="required">*</span></label>
+                                    <input type="text" id="polygonSurveyor" name="surveyor" required>
+                                </div>
 
-                            <div class="polygon-form-group">
-                                <label for="polygonSurveyor">Surveyor's Name <span class="required">*</span></label>
-                                <input type="text" id="polygonSurveyor" name="surveyor" required>
-                            </div>
-
-                            <div class="polygon-form-group">
-                                <label for="polygonSupervisor">Supervisor's Name <span class="required">*</span></label>
-                                <input type="text" id="polygonSupervisor" name="supervisor" required>
+                                <div class="polygon-form-group">
+                                    <label for="polygonSupervisor">Supervisor <span class="required">*</span></label>
+                                    <input type="text" id="polygonSupervisor" name="supervisor" required>
+                                </div>
                             </div>
 
                             <div class="polygon-form-group">
@@ -15396,7 +15359,7 @@
 
                             <div class="polygon-form-group">
                                 <label for="polygonAdditionalInfo">Additional Information</label>
-                                <textarea id="polygonAdditionalInfo" name="additionalInfo" rows="3"></textarea>
+                                <textarea id="polygonAdditionalInfo" name="additionalInfo" rows="2"></textarea>
                             </div>
 
                             <div class="polygon-form-footer">
@@ -17956,7 +17919,7 @@
             <!-- Polygon Import Right Panel -->
             <div class="polygon-import-panel" id="polygonImportPanel">
                 <div class="polygon-import-panel-header">
-                    <h3><i class="fas fa-database"></i> Polygon Import Workflow</h3>
+                    <h3><i class="fas fa-database"></i> Import Workflow</h3>
                     <div style="display: flex; gap: 8px;">
                         <button type="button" class="polygon-import-panel-back" id="polygonImportPanelBack"
                             aria-label="Back to project information" title="Back to Project Information">
@@ -18041,9 +18004,7 @@
                         <!-- DXF Panel -->
                         <div id="importPanelDxf" style="display:none;">
                             <h4><i class="fas fa-drafting-compass"></i> Import DXF</h4>
-                            <p style="font-size:12px;color:#6b7280;margin-bottom:10px;line-height:1.5;">
-                                Upload a <strong>.dxf</strong> file. The drawing will render on the map as a reference overlay. Use the digitizing tools below to trace and save clean polygons.
-                            </p>
+
                             <div id="dxf-panel-drop-area"
                                 style="border:2px dashed #6366f1;border-radius:8px;padding:20px;text-align:center;margin-bottom:10px;background:#f5f3ff;cursor:pointer;transition:border-color .2s;">
                                 <i class="fas fa-drafting-compass" style="font-size:2rem;color:#6366f1;margin-bottom:8px;display:block;"></i>
@@ -18067,22 +18028,21 @@
                             <!-- DXF Digitizing Toolbar (shown after DXF is loaded on map) -->
                             <div id="dxf-digitize-toolbar" style="display:none;">
                                 <div style="background:#1e293b;border-radius:8px;padding:12px;margin-bottom:10px;">
-                                    <p style="color:#94a3b8;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px;">DXF Digitizing Tools</p>
-                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                                        <button id="dxf-snap-toggle" title="Toggle snap-to-DXF vertices"
-                                            style="padding:8px 4px;background:#334155;color:#e2e8f0;border:2px solid #475569;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;">
-                                            <i class="fas fa-magnet"></i> Snap: ON
-                                        </button>
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
                                         <button id="dxf-trace-btn" title="Trace polygon over DXF"
-                                            style="padding:8px 4px;background:#1d4ed8;color:#fff;border:2px solid #2563eb;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;">
+                                            style="padding:6px 4px;background:#1d4ed8;color:#fff;border:2px solid #2563eb;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;">
                                             <i class="fas fa-draw-polygon"></i> Trace Polygon
                                         </button>
+                                        <button id="dxf-undo-btn" title="Undo last drawn point"
+                                            style="padding:6px 4px;background:#b45309;color:#fef3c7;border:2px solid #d97706;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;">
+                                            <i class="fas fa-undo"></i> Undo
+                                        </button>
                                         <button id="dxf-clear-trace-btn" title="Clear current drawing"
-                                            style="padding:8px 4px;background:#7f1d1d;color:#fca5a5;border:2px solid #991b1b;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;">
+                                            style="padding:6px 4px;background:#7f1d1d;color:#fca5a5;border:2px solid #991b1b;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;">
                                             <i class="fas fa-eraser"></i> Clear Drawing
                                         </button>
                                         <button id="dxf-save-traced-btn" title="Save traced polygon to selected layer"
-                                            style="padding:8px 4px;background:#166534;color:#bbf7d0;border:2px solid #15803d;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;" disabled>
+                                            style="padding:6px 4px;background:#166534;color:#bbf7d0;border:2px solid #15803d;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;" disabled>
                                             <i class="fas fa-cloud-upload-alt"></i> Save Polygon
                                         </button>
                                     </div>
@@ -22687,10 +22647,14 @@
                 // Clear cache and reload all polygon layers
                 polygonLoadCache = {};
                 Object.values(polygonLayerSources).forEach(source => {
-                    source.clear();
+                    if (typeof source.refresh === 'function') {
+                        source.refresh();
+                    } else {
+                        source.clear();
+                    }
                 });
 
-                // Trigger reload by slightly changing view
+                // Trigger reload by slightly changing view (fallback)
                 const currentExtent = map.getView().calculateExtent();
                 map.getView().fit(currentExtent, { duration: 0 });
             }
@@ -26236,6 +26200,7 @@
 
                     console.log('✅ Feature inserted with ID:', featureId);
                     showUserMessage('Feature inserted successfully', 'success');
+                    if (typeof refreshPolygonLayers === 'function') refreshPolygonLayers();
 
                     return { success: true, featureId: featureId };
 
@@ -26271,6 +26236,7 @@
 
                     console.log('✅ Feature updated successfully');
                     showUserMessage('Feature updated successfully', 'success');
+                    if (typeof refreshPolygonLayers === 'function') refreshPolygonLayers();
 
                     return { success: true };
 
@@ -26306,6 +26272,7 @@
 
                     console.log('✅ Feature deleted successfully');
                     showUserMessage('Feature deleted successfully', 'success');
+                    if (typeof refreshPolygonLayers === 'function') refreshPolygonLayers();
 
                     return { success: true };
 
@@ -27687,6 +27654,7 @@
                     editBuffers = { adds: [], updates: [], deletes: [] };
                     if (currentEditable && currentEditable.source) currentEditable.source.clear(true);
                     if (currentEditable) currentEditable.source.refresh?.();
+                    if (typeof refreshPolygonLayers === 'function') refreshPolygonLayers();
                     showToast('Saved edits to server', 'success');
                     return json;
                 } catch (err) {
@@ -27711,6 +27679,7 @@
                     editBuffers = { adds: [], updates: [], deletes: [] };
                     if (currentEditable && currentEditable.source) currentEditable.source.clear(true);
                     if (currentEditable) currentEditable.source.refresh?.();
+                    if (typeof refreshPolygonLayers === 'function') refreshPolygonLayers();
                     showToast('Saved edits to server (fallback)', 'success');
                     return j2;
                 } catch (err) {
@@ -28074,6 +28043,7 @@
                     }
 
                     showToast('All edits saved successfully', 'success');
+                    if (typeof refreshPolygonLayers === 'function') refreshPolygonLayers();
                     updatePendingCount();
 
                 } catch (err) {
@@ -30934,11 +30904,7 @@
                     }
                 }
 
-                // Refresh polygon layers (will be implemented in Phase 8)
-                function refreshPolygonLayers() {
-                    // This will be implemented when we add layer switcher integration
-                    console.log('Polygon layers refreshed');
-                }
+
 
                 // OLD CODE - Removed (left dock no longer used for polygon import)
 
@@ -32961,6 +32927,7 @@
 
                         loadingIndicator.style.display = 'none';
                         statusText.textContent = 'Successfully saved ' + inserts.length + ' inserts, ' + updates.length + ' updates to pg_featureserv';
+                        if (typeof refreshPolygonLayers === 'function') refreshPolygonLayers();
                         showToast('Successfully saved ' + inserts.length + ' inserts, ' + updates.length + ' updates to pg_featureserv', 'success');
 
                     } catch (error) {
@@ -45970,6 +45937,7 @@ function smoothChaikin(points) {
                         }
                         
                         showToast('Feature deleted successfully & notified creator.', 'success');
+                        if (typeof refreshPolygonLayers === 'function') refreshPolygonLayers();
                         closeModal('qcDeleteFeatureModal');
                         const fInfo = document.getElementById('featureInfo');
                         if (fInfo) fInfo.style.display = 'none';
