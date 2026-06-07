@@ -3411,23 +3411,32 @@
         /* Vertical layout for GSPNET Assist Panel */
         .gspnet-tabs {
             flex-direction: column;
-            background: linear-gradient(180deg, #1a2a6c, #2c3e50);
-            border-top-left-radius: 12px;
-            border-bottom-left-radius: 12px;
-            width: 120px;
+            background: rgba(255, 255, 255, 0.05);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            width: 100px;
             flex-shrink: 0;
+            padding-top: 20px;
         }
 
         .gspnet-tab {
             padding: 15px 10px;
             text-align: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: none;
             border-right: 3px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .gspnet-tab:hover {
+            background: rgba(255, 255, 255, 0.1);
         }
 
         .gspnet-tab.active {
-            border-right: 3px solid #3498db;
-            background: rgba(255, 255, 255, 0.1);
+            border-right: 3px solid #00f2fe;
+            background: linear-gradient(90deg, transparent, rgba(0, 242, 254, 0.15));
+            color: #00f2fe;
+            text-shadow: 0 0 8px rgba(0, 242, 254, 0.6);
         }
 
         .gspnet-tab i {
@@ -3435,6 +3444,11 @@
             margin-bottom: 5px;
             display: block;
             font-size: 1.2rem;
+            filter: drop-shadow(0 0 2px rgba(255,255,255,0.5));
+        }
+
+        .gspnet-tab.active i {
+            filter: drop-shadow(0 0 5px rgba(0,242,254,0.8));
         }
 
         .gspnet-content {
@@ -4301,19 +4315,32 @@
             position: fixed;
             left: 30px;
             bottom: 160px;
-            width: 500px;
-            background: linear-gradient(135deg, #1a2a6c, #3498db);
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            width: 380px;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            border-radius: 16px;
+            box-shadow: 0 0 20px rgba(0, 242, 254, 0.15), 0 10px 30px rgba(0, 0, 0, 0.4);
             z-index: 1000;
             display: none;
             overflow: hidden;
             max-height: 70vh;
             color: white;
+            opacity: 0;
+            transform: scale(0.95) translateY(10px);
+            transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .gspnet-assist-panel.show {
+            opacity: 1;
+            transform: scale(1) translateY(0);
         }
 
         .gspnet-tab span {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            letter-spacing: 0.5px;
         }
 
         .gspnet-section {
@@ -4322,6 +4349,58 @@
 
         .gspnet-section.active {
             display: block;
+            animation: fadeInGlass 0.4s ease forwards;
+        }
+
+        @keyframes fadeInGlass {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Futuristic Form Styling scoped to Assist Panel */
+        .gspnet-assist-panel input,
+        .gspnet-assist-panel select,
+        .gspnet-assist-panel textarea {
+            background: rgba(255, 255, 255, 0.05) !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            color: white !important;
+            border-radius: 8px !important;
+            padding: 10px 12px !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .gspnet-assist-panel input:focus,
+        .gspnet-assist-panel select:focus,
+        .gspnet-assist-panel textarea:focus {
+            border-color: #00f2fe !important;
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.3) !important;
+            outline: none !important;
+            background: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        .gspnet-assist-panel button:not(.gspnet-panel-close):not(.gspnet-tab) {
+            background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%) !important;
+            border: none !important;
+            color: #0f172a !important;
+            font-weight: 600 !important;
+            border-radius: 8px !important;
+            padding: 10px 15px !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .gspnet-assist-panel button:not(.gspnet-panel-close):not(.gspnet-tab):hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 5px 15px rgba(0, 242, 254, 0.4) !important;
+        }
+
+        .gspnet-assist-panel .file-upload-area {
+            background: rgba(255, 255, 255, 0.03) !important;
+            border: 2px dashed rgba(0, 242, 254, 0.4) !important;
+        }
+
+        .gspnet-assist-panel .file-upload-area:hover {
+            background: rgba(0, 242, 254, 0.05) !important;
+            border-color: #00f2fe !important;
         }
 
         /* Project Library Styles */
@@ -11388,11 +11467,22 @@
             }
 
             .gspnet-assist-panel {
-                left: 3px;
-                right: 3px;
-                bottom: 90px;
-                width: auto;
-                max-height: 60vh;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: 100%;
+                max-height: 85vh;
+                border-radius: 24px 24px 0 0;
+                border-bottom: none;
+                border-left: none;
+                border-right: none;
+                border-top: 1px solid rgba(0, 242, 254, 0.4);
+            }
+            .gspnet-assist-panel:not(.show) {
+                transform: translateY(100%);
+            }
+            .gspnet-content {
+                max-height: calc(85vh - 60px);
             }
 
             .gspnet-tabs {
@@ -26112,10 +26202,20 @@
                     e.preventDefault();
                     e.stopPropagation();
                     try {
-                        if (gspnetPanel.style.display === 'block') {
-                            gspnetPanel.style.display = 'none';
+                        if (gspnetPanel.classList.contains('active')) {
+                            gspnetPanel.classList.remove('show');
+                            setTimeout(() => {
+                                if (!gspnetPanel.classList.contains('show')) {
+                                    gspnetPanel.classList.remove('active');
+                                    gspnetPanel.style.display = 'none';
+                                }
+                            }, 300);
                         } else {
                             gspnetPanel.style.display = 'block';
+                            gspnetPanel.classList.add('active');
+                            setTimeout(() => {
+                                gspnetPanel.classList.add('show');
+                            }, 10);
                         }
                     } catch (error) {
                         console.error('GSP.NET ASSIST: Error toggling panel:', error);
@@ -26131,7 +26231,13 @@
                     e.preventDefault();
                     e.stopPropagation();
                     try {
-                        gspnetPanel.style.display = 'none';
+                        gspnetPanel.classList.remove('show');
+                        setTimeout(() => {
+                            if (!gspnetPanel.classList.contains('show')) {
+                                gspnetPanel.classList.remove('active');
+                                gspnetPanel.style.display = 'none';
+                            }
+                        }, 300);
                     } catch (error) {
                         console.error('GSP.NET ASSIST: Error closing panel:', error);
                     }
