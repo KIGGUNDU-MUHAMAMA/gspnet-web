@@ -59424,8 +59424,7 @@ function smoothChaikin(points) {
                         .eq('id', ChatSystem.currentUser.id);
                     if (error) throw error;
                 } catch (error) {
-                    // This is expected if 'last_seen' doesn't exist, we can ignore
-                    console.warn('⚠️ Could not update user last_seen in DB, relying on realtime presence.');
+                    // This is expected if 'last_seen' doesn't exist, we can ignore silently.
                 }
             }
 
