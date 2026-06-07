@@ -4199,7 +4199,9 @@
                 overflow-y: visible; /* rely on body scroll */
             }
             .print-map-preview {
-                min-height: 250px;
+                height: 300px;
+                min-height: 300px;
+                flex: none; /* override flex: 1 to ensure it doesn't collapse */
             }
             .print-options-panel {
                 justify-content: flex-start;
@@ -47361,7 +47363,7 @@ function smoothChaikin(points) {
                     setTimeout(() => {
                         console.log('[PRINT] Creating fresh preview map with current layer state');
                         initializePrintPreviewMap();
-                    }, 200);
+                    }, 400);
                 });
             }
 
@@ -47493,14 +47495,14 @@ function smoothChaikin(points) {
                 setTimeout(() => {
                     if (window.printPreviewMap) {
                         const previewContainer = document.getElementById('printMapPreview');
-                        if (previewContainer && previewContainer.offsetWidth > 0) {
+                        if (previewContainer) {
                             window.printPreviewMap.updateSize();
                         }
                         
                         // Add click listener for parcel selection
                         window.printPreviewMap.on('singleclick', handlePreviewMapClick);
                     }
-                }, 200);
+                }, 400);
             }
 
             // Sync preview map with main map
