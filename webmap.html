@@ -4403,6 +4403,20 @@
             border-color: #00f2fe !important;
         }
 
+        .gspnet-assist-panel .form-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .gspnet-assist-panel .form-actions button {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem !important;
+        }
+
         /* Project Library Styles */
         .polygon-import-panel,
         .polygon-import-modal {
@@ -15493,7 +15507,7 @@
                             <div class="upload-form-container" id="fileCsvFormContainer"
                                 style="opacity: 0.5; pointer-events: none;">
                                 <!-- Location Selection Button -->
-                                <div class="form-group">
+                                <div class="form-group" style="pointer-events: auto;">
                                     <button type="button" class="location-select-btn" id="fileCsvLocationBtn">
                                         <i class="fas fa-map-marker-alt"></i> Select Project Location on Map
                                     </button>
@@ -15548,11 +15562,11 @@
                                 <div class="upload-status" id="fileCsvUploadStatus"></div>
 
                                 <div class="form-actions">
-                                    <button type="button" class="upload-btn" id="fileCsvSaveBtn" disabled>
-                                        <i class="fas fa-save"></i> Save & Upload
+                                    <button type="button" class="upload-btn" id="fileCsvSaveBtn" disabled title="Save & Upload">
+                                        <i class="fas fa-save"></i>
                                     </button>
-                                    <button type="button" class="upload-btn secondary" id="fileCsvCancelBtn">
-                                        <i class="fas fa-times"></i> Cancel
+                                    <button type="button" class="upload-btn secondary" id="fileCsvCancelBtn" title="Cancel">
+                                        <i class="fas fa-times"></i>
                                     </button>
                                 </div>
                             </div>
@@ -15566,7 +15580,7 @@
                             <div class="upload-form-container" id="dwgDxfFormContainer"
                                 style="opacity: 0.5; pointer-events: none;">
                                 <!-- Location Selection Button -->
-                                <div class="form-group">
+                                <div class="form-group" style="pointer-events: auto;">
                                     <button type="button" class="location-select-btn" id="dwgDxfLocationBtn">
                                         <i class="fas fa-map-marker-alt"></i> Select Project Location on Map
                                     </button>
@@ -15620,11 +15634,11 @@
                                 <div class="upload-status" id="dwgDxfUploadStatus"></div>
 
                                 <div class="form-actions">
-                                    <button type="button" class="upload-btn" id="dwgDxfSaveBtn" disabled>
-                                        <i class="fas fa-save"></i> Save & Upload
+                                    <button type="button" class="upload-btn" id="dwgDxfSaveBtn" disabled title="Save & Upload">
+                                        <i class="fas fa-save"></i>
                                     </button>
-                                    <button type="button" class="upload-btn secondary" id="dwgDxfCancelBtn">
-                                        <i class="fas fa-times"></i> Cancel
+                                    <button type="button" class="upload-btn secondary" id="dwgDxfCancelBtn" title="Cancel">
+                                        <i class="fas fa-times"></i>
                                     </button>
                                 </div>
                             </div>
