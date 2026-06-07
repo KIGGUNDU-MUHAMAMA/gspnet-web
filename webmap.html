@@ -10701,153 +10701,260 @@
             }
         }
 
-        /* PATCH: Coordinate Search Popup Styles - Self-contained styles for the coordinate search popup */
+        /* PATCH: Coordinate Search Popup Styles - Modern UI with Tabs */
         .coordinate-search-popup {
             position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 50vh;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-top: 3px solid #3498db;
             z-index: 1000;
-            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        /* Desktop: Floating centered modal */
+        @media (min-width: 768px) {
+            .coordinate-search-popup {
+                bottom: auto;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%) scale(0.95);
+                width: 380px;
+                max-height: 85vh;
+                border-radius: 16px;
+                opacity: 0;
+                pointer-events: none;
+            }
+            .coordinate-search-popup[style*="display: block"] {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+                pointer-events: auto;
+            }
+            .coordsearch-drag-handle { display: none; }
+        }
+
+        /* Mobile: Bottom Sheet */
+        @media (max-width: 767px) {
+            .coordinate-search-popup {
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                max-height: 85vh;
+                border-radius: 20px 20px 0 0;
+                transform: translateY(100%);
+            }
+            .coordinate-search-popup[style*="display: block"] {
+                transform: translateY(0);
+            }
+            .coordsearch-drag-handle {
+                width: 40px;
+                height: 4px;
+                background: #ccc;
+                border-radius: 2px;
+                margin: 0 auto 10px auto;
+            }
         }
 
         .coordsearch-popup-content {
-            height: 100%;
             display: flex;
             flex-direction: column;
+            height: 100%;
         }
 
         .coordsearch-popup-header {
+            padding: 16px 20px 10px;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 20px;
-            background: linear-gradient(135deg, #1a2a6c, #3498db);
-            color: white;
-            border-bottom: 1px solid #ddd;
+            flex-direction: column;
+            position: relative;
         }
 
         .coordsearch-popup-header h3 {
             margin: 0;
             font-size: 1.2rem;
-            font-weight: 600;
+            font-weight: 700;
+            color: #1a2a6c;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .coordsearch-close {
-            background: none;
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(0, 0, 0, 0.05);
             border: none;
-            color: white;
-            font-size: 1.5rem;
+            color: #555;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
             cursor: pointer;
-            padding: 5px;
-            border-radius: 3px;
-            transition: background-color 0.3s;
+            transition: all 0.2s;
+        }
+        .coordsearch-close:hover {
+            background: #e74c3c;
+            color: white;
+            transform: rotate(90deg);
         }
 
-        .coordsearch-close:hover {
-            background: rgba(255, 255, 255, 0.2);
+        /* Tabs Styling */
+        .coordsearch-tabs {
+            display: flex;
+            padding: 0 20px;
+            gap: 10px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .coordsearch-tab-btn {
+            background: transparent;
+            border: none;
+            padding: 10px 15px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #777;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .coordsearch-tab-btn:hover {
+            color: #3498db;
+        }
+
+        .coordsearch-tab-btn.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
         }
 
         .coordsearch-popup-body {
-            flex: 1;
-            display: flex;
-            padding: 20px;
-            gap: 20px;
+            padding: 0 20px 20px;
             overflow-y: auto;
-            max-height: calc(50vh - 80px);
+            flex: 1;
         }
 
         .coordsearch-panel {
-            flex: 1;
-            padding: 20px;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            background: #fafafa;
-            min-width: 0;
-            overflow-y: auto;
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .coordsearch-panel.active {
+            display: block;
         }
 
-        .coordsearch-panel h4 {
-            margin: 0 0 15px 0;
-            color: #1a2a6c;
-            font-size: 1rem;
-            border-bottom: 2px solid #3498db;
-            padding-bottom: 5px;
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .coordsearch-row {
+            display: flex;
+            gap: 12px;
+        }
+        .coordsearch-row .coordsearch-form-group {
+            flex: 1;
         }
 
         .coordsearch-form-group {
-            margin-bottom: 12px;
+            margin-bottom: 16px;
         }
 
         .coordsearch-form-group label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 6px;
             font-weight: 600;
-            color: #333;
-            font-size: 0.9rem;
+            color: #444;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .coordsearch-select,
         .coordsearch-input {
             width: 100%;
-            padding: 8px 12px;
+            padding: 10px 12px;
             border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 0.9rem;
-            transition: border-color 0.3s;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            background: rgba(255, 255, 255, 0.9);
+            transition: all 0.2s;
+            box-sizing: border-box;
         }
 
         .coordsearch-select:focus,
         .coordsearch-input:focus {
             outline: none;
             border-color: #3498db;
-            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+            background: #fff;
         }
 
         .coordsearch-file {
             width: 100%;
             padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background: white;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            background: rgba(250, 250, 250, 0.5);
+            cursor: pointer;
+            transition: all 0.2s;
+            box-sizing: border-box;
+        }
+        .coordsearch-file:hover {
+            border-color: #3498db;
+            background: rgba(52, 152, 219, 0.05);
         }
 
         .coordsearch-btn {
-            background: linear-gradient(135deg, #3498db, #2980b9);
-            color: white;
+            width: 100%;
+            padding: 12px;
             border: none;
-            padding: 10px 15px;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
             font-weight: 600;
-            transition: all 0.3s;
-            display: inline-flex;
+            font-size: 0.95rem;
+            display: flex;
             align-items: center;
-            gap: 5px;
-            font-size: 0.9rem;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
         }
 
-        .coordsearch-btn:hover {
-            background: linear-gradient(135deg, #2980b9, #3498db);
-            transform: translateY(-1px);
+        .coordsearch-btn-primary {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
+        }
+        .coordsearch-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(52, 152, 219, 0.4);
         }
 
         .coordsearch-btn-secondary {
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            background: #f1f2f6;
+            color: #e74c3c;
+            border: 1px solid #eee;
         }
-
         .coordsearch-btn-secondary:hover {
-            background: linear-gradient(135deg, #c0392b, #e74c3c);
+            background: #ffeaa7;
+            color: #d35400;
+            transform: translateY(-2px);
         }
 
         .coordsearch-button-group {
             display: flex;
-            gap: 10px;
-            margin-bottom: 12px;
+            gap: 12px;
+            margin-top: 10px;
         }
 
         .coordsearch-checkbox-label {
@@ -18377,19 +18484,30 @@
             </div>
         </div>
 
-        <!-- PATCH: Coordinate Search Popup - Split panel modal for coordinate search functionality -->
+        <!-- PATCH: Coordinate Search Popup - Modern UI with tabs for coordinate search functionality -->
         <div class="coordinate-search-popup" id="coordinate-search-popup" style="display: none;">
             <div class="coordsearch-popup-content">
                 <div class="coordsearch-popup-header">
+                    <div class="coordsearch-drag-handle"></div>
                     <h3><i class="fas fa-search-location"></i> Coordinate Search</h3>
                     <button type="button" class="coordsearch-close" id="search-popup-close">&times;</button>
                 </div>
+
+                <!-- Tabs Navigation -->
+                <div class="coordsearch-tabs">
+                    <button class="coordsearch-tab-btn active" onclick="switchCoordTab('manual')">
+                        <i class="fas fa-keyboard"></i> Manual Input
+                    </button>
+                    <button class="coordsearch-tab-btn" onclick="switchCoordTab('csv')">
+                        <i class="fas fa-file-csv"></i> CSV Import
+                    </button>
+                </div>
+
                 <div class="coordsearch-popup-body">
-                    <!-- Left Panel: Manual Input -->
-                    <div class="coordsearch-panel coordsearch-manual-panel">
-                        <h4><i class="fas fa-keyboard"></i> Manual Input</h4>
+                    <!-- Manual Input Panel -->
+                    <div class="coordsearch-panel coordsearch-manual-panel active" id="coordsearch-panel-manual">
                         <div class="coordsearch-form-group">
-                            <label for="search-manual-crs">Coordinate System:</label>
+                            <label for="search-manual-crs">Coordinate System</label>
                             <select id="search-manual-crs" class="coordsearch-select">
                                 <option value="EPSG:21096">Arc 1960 / UTM zone 36N — EPSG:21096</option>
                                 <option value="EPSG:21036">Arc 1960 / UTM zone 36S — EPSG:21036</option>
@@ -18398,27 +18516,28 @@
                                 <option value="EPSG:4326">WGS84 (lat/lon) — EPSG:4326</option>
                             </select>
                         </div>
-                        <div class="coordsearch-form-group">
-                            <label for="search-manual-easting">Easting/Longitude:</label>
-                            <input type="text" id="search-manual-easting" class="coordsearch-input"
-                                placeholder="Enter easting/longitude">
+                        <div class="coordsearch-row">
+                            <div class="coordsearch-form-group">
+                                <label for="search-manual-easting">Easting / Longitude</label>
+                                <input type="text" id="search-manual-easting" class="coordsearch-input"
+                                    placeholder="e.g. 451200.50">
+                            </div>
+                            <div class="coordsearch-form-group">
+                                <label for="search-manual-northing">Northing / Latitude</label>
+                                <input type="text" id="search-manual-northing" class="coordsearch-input"
+                                    placeholder="e.g. 34500.20">
+                            </div>
                         </div>
-                        <div class="coordsearch-form-group">
-                            <label for="search-manual-northing">Northing/Latitude:</label>
-                            <input type="text" id="search-manual-northing" class="coordsearch-input"
-                                placeholder="Enter northing/latitude">
-                        </div>
-                        <button class="coordsearch-btn" id="search-manual-enter">
+                        <button class="coordsearch-btn coordsearch-btn-primary" id="search-manual-enter">
                             <i class="fas fa-map-marker-alt"></i> Plot Point
                         </button>
                         <div class="coordsearch-status" id="search-manual-status">Ready to plot coordinates</div>
                     </div>
 
-                    <!-- Right Panel: CSV Import -->
-                    <div class="coordsearch-panel coordsearch-csv-panel">
-                        <h4><i class="fas fa-file-csv"></i> CSV Import</h4>
+                    <!-- CSV Import Panel -->
+                    <div class="coordsearch-panel coordsearch-csv-panel" id="coordsearch-panel-csv">
                         <div class="coordsearch-form-group">
-                            <label for="search-csv-crs">Coordinate System:</label>
+                            <label for="search-csv-crs">Coordinate System</label>
                             <select id="search-csv-crs" class="coordsearch-select">
                                 <option value="EPSG:21096">Arc 1960 / UTM zone 36N — EPSG:21096</option>
                                 <option value="EPSG:21036">Arc 1960 / UTM zone 36S — EPSG:21036</option>
@@ -18428,29 +18547,45 @@
                             </select>
                         </div>
                         <div class="coordsearch-form-group">
-                            <label for="search-csv-file">CSV File:</label>
+                            <label for="search-csv-file">Upload CSV File</label>
                             <input type="file" id="search-csv-file" class="coordsearch-file" accept=".csv">
                         </div>
                         <div class="coordsearch-form-group">
                             <label class="coordsearch-checkbox-label">
                                 <input type="checkbox" id="search-csv-append" class="coordsearch-checkbox">
-                                Append to existing points
+                                <span>Append to existing points</span>
                             </label>
                         </div>
                         <div class="coordsearch-button-group">
-                            <button class="coordsearch-btn" id="search-csv-plot">
+                            <button class="coordsearch-btn coordsearch-btn-primary" id="search-csv-plot">
                                 <i class="fas fa-upload"></i> Plot CSV
                             </button>
                             <button class="coordsearch-btn coordsearch-btn-secondary" id="search-clear-results">
-                                <i class="fas fa-trash"></i> Clear Results
+                                <i class="fas fa-trash"></i> Clear All
                             </button>
                         </div>
-                        <div class="coordsearch-status" id="search-csv-status">Select a CSV file to plot coordinates
-                        </div>
+                        <div class="coordsearch-status" id="search-csv-status">Select a CSV file to plot coordinates</div>
                     </div>
                 </div>
             </div>
         </div>
+        
+        <script>
+            // Tab switching logic for Coordinate Search Panel
+            function switchCoordTab(tab) {
+                // Update buttons
+                document.querySelectorAll('.coordsearch-tab-btn').forEach(btn => btn.classList.remove('active'));
+                event.currentTarget.classList.add('active');
+                
+                // Update panels
+                document.querySelectorAll('.coordsearch-panel').forEach(panel => panel.classList.remove('active'));
+                if (tab === 'manual') {
+                    document.getElementById('coordsearch-panel-manual').classList.add('active');
+                } else {
+                    document.getElementById('coordsearch-panel-csv').classList.add('active');
+                }
+            }
+        </script>
 
         <!-- ═══════════════════════════════════════════════════════════════
              DXF MAP DROP MODAL  – Shown when user drops a .dxf onto the map
@@ -33409,6 +33544,11 @@
                 statusEl.className = 'coordsearch-status success';
                 showToast('1 point plotted', 'success');
                 saveCRS();
+                
+                // Close popup to show map
+                setTimeout(() => {
+                    document.getElementById('coordinate-search-popup').style.display = 'none';
+                }, 400);
             });
 
             // Enter key support for manual input
@@ -33454,6 +33594,11 @@
                     try {
                         const csvData = parseCSV(e.target.result);
                         plotCSVCoordinates(csvData, crs, appendMode);
+                        
+                        // Close popup to show map
+                        setTimeout(() => {
+                            document.getElementById('coordinate-search-popup').style.display = 'none';
+                        }, 400);
                     } catch (error) {
                         console.error('Error parsing CSV:', error);
                         statusEl.textContent = 'Error parsing CSV file';
