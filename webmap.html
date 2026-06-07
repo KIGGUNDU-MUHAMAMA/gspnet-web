@@ -4378,6 +4378,11 @@
             background: rgba(255, 255, 255, 0.1) !important;
         }
 
+        .gspnet-assist-panel select option {
+            background-color: #0f172a !important;
+            color: white !important;
+        }
+
         .gspnet-assist-panel button:not(.gspnet-panel-close):not(.gspnet-tab) {
             background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%) !important;
             border: none !important;
@@ -10988,11 +10993,53 @@
             }
 
             .gspnet-assist-panel {
-                left: 5px;
-                right: 5px;
-                bottom: 100px;
-                width: auto;
-                max-height: 65vh;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: 100%;
+                max-height: 50vh;
+                border-radius: 24px 24px 0 0;
+                border-bottom: none;
+                border-left: none;
+                border-right: none;
+                border-top: 1px solid rgba(0, 242, 254, 0.4);
+            }
+            .gspnet-assist-panel:not(.show) {
+                transform: translateY(100%);
+            }
+            .gspnet-panel-inner {
+                flex-direction: column;
+            }
+            .gspnet-content {
+                max-height: none;
+                flex: 1;
+                overflow-y: auto;
+            }
+            .gspnet-tabs {
+                flex-direction: row;
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                padding-top: 10px;
+                padding-bottom: 0;
+                overflow-x: auto;
+                flex-shrink: 0;
+            }
+            .gspnet-tab {
+                flex: 1;
+                border-right: none;
+                border-bottom: 3px solid transparent;
+                padding: 10px 5px;
+                min-width: 80px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+            }
+            .gspnet-tab.active {
+                border-right: none;
+                border-bottom: 3px solid #00f2fe;
+                background: linear-gradient(0deg, rgba(0, 242, 254, 0.15), transparent);
             }
 
             .coord-extractor-grid {
@@ -11485,7 +11532,7 @@
                 right: 0;
                 bottom: 0;
                 width: 100%;
-                max-height: 85vh;
+                max-height: 50vh;
                 border-radius: 24px 24px 0 0;
                 border-bottom: none;
                 border-left: none;
@@ -11495,14 +11542,40 @@
             .gspnet-assist-panel:not(.show) {
                 transform: translateY(100%);
             }
+            .gspnet-panel-inner {
+                flex-direction: column;
+            }
             .gspnet-content {
-                max-height: calc(85vh - 60px);
+                max-height: none;
+                flex: 1;
+                overflow-y: auto;
             }
-
             .gspnet-tabs {
-                width: 80px;
+                flex-direction: row;
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                padding-top: 10px;
+                padding-bottom: 0;
+                overflow-x: auto;
+                flex-shrink: 0;
             }
-
+            .gspnet-tab {
+                flex: 1;
+                border-right: none;
+                border-bottom: 3px solid transparent;
+                padding: 10px 5px;
+                min-width: 80px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+            }
+            .gspnet-tab.active {
+                border-right: none;
+                border-bottom: 3px solid #00f2fe;
+                background: linear-gradient(0deg, rgba(0, 242, 254, 0.15), transparent);
+            }
             .gspnet-tab span {
                 font-size: 0.7rem;
             }
