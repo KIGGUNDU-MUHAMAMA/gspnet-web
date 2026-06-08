@@ -7,10 +7,6 @@ ALTER VIEW public.profile_contribution_stats SET (security_invoker = true);
 -- 2. FIX MISSING RLS IN PUBLIC TABLES
 -- ==========================================
 
--- Enable RLS on spatial_ref_sys (PostGIS standard table)
-ALTER TABLE public.spatial_ref_sys ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "spatial_ref_sys_select_all" ON public.spatial_ref_sys FOR SELECT USING (true);
-
 -- Enable RLS on property_listings
 ALTER TABLE public.property_listings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Anyone can view property listings" ON public.property_listings FOR SELECT USING (true);
