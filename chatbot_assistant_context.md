@@ -9,12 +9,12 @@
 - **Video Tutorial:** [LOCATING GEOSPATIALNETWORKUG WEBMAP](https://youtu.be/ut-tX7GDSFs?si=yh7OfeQRXt5aavJ5)
 - **Video Tutorial:** [FEATURES ON GEOSPATIALNETWORKUG LOGIN PAGE](https://youtu.be/RXAnJtH8RH4?si=pLLizJ-W97oJwDxO)
 - **Authorship:** Led by **Kiggundu Muhamad** of N.A.S. Surveyors Ltd under the guidance of **Surveyor R.S.U. Katabu Simon**.
-- **Tech Stack:** OpenLayers 9 (2D), CesiumJS & Three.js (3D), Supabase & PostgreSQL (Backend), Cloudflare Workers (Edge Computing), jsPDF & Chart.js (Reporting).
-- **Core Mission:** To eliminate redundant surveys, safely archive cadastral data, and empower professionals with real-time collaboration tools.
+- **Tech Stack:** OpenLayers 9 (2D), CesiumJS & Three.js (3D), Blockchain-aligned Immutable Ledger (Live Transactions), PostgreSQL, jsPDF & Chart.js (Reporting).
+- **Core Mission:** To eliminate redundant surveys, safely archive cadastral data, and empower professionals with real-time collaboration tools while ensuring an immutable chain of custody for **untitled land parcels**.
 
 ---
 
-## 2. User Accounts, Roles, & The Clerk Function
+## 2. User Accounts, Roles, & The Land Clerk System
 
 ### How to Create an Account (Step-by-Step)
 - **Video Tutorial:** [SIGN UP AND CREATING ACCOUNT IN GEOSPATIALNETWORKUG](https://youtu.be/smPQolHA3uw?si=3PcbLJGdvPVFbYet)
@@ -25,11 +25,22 @@
 4. **Important:** A verification email is sent automatically. You must click the verification link in your email (check Spam/Junk) before logging in.
 5. Some accounts require **Admin Activation** to access advanced tools. You can request activation via WhatsApp to the Admin (+256753771256).
 
-### Platform Roles
+### Platform Roles & Blockchain Land Administration
+The platform utilizes a **Blockchain-aligned Live Transactions Ledger** for registering ownership and transfers of **untitled parcels**. It operates on a strict Maker-Checker approval workflow to guarantee security and immutability.
+
+- **Admin:** Has overarching system control. Admins can initiate transfers and they are instantly committed. Admins can also approve any pending transactions.
+- **RSU (Registered Surveyor of Uganda):** A high-level role acting as an independent reviewer for quality assurance. RSUs have full access to the Land Clerk interface. Under the Maker-Checker workflow, RSUs can initiate land transfers (which require Clerk or Admin approval) and can independently approve transfers initiated by Land Clerks.
+- **Land Clerk:** A critical administrative role exclusively focused on **untitled land (bibanja)**. Clerks use the Land Clerk system to draft new genesis registrations and initiate ownership transfers. Clerks can also independently approve transfers initiated by RSUs.
 - **General User (Land Surveyor):** The standard professional role. Can access NLIS data, create subdivisions, perform boundary openings, and map untitled land (bibanja).
 - **Valuation Surveyor:** Has access to the private Valuation Dashboard to store comparables, run auto-valuations, and generate professional PDF reports.
-- **Land Clerk:** A critical administrative role. The Clerk tracks land transactions, registers buyers for untitled bibanja parcels, manages land administration duties, and ensures data entered into the system matches the legal paper trail. This function is vital for maintaining the chain of custody for untitled land.
-- **RSU (Registered Surveyor of Uganda):** A restricted, high-level role acting as an independent reviewer for parcel corroboration, quality assurance, and technical dispute resolution.
+
+### The Clerk System & Maker-Checker Approval Workflow
+The Land Clerk system (accessed via the Clerk button in the chat interface) is the hub for managing untitled land ownership. 
+1. **Initiation:** When a Clerk or RSU submits a transfer of an untitled parcel, it is cryptographically hashed and added to the **Live Transactions Blockchain Ledger** with a status of `PENDING_APPROVAL`. The database ownership is *not* changed yet; the transfer payload is securely held in the ledger.
+2. **Approval Process:** To finalize a transfer, a user with the corresponding checker role must open the **Live Transactions** tab. 
+   - If a Clerk initiated it, an RSU or Admin will see a green **"Approve Transfer"** button on the ledger entry.
+   - If an RSU initiated it, a Clerk or Admin will see the **"Approve Transfer"** button.
+3. **Commitment:** Once approved, the system executes the ownership change in the database, updates the transaction status to `COMMITTED`, and securely links it to the previous transaction hash, creating an immutable, cryptographically verified chain of title for the parcel.
 
 ---
 
@@ -47,7 +58,7 @@ The GSP.NET Assist button acts as a floating command center. It provides:
 ### CAD Integration & DXF Interpolation
 GSP.NET includes a powerful native **CAD Inspector** for working directly with CAD files:
 - **Interpolation:** When uploading DXF files, the system parses the raw CAD entities and interpolates complex geometries (like arcs and splines) into web-compatible Vector geometries (LineStrings/Polygons).
-- **Direct Rendering:** DXF files are rendered locally via a blazing-fast Canvas2D engine, while complex DWG files utilize a secure cloud-based ShareCAD integration via Supabase.
+- **Direct Rendering:** DXF files are rendered locally via a blazing-fast Canvas2D engine, while complex DWG files utilize a secure cloud-based ShareCAD integration.
 - **How to Use (Tracing & Digitizing):** Once a DXF/DWG is uploaded, the entities are overlaid onto the map. The system automatically attaches a **Snapping Interaction** to these CAD lines, allowing you to use the Drawing Tools to flawlessly trace survey polygons over the CAD geometry, extract the coordinates, or save them directly into the database.
 
 ### GSP Rover (Field Survey Mode)
@@ -106,7 +117,7 @@ The QC Delete function allows authorized users (like RSU Supervisors or Admins) 
 4. Click the red **"Delete Feature (QC)"** button at the bottom of the panel.
 5. A confirmation modal will appear. You **must** select a reason for deletion from the dropdown (e.g., "Duplicate Feature", "Incorrect Geometry", etc.). If you select "Other", you must provide details.
 6. Click **"Confirm Deletion"**.
-7. The system will permanently delete the feature from the Supabase database, instantly remove it from the webmap, and broadcast a Chat Room message and private inbox notification to the surveyor who originally uploaded it.
+7. The system will permanently delete the feature from the secure database, instantly remove it from the webmap, and broadcast a Chat Room message and private inbox notification to the surveyor who originally uploaded it.
 
 ---
 
@@ -114,7 +125,7 @@ The QC Delete function allows authorized users (like RSU Supervisors or Admins) 
 
 ### Generating DTMs (Digital Terrain Models)
 1. Open the **3D Terrain & Contours** toolbox.
-2. **Data Source:** You can upload your own XYZ CSV, or select **"Use DEM"** to fetch cloud elevation data via Supabase Edge Functions (Copernicus GLO-30, NASADEM, SRTM). You can also use **DEM + CSV (Calibrate)** to calibrate cloud DEMs with your local survey control points.
+2. **Data Source:** You can upload your own XYZ CSV, or select **"Use DEM"** to fetch cloud elevation data via Edge Functions (Copernicus GLO-30, NASADEM, SRTM). You can also use **DEM + CSV (Calibrate)** to calibrate cloud DEMs with your local survey control points.
 3. Set grid resolution (e.g., 5m) and select an interpolation method.
 4. Click **DTM** to generate.
 
@@ -212,7 +223,7 @@ GSP.NET integrates directly with the **Copernicus Data Space Ecosystem (CDSE)** 
    - `10-day (P10D)` — Most detailed, best for short date ranges
    - `16-day (P16D)` — Recommended default
    - `1-month (P1M)` — Best for long date ranges (> 1 year)
-2. Click **"Generate Analytics"**. A spinner shows while the system contacts the CDSE API via Supabase Edge Function. Typical wait: **15–45 seconds** depending on AOI size and date range.
+2. Click **"Generate Analytics"**. A spinner shows while the system contacts the CDSE API via Edge Function. Typical wait: **15–45 seconds** depending on AOI size and date range.
 3. Once complete, the following appear automatically:
    - **Time-Series Chart** — Interactive line chart (NDVI, NDMI, NDRE, NDWI). Click legend entries to toggle indices.
    - **Statistics Table** — Min, Max, Mean, Std Dev, Trend, Peak, Trough, Δ Change for each index.
@@ -405,7 +416,7 @@ Open drawing → type GSPEXPORT → select closed parcels → save CSV → CSV h
 | "Must be logged in to save" on webmap | Log in to GSPNET on the webmap first, then re-send from QGIS |
 | AutoCAD command not recognised | Verify the `.bundle` folder is in the correct `ApplicationPlugins` path and AutoCAD was restarted |
 | Open polylines skipped by GSPEXPORT | Close them first using `PEDIT → Close` or redraw as closed polygons |
-| Webmap save panel not appearing | Check internet connection; Supabase Realtime must be connected |
+| Webmap save panel not appearing | Check internet connection; Secure Realtime connection must be active |
 | Send button disabled in QGIS | Complete Step 2 (project details) first, then click Start Editing |
 
 ---
