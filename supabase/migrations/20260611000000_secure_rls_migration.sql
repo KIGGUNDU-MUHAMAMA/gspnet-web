@@ -10,9 +10,9 @@ ALTER VIEW public.profile_contribution_stats SET (security_invoker = true);
 -- Enable RLS on property_listings
 ALTER TABLE public.property_listings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Anyone can view property listings" ON public.property_listings FOR SELECT USING (true);
-CREATE POLICY "Users can insert their own property listings" ON public.property_listings FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update their own property listings" ON public.property_listings FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own property listings" ON public.property_listings FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert their own property listings" ON public.property_listings FOR INSERT WITH CHECK (auth.uid()::text = user_id::text);
+CREATE POLICY "Users can update their own property listings" ON public.property_listings FOR UPDATE USING (auth.uid()::text = user_id::text) WITH CHECK (auth.uid()::text = user_id::text);
+CREATE POLICY "Users can delete their own property listings" ON public.property_listings FOR DELETE USING (auth.uid()::text = user_id::text);
 
 -- ==========================================
 -- 3. FIX VULNERABLE RLS (USER_METADATA)
@@ -28,7 +28,6 @@ CREATE TABLE IF NOT EXISTS public.user_roles (
 -- Enable RLS on user_roles (Users can read their own role, but cannot update it)
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can read own role" ON public.user_roles FOR SELECT USING (auth.uid() = user_id);
--- No insert/update/delete policies for users! Only the trigger or service_role can write to it.
 
 -- B. Backfill existing users' roles from their vulnerable metadata into the secure table
 INSERT INTO public.user_roles (user_id, role)
@@ -89,7 +88,7 @@ USING (EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND ro
 DROP POLICY IF EXISTS "Enable delete for creators and admins" ON public.polygon_features;
 CREATE POLICY "Enable delete for creators and admins" 
 ON public.polygon_features FOR DELETE 
-USING (auth.uid() = created_by OR EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'ADMIN'));
+USING (auth.uid()::text = created_by::text OR EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'ADMIN'));
 
 -- --------------------------
 -- land_registrations
@@ -142,7 +141,7 @@ USING (EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND ro
 DROP POLICY IF EXISTS "Enable delete for creators and admins" ON public.map_features;
 CREATE POLICY "Enable delete for creators and admins" 
 ON public.map_features FOR DELETE 
-USING (auth.uid() = created_by OR EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'ADMIN'));
+USING (auth.uid()::text = created_by::text OR EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'ADMIN'));
 
 -- --------------------------
 -- live_transactions
