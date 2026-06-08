@@ -1,0 +1,196 @@
+﻿                    flagsSection.innerHTML += `<div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+                        <button onclick="showDeleteFeatureModal('${escapeFeatureInfoHtml(uid)}', '${escapeFeatureInfoHtml(checkLayer)}', 'polygon_features', '${escapeFeatureInfoHtml(polygonFeature.getId() || '')}')" style="background: white; border: 1px solid #e11d48; color: #e11d48; padding: 8px 12px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; font-weight: bold; transition: all 0.2s;" onmouseover="this.style.background='#fff1f2'" onmouseout="this.style.background='white'">
+                            <i class="fas fa-trash-alt"></i> Delete Parcel (QC)
+                        </button>
+                    </div>`;
+                }
+            }
+            
+            // Global function for QC deletion modal
+            window.showDeleteFeatureModal = function(uid, layerName, table, featureOlId) {
+                let modal = document.getElementById('qcDeleteFeatureModal');
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = 'qcDeleteFeatureModal';
+                    modal.className = 'modal';
+                    modal.innerHTML = `
+                        <div class="modal-content" style="max-width: 500px;">
+                            <div class="modal-header">
+                                <h3 style="color: #e11d48;"><i class="fas fa-exclamation-triangle"></i> Quality Control: Delete Feature</h3>
+                                <button class="close-modal" onclick="closeModal('qcDeleteFeatureModal')">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="status-message warning" style="margin-bottom: 15px;">
+                                    <strong>Warning:</strong> This will permanently delete the feature and log a quality control event.
+                                </div>
+                                <table style="width: 100%; margin-bottom: 15px; font-size: 14px;">
+                                    <tr><td style="font-weight:bold; width:30%; padding:5px 0;">Feature ID:</td><td id="qcDelFeatureId" style="padding:5px 0;"></td></tr>
+                                    <tr><td style="font-weight:bold; padding:5px 0;">Layer:</td><td id="qcDelLayerName" style="padding:5px 0;"></td></tr>
+                                </table>
+                                
+                                <div class="form-group" style="margin-bottom: 15px;">
+                                    <label for="qcDelReason" style="display:block; margin-bottom: 5px; font-weight: bold;">Reason for Deletion <span style="color:red;">*</span></label>
+                                    <select id="qcDelReason" class="form-control" style="width: 100%; padding: 8px; margin-bottom: 10px;" onchange="document.getElementById('qcDelDetails').style.display = this.value === 'Other' ? 'block' : 'none'">
+                                        <option value="">-- Select a reason --</option>
+                                        <option value="Duplicate Feature">Duplicate Feature</option>
+                                        <option value="Incorrect Geometry / Boundary">Incorrect Geometry / Boundary</option>
+                                        <option value="Replaced by newer survey">Replaced by newer survey</option>
+                                        <option value="Invalid Data / Test Data">Invalid Data / Test Data</option>
+                                        <option value="Other">Other (specify below)</option>
+                                    </select>
+                                    <textarea id="qcDelDetails" class="form-control" placeholder="Provide more details..." style="width: 100%; padding: 8px; min-height: 80px; display: none;"></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer" style="display: flex; gap: 10px; justify-content: flex-end;">
+                                <button class="btn btn-secondary" onclick="closeModal('qcDeleteFeatureModal')">Cancel</button>
+                                <button class="btn btn-primary" id="qcConfirmDeleteBtn" style="background-color: #e11d48; border-color: #be123c;">
+                                    <i class="fas fa-trash-alt"></i> Confirm Delete
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
+                    
+                    modal.addEventListener('click', function(e) {
+                        if (e.target === modal) closeModal('qcDeleteFeatureModal');
+                    });
+                }
+                
+                // Reset form
+                document.getElementById('qcDelReason').value = '';
+                document.getElementById('qcDelDetails').value = '';
+                document.getElementById('qcDelDetails').style.display = 'none';
+                
+                // Set data
+                document.getElementById('qcDelFeatureId').textContent = uid || featureOlId || 'Unknown';
+                document.getElementById('qcDelLayerName').textContent = layerName || 'Unknown';
+                
+                const confirmBtn = document.getElementById('qcConfirmDeleteBtn');
+                
+                // Reset disabled state
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="fas fa-trash-alt"></i> Confirm Delete';
+
+                confirmBtn.onclick = async function() {
+                    const reasonSel = document.getElementById('qcDelReason').value;
+                    const details = document.getElementById('qcDelDetails').value.trim();
+                    
+                    if (!reasonSel) {
+                        showToast('Please select a reason for deletion.', 'error');
+                        return;
+                    }
+                    
+                    const finalReason = reasonSel === 'Other' ? details : (details ? reasonSel + ' - ' + details : reasonSel);
+                    if (reasonSel === 'Other' && !details) {
+                        showToast('Please provide details for the reason.', 'error');
+                        return;
+                    }
+                    
+                    confirmBtn.disabled = true;
+                    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+                    
+                    try {
+                        let featureRecord = null;
+                        
+                        // Try to get original feature metadata for corroboration
+                        if (table === 'polygon_features') {
+                            const { data } = await supabase.from('polygon_features').select('*').eq('unique_id', uid).single();
+                            featureRecord = data;
+                        } else if (table === 'map_features') {
+                            const { data } = await supabase.from('map_features').select('*').eq('id', uid).single();
+                            featureRecord = data;
+                            // Map to expected structure for corroboration
+                            if (featureRecord) {
+                                featureRecord.unique_id = featureRecord.id;
+                                featureRecord.layer_name = 'Symbols Library';
+                                featureRecord.created_by = featureRecord.user_id;
+                            }
+                        }
+                        
+                        // 1. Create QC Flag to trigger Notifications & Chatroom Corroboration Case
+                        const currentUser = await getCurrentAuthenticatedUserContext();
+                        if (featureRecord) {
+                            const flagData = {
+                                lng: featureRecord.longitude || 0,
+                                lat: featureRecord.latitude || 0,
+                                district: featureRecord.district || 'Unknown',
+                                county: featureRecord.county || null,
+                                block: featureRecord.block_number || null,
+                                plot: featureRecord.plot_number || null,
+                                is_untitled: featureRecord.layer_name ? featureRecord.layer_name.includes('UNTITLED') : false,
+                                flag_type: 'red', // 'deleted' violates DB check constraint
+                                reporter_name: currentUser ? currentUser.displayName : 'Admin',
+                                reporter_contact: currentUser ? currentUser.email : '',
+                                reason: 'DELETION: ' + finalReason,
+                                survey_unique_id: featureRecord.unique_id,
+                                polygon_feature_id: table === 'polygon_features' ? featureRecord.id : null,
+                                survey_layer_name: featureRecord.layer_name || layerName
+                            };
+                            
+                            const newFlag = await createFlag(flagData);
+                            try {
+                                await createCorroborationCaseForFlag(newFlag, featureRecord, currentUser);
+                            } catch (caseErr) {
+                                console.warn('[QC Delete] Could not create corroboration case:', caseErr);
+                            }
+                            
+                            // Send chat and inbox messages for deletion
+                            try {
+                                const delMsg = `🚨 QC DELETION: Parcel ${featureRecord.unique_id} (${featureRecord.layer_name || layerName}) was deleted by Admin. Reason: ${finalReason}`;
+                                if (window.sendMessage) {
+                                    await window.sendMessage(delMsg);
+                                }
+                                
+                                // Broadcast to the new ChatSystem Room Posts!
+                                if (window.supabase) {
+                                    const { data: roomData } = await supabase.from('chat_rooms').select('id').order('created_at', { ascending: true }).limit(1);
+                                    if (roomData && roomData.length > 0) {
+                                        await supabase.from('room_posts').insert([{
+                                            room_id: roomData[0].id,
+                                            user_id: currentUser.id,
+                                            username: currentUser.displayName || 'Admin',
+                                            content: delMsg
+                                        }]);
+                                    }
+                                }
+
+                                if (featureRecord.created_by && featureRecord.created_by !== currentUser.id && window.supabase) {
+                                    await supabase.from('private_messages').insert([{
+                                        sender_id: currentUser.id,
+                                        receiver_id: featureRecord.created_by,
+                                        sender_username: currentUser.displayName || 'Admin',
+                                        receiver_username: featureRecord.surveyor || 'Surveyor',
+                                        content: delMsg
+                                    }]);
+                                }
+                            } catch (msgErr) {
+                                console.warn('[QC Delete] Could not send chatroom/inbox messages:', msgErr);
+                            }
+                        }
+                        
+                        // 2. Perform Hard Delete from DB
+                        if (table === 'polygon_features') {
+                            const { data: delData, error: delErr } = await supabase.from('polygon_features').delete().eq('unique_id', uid).select();
+                            if (delErr) throw delErr;
+                            if (!delData || delData.length === 0) {
+                                console.warn('No rows deleted. It might have already been deleted or RLS blocked it.');
+                            }
+                        } else if (table === 'map_features') {
+                            const { error: delErr } = await supabase.from('map_features').delete().eq('id', uid);
+                            if (delErr) throw delErr;
+                        }
+                        
+                        // 3. Update Map visually
+                        if (table === 'polygon_features') {
+                            if (featureOlId) {
+                                // Find and remove from map sources
+                                map.getLayers().forEach(layer => {
+                                    if (layer instanceof ol.layer.Vector) {
+                                        const source = layer.getSource();
+                                        if (source && typeof source.getFeatureById === 'function') {
+                                            const f = source.getFeatureById(featureOlId) || source.getFeatures().find(ft => ft.get('unique_id') === uid);
+                                            if (f) {
+                                                source.removeFeature(f);
+                                                if (window.highlightSource) {
+                                                    window.highlightSource.removeFeature(f);
+                                                    window.highlightSource.clear();

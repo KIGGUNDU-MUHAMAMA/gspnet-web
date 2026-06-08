@@ -1583,6 +1583,10 @@ async function saveFeature(geometry, attributes) {
 
         console.log('[SL] Feature saved:', data);
         showMessage(`${attributes.name} saved successfully!`, 'success');
+        
+        if (typeof window.logUserContribution === 'function') {
+            window.logUserContribution('symbol_mapping', { name: attributes.name, type: attributes.geom_type });
+        }
 
         // Reload features to show the new one
         await loadFeatures();

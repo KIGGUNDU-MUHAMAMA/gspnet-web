@@ -24733,6 +24733,10 @@
                     .eq('id', caseRow.id);
                 if (caseUpdateError) throw caseUpdateError;
 
+                if (typeof window.logUserContribution === 'function') {
+                    window.logUserContribution('corroboration_case', { case_id: caseRow.id, action: payload.parcelAction });
+                }
+
                 await addCorroborationMessage(caseRow.id, userCtx, `Admin resolution recorded: ${payload.parcelAction || 'change_flag'}${payload.newFlagType ? ` / flag ${payload.newFlagType}` : ''}.`);
                 await rebuildParcelQualityFlagCache();
             }
@@ -30967,6 +30971,10 @@
                         polygonImportState.createdPolygons = Array.isArray(response.savedRows) ? response.savedRows : [];
                         refreshPolygonLayers();
                         showToast(`Saved ${savedCount} parcel(s) successfully`, 'success');
+                        
+                        if (savedCount > 0 && typeof window.logUserContribution === 'function') {
+                            window.logUserContribution('survey_polygon', { count: savedCount, layer: polygonImportState.selectedLayer });
+                        }
                     } catch (error) {
                         console.error('Batch save failed:', error);
                         if (saveStatus) {
@@ -59103,7 +59111,7 @@ function smoothChaikin(points) {
                 <div class="post-header">
                     <div class="post-avatar" ${avatarStyle}>${avatarChar}</div>
                     <div class="post-user-info">
-                        <div class="post-username">@${displayName}</div>
+                        <div class="post-username">@${escapeHtml(displayName)}${fullUser?.is_contributor ? ' <i class="fas fa-check-circle" style="color: #1DA1F2;" title="Verified Contributor"></i>' : ''}</div>
                         <div class="post-time">${formatTime(post.created_at)}</div>
                     </div>
                 </div>
@@ -59342,7 +59350,7 @@ function smoothChaikin(points) {
                     <div class="user-avatar" ${avatarStyle}>${firstLetter}</div>
                     <div class="user-info">
                         <div class="user-name-line">
-                            <span class="user-name">${escapeHtml(displayName)}</span>
+                            <span class="user-name">${escapeHtml(displayName)}${user.is_contributor ? ' <i class="fas fa-check-circle" style="color: #1DA1F2;" title="Verified Contributor"></i>' : ''}</span>
                             ${timeStr ? `<span class="user-thread-time">${escapeHtml(timeStr)}</span>` : ''}
                         </div>
                         <div class="user-preview-row">
@@ -59389,7 +59397,7 @@ function smoothChaikin(points) {
                 const displayName = getChatUserDisplayName(user);
                 
                 if (partnerNameEl) {
-                    partnerNameEl.textContent = displayName;
+                    partnerNameEl.innerHTML = escapeHtml(displayName) + (user.is_contributor ? ' <i class="fas fa-check-circle" style="color: #1DA1F2;" title="Verified Contributor"></i>' : '');
                 }
                 
                 if (partnerAvatarEl) {
@@ -60481,6 +60489,15 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                         imageInput.addEventListener('change', (e) => this.handleImageSelect(e));
                     }
                     
+                    const exportBtn = document.getElementById('profile-export-btn');
+                    if(exportBtn) exportBtn.addEventListener('click', () => {
+                        if (typeof window.generateProfileReport === 'function') {
+                            window.generateProfileReport(ChatSystem.currentUser);
+                        } else {
+                            console.warn('generateProfileReport not loaded yet');
+                        }
+                    });
+                    
                     if(saveBtn) saveBtn.addEventListener('click', () => this.save());
                 },
                 
@@ -60613,6 +60630,22 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
             window.toggleComments = toggleComments;
             window.submitComment = submitComment;
             window.switchTab = switchTab;
+
+            window.logUserContribution = async function(type, details = {}) {
+                if (!ChatSystem.currentUser) return;
+                try {
+                    const { error } = await supabase.from('user_contributions').insert([{
+                        user_id: ChatSystem.currentUser.id,
+                        contribution_type: type,
+                        details: details
+                    }]);
+                    if (error) throw error;
+                    // The backend trigger handles awarding the Verified Contributor badge (is_contributor = true)
+                    // after 5 total contributions.
+                } catch(e) {
+                    console.error("Failed to log contribution:", e);
+                }
+            };
 
         </script>
 
@@ -60765,26 +60798,41 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                 </div>
             </div>
             <!-- Profile Edit Modal -->
-            <div id="profile-edit-modal" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
-                <div style="background: var(--chat-surface, #fff); border-radius: 8px; width: 90%; max-width: 400px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 16px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--chat-border, #eee); padding-bottom: 12px;">
-                        <h3 style="margin: 0; font-size: 16px; color: var(--chat-text, #333);">Edit Profile</h3>
-                        <button type="button" id="profile-modal-close" style="background: transparent; border: none; font-size: 20px; cursor: pointer; color: #999;">&times;</button>
+            <div id="profile-edit-modal" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center;">
+                <style>
+                    @media (max-width: 480px) {
+                        #profile-edit-modal-content { padding: 16px !important; gap: 16px !important; max-width: 95% !important; }
+                        #profile-avatar-preview { width: 60px !important; height: 60px !important; font-size: 20px !important; }
+                        #profile-edit-modal-content h3 { font-size: 14px !important; }
+                    }
+                </style>
+                <div id="profile-edit-modal-content" style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.3); box-shadow: 0 0 30px rgba(56, 189, 248, 0.2); backdrop-filter: blur(12px); border-radius: 20px; width: 90%; max-width: 320px; padding: 24px; display: flex; flex-direction: column; gap: 20px; font-family: 'Inter', sans-serif;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px;">
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #f8fafc; letter-spacing: 0.5px;"><i class="fas fa-user-astronaut" style="color: #38bdf8; margin-right: 8px;"></i>Edit Profile</h3>
+                        <button type="button" id="profile-modal-close" style="background: transparent; border: none; font-size: 20px; cursor: pointer; color: #94a3b8; transition: color 0.2s;">&times;</button>
                     </div>
                     <div style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
-                        <div id="profile-avatar-preview" style="width: 100px; height: 100px; border-radius: 50%; background-color: var(--chat-primary, #007bff); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 36px; background-size: cover; background-position: center; border: 2px solid #eee;">
+                        <div id="profile-avatar-preview" style="width: 80px; height: 80px; border-radius: 50%; background-color: #1e293b; color: #38bdf8; display: flex; align-items: center; justify-content: center; font-size: 28px; background-size: cover; background-position: center; border: 2px solid #38bdf8; box-shadow: 0 0 15px rgba(56,189,248,0.4);">
                             <i class="fas fa-camera"></i>
                         </div>
                         <input type="file" id="profile-image-input" accept="image/*" style="display: none;" />
-                        <button type="button" id="profile-image-btn" style="padding: 6px 12px; background: #eee; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; font-size: 12px;">Change Avatar</button>
+                        <button type="button" id="profile-image-btn" style="padding: 6px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; cursor: pointer; font-size: 12px; color: #f8fafc; transition: all 0.2s;">Change Avatar</button>
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <label for="profile-username-input" style="font-size: 12px; font-weight: 500; color: var(--chat-text-secondary, #666);">Username</label>
-                        <input type="text" id="profile-username-input" placeholder="Your name" style="padding: 8px 12px; border: 1px solid var(--chat-border, #ccc); border-radius: 4px; font-size: 14px; background: var(--chat-bg, #fff); color: var(--chat-text, #333);" />
+                        <label for="profile-username-input" style="font-size: 12px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Username</label>
+                        <input type="text" id="profile-username-input" placeholder="Your designation" style="padding: 10px 14px; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-size: 14px; background: rgba(0,0,0,0.3); color: #f8fafc; outline: none; transition: border 0.2s;" onfocus="this.style.borderColor='rgba(56,189,248,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'" />
                     </div>
-                    <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
-                        <button type="button" id="profile-cancel-btn" style="padding: 8px 16px; background: transparent; border: 1px solid var(--chat-border, #ccc); border-radius: 4px; cursor: pointer; color: var(--chat-text, #333);">Cancel</button>
-                        <button type="button" id="profile-save-btn" style="padding: 8px 16px; background: var(--chat-primary, #007bff); border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: 500; display: flex; align-items: center; gap: 6px;">Save Changes</button>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 4px;">
+                        <button type="button" id="profile-save-btn" style="padding: 10px; background: linear-gradient(135deg, #0ea5e9, #0284c7); border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.4); transition: transform 0.2s;">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                        <button type="button" id="profile-cancel-btn" style="padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer; color: #cbd5e1; font-weight: 500; font-size: 14px; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+                            Cancel
+                        </button>
+                        <button type="button" id="profile-export-btn" style="padding: 10px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; cursor: pointer; color: #34d399; font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1); margin-top: 8px; transition: transform 0.2s;">
+                            <i class="fas fa-file-contract"></i> View Profile Report
+                        </button>
                     </div>
                 </div>
             </div>
@@ -69035,6 +69083,7 @@ if (document.readyState !== 'loading') {
 
 <!-- GSPNet Sentinel Analytics Module -->
 <script src="js/sentinel-analytics.js?v=1.2"></script>
+<script src="js/profile-report.js"></script>
 
 <style>
 /* ── Sentinel Analytics Button Styles ────────────────────────────────────── */

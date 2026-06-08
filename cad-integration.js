@@ -264,7 +264,7 @@ async function saveTraced(layerName){
     var formData={client:(document.getElementById('polygonClient')||{}).value||'DXF Import',projectName:(document.getElementById('polygonProjectName')||{}).value||'DXF Traced',coordinateSystem:S.crs,district:(document.getElementById('polygonDistrict')||{}).value||'',surveyor:(document.getElementById('polygonSurveyor')||{}).value||'',supervisor:(document.getElementById('polygonSupervisor')||{}).value||''};
     var resp=await fetch(SB_URL+'/functions/v1/polygon-creator',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'apikey':key},body:JSON.stringify({action:'commit_batch',layerName:layerName,csvFileId:null,formData:formData,parcels:parcels})});
     var res=JSON.parse(await resp.text());
-    if(res.savedCount)setStatus('\u2713 Saved '+res.savedCount+' polygon(s) to '+layerName,'success');
+    if(res.savedCount){setStatus('\u2713 Saved '+res.savedCount+' polygon(s) to '+layerName,'success');if(typeof window.logUserContribution==='function')window.logUserContribution('assistant_upload',{count:res.savedCount,type:'dxf'});}
     else setStatus('Response: '+JSON.stringify(res).substring(0,120),'success');
     if(typeof refreshPolygonLayers==='function')refreshPolygonLayers();
   }catch(e){setStatus('Save failed: '+e.message,'error');console.error('[DXF save]',e);}

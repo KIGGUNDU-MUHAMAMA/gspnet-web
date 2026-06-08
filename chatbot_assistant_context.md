@@ -427,8 +427,19 @@ For visual guidance, always provide users with the following relevant video link
 
 ---
 
-## 10. Social Chat & Profile Settings
-GSP.NET includes a built-in realtime social chat system for professionals to communicate, share insights, and discuss projects.
-- **Profile Configuration:** It is highly recommended to set up your profile to make communication smoother. To do so, open the Chat Panel (chat bubble icon), click the **Gear Icon** (Profile Configuration) at the top right, upload a profile picture, set your Username, and add a short bio.
-- **Profile Prompts:** If you haven't updated your profile, a small non-intrusive prompt ("Please set up profile") will appear under the gear icon when you open the chat.
-- **Resilience:** The chat system is highly resilient. Users can still send and receive private messages, room posts, and automated notifications (like Flagging or Deletions) even if their profiles (or the recipient's profiles) are completely blank. The system intelligently falls back to displaying their email prefix or 'Unknown User' to prevent any disruptions.
+## 10. User Profiles, Reports, & Social Chat
+GSP.NET includes a comprehensive user profile system and a built-in realtime social chat for professionals to communicate and collaborate.
+
+### Profile Setup & Verification
+- **Configuration:** Click the Chat Panel (chat bubble icon), then click the **Profile Icon** (astronaut/gear) at the top right to open the "Edit Profile" panel. You can upload an avatar and set your username/designation.
+- **Verified Contributor Status:** The system automatically tracks user contributions across the platform (Parcels Registered, Topographical Features Mapped, Engineering Drawings Imported, Terrain Intelligence Models, Condominiums Modeled, Valuations, and Spatial Quality Audits). Once a user reaches **5 total contributions**, they automatically earn a "Verified Contributor" badge.
+- **Resilience:** Users can send/receive private messages and automated notifications (e.g., QC Deletions) even if their profiles are blank.
+
+### Professional Profile Report (PDF)
+Surveyors can generate an official record of their platform contributions.
+- **How to Export:** Inside the "Edit Profile" panel, click the **"View Profile Report"** button.
+- **Features:** It generates an Ultra-HD, print-friendly, A4 document featuring:
+  - Total contribution count and Verification Status.
+  - A detailed bar-chart breakdown of all contributions by category.
+  - An official **GSPNET Certification footer** with a scannable **QR Code** pointing back to the platform to authenticate the report.
+- The report is rendered natively and bypasses pop-up blockers, allowing users to print or save it as a high-quality PDF directly from their browser.
