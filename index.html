@@ -1830,32 +1830,6 @@
     <!-- Animated Geometric Background -->
     <div class="geometric-background">
         <div class="terrain-dtm-layer" aria-hidden="true">
-            <img id="terrain-dtm-raster" class="terrain-dtm-raster" alt="" width="1920" height="1080"
-                decoding="async" fetchpriority="low"
-                src="https://kwssgfanbntfjdclchfi.supabase.co/storage/v1/object/public/uploads/plugins/background.PNG">
-            <script>
-                (function () {
-                    var URLS = [
-                        'https://kwssgfanbntfjdclchfi.supabase.co/storage/v1/object/public/uploads/plugins/background.PNG',
-                        'https://kwssgfanbntfjdclchfi.supabase.co/storage/v1/object/public/uploads/plugins/theme.PNG'
-                    ];
-                    var img = document.getElementById('terrain-dtm-raster');
-                    if (!img) return;
-                    var primary = URLS[Math.floor(Math.random() * URLS.length)];
-                    var alternate = URLS[0] === primary ? URLS[1] : URLS[0];
-                    var usedFallback = false;
-                    img.addEventListener('error', function onTerrainImgError() {
-                        if (!usedFallback) {
-                            usedFallback = true;
-                            img.src = alternate;
-                            return;
-                        }
-                        img.removeEventListener('error', onTerrainImgError);
-                        img.style.display = 'none';
-                    });
-                    img.src = primary;
-                })();
-            </script>
             <div class="terrain-dtm-overlay"></div>
             <div class="terrain-dtm-glow"></div>
             <div class="terrain-dtm-vignette"></div>
