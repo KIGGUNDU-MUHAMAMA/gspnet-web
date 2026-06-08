@@ -24,8 +24,6 @@ CREATE POLICY "Authorized users can insert live transactions"
 ON public.live_transactions FOR INSERT 
 TO authenticated 
 WITH CHECK (
-    auth.uid() IN (
-        SELECT id FROM public.vsl_profiles WHERE role IN ('ADMIN', 'RSU', 'CLERK')
-    )
+    (auth.jwt() -> 'user_metadata' ->> 'role' IN ('LAND_CLERK', 'RSU', 'ADMIN'))
     OR auth.jwt()->>'email' = 'kiggundumuhamad@gmail.com'
 );
