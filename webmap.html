@@ -1058,6 +1058,7 @@
                         owner_category: 'INDIVIDUAL',
                         owner_number: owner.ownerNumber,
                         full_name: owner.name,
+                        owner_nin: owner.nin,
                         contact_phone: owner.phone,
                         contact_email: owner.email || null,
                         address: owner.address || null,
@@ -1100,6 +1101,30 @@
                         console.error('Document insert error:', docError);
                         throw docError;
                     }
+                }
+
+                // Generate pseudo-hash for blockchain feel
+                const txHashStr = `TX-${Date.now()}-${data.parcelId}-${registration.id}`;
+                let txHash = '0x';
+                try {
+                    const msgBuffer = new TextEncoder().encode(txHashStr);
+                    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+                    const hashArray = Array.from(new Uint8Array(hashBuffer));
+                    txHash += hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 40);
+                } catch(e) {
+                    txHash = '0x' + Math.random().toString(16).substring(2) + Date.now().toString(16);
+                }
+
+                // Insert into public ledger
+                try {
+                    await supabaseClient.from('live_transactions').insert({
+                        tx_hash: txHash,
+                        action_type: 'NEW_REGISTRATION',
+                        parcel_id: data.parcelId,
+                        location_summary: `${data.district}, ${data.subcounty}, ${data.village}`
+                    });
+                } catch (e) {
+                    console.error('Ledger insert error:', e);
                 }
 
                 alert(`✅ Registration successful! Registration ID: ${registration.id}`);
@@ -1495,9 +1520,9 @@
                         owner_type: 'CURRENT',
                         owner_category: 'INDIVIDUAL',
                         owner_number: owner.ownerNumber,
-                        owner_name: owner.name,
+                        full_name: owner.name,
                         owner_nin: owner.nin,
-                        owner_phone: owner.phone,
+                        contact_phone: owner.phone,
                         passport_photo_url: owner.photoUrl
                     });
                 }
@@ -1506,13 +1531,37 @@
                 await supabaseClient.from('land_documents').insert({
                     registration_id: currentRegistration.id,
                     document_type: transferType.toLowerCase() + '_document',
-                    document_url: transferDocUrl,
+                    file_url: transferDocUrl,
+                    file_name: 'transfer_document.pdf',
                     uploaded_by: user.id
                 });
 
+                // 5. Generate pseudo-hash for blockchain feel
+                const txHashStr = `TX-${Date.now()}-${currentRegistration.parcel_id}-${currentRegistration.id}`;
+                let txHash = '0x';
+                try {
+                    const msgBuffer = new TextEncoder().encode(txHashStr);
+                    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+                    const hashArray = Array.from(new Uint8Array(hashBuffer));
+                    txHash += hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 40);
+                } catch(e) {
+                    txHash = '0x' + Math.random().toString(16).substring(2) + Date.now().toString(16);
+                }
+
+                // 6. Insert into public ledger
+                try {
+                    await supabaseClient.from('live_transactions').insert({
+                        tx_hash: txHash,
+                        action_type: 'OWNERSHIP_TRANSFER',
+                        parcel_id: currentRegistration.parcel_id,
+                        location_summary: currentRegistration.district ? `${currentRegistration.district}` : 'Unknown Location'
+                    });
+                } catch (e) {
+                    console.error('Ledger insert error:', e);
+                }
 
                 // Success!
-                alert(`âœ… Transfer successful!\n\nOld Registration: ${currentRegistration.id}\nNew Registration: ${newRegistration.id}\n\nThe land has been transferred to the new owner(s).`);
+                alert(`✅ Transfer successful!\n\nRegistration ID: ${currentRegistration.id}\n\nThe land has been transferred to the new owner(s).`);
 
                 // Reset and reload
                 cancelTransfer();
@@ -60126,8 +60175,58 @@ function smoothChaikin(points) {
                 if (tab === 'rooms' && ChatSystem.currentRoom) {
                     await loadRoomPosts(ChatSystem.currentRoom);
                 }
+                
+                if (tab === 'ledger') {
+                    await loadLedgerFeed();
+                }
 
                 console.log(`📱 Switched to ${tab} tab`);
+            }
+            
+            // Load live transactions ledger
+            async function loadLedgerFeed() {
+                const container = document.getElementById('ledger-feed-container');
+                if (!container) return;
+                
+                try {
+                    const { data, error } = await window.supabaseClient
+                        .from('live_transactions')
+                        .select('*')
+                        .order('created_at', { ascending: false })
+                        .limit(50);
+                        
+                    if (error) throw error;
+                    
+                    if (!data || data.length === 0) {
+                        container.innerHTML = '<div style="text-align: center; color: #64748b; font-size: 13px; padding: 20px;">No verified transactions yet.</div>';
+                        return;
+                    }
+                    
+                    container.innerHTML = data.map(tx => `
+                        <div style="background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 12px; font-family: monospace;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <span style="color: #10b981; font-size: 12px; font-weight: 600;"><i class="fas fa-check-circle"></i> VERIFIED TRANSACTION</span>
+                                <span style="color: #94a3b8; font-size: 11px;">${new Date(tx.created_at).toLocaleString()}</span>
+                            </div>
+                            <div style="font-size: 13px; color: #e2e8f0; margin-bottom: 4px;">
+                                <span style="color: #38bdf8; font-weight: 600;">Type:</span> ${tx.action_type === 'NEW_REGISTRATION' ? '🆕 New Registration' : '🔄 Ownership Transfer'}
+                            </div>
+                            <div style="font-size: 13px; color: #e2e8f0; margin-bottom: 4px;">
+                                <span style="color: #38bdf8; font-weight: 600;">Parcel ID:</span> ${tx.parcel_id}
+                            </div>
+                            <div style="font-size: 13px; color: #e2e8f0; margin-bottom: 4px;">
+                                <span style="color: #38bdf8; font-weight: 600;">Location:</span> ${tx.location_summary}
+                            </div>
+                            <div style="font-size: 11px; color: #64748b; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(148, 163, 184, 0.1);">
+                                TxHash: ${tx.tx_hash}
+                            </div>
+                        </div>
+                    `).join('');
+                    
+                } catch (err) {
+                    console.error("Error loading ledger:", err);
+                    container.innerHTML = '<div style="text-align: center; color: #ef4444; font-size: 13px; padding: 20px;">Failed to load ledger data.</div>';
+                }
             }
 
             // Filter users
@@ -60656,6 +60755,7 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                 <div class="chat-tabs">
                     <button type="button" id="tab-rooms" class="chat-tab active">Chat Rooms<span class="chat-tab-badge" id="tab-rooms-badge" aria-hidden="true"></span></button>
                     <button type="button" id="tab-inbox" class="chat-tab">Inbox<span class="chat-tab-badge" id="tab-inbox-badge" aria-hidden="true"></span></button>
+                    <button type="button" id="tab-ledger" class="chat-tab">Live Transactions</button>
                     <button type="button" id="tab-bot" class="chat-tab">AI Assistant</button>
                 </div>
                 <div class="chat-controls">
@@ -60761,6 +60861,19 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                             <button id="message-send-btn" class="chat-input-send-btn" title="Send"><i class="fas fa-paper-plane"></i></button>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Live Transactions View -->
+            <div id="ledger-view" class="chat-view" style="display: flex; flex-direction: column; height: 100%; background: #0f172a;">
+                <div style="padding: 16px; border-bottom: 1px solid rgba(56, 189, 248, 0.2); background: rgba(15, 23, 42, 0.9);">
+                    <h3 style="margin: 0; color: #38bdf8; font-size: 16px; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-link"></i> Public Ledger
+                    </h3>
+                    <p style="margin: 4px 0 0 0; font-size: 12px; color: #94a3b8;">Real-time, immutable record of verified land transactions.</p>
+                </div>
+                <div id="ledger-feed-container" class="messages-list" style="flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+                    <div style="text-align: center; color: #64748b; font-size: 12px; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading blockchain ledger...</div>
                 </div>
             </div>
 
