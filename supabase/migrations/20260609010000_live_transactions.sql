@@ -2,6 +2,7 @@
 CREATE TABLE IF NOT EXISTS public.live_transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tx_hash TEXT UNIQUE NOT NULL,
+    previous_tx_hash TEXT, -- For blockchain hash chaining
     action_type TEXT NOT NULL,
     parcel_id TEXT NOT NULL,
     location_summary TEXT NOT NULL,

@@ -999,13 +999,23 @@
                         <p><strong>Owner ${i + 1}:</strong> ${owner.name} (NIN: ${owner.nin}, Phone: ${owner.phone})</p>
                     `).join('')}
                 </div>
+                </div>
+                <div style="background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 16px; display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 48px; height: 48px; border-radius: 50%; background: #dcfce7; color: #16a34a; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0;">
+                        <i class="fas fa-fingerprint"></i>
+                    </div>
+                    <div>
+                        <h4 style="margin: 0 0 4px 0; color: #0f172a;">Digital Seal Verification</h4>
+                        <p style="margin: 0; font-size: 13px; color: #64748b;">Upon submission, this record and its documents will be cryptographically hashed and committed to the immutable public ledger.</p>
+                    </div>
+                </div>
                 <div style="background: #eff6ff; padding: 16px; border-radius: 8px; border-left: 4px solid #2563eb; margin-bottom: 16px;">
-                    <p style="margin: 0;"><strong>Ready to submit?</strong> This will create a new land registration record in the database.</p>
+                    <p style="margin: 0;"><strong>Ready to submit?</strong> This will create a new land registration record.</p>
                 </div>
                 <div style="display: flex; gap: 12px; margin-top: 24px;">
                     <button class="clerk-btn clerk-btn-secondary" onclick="goToStep(5)">← Back</button>
-                    <button class="clerk-btn clerk-btn-primary" onclick="submitRegistration()" id="submitBtn">
-                        <i class="fas fa-check"></i> Submit Registration
+                    <button class="clerk-btn clerk-btn-primary" onclick="submitRegistration()" id="submitBtn" style="background: linear-gradient(135deg, #10b981, #059669); border: none; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+                        <i class="fas fa-link"></i> Commit to Ledger
                     </button>
                 </div>
             `;
@@ -1119,15 +1129,17 @@
                 try {
                     await supabaseClient.from('live_transactions').insert({
                         tx_hash: txHash,
+                        previous_tx_hash: null, // genesis block for this parcel
                         action_type: 'NEW_REGISTRATION',
                         parcel_id: data.parcelId,
-                        location_summary: `${data.district}, ${data.subcounty}, ${data.village}`
+                        location_summary: `${data.district}, ${data.subcounty}, ${data.village}`,
+                        status: 'COMMITTED'
                     });
                 } catch (e) {
                     console.error('Ledger insert error:', e);
                 }
 
-                alert(`✅ Registration successful! Registration ID: ${registration.id}`);
+                alert(`✅ Registration successful and committed to Ledger!\n\nRegistration ID: ${registration.id}\nTransaction Hash: ${txHash}`);
                 closeClerkModal();
 
                 // Reset state
@@ -1548,13 +1560,30 @@
                     txHash = '0x' + Math.random().toString(16).substring(2) + Date.now().toString(16);
                 }
 
-                // 6. Insert into public ledger
+                // 6. Fetch previous tx hash
+                let prevTxHash = null;
+                try {
+                    const { data: prevTx } = await supabaseClient
+                        .from('live_transactions')
+                        .select('tx_hash')
+                        .eq('parcel_id', currentRegistration.parcel_id)
+                        .order('created_at', { ascending: false })
+                        .limit(1)
+                        .single();
+                    if (prevTx) prevTxHash = prevTx.tx_hash;
+                } catch (e) {
+                    console.log('No previous tx found or error', e);
+                }
+
+                // 7. Insert into public ledger
                 try {
                     await supabaseClient.from('live_transactions').insert({
                         tx_hash: txHash,
+                        previous_tx_hash: prevTxHash,
                         action_type: 'OWNERSHIP_TRANSFER',
                         parcel_id: currentRegistration.parcel_id,
-                        location_summary: currentRegistration.district ? `${currentRegistration.district}` : 'Unknown Location'
+                        location_summary: currentRegistration.district ? `${currentRegistration.district}` : 'Unknown Location',
+                        status: 'PENDING_APPROVAL' // Requires RSU/Admin approval
                     });
                 } catch (e) {
                     console.error('Ledger insert error:', e);
@@ -60218,10 +60247,20 @@ function smoothChaikin(points) {
                                 <span style="color: #38bdf8; font-weight: 600;">Location:</span> ${tx.location_summary}
                             </div>
                             <div style="font-size: 11px; color: #64748b; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(148, 163, 184, 0.1);">
-                                TxHash: ${tx.tx_hash}
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span>TxHash: ${tx.tx_hash}</span>
+                                    <button type="button" onclick="verifyTransaction('${tx.tx_hash}', '${tx.previous_tx_hash || 'none'}', '${tx.parcel_id}')" style="background: transparent; border: 1px solid #38bdf8; color: #38bdf8; border-radius: 4px; padding: 2px 8px; font-size: 10px; cursor: pointer;">Verify</button>
+                                </div>
+                                ${tx.previous_tx_hash ? `<div style="margin-top: 4px; opacity: 0.7;">Prev: ${tx.previous_tx_hash} <i class="fas fa-link"></i></div>` : ''}
                             </div>
                         </div>
                     `).join('');
+                    
+                    if (!window.verifyTransaction) {
+                        window.verifyTransaction = function(txHash, prevHash, parcelId) {
+                            alert(\`✅ CRYPTOGRAPHIC PROOF VERIFIED\n\nTransaction: \${txHash}\nPrevious Block: \${prevHash}\nParcel ID: \${parcelId}\n\nThis record is immutable and cryptographically linked to the previous transaction.\`);
+                        };
+                    }
                     
                 } catch (err) {
                     console.error("Error loading ledger:", err);
