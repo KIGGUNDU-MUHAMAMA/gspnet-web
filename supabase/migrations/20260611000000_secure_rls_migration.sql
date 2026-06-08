@@ -141,7 +141,7 @@ USING (EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND ro
 DROP POLICY IF EXISTS "Enable delete for creators and admins" ON public.map_features;
 CREATE POLICY "Enable delete for creators and admins" 
 ON public.map_features FOR DELETE 
-USING (auth.uid()::text = created_by::text OR EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'ADMIN'));
+USING (auth.uid()::text = user_id::text OR EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'ADMIN'));
 
 -- --------------------------
 -- live_transactions
