@@ -10,9 +10,9 @@ ALTER VIEW public.profile_contribution_stats SET (security_invoker = true);
 -- Enable RLS on property_listings
 ALTER TABLE public.property_listings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Anyone can view property listings" ON public.property_listings FOR SELECT USING (true);
-CREATE POLICY "Users can insert their own property listings" ON public.property_listings FOR INSERT WITH CHECK (auth.uid() = created_by);
-CREATE POLICY "Users can update their own property listings" ON public.property_listings FOR UPDATE USING (auth.uid() = created_by) WITH CHECK (auth.uid() = created_by);
-CREATE POLICY "Users can delete their own property listings" ON public.property_listings FOR DELETE USING (auth.uid() = created_by);
+CREATE POLICY "Users can insert their own property listings" ON public.property_listings FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update their own property listings" ON public.property_listings FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own property listings" ON public.property_listings FOR DELETE USING (auth.uid() = user_id);
 
 -- ==========================================
 -- 3. FIX VULNERABLE RLS (USER_METADATA)
