@@ -293,7 +293,6 @@
             this.extentLayer = new ol.layer.Vector({
                 title: 'GIS Export Extent',
                 source: this.extentSource,
-                displayInLayerSwitcher: false,
                 zIndex: 2000,
                 style: new ol.style.Style({
                     stroke: new ol.style.Stroke({ color: '#2563eb', width: 2, lineDash: [8, 4] }),
@@ -331,7 +330,17 @@
                 return;
             }
 
-            this.map.addLayer(this.extentLayer);
+            if (window.annotationsGroup) {
+                window.annotationsGroup.getLayers().push(this.extentLayer);
+                if (typeof window.layerSwitcher !== 'undefined' && typeof window.layerSwitcher.renderPanel === 'function') {
+                    window.layerSwitcher.renderPanel();
+                } else {
+                    const lsControl = this.map.getControls().getArray().find(c => typeof c.renderPanel === 'function');
+                    if (lsControl) lsControl.renderPanel();
+                }
+            } else {
+                this.map.addLayer(this.extentLayer);
+            }
             this._buildFormatCards();
             this._populateCrsSelect();
             this._bindUi();

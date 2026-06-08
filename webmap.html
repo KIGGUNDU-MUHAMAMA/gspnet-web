@@ -14966,6 +14966,158 @@
             }
         }
     </style>
+    <style id="custom-layer-switcher-ui">
+        /* Premium Layer Switcher Overhaul */
+        /* The main panel */
+        .layer-switcher.shown {
+            background: rgba(255, 255, 255, 0.95) !important;
+            backdrop-filter: blur(12px) !important;
+            -webkit-backdrop-filter: blur(12px) !important;
+            border: 1px solid rgba(0, 0, 0, 0.1) !important;
+            border-radius: 12px !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+            color: #0f172a !important;
+            padding: 15px !important;
+            max-width: 320px;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+        }
+
+        /* Mobile specific adjustments */
+        @media (max-width: 768px) {
+            .layer-switcher.shown {
+                width: 90vw !important;
+                max-width: none !important;
+                max-height: 60vh !important;
+                overflow-y: auto !important;
+                border-radius: 16px !important;
+                padding: 15px 10px !important;
+            }
+        }
+
+        /* Panel header / title */
+        .layer-switcher .panel {
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+        }
+
+        /* Group Headers (li.group > label) */
+        .layer-switcher li.group > label {
+            font-weight: 600 !important;
+            font-size: 14px !important;
+            color: #0f172a !important;
+            padding: 12px 10px !important;
+            margin: 5px 0 !important;
+            background: rgba(0, 0, 0, 0.05) !important;
+            border-radius: 6px !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+            display: flex !important;
+            align-items: center !important;
+            border: 1px solid transparent !important;
+        }
+        
+        .layer-switcher li.group > label:hover {
+            background: rgba(0, 0, 0, 0.08) !important;
+            border-color: rgba(0, 0, 0, 0.1) !important;
+        }
+
+        /* Hide actual dropdown button since we will tap the label */
+        .layer-switcher li.group > button {
+            display: none !important;
+        }
+
+        /* Lists */
+        .layer-switcher ul {
+            padding-left: 15px !important;
+            margin: 5px 0 !important;
+        }
+        
+        /* Individual items */
+        .layer-switcher li.layer {
+            padding: 8px 5px !important;
+            display: flex !important;
+            align-items: center !important;
+            font-size: 13px !important;
+            color: #334155 !important;
+            transition: color 0.2s !important;
+        }
+
+        .layer-switcher li.layer:hover {
+            color: #000000 !important;
+            background: rgba(0, 0, 0, 0.03) !important;
+            border-radius: 4px !important;
+        }
+
+        /* Custom Checkboxes/Radios */
+        .layer-switcher input[type="checkbox"], 
+        .layer-switcher input[type="radio"] {
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            width: 16px !important;
+            height: 16px !important;
+            border: 2px solid rgba(0, 0, 0, 0.3) !important;
+            margin-right: 10px !important;
+            position: relative !important;
+            cursor: pointer !important;
+            outline: none !important;
+            transition: all 0.2s !important;
+            flex-shrink: 0 !important;
+            background-color: transparent !important;
+        }
+
+        .layer-switcher input[type="checkbox"] {
+            border-radius: 4px !important;
+        }
+        .layer-switcher input[type="radio"] {
+            border-radius: 50% !important;
+        }
+
+        .layer-switcher input[type="checkbox"]:checked,
+        .layer-switcher input[type="radio"]:checked {
+            background-color: #00f2fe !important;
+            border-color: #00f2fe !important;
+            box-shadow: 0 0 8px rgba(0, 242, 254, 0.4) !important;
+        }
+
+        .layer-switcher input[type="checkbox"]:checked::after {
+            content: '' !important;
+            position: absolute !important;
+            left: 4px !important;
+            top: 1px !important;
+            width: 4px !important;
+            height: 8px !important;
+            border: solid #0f172a !important;
+            border-width: 0 2px 2px 0 !important;
+            transform: rotate(45deg) !important;
+        }
+
+        /* Scrollbar */
+        .layer-switcher.shown::-webkit-scrollbar {
+            width: 6px;
+        }
+        .layer-switcher.shown::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .layer-switcher.shown::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+        .layer-switcher.shown::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 0, 0, 0.3);
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.body.addEventListener('click', function(e) {
+                const label = e.target.closest('.layer-switcher li.group > label');
+                if (label) {
+                    const btn = label.parentElement.querySelector('button');
+                    if (btn) btn.click();
+                }
+            });
+        });
+    </script>
 </head>
 
 <body>
@@ -19377,7 +19529,6 @@
 
             // Keep this out of the switcher and auto-link it to terrain base visibility.
             const esriTerrainReference = new ol.layer.Tile({
-                title: 'Esri Terrain Reference Overlay',
                 type: 'overlay',
                 visible: false,
                 displayInLayerSwitcher: false,
@@ -19462,7 +19613,8 @@
 
             // Create base maps group
             const baseMapsGroup = new ol.layer.Group({
-                title: 'Base Maps',
+                title: 'BASE MAPS',
+                fold: 'close',
                 layers: [
                     esriSatellite,
                     googleHybrid,
@@ -19484,6 +19636,7 @@
             // Create terrain group (always at bottom) - only working layers
             const terrainGroup = new ol.layer.Group({
                 title: 'Terrain & Relief',
+                fold: 'close',
                 layers: [
                     openTopoMapLayer,
                     terrainLayer
@@ -21859,6 +22012,7 @@
             // Create layer group
             const surveyPolygonsGroup = new ol.layer.Group({
                 title: 'Survey Polygons',
+                fold: 'close',
                 layers: Object.values(polygonLayers)
             });
 
@@ -22022,6 +22176,7 @@
 
             const surveyControlsGroup = new ol.layer.Group({
                 title: 'SURVEY CONTROLS',
+                fold: 'close',
                 layers: window.surveyControlsLayers
             });
             map.addLayer(surveyControlsGroup);
@@ -22685,6 +22840,7 @@
 
             const environmentalLayerGroup = new ol.layer.Group({
                 title: 'ENVIRONMENTAL LAYERS',
+                fold: 'close',
                 layers: environmentalLayersArray,
                 zIndex: 890 // Below GSPNET Layers but above basemaps
             });
@@ -22724,6 +22880,7 @@
             // Create GSPNET Layer Group
             const gspnetLayerGroup = new ol.layer.Group({
                 title: 'GSPNET LAYERS',
+                fold: 'close',
                 layers: gspnetLayers,
                 zIndex: 900 // Above base maps
             });
@@ -23244,7 +23401,7 @@
             // Add Layer Switcher with improved configuration
             const layerSwitcher = new ol.control.LayerSwitcher({
                 tipLabel: 'Layers',
-                groupSelectStyle: 'children',
+                groupSelectStyle: 'none',
                 activationMode: 'click',
                 startActive: true
             });
@@ -23373,7 +23530,16 @@
                     return new ol.style.Style();
                 }
             });
-            map.addLayer(drawingLayer);
+
+            // Create the unified annotations group
+            window.annotationsGroup = new ol.layer.Group({
+                title: 'ANNOTATIONS',
+                fold: 'close',
+                visible: true,
+                layers: []
+            });
+            map.addLayer(window.annotationsGroup);
+            window.annotationsGroup.getLayers().push(drawingLayer);
 
             // PATCH: Create dedicated search layer for coordinate search results
             const searchSource = new ol.source.Vector();
@@ -23397,7 +23563,7 @@
                     });
                 }
             });
-            map.addLayer(searchLayer);
+            window.annotationsGroup.getLayers().push(searchLayer);
 
             // PATCH: Create measurement layer for measurement tools
             const measurementSource = new ol.source.Vector();
@@ -23443,7 +23609,7 @@
                     return new ol.style.Style();
                 }
             });
-            map.addLayer(measurementLayer);
+            window.annotationsGroup.getLayers().push(measurementLayer);
 
             // Create a vector layer for project pins
             const projectPinsSource = new ol.source.Vector();
@@ -23476,7 +23642,7 @@
                 },
                 zIndex: 999
             });
-            map.addLayer(projectPinsLayer);
+            window.annotationsGroup.getLayers().push(projectPinsLayer);
 
             // Create a vector layer for markers
             const markerSource = new ol.source.Vector();
@@ -23566,7 +23732,7 @@
                     }
                 }
             });
-            map.addLayer(markerLayer);
+            window.annotationsGroup.getLayers().push(markerLayer);
 
             // ============================================
             // QUALITY FLAGS FEATURE IMPLEMENTATION
@@ -23875,7 +24041,7 @@
                     });
                 }
             });
-            map.addLayer(qualityFlagsLayer);
+            window.annotationsGroup.getLayers().push(qualityFlagsLayer);
 
             // Initialize panel state from localStorage
             function loadPanelState() {
@@ -42359,10 +42525,14 @@ function smoothChaikin(points) {
                     terrain3DState.extentLayer = new ol.layer.Vector({
                         source: extentSource,
                         style: createExtentStyle,
-                        title: 'Processing Extent',
+                        title: 'Cut & Fill Extent',
                         zIndex: 85
                     });
-                    map.addLayer(terrain3DState.extentLayer);
+                    if (window.annotationsGroup) {
+                        window.annotationsGroup.getLayers().push(terrain3DState.extentLayer);
+                    } else {
+                        map.addLayer(terrain3DState.extentLayer);
+                    }
                 }
             }
 
@@ -43368,7 +43538,7 @@ function smoothChaikin(points) {
                 function _initDemExtentLayer() {
                     if (_demExtentLayer) return;
                     _demExtentLayer = new ol.layer.Vector({
-                        title: 'DEM Extent',
+                        title: 'GIS Export Extent',
                         source: new ol.source.Vector(),
                         style: new ol.style.Style({
                             stroke: new ol.style.Stroke({ color: '#3b82f6', width: 2, lineDash: [8,4] }),
@@ -43377,7 +43547,14 @@ function smoothChaikin(points) {
                         }),
                         zIndex: 998
                     });
-                    map.addLayer(_demExtentLayer);
+                    if (window.annotationsGroup) {
+                        window.annotationsGroup.getLayers().push(_demExtentLayer);
+                        // Force layer switcher update
+                        const lsControl = map.getControls().getArray().find(c => typeof c.renderPanel === 'function');
+                        if (lsControl) lsControl.renderPanel();
+                    } else {
+                        map.addLayer(_demExtentLayer);
+                    }
                 }
 
                 function _getDemExtentBounds() {
@@ -43970,6 +44147,7 @@ function smoothChaikin(points) {
                 }
 
                 function init() {
+                    _initDemExtentLayer();
                     const sec = _el('dem-fetch-section');
                     if (sec) sec.style.display = 'none';
                     // Mode A buttons
@@ -64842,7 +65020,11 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
                     zIndex: 45,
                     title: 'Condominium Footprints'
                 });
-                map.addLayer(condoState.footprintLayer);
+                if (window.annotationsGroup) {
+                    window.annotationsGroup.getLayers().push(condoState.footprintLayer);
+                } else {
+                    map.addLayer(condoState.footprintLayer);
+                }
                 console.log(`[Condo] Loaded ${features.length} building footprints`);
 
             } catch (err) {
