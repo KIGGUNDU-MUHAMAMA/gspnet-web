@@ -29473,10 +29473,8 @@
                 map.on('moveend', () => {
                     if (previewDebounce) clearTimeout(previewDebounce);
                     previewDebounce = setTimeout(() => {
-                        previewSource.clear(true);
-                        // Trigger reload by changing extent slightly
-                        const currentExtent = map.getView().calculateExtent();
-                        map.getView().fit(currentExtent, { duration: 0 });
+                        // Simply clear the source, the loader will fetch new data if needed
+                        previewSource.clear();
                     }, 350);
                 });
 
@@ -60258,7 +60256,7 @@ function smoothChaikin(points) {
                     
                     if (!window.verifyTransaction) {
                         window.verifyTransaction = function(txHash, prevHash, parcelId) {
-                            alert(\`✅ CRYPTOGRAPHIC PROOF VERIFIED\n\nTransaction: \${txHash}\nPrevious Block: \${prevHash}\nParcel ID: \${parcelId}\n\nThis record is immutable and cryptographically linked to the previous transaction.\`);
+                            alert(`✅ CRYPTOGRAPHIC PROOF VERIFIED\n\nTransaction: ${txHash}\nPrevious Block: ${prevHash}\nParcel ID: ${parcelId}\n\nThis record is immutable and cryptographically linked to the previous transaction.`);
                         };
                     }
                     
