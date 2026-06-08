@@ -234,7 +234,8 @@
                 }
 
                 const userRole = user.user_metadata?.role || user.app_metadata?.role;
-                if (userRole === 'LAND_CLERK' || userRole === 'ADMIN') {
+                const userEmail = user.email;
+                if (userRole === 'LAND_CLERK' || userRole === 'ADMIN' || userRole === 'RSU' || userEmail === 'kiggundumuhamad@gmail.com') {
                     document.getElementById('clerkBtn').style.display = 'inline-flex';
                     return true;
                 } else {
