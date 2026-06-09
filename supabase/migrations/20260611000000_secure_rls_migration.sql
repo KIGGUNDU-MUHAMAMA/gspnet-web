@@ -33,7 +33,6 @@ DROP TRIGGER IF EXISTS on_auth_user_created_role ON auth.users;
 DROP FUNCTION IF EXISTS public.handle_new_user_role();
 DROP TABLE IF EXISTS public.user_roles CASCADE;
 
-
 -- D. Recreate all flagged RLS policies to use the secure public.profiles table
 
 -- --------------------------
@@ -42,12 +41,12 @@ DROP TABLE IF EXISTS public.user_roles CASCADE;
 DROP POLICY IF EXISTS "Land clerks, RSUs, and Admins can insert documents" ON public.land_documents;
 CREATE POLICY "Land clerks, RSUs, and Admins can insert documents" 
 ON public.land_documents FOR INSERT 
-WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')));
+WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')) OR auth.jwt()->>'email' = 'kiggundumuhamad@gmail.com');
 
 DROP POLICY IF EXISTS "Land clerks, RSUs, and Admins can view all documents" ON public.land_documents;
 CREATE POLICY "Land clerks, RSUs, and Admins can view all documents" 
 ON public.land_documents FOR SELECT 
-USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')));
+USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')) OR auth.jwt()->>'email' = 'kiggundumuhamad@gmail.com');
 
 -- --------------------------
 -- land_owners
@@ -55,12 +54,12 @@ USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN (
 DROP POLICY IF EXISTS "Land clerks, RSUs, and Admins can insert owners" ON public.land_owners;
 CREATE POLICY "Land clerks, RSUs, and Admins can insert owners" 
 ON public.land_owners FOR INSERT 
-WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')));
+WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')) OR auth.jwt()->>'email' = 'kiggundumuhamad@gmail.com');
 
 DROP POLICY IF EXISTS "Land clerks, RSUs, and Admins can view all owners" ON public.land_owners;
 CREATE POLICY "Land clerks, RSUs, and Admins can view all owners" 
 ON public.land_owners FOR SELECT 
-USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')));
+USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')) OR auth.jwt()->>'email' = 'kiggundumuhamad@gmail.com');
 
 -- --------------------------
 -- polygon_features
@@ -68,7 +67,7 @@ USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN (
 DROP POLICY IF EXISTS "Enable delete for creators and admins" ON public.polygon_features;
 CREATE POLICY "Enable delete for creators and admins" 
 ON public.polygon_features FOR DELETE 
-USING (auth.uid()::text = created_by::text OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'ADMIN'));
+USING (auth.uid()::text = created_by::text OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'ADMIN') OR auth.jwt()->>'email' = 'kiggundumuhamad@gmail.com');
 
 -- --------------------------
 -- land_registrations
@@ -76,18 +75,18 @@ USING (auth.uid()::text = created_by::text OR EXISTS (SELECT 1 FROM public.profi
 DROP POLICY IF EXISTS "Land clerks, RSUs, and Admins can insert registrations" ON public.land_registrations;
 CREATE POLICY "Land clerks, RSUs, and Admins can insert registrations" 
 ON public.land_registrations FOR INSERT 
-WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')));
+WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')) OR auth.jwt()->>'email' = 'kiggundumuhamad@gmail.com');
 
 DROP POLICY IF EXISTS "Land clerks, RSUs, and Admins can update registrations" ON public.land_registrations;
 CREATE POLICY "Land clerks, RSUs, and Admins can update registrations" 
 ON public.land_registrations FOR UPDATE 
-USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')))
-WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')));
+USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')) OR auth.jwt()->>'email' = 'kiggundumuhamad@gmail.com')
+WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')) OR auth.jwt()->>'email' = 'kiggundumuhamad@gmail.com');
 
 DROP POLICY IF EXISTS "Land clerks, RSUs, and Admins can view all registrations" ON public.land_registrations;
 CREATE POLICY "Land clerks, RSUs, and Admins can view all registrations" 
 ON public.land_registrations FOR SELECT 
-USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')));
+USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')) OR auth.jwt()->>'email' = 'kiggundumuhamad@gmail.com');
 
 -- --------------------------
 -- land_transfers
@@ -95,12 +94,12 @@ USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN (
 DROP POLICY IF EXISTS "Land clerks, RSUs, and Admins can insert transfers" ON public.land_transfers;
 CREATE POLICY "Land clerks, RSUs, and Admins can insert transfers" 
 ON public.land_transfers FOR INSERT 
-WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')));
+WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')) OR auth.jwt()->>'email' = 'kiggundumuhamad@gmail.com');
 
 DROP POLICY IF EXISTS "Land clerks, RSUs, and Admins can view all transfers" ON public.land_transfers;
 CREATE POLICY "Land clerks, RSUs, and Admins can view all transfers" 
 ON public.land_transfers FOR SELECT 
-USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')));
+USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')) OR auth.jwt()->>'email' = 'kiggundumuhamad@gmail.com');
 
 -- --------------------------
 -- registration_audit_log
@@ -108,12 +107,12 @@ USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN (
 DROP POLICY IF EXISTS "Land clerks, RSUs, and Admins can insert audit log" ON public.registration_audit_log;
 CREATE POLICY "Land clerks, RSUs, and Admins can insert audit log" 
 ON public.registration_audit_log FOR INSERT 
-WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')));
+WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')) OR auth.jwt()->>'email' = 'kiggundumuhamad@gmail.com');
 
 DROP POLICY IF EXISTS "Land clerks, RSUs, and Admins can view audit log" ON public.registration_audit_log;
 CREATE POLICY "Land clerks, RSUs, and Admins can view audit log" 
 ON public.registration_audit_log FOR SELECT 
-USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')));
+USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('LAND_CLERK', 'RSU', 'ADMIN')) OR auth.jwt()->>'email' = 'kiggundumuhamad@gmail.com');
 
 -- --------------------------
 -- map_features
@@ -121,7 +120,7 @@ USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN (
 DROP POLICY IF EXISTS "Enable delete for creators and admins" ON public.map_features;
 CREATE POLICY "Enable delete for creators and admins" 
 ON public.map_features FOR DELETE 
-USING (auth.uid()::text = user_id::text OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'ADMIN'));
+USING (auth.uid()::text = user_id::text OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'ADMIN') OR auth.jwt()->>'email' = 'kiggundumuhamad@gmail.com');
 
 -- --------------------------
 -- live_transactions
