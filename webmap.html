@@ -22269,6 +22269,97 @@
                 return layer;
             });
 
+            function getLiveObservationStyle(feature, resolution) {
+                const name = feature.get('name') || 'OBS';
+                const acc = feature.get('accuracy') ? Number(feature.get('accuracy')).toFixed(3) + 'm' : '';
+                
+                // If zoomed out (resolution > 2.0), only show a small dot
+                if (resolution > 2.0) {
+                    return new ol.style.Style({
+                        image: new ol.style.Circle({
+                            radius: 4,
+                            fill: new ol.style.Fill({ color: '#E91E63' })
+                        })
+                    });
+                }
+                
+                // Zoomed in: show larger circle with crosshair-like border and text
+                return new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: 8,
+                        fill: new ol.style.Fill({ color: 'rgba(233, 30, 99, 0.4)' }),
+                        stroke: new ol.style.Stroke({ color: '#E91E63', width: 3 })
+                    }),
+                    text: new ol.style.Text({
+                        text: name + (acc ? '\n' + acc : ''),
+                        font: 'bold 12px Inter, sans-serif',
+                        fill: new ol.style.Fill({ color: '#ffffff' }),
+                        stroke: new ol.style.Stroke({ color: '#000000', width: 3 }),
+                        offsetY: -18
+                    })
+                });
+            }
+
+            const liveObservationsSource = new ol.source.Vector();
+            window.liveObservationsSource = liveObservationsSource; // Global access for Rover
+
+            const liveObservationsLayer = new ol.layer.Vector({
+                title: 'Live Field Observations',
+                source: liveObservationsSource,
+                zIndex: 601,
+                style: getLiveObservationStyle,
+                visible: false,
+                maxResolution: 10.0 // Visible at slightly lower zoom levels as requested
+            });
+            window.surveyControlsLayers.push(liveObservationsLayer);
+
+            // Fetch and Sync Real-time Observations
+            async function initLiveObservations() {
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('gsp_field_observations')
+                        .select('*');
+                    
+                    if (data && !error) {
+                        const features = data.map(obs => {
+                            const feature = new ol.Feature({
+                                geometry: new ol.geom.Point(ol.proj.fromLonLat([obs.lon, obs.lat])),
+                                id: obs.id,
+                                name: obs.name,
+                                accuracy: obs.accuracy,
+                                mode: obs.mode,
+                                cors_provider: obs.cors_provider,
+                                height: obs.height
+                            });
+                            feature.setId(obs.id);
+                            return feature;
+                        });
+                        liveObservationsSource.addFeatures(features);
+                    }
+
+                    // Subscribe to Realtime
+                    supabaseClient.channel('live-observations-channel')
+                        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'gsp_field_observations' }, payload => {
+                            const obs = payload.new;
+                            const feature = new ol.Feature({
+                                geometry: new ol.geom.Point(ol.proj.fromLonLat([obs.lon, obs.lat])),
+                                id: obs.id,
+                                name: obs.name,
+                                accuracy: obs.accuracy,
+                                mode: obs.mode,
+                                cors_provider: obs.cors_provider,
+                                height: obs.height
+                            });
+                            feature.setId(obs.id);
+                            window.liveObservationsSource.addFeature(feature);
+                        })
+                        .subscribe();
+                } catch (e) {
+                    console.error("Error loading live observations:", e);
+                }
+            }
+            initLiveObservations();
+
             const surveyControlsGroup = new ol.layer.Group({
                 title: 'SURVEY CONTROLS',
                 fold: 'close',
@@ -66340,6 +66431,11 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
   <!-- Map -->
   <div id="rvMapContainer">
     <div id="rvMap"></div>
+    <div class="ol-control ol-unselectable" style="top: 10px; right: 10px; position: absolute; z-index: 1000; padding: 2px;">
+        <button type="button" id="rvTopMarkBtn" title="Measure" style="background: var(--rv-dark1, #1e1e1e); border: 1px solid var(--rv-border, #333); color: var(--rv-txt1, #f3f4f6); width: 32px; height: 32px; cursor: pointer; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.5);">
+            <i class="fas fa-map-marker-alt"></i>
+        </button>
+    </div>
     <!-- Basemap switcher overlay -->
     <div id="rvBasemapBar">
       <div class="rv-bm-thumb active" data-bm="hybrid">
@@ -66363,20 +66459,17 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
     <div id="rvActionBar">
       <button id="rvActionToggle" title="Toggle tools">▲ Tools</button>
       <div id="rvActionBtns">
-        <button class="rv-action-btn" id="rvMarkBtn" title="Mark Point">
-          <i class="fas fa-map-pin"></i><span>MARK</span>
-        </button>
         <button class="rv-action-btn" id="rvSelectBtn" title="Select Parcel">
           <i class="fas fa-vector-square"></i><span>SELECT</span>
         </button>
-        <button class="rv-action-btn" id="rvControlBtn" title="Find Nearby Controls">
+        <button class="rv-action-btn" id="rvControlBtn" title="Find Nearby Observations">
           <i class="fas fa-crosshairs"></i><span>CONTROL</span>
         </button>
         <button class="rv-action-btn" id="rvRecordBtn" title="Record Boundary Walk">
           <i class="fas fa-route"></i><span>WALK</span>
         </button>
-        <button class="rv-action-btn" id="rvAreaBtn" title="Area from Points">
-          <i class="fas fa-draw-polygon"></i><span>AREA</span>
+        <button class="rv-action-btn" id="rvAreaBtn" title="COGO (Area from Points)">
+          <i class="fas fa-draw-polygon"></i><span>COGO</span>
         </button>
         <button class="rv-action-btn" id="rvExportBtn" title="Export Data">
           <i class="fas fa-file-export"></i><span>EXPORT</span>
@@ -66460,11 +66553,17 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
 <!-- === Mark Point Modal === -->
 <div class="rv-modal-backdrop" id="rvMarkModal">
   <div class="rv-modal">
-    <h3><i class="fas fa-map-pin" style="color:var(--rv-amber)"></i> Mark Point</h3>
-    <label>Point Name / ID</label>
-    <input type="text" id="rvMarkName" placeholder="e.g. C1, BM-001" />
-    <label>Description (optional)</label>
-    <input type="text" id="rvMarkDesc" placeholder="Corner, benchmark…" />
+    <h3><i class="fas fa-map-pin" style="color:var(--rv-amber)"></i> Measure</h3>
+    <div style="display:flex; gap:10px; margin-bottom:4px;">
+      <div style="flex:1;">
+        <label>name</label>
+        <input type="text" id="rvMarkName" placeholder="e.g. C1, BM-001" style="width:100%;box-sizing:border-box;" />
+      </div>
+      <div style="flex:1;">
+        <label>description</label>
+        <input type="text" id="rvMarkDesc" placeholder="Corner, benchmark…" style="width:100%;box-sizing:border-box;" />
+      </div>
+    </div>
     <label style="display:flex;align-items:center;margin-top:10px;color:var(--rv-txt2);">
       <input type="checkbox" id="rvMarkAvg" checked> Use 5-reading average
     </label>
@@ -66485,8 +66584,8 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
 <!-- === Controls Modal === -->
 <div class="rv-modal-backdrop" id="rvControlModal" onclick="if(event.target===this) this.classList.remove('rv-modal-open')">
   <div class="rv-modal">
-    <h3><i class="fas fa-crosshairs" style="color:var(--rv-amber)"></i> Nearby Controls</h3>
-    <div style="font-size:11px;color:var(--rv-txt2);margin-bottom:8px;">Control points within 2km</div>
+    <h3><i class="fas fa-satellite-dish" style="color:var(--rv-amber)"></i> Nearby Observations</h3>
+    <div style="font-size:11px;color:var(--rv-txt2);margin-bottom:8px;">Live Field Observations within ~1km</div>
     <div id="rvControlList" style="max-height:50vh; overflow-y:auto; text-align:left; border: 1px solid var(--rv-border); background: var(--rv-bg2); padding: 5px; border-radius: 4px;">
       <!-- Filled dynamically -->
     </div>
@@ -66529,6 +66628,16 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
       <button class="rv-export-btn kml" id="rvExportKmlBtn"><i class="fas fa-globe"></i>KML<br><small>Polygon</small></button>
       <button class="rv-export-btn dxf" id="rvExportDxfBtn"><i class="fas fa-drafting-compass"></i>DXF<br><small>R12 ASCII</small></button>
     </div>
+
+    <!-- NEW GSP.Storage Section -->
+    <h4 style="margin: 15px 0 5px; font-size: 13px; color: var(--rv-txt1); border-top: 1px solid var(--rv-dark1); padding-top: 10px;">
+      <i class="fas fa-cloud-upload-alt" style="color:var(--rv-amber)"></i> Save to GSP
+    </h4>
+    <div id="rvGspExportList" style="max-height: 150px; overflow-y: auto; background: var(--rv-dark1); border: 1px solid var(--rv-dark2); border-radius: 4px; padding: 5px; margin-bottom: 10px; font-size: 13px; text-align: left;">
+      <!-- Populated via JS -->
+    </div>
+    <button class="rv-btn-primary" id="rvExportGspBtn" style="width: 100%;"><i class="fas fa-cloud-upload-alt"></i> Save Selected to GSP</button>
+
     <div class="rv-modal-btns" style="margin-top:12px;">
       <button class="rv-btn-secondary" id="rvExportCloseBtn">Close</button>
     </div>
@@ -66713,19 +66822,33 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
 </div>
 
 <!-- === Area Result Modal (Enhanced) === -->
+<style>
+.rv-seg { display:flex; background:var(--rv-surface2); border-radius:4px; margin-bottom:6px; }
+.rv-seg label { flex:1; text-align:center; cursor:pointer; margin:0; }
+.rv-seg input[type="radio"] { display:none; }
+.rv-seg span { display:block; padding:6px; font-size:13px; font-weight:600; border-radius:3px; color:var(--rv-txt2); transition:0.2s; margin:2px; }
+.rv-seg input[type="radio"]:checked + span { background:var(--rv-amber); color:#111; box-shadow:0 1px 3px rgba(0,0,0,0.3); }
+</style>
 <div class="rv-modal-backdrop" id="rvAreaModal">
-  <div class="rv-modal">
-    <h3><i class="fas fa-draw-polygon" style="color:var(--rv-amber)"></i> Area Calculator</h3>
-    <div class="rv-form-row" style="margin-bottom:10px;">
-      <label>Point Source</label>
-      <select id="rvAreaSrcSel" class="rv-select" onchange="rvAreaPopulatePicker(this.value);rvCalcAreaFromSel();"></select>
+  <div class="rv-modal" style="padding: 12px 16px;">
+    <h3 style="margin: 0 0 8px 0; font-size: 16px; text-align: center;"><i class="fas fa-calculator" style="color:var(--rv-amber)"></i> COGO</h3>
+    
+    <div class="rv-seg">
+      <label><input type="radio" name="rvCogoMode" value="area" checked onchange="rvCalcAreaFromSel()"><span>Area</span></label>
+      <label><input type="radio" name="rvCogoMode" value="dist" onchange="rvCalcAreaFromSel()"><span>Distance</span></label>
     </div>
-    <div id="rvAreaPicker" style="display:none;max-height:140px;overflow-y:auto;margin-bottom:8px;border:1px solid var(--rv-border);border-radius:6px;"></div>
-    <div id="rvAreaResult" style="font-size:28px;font-weight:800;color:var(--rv-amber);text-align:center;margin:14px 0;">—</div>
-    <div id="rvAreaResultSub" style="font-size:12px;color:var(--rv-txt2);text-align:center;line-height:2;">—</div>
-    <div class="rv-modal-btns" style="margin-top:12px;">
-      <button class="rv-btn-primary" id="rvAreaCalcBtn" onclick="rvCalcAreaFromSel()">Recalculate</button>
-      <button class="rv-btn-secondary" id="rvAreaCloseBtn">Close</button>
+
+    <div class="rv-form-row" style="margin-bottom:4px; font-size: 11px;">
+      <select id="rvAreaSrcSel" class="rv-select" style="padding: 4px; font-size: 11px;" onchange="rvAreaPopulatePicker(this.value);rvCalcAreaFromSel();"></select>
+    </div>
+
+    <div id="rvAreaPicker" style="display:none;max-height:300px;overflow-y:auto;margin-bottom:6px;border:1px solid var(--rv-border);border-radius:4px;"></div>
+    
+    <div id="rvAreaResultSub" style="font-size:13px;font-weight:700;color:var(--rv-amber);text-align:center;line-height:1.4;margin:6px 0;">—</div>
+    
+    <div class="rv-modal-btns" style="margin-top:6px; display:flex; gap:8px;">
+      <button class="rv-btn-primary" id="rvAreaCalcBtn" onclick="rvCalcAreaFromSel()" style="flex:1; padding: 6px; font-size: 12px;">Recalculate</button>
+      <button class="rv-btn-secondary" id="rvAreaCloseBtn" style="flex:1; padding: 6px; font-size: 12px;">Close</button>
     </div>
   </div>
 </div>
@@ -67472,8 +67595,9 @@ ${RV.points.length > 0 ? `
 </table>
 ` : '<p style="color:#64748b;margin-bottom:20px;">No points captured during this session.</p>'}
 
-<div class="disclaimer">
-  ⚠ <strong>Disclaimer:</strong> Coordinates and areas shown are derived from ${RV.gnssMode === 'external' ? 'an external GNSS receiver' : 'device GPS'} and are for reference/reconnaissance purposes only. They do not constitute a professional survey and should not be used for legal boundary determination.
+<div class="disclaimer" style="background:#f1f5f9; border-color:#cbd5e1; color:#334155;">
+  <strong>Session Information:</strong> Conducted with ${RV.gnssMode === 'external' ? 'an external GNSS receiver' : 'device GPS'}. 
+  <br>CORS Provider: ${RV.ntripConnected ? (document.getElementById('rvNtripHost')?.value || 'Unknown') : 'None'}
 </div>
 
 <div class="footer">
@@ -67955,17 +68079,17 @@ function rvRecordTick(lon, lat) {
 ================================================================ */
 function rvShowAreaModal() {
   const sel = document.getElementById('rvAreaSrcSel');
-  sel.innerHTML = '';
+  sel.innerHTML = `
+    <option value="all">All Points</option>
+    <option value="marked">Marked Points</option>
+    <option value="extracted">Extracted Points</option>
+  `;
   
-  if (RV.points && RV.points.length >= 3) {
-    sel.innerHTML += '<option value="marked">Marked Points</option>';
-  }
-  if (RV.corners && RV.corners.length >= 3) {
-    sel.innerHTML += '<option value="extracted">Extracted Corners</option>';
-  }
+  const pts = (RV.points || []).length;
+  const crns = (RV.corners || []).length;
   
-  if (sel.options.length === 0) {
-    rvToast('Need ≥3 points (corners or marked points)', 3000);
+  if (pts + crns < 2) {
+    rvToast('Need ≥2 points to calculate distance/area', 3000);
     return;
   }
   
@@ -68042,7 +68166,7 @@ function rvPointToSegmentDist(plat, plon, alat, alon, blat, blon) {
 /* ================================================================
    NEARBY CONTROLS
 ================================================================ */
-window.rvShowNearbyControls = function() {
+window.rvShowNearbyControls = async function() {
   if (!RV.pos) {
     rvToast('⚠ No GPS fix yet. Please wait for location.', 3000);
     return;
@@ -68050,55 +68174,72 @@ window.rvShowNearbyControls = function() {
   const uLat = RV.pos.coords.latitude;
   const uLon = RV.pos.coords.longitude;
   
-  let nearby = [];
-  if (window.surveyControlsIndex && window.surveyControlsIndex.length > 0) {
-    window.surveyControlsIndex.forEach(ctrl => {
-      if (ctrl.coords) {
-        const d = rvHaversine(uLat, uLon, ctrl.coords[1], ctrl.coords[0]);
-        if (!isNaN(d)) nearby.push({ ...ctrl, dist: d });
-      }
-    });
-  }
-  
-  nearby.sort((a, b) => a.dist - b.dist);
-  nearby = nearby.slice(0, 15); // Show top 15 closest
-  
   const listEl = document.getElementById('rvControlList');
-  if (!window.surveyControlsIndex || window.surveyControlsIndex.length === 0) {
-    listEl.innerHTML = '<div style="padding:10px;text-align:center;color:var(--rv-txt2)">Controls index is still loading or failed to load.</div>';
-  } else if (nearby.length === 0) {
-    listEl.innerHTML = '<div style="padding:10px;text-align:center;color:var(--rv-txt2)">No controls found.</div>';
-  } else {
-    let html = '';
-    nearby.forEach(c => {
-      const dStr = c.dist < 1000 ? Math.round(c.dist) + 'm' : (c.dist/1000).toFixed(2) + 'km';
-      const color = c.dist <= 2000 ? 'var(--rv-amber)' : 'var(--rv-txt2)';
-      html += `<div class="rv-control-item" data-lon="${c.coords[0]}" data-lat="${c.coords[1]}" style="padding: 8px; border-bottom: 1px solid var(--rv-border); cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-        <div>
-          <div style="font-weight:bold; font-size:12px; color:var(--rv-txt1)">${c.name}</div>
-          <div style="font-size:10px; color:var(--rv-txt2)">${c.layerName}</div>
-        </div>
-        <div style="font-size:11px; font-weight:bold; color:${color}">${dStr}</div>
-      </div>`;
-    });
-    listEl.innerHTML = html;
-    
-    // Add click listeners to items
-    setTimeout(() => {
-      listEl.querySelectorAll('.rv-control-item').forEach(item => {
-        item.addEventListener('click', function() {
-          const lon = parseFloat(this.getAttribute('data-lon'));
-          const lat = parseFloat(this.getAttribute('data-lat'));
-          RV.corners = [{ lon, lat }];
-          rvShowCorners();
-          document.getElementById('rvControlModal').classList.remove('rv-modal-open');
-          rvToast(`Targeting ${this.querySelector('div').innerText.split('\\n')[0]}`, 2000);
-        });
-      });
-    }, 50);
-  }
-  
+  listEl.innerHTML = '<div style="padding:10px;text-align:center;color:var(--rv-txt2)"><i class="fas fa-spinner fa-spin"></i> Fetching Live Field Observations...</div>';
   document.getElementById('rvControlModal').classList.add('rv-modal-open');
+
+  try {
+    const latDiff = 0.01;
+    const lonDiff = 0.01;
+    
+    const { data: controls, error } = await supabaseClient
+      .from('gsp_field_observations')
+      .select('id, name, lat, lon, mode, accuracy, created_at')
+      .gte('lat', uLat - latDiff)
+      .lte('lat', uLat + latDiff)
+      .gte('lon', uLon - lonDiff)
+      .lte('lon', uLon + lonDiff)
+      .order('created_at', { ascending: false })
+      .limit(200);
+
+    if (error) throw error;
+
+    let nearby = [];
+    if (controls && controls.length > 0) {
+      controls.forEach(ctrl => {
+        const d = rvHaversine(uLat, uLon, ctrl.lat, ctrl.lon);
+        if (!isNaN(d)) nearby.push({ ...ctrl, dist: d });
+      });
+    }
+
+    nearby.sort((a, b) => a.dist - b.dist);
+    nearby = nearby.slice(0, 15); // Show top 15 closest
+
+    if (nearby.length === 0) {
+      listEl.innerHTML = '<div style="padding:10px;text-align:center;color:var(--rv-txt2)">No observations found nearby.</div>';
+    } else {
+      let html = '';
+      nearby.forEach(c => {
+        const dStr = c.dist < 1000 ? Math.round(c.dist) + 'm' : (c.dist/1000).toFixed(2) + 'km';
+        const color = c.dist <= 2000 ? 'var(--rv-amber)' : 'var(--rv-txt2)';
+        html += `<div class="rv-control-item" data-lon="${c.lon}" data-lat="${c.lat}" style="padding: 8px; border-bottom: 1px solid var(--rv-border); cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-weight:bold; font-size:12px; color:var(--rv-txt1)">${c.name}</div>
+            <div style="font-size:10px; color:var(--rv-txt2)">GSP Field Obs (${c.mode || 'gps'})</div>
+          </div>
+          <div style="font-size:11px; font-weight:bold; color:${color}">${dStr}</div>
+        </div>`;
+      });
+      listEl.innerHTML = html;
+      
+      // Add click listeners to items
+      setTimeout(() => {
+        listEl.querySelectorAll('.rv-control-item').forEach(item => {
+          item.addEventListener('click', function() {
+            const lon = parseFloat(this.getAttribute('data-lon'));
+            const lat = parseFloat(this.getAttribute('data-lat'));
+            RV.corners = [{ lon, lat }];
+            rvShowCorners();
+            document.getElementById('rvControlModal').classList.remove('rv-modal-open');
+            rvToast(`Targeting ${this.querySelector('div').innerText.split('\\n')[0]}`, 2000);
+          });
+        });
+      }, 50);
+    }
+  } catch (err) {
+    console.error('Error fetching controls:', err);
+    listEl.innerHTML = '<div style="padding:10px;text-align:center;color:var(--rv-red)">Failed to fetch observations.</div>';
+  }
 };
 
 /* ================================================================
@@ -68850,51 +68991,91 @@ function rvAreaPopulatePicker(source) {
   picker.innerHTML = '';
   
   let list = [];
+  const pts = RV.points || [];
+  const crns = RV.corners || [];
   if (source === 'marked') {
-    list = RV.points;
+    list = pts.map((p, i) => ({...p, __type: 'M', __idx: i}));
   } else if (source === 'extracted') {
-    list = RV.corners;
+    list = crns.map((p, i) => ({...p, __type: 'E', __idx: i}));
+  } else {
+    list = [
+      ...pts.map((p, i) => ({...p, __type: 'M', __idx: i})),
+      ...crns.map((p, i) => ({...p, __type: 'E', __idx: i}))
+    ];
   }
   
-  list.forEach((pt, i) => {
-    const lbl = pt.name || `P${i+1}`;
+  list.forEach((pt) => {
+    const lbl = pt.name || `${pt.__type}${pt.__idx+1}`;
+    const prefix = pt.__type === 'M' ? 'Marked' : 'Extracted';
     picker.innerHTML += `<div style="padding:4px;font-size:11px;display:flex;align-items:center;gap:6px;">
-      <input type="checkbox" checked id="rvAreaCk${i}" value="${i}" onchange="rvCalcAreaFromSel()">
-      <label for="rvAreaCk${i}">${lbl}</label>
+      <input type="checkbox" id="rvAreaCk_${pt.__type}_${pt.__idx}" value="1" onchange="rvCalcAreaFromSel()">
+      <label for="rvAreaCk_${pt.__type}_${pt.__idx}">[${prefix}] ${lbl}</label>
     </div>`;
   });
 }
 
 function rvCalcAreaFromSel() {
   const source = document.getElementById('rvAreaSrcSel').value;
-  let rawList = source === 'marked' ? RV.points : RV.corners;
+  let mode = 'area';
+  const radios = document.getElementsByName('rvCogoMode');
+  for (let i=0; i<radios.length; i++) {
+    if (radios[i].checked) mode = radios[i].value;
+  }
+  
+  let list = [];
+  const ptsArr = RV.points || [];
+  const crnsArr = RV.corners || [];
+  if (source === 'marked') {
+    list = ptsArr.map((p, i) => ({...p, __type: 'M', __idx: i}));
+  } else if (source === 'extracted') {
+    list = crnsArr.map((p, i) => ({...p, __type: 'E', __idx: i}));
+  } else {
+    list = [
+      ...ptsArr.map((p, i) => ({...p, __type: 'M', __idx: i})),
+      ...crnsArr.map((p, i) => ({...p, __type: 'E', __idx: i}))
+    ];
+  }
   
   // Filter by checked
   let pts = [];
-  rawList.forEach((p, i) => {
-    const ck = document.getElementById('rvAreaCk'+i);
-    if (ck && ck.checked) pts.push(p);
+  list.forEach((pt) => {
+    const ck = document.getElementById('rvAreaCk_' + pt.__type + '_' + pt.__idx);
+    if (ck && ck.checked) pts.push(pt);
   });
   
-  if (pts.length < 3) {
-    document.getElementById('rvAreaResult').textContent = '—';
-    document.getElementById('rvAreaResultSub').textContent = 'Select at least 3 points';
+  if (pts.length < 2) {
+    document.getElementById('rvAreaResultSub').textContent = `Select at least ${mode === 'area' ? '3' : '2'} points`;
     return;
   }
 
-  // Reproject to active CRS for accurate planar area
   try {
     const coords = pts.map(p => proj4('EPSG:4326', 'EPSG:'+RV.crs, [p.lon, p.lat]));
+    
+    if (mode === 'dist') {
+      let dist = 0;
+      for (let i = 0; i < coords.length - 1; i++) {
+        const dx = coords[i+1][0] - coords[i][0];
+        const dy = coords[i+1][1] - coords[i][1];
+        dist += Math.sqrt(dx*dx + dy*dy);
+      }
+      document.getElementById('rvAreaResultSub').innerHTML = `Linear Distance: ${dist.toFixed(2)} m`;
+      return;
+    }
+    
+    // Area + Perimeter
+    if (pts.length < 3) {
+      document.getElementById('rvAreaResultSub').textContent = 'Select at least 3 points for Area';
+      return;
+    }
+    
     coords.push(coords[0]); // close loop
     
-    // Shoelace formula
     let area = 0;
     for (let i = 0; i < coords.length - 1; i++) {
       area += coords[i][0]*coords[i+1][1] - coords[i+1][0]*coords[i][1];
     }
     area = Math.abs(area) / 2;
     
-    // Perimeter
     let perim = 0;
     for (let i = 0; i < coords.length - 1; i++) {
       const dx = coords[i+1][0] - coords[i][0];
@@ -68905,10 +69086,8 @@ function rvCalcAreaFromSel() {
     const ac = area / 4046.86;
     const ha = area / 10000;
     
-    document.getElementById('rvAreaResult').textContent = area.toFixed(1) + ' m²';
     document.getElementById('rvAreaResultSub').innerHTML = `${ac.toFixed(3)} Acres &nbsp;|&nbsp; ${ha.toFixed(3)} Hectares<br>Perimeter: ${perim.toFixed(1)} m`;
   } catch(err) {
-    document.getElementById('rvAreaResult').textContent = 'Error';
     document.getElementById('rvAreaResultSub').textContent = 'CRS transform failed';
   }
 }
@@ -68918,13 +69097,15 @@ document.getElementById('rvAreaCalcBtn').addEventListener('click', rvCalcAreaFro
 try {
   document.getElementById('rvBtnArea').addEventListener('click', () => {
     document.getElementById('rvAreaSrcSel').innerHTML = `
-      <option value="marked">Marked Points (${RV.points.length})</option>
-      <option value="extracted">Extracted Bounds (${RV.corners.length})</option>
+      <option value="all">All Points</option>
+      <option value="marked">Marked Points</option>
+      <option value="extracted">Extracted Points</option>
     `;
-    rvAreaPopulatePicker('marked');
+    rvAreaPopulatePicker('all');
     rvCalcAreaFromSel();
   });
 } catch(e){}
+
 
 /* ================================================================
    WIRE UP UI
@@ -68959,8 +69140,8 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('rvCrsModal').classList.remove('rv-modal-open');
   });
 
-  // Mark button
-  document.getElementById('rvMarkBtn').addEventListener('click', rvOpenMarkModal);
+  // Mark button (removed rvMarkBtn logic)
+  document.getElementById('rvTopMarkBtn').addEventListener('click', rvOpenMarkModal);
   document.getElementById('rvMarkSaveBtn').addEventListener('click', rvDoMarkPoint);
   document.getElementById('rvMarkCancelBtn').addEventListener('click', function() {
     RV.averaging = false;
@@ -69023,8 +69204,79 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Export button
   document.getElementById('rvExportBtn').addEventListener('click', function() {
+    // Populate GSP list
+    const listDiv = document.getElementById('rvGspExportList');
+    listDiv.innerHTML = '';
+    if (RV.points.length === 0) {
+      listDiv.innerHTML = '';
+    } else {
+      const selectAllHtml = `<label style="display:flex; align-items:center; padding: 4px 8px; border-bottom: 1px solid var(--rv-dark2); margin-bottom: 4px; cursor: pointer;">
+        <input type="checkbox" id="rvGspSelectAll" checked style="margin-right: 8px;"> <strong style="color:var(--rv-amber)">Select All</strong>
+      </label>`;
+      listDiv.innerHTML = selectAllHtml;
+
+      RV.points.forEach((p, idx) => {
+        const acc = p.accuracy ? p.accuracy.toFixed(3) + 'm' : 'N/A';
+        const label = document.createElement('label');
+        label.style.cssText = "display:flex; align-items:center; padding: 4px 8px; cursor: pointer;";
+        label.innerHTML = `<input type="checkbox" class="rv-gsp-export-chk" value="${idx}" checked style="margin-right: 8px;"> <span>${p.name} <small style="color:var(--rv-txt2);">(${acc})</small></span>`;
+        listDiv.appendChild(label);
+      });
+
+      document.getElementById('rvGspSelectAll').addEventListener('change', function() {
+        const chks = document.querySelectorAll('.rv-gsp-export-chk');
+        chks.forEach(chk => chk.checked = this.checked);
+      });
+    }
     document.getElementById('rvExportModal').classList.add('rv-modal-open');
   });
+
+  // Save to GSP Logic
+  document.getElementById('rvExportGspBtn').addEventListener('click', async function() {
+    const chks = document.querySelectorAll('.rv-gsp-export-chk:checked');
+    if (chks.length === 0) {
+      if (window.showToast) window.showToast('No points selected.', 'error');
+      else alert("No points selected.");
+      return;
+    }
+    
+    const origText = this.innerHTML;
+    this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    this.disabled = true;
+
+    try {
+      const { data: { user } } = await supabaseClient.auth.getUser();
+      const pointsToSave = Array.from(chks).map(chk => {
+        const p = RV.points[parseInt(chk.value)];
+        return {
+          name: p.name,
+          lat: p.lat,
+          lon: p.lon,
+          height: p.alt || 0,
+          accuracy: p.accuracy || null,
+          mode: p.fixType ? 'gnss' : 'gps',
+          cors_provider: 'GSP.NET CORS',
+          user_id: user ? user.id : null
+        };
+      });
+
+      const { error } = await supabaseClient.from('gsp_field_observations').insert(pointsToSave);
+      if (error) throw error;
+      
+      if (window.showToast) window.showToast(`Successfully saved ${pointsToSave.length} points to Live Field Observations.`, 'success');
+      else alert(`Successfully saved ${pointsToSave.length} points to Live Field Observations.`);
+      
+      document.getElementById('rvExportModal').classList.remove('rv-modal-open');
+    } catch (err) {
+      console.error(err);
+      if (window.showToast) window.showToast("Failed to save to GSP: " + err.message, 'error');
+      else alert("Failed to save to GSP: " + err.message);
+    } finally {
+      this.innerHTML = origText;
+      this.disabled = false;
+    }
+  });
+
   document.getElementById('rvExportCsvBtn').addEventListener('click', rvExportCSV);
   document.getElementById('rvExportKmlBtn').addEventListener('click', rvExportKML);
   document.getElementById('rvExportDxfBtn').addEventListener('click', rvExportDXF);
