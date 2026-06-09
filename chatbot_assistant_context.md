@@ -87,9 +87,11 @@ Standard web maps rely on low-accuracy phone GPS (±5 meters), which is insuffic
 5. The crosshair on the map will now track your position using the external RTK data, allowing you to walk boundaries or capture high-precision points.
 6. **In the field you can:**
    - **Navigate to survey control points** — use the bearing/distance navigator to walk to any saved point.
+   - **Voice Announcements (NEW)** — Receive audible distance and direction announcements while staking out points or lines, enabling hands-free heads-up surveying.
    - **Capture coordinates** — tap to record your current precise position.
+   - **Save to GSP Network (NEW)** — Instantly save your captured field observations directly to the secure cloud database. This ensures observations are accessible for quality checks (QC) and allows other users to easily find, verify, and collaborate on points across the platform.
    - **Measure areas** — draw a polygon by walking the boundary and the area is calculated live.
-   - **Take photos** — attach geotagged photos to captured points for report documentation.
+   - **Take photos (AR Camera)** — attach geotagged photos to captured points for report documentation via the improved overlay camera modal.
    - **Export your work** — export all marked points and polygons as **CSV**, **KML**, or **DXF** directly from your phone or tablet in the field.
 
 ### Coordinate Search & Extractor
