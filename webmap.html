@@ -66645,11 +66645,11 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
 </div>
 
 <!-- === Camera Overlay Modal === -->
-<div class="rv-modal-backdrop" id="rvCameraModalOverlay" style="z-index:99999; display:none;">
+<div class="rv-modal-backdrop" id="rvCameraModalOverlay" style="z-index:250000; display:none;">
   <div class="rv-modal" style="width:90%; max-width:400px; padding:15px; text-align:center;">
     <h3 style="margin-bottom:15px; color:var(--rv-txt1);"><i class="fas fa-camera" style="color:var(--rv-amber)"></i> Stakeout Photo: <span id="rvCameraModalTName"></span></h3>
     <div style="position:relative; width:100%; border-radius:8px; overflow:hidden; background:#000; box-shadow:0 4px 12px rgba(0,0,0,0.5);">
-      <video id="rvLiveVideo" autoplay playsinline style="width:100%; max-height:60vh; object-fit:cover; display:block;"></video>
+      <video id="rvLiveVideo" autoplay playsinline muted style="width:100%; max-height:60vh; object-fit:cover; display:block;"></video>
     </div>
     <div class="rv-modal-btns" style="margin-top:20px; display:flex; gap:10px;">
       <button class="rv-btn-secondary" id="rvCameraSkipBtn" style="flex:1; padding:12px;">Skip</button>
@@ -66673,6 +66673,9 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
     </label>
     <label style="display:flex;align-items:center;margin-top:8px;color:var(--rv-txt2);">
       <input type="checkbox" id="rvVibrateChk" checked> Vibrate on arrival
+    </label>
+    <label style="display:flex;align-items:center;margin-top:8px;color:var(--rv-txt2);">
+      <input type="checkbox" id="rvVoiceChk" checked> Voice distance announcements
     </label>
     <div class="rv-modal-btns">
       <button class="rv-btn-primary" id="rvSettingsSaveBtn">Save</button>
@@ -68960,6 +68963,44 @@ function rvUpdateStakeout(userLat, userLon) {
   
   document.getElementById('rvSoBearing').innerHTML = bear.toFixed(1) + '° ' + bearLbl + (offsetStr ? '<br>' + offsetStr : '');
 
+  // --- Voice Announcements ---
+  if (RV.settings.voice !== false && window.speechSynthesis && !RV.arrived) {
+    if (!window._rvLastVoiceTime || Date.now() - window._rvLastVoiceTime > 7000) {
+      let voiceStr = '';
+      if (RV.isLineStake && RV.activeLineStakeStart) {
+        try {
+          const pU = proj4('EPSG:4326', 'EPSG:'+RV.crs, [userLon, userLat]);
+          const x0 = pU[0], y0 = pU[1];
+          const x1 = RV.activeLineStakeStart.e, y1 = RV.activeLineStakeStart.n;
+          const x2 = RV.activeLineStakeEnd.e, y2 = RV.activeLineStakeEnd.n;
+          const vx = x2 - x1, vy = y2 - y1;
+          const L = Math.sqrt(vx*vx + vy*vy);
+          if (L > 0) {
+            const wx = x0 - x1, wy = y0 - y1;
+            const chainage = (wx * vx + wy * vy) / L;
+            const offset = (vx * wy - vy * wx) / L;
+            const pT = proj4('EPSG:4326', 'EPSG:'+RV.crs, [tgt.lon, tgt.lat]);
+            const wx_tgt = pT[0] - x1, wy_tgt = pT[1] - y1;
+            const tgt_chainage = (wx_tgt * vx + wy_tgt * vy) / L;
+            const along_diff = tgt_chainage - chainage;
+            const fwdDirVoice = along_diff > 0 ? "Forward" : "Back";
+            const goDirVoice = offset > 0 ? "Right" : "Left";
+            voiceStr = `${fwdDirVoice} ${Math.abs(along_diff).toFixed(1)} meters, ${goDirVoice} ${Math.abs(offset).toFixed(1)} meters`;
+          }
+        } catch(e) {}
+      }
+      if (!voiceStr) {
+        voiceStr = `Distance ${dist.toFixed(1)} meters`;
+      }
+      
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(voiceStr);
+      utterance.rate = 1.1;
+      window.speechSynthesis.speak(utterance);
+      window._rvLastVoiceTime = Date.now();
+    }
+  }
+
   const pct = RV.stakeoutStart > 0 ? Math.min(100, (1 - dist/RV.stakeoutStart)*100) : 0;
   document.getElementById('rvSoProgressFill').style.width = pct + '%';
 
@@ -69022,6 +69063,7 @@ window.rvOpenCameraModal = function(tName, nextIdx) {
       .then(function(stream) {
         window._rvCameraStream = stream;
         video.srcObject = stream;
+        video.play().catch(e => console.error("Video play error:", e));
       })
       .catch(function(err) {
         console.error("Camera error:", err);
@@ -69455,9 +69497,10 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('rvSettingsBtn').addEventListener('click', function() {
     document.getElementById('rvAvgCount').value     = RV.settings.avgCount;
     document.getElementById('rvArrivalThresh').value = RV.settings.arrivalThresh;
-    document.getElementById('rvProxDist').value     = RV.settings.proxDist;
-    document.getElementById('rvWakeLockChk').checked = RV.settings.wakeLock;
-    document.getElementById('rvVibrateChk').checked  = RV.settings.vibrate;
+    document.getElementById('rvProxDist').value     = RV.settings.proxDist || 5.0;
+    document.getElementById('rvWakeLockChk').checked = RV.settings.wakeLock !== false;
+    document.getElementById('rvVibrateChk').checked  = RV.settings.vibrate !== false;
+    document.getElementById('rvVoiceChk').checked    = RV.settings.voice !== false;
     document.getElementById('rvSettingsModal').classList.add('rv-modal-open');
   });
   document.getElementById('rvSettingsSaveBtn').addEventListener('click', function() {
@@ -69466,6 +69509,7 @@ document.addEventListener('DOMContentLoaded', function() {
     RV.settings.proxDist     = parseFloat(document.getElementById('rvProxDist').value) || 5.0;
     RV.settings.wakeLock     = document.getElementById('rvWakeLockChk').checked;
     RV.settings.vibrate      = document.getElementById('rvVibrateChk').checked;
+    RV.settings.voice        = document.getElementById('rvVoiceChk').checked;
     rvSaveSettings();
     document.getElementById('rvSettingsModal').classList.remove('rv-modal-open');
     rvToast('Settings saved!', 2000);
