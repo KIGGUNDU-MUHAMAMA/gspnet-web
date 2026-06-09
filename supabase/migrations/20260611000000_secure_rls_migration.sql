@@ -9,9 +9,17 @@ ALTER VIEW public.profile_contribution_stats SET (security_invoker = true);
 
 -- Enable RLS on property_listings
 ALTER TABLE public.property_listings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can view property listings" ON public.property_listings;
 CREATE POLICY "Anyone can view property listings" ON public.property_listings FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Users can insert their own property listings" ON public.property_listings;
 CREATE POLICY "Users can insert their own property listings" ON public.property_listings FOR INSERT WITH CHECK (auth.uid()::text = user_id::text);
+
+DROP POLICY IF EXISTS "Users can update their own property listings" ON public.property_listings;
 CREATE POLICY "Users can update their own property listings" ON public.property_listings FOR UPDATE USING (auth.uid()::text = user_id::text) WITH CHECK (auth.uid()::text = user_id::text);
+
+DROP POLICY IF EXISTS "Users can delete their own property listings" ON public.property_listings;
 CREATE POLICY "Users can delete their own property listings" ON public.property_listings FOR DELETE USING (auth.uid()::text = user_id::text);
 
 -- ==========================================
