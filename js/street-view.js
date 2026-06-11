@@ -220,8 +220,8 @@ function loadMapillaryViewer(imageId) {
 
         // Event: When user moves to a new node (image)
         mlyViewer.on('nodechanged', (node) => {
-            if (!node || !node.latLon) return;
-            const coords = ol.proj.fromLonLat([node.latLon.lon, node.latLon.lat]);
+            if (!node || !node.computedLngLat) return;
+            const coords = ol.proj.fromLonLat([node.computedLngLat.lng, node.computedLngLat.lat]);
             if (streetViewMarker) {
                  if(!streetViewMarker.getGeometry()) {
                      streetViewMarker.setGeometry(new ol.geom.Point(coords));
@@ -275,7 +275,7 @@ function setupMapillaryTools() {
         if (!isMeasureMode) return;
 
         try {
-            const point = await mlyViewer.unproject(event.pixel);
+            const point = await mlyViewer.unproject(event.pixelPoint);
             if (!point) {
                 if (window.showToast) window.showToast('No 3D depth data available at this exact pixel.', 'warning');
                 return;
@@ -380,8 +380,8 @@ window.exportMapillaryPDF = async function() {
         const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
         
         const node = await mlyViewer.getImage();
-        const lat = node.latLon.lat.toFixed(6);
-        const lon = node.latLon.lon.toFixed(6);
+        const lat = node.computedLngLat.lat.toFixed(6);
+        const lon = node.computedLngLat.lng.toFixed(6);
         const date = new Date(node.capturedAt).toLocaleString();
 
         const { jsPDF } = window.jspdf;
@@ -423,8 +423,8 @@ async function loadMapillaryTimeline(imageId) {
 
     try {
         const node = await mlyViewer.getImage();
-        const lon = node.latLon.lon;
-        const lat = node.latLon.lat;
+        const lon = node.computedLngLat.lng;
+        const lat = node.computedLngLat.lat;
         
         // Search 20m bbox for historical images
         const buffer = 0.0002;
