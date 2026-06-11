@@ -4,14 +4,14 @@
 .street-view-panel {
     position: absolute;
     top: 0;
-    right: -50%;
+    left: -50%;
     width: 50%;
     height: 100%;
     background: rgba(15, 23, 42, 0.95);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     z-index: 1500;
-    transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     display: flex;
     flex-direction: column;
     box-shadow: -10px 0 30px rgba(0, 0, 0, 0.6);
@@ -19,7 +19,7 @@
 }
 
 .street-view-panel.active {
-    right: 0;
+    left: 0;
 }
 
 .street-view-header {
@@ -102,7 +102,12 @@
 @media (max-width: 768px) {
     .street-view-panel {
         width: 100%;
-        right: -100%;
-        border-left: none;
+        left: -100%;
+        top: 0;
+        height: 100vh;
+        z-index: 2000;
+    }
+    .street-view-panel.active {
+        left: 0;
     }
 }
