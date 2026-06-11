@@ -129,7 +129,7 @@
     bottom: 30px;
     left: 50%;
     transform: translateX(-50%);
-    width: 80%;
+    width: 40%;
     background: rgba(15, 23, 42, 0.85);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(5, 203, 99, 0.3);

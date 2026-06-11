@@ -365,24 +365,38 @@ window.toggleMapillaryAI = async function() {
 
 window.exportMapillaryPDF = async function() {
     if (!mlyViewer) return;
-    
-    // Attempt to grab canvas from DOM
-    const canvas = document.querySelector('#mly-container canvas');
-    if (!canvas) {
-        if (window.showToast) window.showToast('Canvas not found.', 'error');
-        return;
-    }
 
     try {
         if (window.showToast) window.showToast('Generating snapshot... Please wait.', 'info');
-        
-        // Take a snapshot
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
         
         const node = await mlyViewer.getImage();
         const lat = node.computedLngLat.lat.toFixed(6);
         const lon = node.computedLngLat.lng.toFixed(6);
         const date = new Date(node.capturedAt).toLocaleString();
+
+        // Workaround for WebGL black screen: Fetch original thumbnail from Mapillary API
+        const url = `https://graph.mapillary.com/${node.id}?fields=thumb_1024_url&access_token=${MAPILLARY_CLIENT_TOKEN}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        if (!data || !data.thumb_1024_url) throw new Error("No thumbnail found");
+
+        // Convert image URL to Data URL via 2D Canvas to bypass WebGL CORS/Buffer issues
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.src = data.thumb_1024_url;
+        
+        await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+        });
+
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = img.width;
+        tempCanvas.height = img.height;
+        const ctx = tempCanvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.9);
 
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ orientation: 'landscape' });
