@@ -81,23 +81,7 @@
     left: 0;
 }
 
-/* Rover Upload Prompt Box (for future integration) */
-.rover-prompt {
-    padding: 10px 20px;
-    background: linear-gradient(90deg, rgba(5, 203, 99, 0.1) 0%, rgba(30, 41, 59, 0) 100%);
-    border-bottom: 1px solid rgba(5, 203, 99, 0.2);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-.rover-prompt i {
-    color: #05CB63;
-}
-.rover-prompt p {
-    margin: 0;
-    font-size: 0.85rem;
-    color: #cbd5e1;
-}
+
 
 @media (max-width: 768px) {
     .street-view-panel {
