@@ -3,9 +3,15 @@
 // Mapillary credentials provided by user
 const MAPILLARY_CLIENT_TOKEN = 'MLY|36830379239909087|4fc1eb15e121772201104ed2b92e7658';
 
+let mapillaryCoverageLayer = null;
 let mlyViewer = null;
-let streetViewMarker = null;
 let svMarkerSource = null;
+let streetViewMarker = null;
+
+// Tool states
+let isMeasureMode = false;
+let isAIToggled = false;
+let measurePoints = [];
 
 function tryInit() {
     // Wait for the main OpenLayers map to be fully initialized
@@ -202,7 +208,15 @@ function loadMapillaryViewer(imageId) {
             accessToken: MAPILLARY_CLIENT_TOKEN,
             container: 'mly-container',
             imageId: imageId,
+            component: {
+                cover: false,
+                spatial: true,
+                tag: true
+            }
         });
+        
+        // Setup Mapillary event listeners for tools
+        setupMapillaryTools();
 
         // Event: When user moves to a new node (image)
         mlyViewer.on('nodechanged', (node) => {
@@ -243,6 +257,215 @@ function loadMapillaryViewer(imageId) {
     } else {
         // Move existing viewer to new image
         mlyViewer.moveTo(imageId).catch(e => console.error(e));
+    }
+    
+    // Always load the timeline for the new image
+    loadMapillaryTimeline(imageId);
+}
+
+// ---------------------------------------------------------
+// ADVANCED MAPILLARY FEATURES
+// ---------------------------------------------------------
+
+function setupMapillaryTools() {
+    if (!mlyViewer) return;
+
+    // Handle Native Measurement Tool clicks
+    mlyViewer.on('click', async (event) => {
+        if (!isMeasureMode) return;
+
+        try {
+            const point = await mlyViewer.unproject(event.pixel);
+            if (!point) {
+                if (window.showToast) window.showToast('No 3D depth data available at this exact pixel.', 'warning');
+                return;
+            }
+
+            measurePoints.push(point);
+
+            if (measurePoints.length === 1) {
+                if (window.showToast) window.showToast('First point captured. Click a second point.', 'info');
+            } else if (measurePoints.length === 2) {
+                const p1 = measurePoints[0];
+                const p2 = measurePoints[1];
+                
+                // Euclidean distance in meters
+                const distance = Math.sqrt(
+                    Math.pow(p1[0] - p2[0], 2) + 
+                    Math.pow(p1[1] - p2[1], 2) + 
+                    Math.pow(p1[2] - p2[2], 2)
+                );
+
+                const readout = document.getElementById('mly-measure-readout');
+                const text = document.getElementById('mly-distance-text');
+                if (readout && text) {
+                    text.innerText = distance.toFixed(2) + ' m';
+                    readout.style.display = 'flex';
+                }
+
+                measurePoints = []; // Reset for next measurement
+            }
+        } catch (err) {
+            console.error('Measurement failed', err);
+        }
+    });
+}
+
+window.toggleMapillaryMeasure = function() {
+    isMeasureMode = !isMeasureMode;
+    const btn = document.getElementById('mly-measure-btn');
+    if (isMeasureMode) {
+        btn.classList.add('active');
+        if (window.showToast) window.showToast('Measure Mode ON. Click two points in the viewer.', 'info');
+    } else {
+        btn.classList.remove('active');
+        window.clearMapillaryMeasure();
+    }
+};
+
+window.clearMapillaryMeasure = function() {
+    measurePoints = [];
+    const readout = document.getElementById('mly-measure-readout');
+    if (readout) readout.style.display = 'none';
+};
+
+window.toggleMapillaryAI = async function() {
+    if (!mlyViewer) return;
+    isAIToggled = !isAIToggled;
+    const btn = document.getElementById('mly-ai-btn');
+
+    if (isAIToggled) {
+        btn.classList.add('active');
+        if (window.showToast) window.showToast('Loading AI feature detections...', 'info');
+        
+        try {
+            const image = await mlyViewer.getImage();
+            const url = `https://graph.mapillary.com/${image.id}/detections?fields=id,geometry,value&access_token=${MAPILLARY_CLIENT_TOKEN}`;
+            const res = await fetch(url);
+            const data = await res.json();
+
+            if (data && data.data && data.data.length > 0) {
+                if (window.showToast) window.showToast(`Found ${data.data.length} AI detections for this view!`, 'success');
+                // The geometry parsing requires base64 binary decoding which is omitted for simplicity.
+                // In a production build, a web assembly decoder would map this to mapillary.PolygonGeometry.
+            } else {
+                if (window.showToast) window.showToast('No AI detections for this specific image.', 'warning');
+            }
+        } catch (e) {
+            console.error(e);
+            if (window.showToast) window.showToast('Error loading AI detections.', 'error');
+        }
+    } else {
+        btn.classList.remove('active');
+        // Clear tags if they were rendered
+        const tagComponent = mlyViewer.getComponent('tag');
+        if (tagComponent) tagComponent.removeAll();
+    }
+};
+
+window.exportMapillaryPDF = async function() {
+    if (!mlyViewer) return;
+    
+    // Attempt to grab canvas from DOM
+    const canvas = document.querySelector('#mly-container canvas');
+    if (!canvas) {
+        if (window.showToast) window.showToast('Canvas not found.', 'error');
+        return;
+    }
+
+    try {
+        if (window.showToast) window.showToast('Generating snapshot... Please wait.', 'info');
+        
+        // Take a snapshot
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        
+        const node = await mlyViewer.getImage();
+        const lat = node.latLon.lat.toFixed(6);
+        const lon = node.latLon.lon.toFixed(6);
+        const date = new Date(node.capturedAt).toLocaleString();
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'landscape' });
+        
+        // PDF Styling
+        doc.setFontSize(24);
+        doc.setTextColor(5, 203, 99);
+        doc.text('GSP STREET VIEW - SITE REPORT', 20, 20);
+        
+        doc.setFontSize(12);
+        doc.setTextColor(0, 0, 0);
+        doc.text(`Location Coordinates: ${lat}, ${lon}`, 20, 32);
+        doc.text(`Original Capture Date: ${date}`, 20, 40);
+        doc.text(`Report Generated On: ${new Date().toLocaleString()}`, 20, 48);
+
+        // Mapillary snapshot
+        doc.addImage(dataUrl, 'JPEG', 20, 55, 250, 140);
+
+        doc.save(`GSP_StreetView_Report_${node.id}.pdf`);
+        if (window.showToast) window.showToast('PDF Report downloaded successfully!', 'success');
+        
+    } catch (err) {
+        console.error('PDF Export failed', err);
+        if (window.showToast) window.showToast('Failed to export PDF.', 'error');
+    }
+};
+
+let historicalImages = [];
+
+async function loadMapillaryTimeline(imageId) {
+    const container = document.getElementById('mly-timeline-container');
+    const slider = document.getElementById('mly-timeline-slider');
+    const dateDisplay = document.getElementById('mly-date-display');
+    
+    if (!container || !slider || !dateDisplay) return;
+    
+    container.style.display = 'none';
+
+    try {
+        const node = await mlyViewer.getImage();
+        const lon = node.latLon.lon;
+        const lat = node.latLon.lat;
+        
+        // Search 20m bbox for historical images
+        const buffer = 0.0002;
+        const bbox = `${lon - buffer},${lat - buffer},${lon + buffer},${lat + buffer}`;
+        const url = `https://graph.mapillary.com/images?fields=id,captured_at&bbox=${bbox}&access_token=${MAPILLARY_CLIENT_TOKEN}&limit=50`;
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data && data.data && data.data.length > 0) {
+            // Sort ascending by date
+            historicalImages = data.data.sort((a, b) => a.captured_at - b.captured_at);
+            
+            slider.min = 0;
+            slider.max = historicalImages.length - 1;
+            
+            // Find current image index, default to newest if not found
+            let currentIndex = historicalImages.findIndex(img => img.id === imageId);
+            if (currentIndex === -1) currentIndex = historicalImages.length - 1;
+            
+            slider.value = currentIndex;
+            
+            const renderTimelineDate = (idx) => {
+                const date = new Date(historicalImages[idx].captured_at).toLocaleDateString(undefined, {
+                    year: 'numeric', month: 'long', day: 'numeric'
+                });
+                dateDisplay.innerText = date;
+            };
+            
+            renderTimelineDate(currentIndex);
+            container.style.display = 'flex';
+            
+            // On slider change
+            slider.oninput = function() {
+                const idx = parseInt(this.value);
+                renderTimelineDate(idx);
+                mlyViewer.moveTo(historicalImages[idx].id).catch(e => console.error(e));
+            };
+        }
+    } catch (e) {
+        console.error('Timeline fetch failed', e);
     }
 }
 

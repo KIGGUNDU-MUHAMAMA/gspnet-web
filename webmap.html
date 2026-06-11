@@ -69771,6 +69771,33 @@ if (document.readyState !== 'loading') {
     </div>
     <div class="street-view-body">
         <div id="mly-container"></div>
+        
+        <!-- Futuristic Toolbar Overlay -->
+        <div class="mly-tools-overlay">
+            <button class="mly-tool-btn" id="mly-measure-btn" title="Measure Distance" onclick="window.toggleMapillaryMeasure()">
+                <i class="fas fa-ruler-combined"></i>
+            </button>
+            <button class="mly-tool-btn" id="mly-ai-btn" title="Toggle AI Detections" onclick="window.toggleMapillaryAI()">
+                <i class="fas fa-robot"></i>
+            </button>
+            <button class="mly-tool-btn" id="mly-export-btn" title="Export PDF Report" onclick="window.exportMapillaryPDF()">
+                <i class="fas fa-file-pdf"></i>
+            </button>
+        </div>
+
+        <!-- Time Travel Slider Overlay -->
+        <div class="mly-timeline-overlay" id="mly-timeline-container" style="display: none;">
+            <div class="timeline-header">
+                <i class="fas fa-history"></i> <span id="mly-date-display">Loading Timeline...</span>
+            </div>
+            <input type="range" id="mly-timeline-slider" min="0" max="0" value="0" step="1">
+        </div>
+        
+        <!-- Measurement Readout -->
+        <div id="mly-measure-readout" style="display: none;">
+            <span id="mly-distance-text">0.00 m</span>
+            <button onclick="window.clearMapillaryMeasure()"><i class="fas fa-times"></i></button>
+        </div>
     </div>
 </div>
 <script src="js/street-view.js"></script>
