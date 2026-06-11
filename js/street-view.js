@@ -35,12 +35,23 @@ function initStreetView() {
             url: `https://tiles.mapillary.com/maps/vtp/mly1_public/2/{z}/{x}/{y}?access_token=${MAPILLARY_CLIENT_TOKEN}`,
             maxZoom: 14
         }),
-        style: new ol.style.Style({
-            stroke: new ol.style.Stroke({
-                color: '#05CB63', // Mapillary Brand Green
-                width: 2
-            })
-        }),
+        style: function(feature) {
+            const type = feature.getGeometry().getType();
+            if (type === 'Point' || feature.get('layer') === 'image') {
+                return new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: 8,
+                        fill: new ol.style.Fill({ color: 'rgba(5, 203, 99, 0.01)' }) // Invisible but clickable
+                    })
+                });
+            }
+            return new ol.style.Style({
+                stroke: new ol.style.Stroke({
+                    color: '#05CB63', // Mapillary Brand Green
+                    width: 2
+                })
+            });
+        },
         zIndex: 100
     });
 
@@ -91,14 +102,39 @@ function initStreetView() {
         const lonLat = ol.proj.toLonLat(evt.coordinate);
         
         try {
-            // Mapillary API v4 - Find nearest image within radius
-            const url = `https://graph.mapillary.com/images?fields=id,geometry,computed_geometry&close_to=${lonLat[0]},${lonLat[1]}&access_token=${MAPILLARY_CLIENT_TOKEN}&limit=1`;
+            let imageId = null;
             
-            const response = await fetch(url);
-            const data = await response.json();
+            // Fast path: Check if we clicked directly on an MVT image point
+            const features = map.getFeaturesAtPixel(evt.pixel, {
+                layerFilter: layer => layer === mapillaryCoverageLayer
+            });
             
-            if (data && data.data && data.data.length > 0) {
-                const imageId = data.data[0].id;
+            if (features && features.length > 0) {
+                for (const f of features) {
+                    if (f.getGeometry().getType() === 'Point' || f.get('layer') === 'image') {
+                        imageId = f.get('id');
+                        break;
+                    }
+                }
+            }
+
+            // Fallback: Graph API bbox search if no MVT point was hit
+            if (!imageId) {
+                const lon = lonLat[0];
+                const lat = lonLat[1];
+                const buffer = 0.0002; // ~20 meters
+                const bbox = `${lon - buffer},${lat - buffer},${lon + buffer},${lat + buffer}`;
+                const url = `https://graph.mapillary.com/images?fields=id&bbox=${bbox}&access_token=${MAPILLARY_CLIENT_TOKEN}&limit=1`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data && data.data && data.data.length > 0) {
+                    imageId = data.data[0].id;
+                }
+            }
+            
+            if (imageId) {
                 openStreetViewPanel();
                 loadMapillaryViewer(imageId);
                 
