@@ -46,7 +46,7 @@ window.startMapillaryUploadQueue = async function() {
         
         // POST the Zip Blob to Cloudflare Worker Proxy
         // IMPORTANT: Replace this URL with your deployed Cloudflare worker URL!
-        const MAPILLARY_PROXY_URL = 'https://mapillary-proxy.YOUR_CLOUDFLARE_SUBDOMAIN.workers.dev/upload';
+        const MAPILLARY_PROXY_URL = 'https://mapillary.kiggundumuhamad.workers.dev/upload';
         
         await new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
