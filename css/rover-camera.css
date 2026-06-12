@@ -6,7 +6,7 @@
     width: 100vw;
     height: 100vh;
     background: #000;
-    z-index: 99999;
+    z-index: 2147483647;
     display: none;
     flex-direction: column;
     justify-content: center;
@@ -100,11 +100,11 @@
 }
 
 .rover-btn {
-    padding: 15px 30px;
+    padding: 10px 20px;
     border: none;
-    border-radius: 50px;
+    border-radius: 30px;
     font-weight: 800;
-    font-size: 1.1rem;
+    font-size: 14px;
     cursor: pointer;
     transition: all 0.3s ease;
     text-transform: uppercase;

@@ -129,11 +129,13 @@ window.toggleRoverCapture = function() {
     const btn = document.getElementById('rover-start-btn');
     if (isAutoCapturing) {
         btn.classList.add('active');
-        btn.innerText = 'STOP AUTO-CAPTURE';
-        lastCapturePos = null; 
+        btn.innerText = 'STOP';
+        btn.style.background = 'rgba(255, 50, 50, 0.8)';
+        lastCapturePos = null;
     } else {
-        btn.classList.remove('active');
-        btn.innerText = 'START AUTO-CAPTURE';
+        isAutoCapturing = false;
+        btn.innerText = 'START';
+        btn.style.background = '';
     }
 };
 
