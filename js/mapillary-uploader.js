@@ -1,4 +1,4 @@
-const MAPILLARY_CLIENT_TOKEN = 'MLY|36830379239909087|4fc1eb15e121772201104ed2b92e7658';
+
 
 window.startMapillaryUploadQueue = async function() {
     try {

@@ -1,17 +1,17 @@
-let videoStream = null;
-let gpsWatchId = null;
-let isAutoCapturing = false;
-let lastCapturePos = null;
-let captureCount = 0;
-const CAPTURE_DISTANCE_M = 5;
+var videoStream = null;
+var gpsWatchId = null;
+var isAutoCapturing = false;
+var lastCapturePos = null;
+var captureCount = 0;
+var CAPTURE_DISTANCE_M = 5;
 
 // Initialize IndexedDB store for robust local storage
-const mapillaryStore = localforage.createInstance({
+var mapillaryStore = localforage.createInstance({
     name: 'GSPNet',
     storeName: 'mapillary_uploads'
 });
 
-let captureMode = 'upload';
+var captureMode = 'upload';
 
 window.openRoverCamera = async function() {
     const overlay = document.getElementById('rover-camera-overlay');
@@ -93,9 +93,11 @@ function startGPSWatch() {
                 if (!lastCapturePos) {
                     captureAndSaveFrame(position);
                 } else {
-                    const dist = haversineDistance(
-                        lastCapturePos.coords.latitude, lastCapturePos.coords.longitude,
-                        lat, lon
+                    var dist = window.haversineDistance(
+                        lastCapturePos.coords.latitude, 
+                        lastCapturePos.coords.longitude,
+                        position.coords.latitude, 
+                        position.coords.longitude
                     );
                     if (dist >= CAPTURE_DISTANCE_M) {
                         captureAndSaveFrame(position);
@@ -121,19 +123,19 @@ window.toggleRoverCapture = function() {
     }
 };
 
-function haversineDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371e3; // metres
-    const p1 = lat1 * Math.PI/180;
-    const p2 = lat2 * Math.PI/180;
-    const dp = (lat2-lat1) * Math.PI/180;
-    const dl = (lon2-lon1) * Math.PI/180;
+window.haversineDistance = function(lat1, lon1, lat2, lon2) {
+    var R = 6371e3; // metres
+    var p1 = lat1 * Math.PI/180;
+    var p2 = lat2 * Math.PI/180;
+    var dp = (lat2-lat1) * Math.PI/180;
+    var dl = (lon2-lon1) * Math.PI/180;
 
-    const a = Math.sin(dp/2) * Math.sin(dp/2) +
+    var a = Math.sin(dp/2) * Math.sin(dp/2) +
               Math.cos(p1) * Math.cos(p2) *
               Math.sin(dl/2) * Math.sin(dl/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
-}
+};
 
 function toExifRational(decimal) {
     const d = Math.floor(decimal);
