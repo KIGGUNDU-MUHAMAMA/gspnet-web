@@ -37,9 +37,23 @@ window.selectRoverMode = async function(mode) {
             throw new Error('Camera API not available. Ensure you are using HTTPS or localhost.');
         }
 
-        videoStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
-        });
+        try {
+            videoStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
+            });
+        } catch (e) {
+            console.warn('High-res environment camera failed, falling back to any environment camera.', e);
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }
+                });
+            } catch (e2) {
+                console.warn('Environment camera failed, falling back to any available camera.', e2);
+                videoStream = await navigator.mediaDevices.getUserMedia({
+                    video: true
+                });
+            }
+        }
         
         const videoEl = document.getElementById('rover-camera-feed');
         videoEl.srcObject = videoStream;
