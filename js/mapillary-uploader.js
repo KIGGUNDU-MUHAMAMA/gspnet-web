@@ -41,37 +41,21 @@ window.startMapillaryUploadQueue = async function() {
         
         const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
         
-        progressText.innerText = `Requesting Mapillary Session...`;
+        progressText.innerText = `Uploading via Mapillary Proxy...`;
         progressFill.style.width = '40%';
         
-        // 2. Create Upload Session
-        const sessionRes = await fetch(`https://graph.mapillary.com/uploads?access_token=${MAPILLARY_CLIENT_TOKEN}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'zip' })
-        });
+        // POST the Zip Blob to Cloudflare Worker Proxy
+        // IMPORTANT: Replace this URL with your deployed Cloudflare worker URL!
+        const MAPILLARY_PROXY_URL = 'https://mapillary-proxy.YOUR_CLOUDFLARE_SUBDOMAIN.workers.dev/upload';
         
-        if (!sessionRes.ok) {
-            throw new Error(`Session request failed: ${sessionRes.statusText}`);
-        }
-        
-        const sessionData = await sessionRes.json();
-        const uploadUrl = sessionData.url;
-        const uploadId = sessionData.id; // Mapillary upload session ID
-        
-        // 3. Upload the Zip Blob to S3
-        progressText.innerText = `Uploading to Mapillary...`;
-        progressFill.style.width = '50%';
-        
-        // Upload with XMLHttpRequest to track progress
         await new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
-            xhr.open('PUT', uploadUrl, true);
+            xhr.open('POST', MAPILLARY_PROXY_URL, true);
             
             xhr.upload.onprogress = (e) => {
                 if (e.lengthComputable) {
-                    const pct = (e.loaded / e.total) * 50; // 50% to 100%
-                    progressFill.style.width = `${50 + pct}%`;
+                    const pct = (e.loaded / e.total) * 60; // 40% to 100%
+                    progressFill.style.width = `${40 + pct}%`;
                 }
             };
             
@@ -79,11 +63,11 @@ window.startMapillaryUploadQueue = async function() {
                 if (xhr.status >= 200 && xhr.status < 300) {
                     resolve();
                 } else {
-                    reject(new Error(`S3 Upload failed: ${xhr.status}`));
+                    reject(new Error(`Proxy Upload failed: ${xhr.status} ${xhr.responseText}`));
                 }
             };
             
-            xhr.onerror = () => reject(new Error('Network error during S3 Upload'));
+            xhr.onerror = () => reject(new Error('Network error during Proxy Upload'));
             xhr.send(zipBlob);
         });
         

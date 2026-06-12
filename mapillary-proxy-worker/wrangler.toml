@@ -1,0 +1,11 @@
+name = "mapillary-proxy"
+main = "src/index.js"
+compatibility_date = "2024-03-20"
+
+# You will need to define your MAPILLARY_TOKEN secretly
+# by running: npx wrangler secret put MAPILLARY_TOKEN
+# and pasting your Mapillary token.
+# For local development testing, you can use a .dev.vars file.
+
+[vars]
+# MAPILLARY_TOKEN = "Your token here" (Do not put the token in plaintext here, use wrangler secret instead)
