@@ -138,6 +138,12 @@
     <script src="https://unpkg.com/mapillary-js@4.1.2/dist/mapillary.js"></script>
     <link href="css/street-view.css" rel="stylesheet">
 
+    <!-- Rover Auto-Capture Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/piexifjs/1.0.6/piexif.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link href="css/rover-camera.css" rel="stylesheet">
+
     <script>
         // ============================================
         // SUPABASE CLIENT INITIALIZATION
@@ -69585,14 +69591,46 @@ if (document.readyState !== 'loading') {
     photoBtn._rvPhotoWired = true;
 
     photoBtn.addEventListener('click', function() {
-      // Check we have a GPS fix
-      const RV = window._gspRoverState;
-      if (!RV || !RV.pos) {
-        const toast = document.getElementById('rvAlertToast');
-        if (toast) { toast.textContent = '⚠ No GPS fix — get a location first'; toast.style.opacity='1'; setTimeout(()=>toast.style.opacity='0', 3000); }
-        return;
-      }
-      cameraInput.click();
+      // Show Capture Mode Selection Modal
+      const modalHtml = `
+      <div id="captureModeModal" style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.8);z-index:999999;display:flex;justify-content:center;align-items:center;">
+        <div style="background:#0f172a;padding:30px;border-radius:15px;border:1px solid #05CB63;text-align:center;max-width:90%;">
+            <h3 style="color:#fff;margin-bottom:20px;font-family:'Inter',sans-serif;"><i class="fas fa-camera"></i> Select Capture Mode</h3>
+            <p style="color:#cbd5e1;margin-bottom:30px;font-size:0.9rem;">Choose between capturing a single photo locally, or enabling continuous Mapillary auto-capture for route mapping.</p>
+            <div style="display:flex;flex-direction:column;gap:15px;">
+                <button id="btnMapillaryMode" style="background:#05CB63;color:#000;border:none;padding:15px;border-radius:8px;font-weight:bold;cursor:pointer;font-size:1rem;transition:all 0.2s;">
+                    <i class="fas fa-satellite"></i> Mapillary Auto-Capture (Upload)
+                </button>
+                <button id="btnLocalMode" style="background:rgba(255,255,255,0.1);color:#fff;border:1px solid #cbd5e1;padding:15px;border-radius:8px;font-weight:bold;cursor:pointer;font-size:1rem;transition:all 0.2s;">
+                    <i class="fas fa-sd-card"></i> Single Photo (Save Locally)
+                </button>
+                <button id="btnCancelCapture" style="background:transparent;color:#ef4444;border:none;padding:10px;cursor:pointer;margin-top:10px;">Cancel</button>
+            </div>
+        </div>
+      </div>`;
+      
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+      
+      document.getElementById('btnMapillaryMode').onclick = function() {
+          document.getElementById('captureModeModal').remove();
+          if (window.openRoverCamera) window.openRoverCamera();
+      };
+      
+      document.getElementById('btnLocalMode').onclick = function() {
+          document.getElementById('captureModeModal').remove();
+          // Check we have a GPS fix
+          const RV = window._gspRoverState;
+          if (!RV || !RV.pos) {
+            const toast = document.getElementById('rvAlertToast');
+            if (toast) { toast.textContent = '⚠ No GPS fix — get a location first'; toast.style.opacity='1'; setTimeout(()=>toast.style.opacity='0', 3000); }
+            return;
+          }
+          cameraInput.click(); // Original single photo logic
+      };
+      
+      document.getElementById('btnCancelCapture').onclick = function() {
+          document.getElementById('captureModeModal').remove();
+      };
     });
 
     cameraInput.addEventListener('change', function(e) {
@@ -69765,9 +69803,14 @@ if (document.readyState !== 'loading') {
 <div id="street-view-panel" class="street-view-panel">
     <div class="street-view-header">
         <h3><i class="fas fa-street-view"></i> GSP STREET VIEW</h3>
-        <button class="street-view-close" onclick="window.closeStreetViewPanel()" aria-label="Close Street View">
-            <i class="fas fa-times"></i>
-        </button>
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <button class="street-view-action-btn" onclick="window.openRoverCamera()" title="Live Mapillary Auto-Capture" style="background:transparent; border:none; color:#05CB63; cursor:pointer; font-size:1.3rem; transition: transform 0.2s;">
+                <i class="fas fa-video"></i>
+            </button>
+            <button class="street-view-close" onclick="window.closeStreetViewPanel()" aria-label="Close Street View">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
     </div>
     <div class="street-view-body">
         <div id="mly-container"></div>
@@ -69801,6 +69844,58 @@ if (document.readyState !== 'loading') {
     </div>
 </div>
 <script src="js/street-view.js"></script>
+<script src="js/rover-camera.js"></script>
+<script src="js/mapillary-uploader.js"></script>
+<!-- Rover Camera Overlay -->
+<div id="rover-camera-overlay" class="rover-camera-overlay">
+    <div id="rover-camera-prompt" class="rover-prompt">
+        <div class="rover-prompt-content">
+            <h3>Choose Capture Mode</h3>
+            <p>Would you like to upload captured images directly to Mapillary, or save them locally on your device as a ZIP file?</p>
+            <div class="rover-prompt-buttons">
+                <button onclick="window.selectRoverMode('upload')" class="rover-prompt-btn upload"><i class="fas fa-cloud-upload-alt"></i> Upload to Mapillary</button>
+                <button onclick="window.selectRoverMode('local')" class="rover-prompt-btn local"><i class="fas fa-save"></i> Save Locally</button>
+                <button onclick="window.closeRoverCamera()" class="rover-prompt-btn cancel" style="background:transparent; border: 1px solid rgba(255,255,255,0.2);"><i class="fas fa-times"></i> Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <video id="rover-camera-feed" autoplay playsinline style="display:none;"></video>
+    <canvas id="rover-camera-canvas" style="display: none;"></canvas>
+    
+    <div class="rover-hud">
+        <div class="hud-top-bar">
+            <div class="hud-stat">
+                <i class="fas fa-satellite-dish"></i> <span id="rover-gps-acc">GPS: Wait...</span>
+            </div>
+            <div class="hud-stat">
+                <i class="fas fa-tachometer-alt"></i> <span id="rover-speed">0 km/h</span>
+            </div>
+            <div class="hud-stat">
+                <i class="fas fa-camera"></i> <span id="rover-img-count">0 Captures</span>
+            </div>
+        </div>
+
+        <div class="hud-center-reticle">
+            <div class="reticle-box"></div>
+        </div>
+
+        <div class="hud-bottom-bar">
+            <button id="rover-start-btn" class="rover-btn start" onclick="window.toggleRoverCapture()">START AUTO-CAPTURE</button>
+            <button id="rover-close-btn" class="rover-btn close" onclick="window.closeRoverCamera()">FINISH & UPLOAD</button>
+        </div>
+        
+        <div class="hud-upload-progress" id="rover-upload-progress" style="display: none;">
+            <span>Uploading to Mapillary: <span id="rover-upload-text">0/0</span></span>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="rover-upload-fill"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="js/rover-camera.js"></script>
+<script src="js/mapillary-uploader.js"></script>
 
 </body>
 

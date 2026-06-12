@@ -1,0 +1,191 @@
+/* ── Rover Camera Fullscreen UI ── */
+.rover-camera-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #000;
+    z-index: 99999;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.rover-camera-overlay.active {
+    display: flex;
+}
+
+#rover-camera-feed {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
+}
+
+/* Heads Up Display (HUD) */
+.rover-hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.hud-top-bar {
+    display: flex;
+    justify-content: space-between;
+    padding: 20px 30px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+}
+
+.hud-stat {
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(5, 203, 99, 0.4);
+    padding: 8px 15px;
+    border-radius: 8px;
+    color: #05CB63;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 1.1rem;
+    box-shadow: 0 0 15px rgba(5, 203, 99, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.hud-center-reticle {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.reticle-box {
+    width: 200px;
+    height: 200px;
+    border: 2px solid rgba(5, 203, 99, 0.3);
+    position: relative;
+}
+.reticle-box::before, .reticle-box::after {
+    content: '';
+    position: absolute;
+    background: #05CB63;
+}
+.reticle-box::before {
+    top: 50%; left: -10px; right: -10px; height: 1px;
+}
+.reticle-box::after {
+    left: 50%; top: -10px; bottom: -10px; width: 1px;
+}
+
+.hud-bottom-bar {
+    padding: 30px;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+    pointer-events: auto;
+}
+
+.rover-btn {
+    padding: 15px 30px;
+    border: none;
+    border-radius: 50px;
+    font-weight: 800;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.rover-btn.start {
+    background: #05CB63;
+    color: #000;
+    box-shadow: 0 0 20px rgba(5, 203, 99, 0.5);
+}
+
+.rover-btn.start.active {
+    background: #e11d48;
+    color: #fff;
+    box-shadow: 0 0 20px rgba(225, 29, 72, 0.5);
+    animation: pulseRed 2s infinite;
+}
+
+.rover-btn.close {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(5px);
+}
+
+.rover-btn:hover {
+    transform: scale(1.05);
+}
+
+@keyframes pulseRed {
+    0% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.7); }
+    70% { box-shadow: 0 0 0 15px rgba(225, 29, 72, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); }
+}
+
+/* Upload Progress Widget */
+.hud-upload-progress {
+    position: absolute;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid #05CB63;
+    border-radius: 8px;
+    padding: 15px 20px;
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    z-index: 3;
+    width: 300px;
+}
+
+.progress-bar-bg {
+    width: 100%;
+    height: 8px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 4px;
+    margin-top: 10px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: #05CB63;
+    transition: width 0.3s ease;
+}
+
+/* Rover Camera Prompt */
+.rover-prompt { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); z-index: 10; display: flex; justify-content: center; align-items: center; }
+.rover-prompt-content { background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(5, 203, 99, 0.4); border-radius: 16px; padding: 40px; text-align: center; max-width: 500px; color: #fff; box-shadow: 0 0 30px rgba(5, 203, 99, 0.2); pointer-events: auto; }
+.rover-prompt-content h3 { font-size: 1.8rem; margin-bottom: 15px; color: #05CB63; font-family: 'Inter', sans-serif; }
+.rover-prompt-content p { font-size: 1.1rem; line-height: 1.5; margin-bottom: 30px; color: rgba(255,255,255,0.8); }
+.rover-prompt-buttons { display: flex; flex-direction: column; gap: 15px; }
+.rover-prompt-btn { padding: 15px; border: none; border-radius: 8px; font-weight: 600; font-size: 1.1rem; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.rover-prompt-btn.upload { background: #05CB63; color: #000; box-shadow: 0 0 15px rgba(5, 203, 99, 0.3); }
+.rover-prompt-btn.upload:hover { transform: scale(1.02); box-shadow: 0 0 20px rgba(5, 203, 99, 0.5); }
+.rover-prompt-btn.local { background: #2563EB; color: #fff; box-shadow: 0 0 15px rgba(37, 99, 235, 0.3); }
+.rover-prompt-btn.local:hover { transform: scale(1.02); box-shadow: 0 0 20px rgba(37, 99, 235, 0.5); }
+.rover-prompt-btn.cancel { color: #fff; margin-top: 10px; }
+.rover-prompt-btn.cancel:hover { background: rgba(255,255,255,0.1) !important; }
