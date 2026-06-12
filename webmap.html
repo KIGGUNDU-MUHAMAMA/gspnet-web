@@ -69848,12 +69848,11 @@ if (document.readyState !== 'loading') {
 <div id="rover-camera-overlay" class="rover-camera-overlay">
     <div id="rover-camera-prompt" class="rover-prompt">
         <div class="rover-prompt-content">
-            <h3>Choose Capture Mode</h3>
-            <p>Would you like to upload captured images directly to Mapillary, or save them locally on your device as a ZIP file?</p>
+            <h3>Mode</h3>
             <div class="rover-prompt-buttons">
-                <button onclick="window.selectRoverMode('upload')" class="rover-prompt-btn upload"><i class="fas fa-cloud-upload-alt"></i> Upload to Mapillary</button>
-                <button onclick="window.selectRoverMode('local')" class="rover-prompt-btn local"><i class="fas fa-save"></i> Save Locally</button>
-                <button onclick="window.closeRoverCamera()" class="rover-prompt-btn cancel" style="background:transparent; border: 1px solid rgba(255,255,255,0.2);"><i class="fas fa-times"></i> Cancel</button>
+                <button onclick="window.selectRoverMode('upload')" class="rover-prompt-btn upload"><i class="fas fa-cloud-upload-alt"></i> Upload</button>
+                <button onclick="window.selectRoverMode('local')" class="rover-prompt-btn local"><i class="fas fa-save"></i> Save</button>
+                <button onclick="window.closeRoverCamera()" class="rover-prompt-btn cancel" title="Cancel"><i class="fas fa-times"></i></button>
             </div>
         </div>
     </div>
