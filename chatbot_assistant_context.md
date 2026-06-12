@@ -91,7 +91,9 @@ Standard web maps rely on low-accuracy phone GPS (±5 meters), which is insuffic
    - **Capture coordinates** — tap to record your current precise position.
    - **Save to GSP Network (NEW)** — Instantly save your captured field observations directly to the secure cloud database. This ensures observations are accessible for quality checks (QC) and allows other users to easily find, verify, and collaborate on points across the platform.
    - **Measure areas** — draw a polygon by walking the boundary and the area is calculated live.
-   - **Take photos (AR Camera)** — attach geotagged photos to captured points for report documentation via the improved overlay camera modal.
+   - **Take photos & Mapillary Upload (AR Camera)** — click the Photo button to open the capture mode selection. 
+     - **Save Mode:** Captures single photos locally to your device with GPS Exif tags.
+     - **Upload Mode:** Enables continuous auto-capture to record a street-view route. This leverages the **Cloudflare Mapillary Proxy** to seamlessly bundle images into a ZIP and upload them directly to Mapillary without CORS errors. Use the **START**, **UPLOAD**, and **CLOSE** buttons on the HUD to manage your capture session.
    - **Export your work** — export all marked points and polygons as **CSV**, **KML**, or **DXF** directly from your phone or tablet in the field.
 
 ### Coordinate Search & Extractor

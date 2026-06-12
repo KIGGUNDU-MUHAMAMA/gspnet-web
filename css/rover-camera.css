@@ -92,6 +92,7 @@
 
 .hud-bottom-bar {
     padding: 30px;
+    padding-bottom: 60px; /* Push up for mobile browser UI */
     display: flex;
     justify-content: center;
     gap: 20px;

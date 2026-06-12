@@ -13,20 +13,12 @@ var mapillaryStore = localforage.createInstance({
 
 var captureMode = 'upload';
 
-window.openRoverCamera = async function() {
+window.openRoverCamera = async function(mode = 'upload') {
     const overlay = document.getElementById('rover-camera-overlay');
     if (overlay) overlay.classList.add('active');
 
-    // Show prompt, hide video and HUD
-    document.getElementById('rover-camera-prompt').style.display = 'flex';
-    document.getElementById('rover-camera-feed').style.display = 'none';
-    const hud = document.querySelector('.rover-hud');
-    if (hud) hud.style.display = 'none';
-};
-
-window.selectRoverMode = async function(mode) {
     captureMode = mode;
-    document.getElementById('rover-camera-prompt').style.display = 'none';
+    
     document.getElementById('rover-camera-feed').style.display = 'block';
     
     const hud = document.querySelector('.rover-hud');
@@ -62,8 +54,34 @@ window.selectRoverMode = async function(mode) {
         
     } catch (err) {
         console.error('Camera Error:', err);
-        if (window.showToast) window.showToast('Camera access failed. Check permissions and HTTPS.', 'error');
+        if (err.name === 'NotReadableError') {
+            alert('Camera is currently in use by another application or tab. Please close them and try again.');
+        } else {
+            if (window.showToast) window.showToast('Camera access failed. Check permissions and HTTPS.', 'error');
+        }
     }
+};
+
+window.cancelRoverCamera = function() {
+    if (isAutoCapturing) window.toggleRoverCapture();
+    
+    if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+    }
+    
+    if (gpsWatchId) {
+        navigator.geolocation.clearWatch(gpsWatchId);
+        gpsWatchId = null;
+    }
+    
+    const overlay = document.getElementById('rover-camera-overlay');
+    if (overlay) overlay.classList.remove('active');
+    
+    // Clear out images if cancelled
+    mapillaryStore.clear().then(() => {
+        captureCount = 0;
+        document.getElementById('rover-img-count').innerText = '0 Captures';
+    });
 };
 
 window.closeRoverCamera = function() {
