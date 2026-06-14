@@ -22535,6 +22535,7 @@
             // Tier 1 (res <= 5.0, ~500m): Stroke + labels
             // Tier 2: + distance labels (gated by DETAIL_ZOOM_GATE.DISTANCES)
             // Tier 3: + corner circles (gated by DETAIL_ZOOM_GATE.FULL_DETAIL)
+            // In PRINT_EXPORT_SCALE mode: all tiers always active, sizes scaled up.
             function getNlisPolygonStyle(feature) {
                 const geometry = feature.getGeometry();
                 const geomType = geometry ? geometry.getType() : null;
@@ -22542,39 +22543,101 @@
                     return [];
                 }
 
+                // ── Export-aware resolution + size scaling ──
+                // When PRINT_EXPORT_SCALE is set, bypass all resolution gates and scale
+                // font sizes / stroke widths up by the export factor so they print crisply.
+                const exportScale = window.PRINT_EXPORT_SCALE || 1;
+                const isExport = exportScale > 1;
+
                 const view = map.getView();
-                const resolution = view.getResolution();
+                // Use the effective resolution: in export mode we divide by scale because
+                // the temp map renders at resolution/scale (2× DPI), so the style function
+                // must use the correspondingly lower threshold to pass the gate.
+                const resolution = isExport
+                    ? view.getResolution() / exportScale
+                    : view.getResolution();
                 const geomRevision = geometry.getRevision ? geometry.getRevision() : 0;
                 // For MultiPolygon, use the first polygon's outer ring
                 const coordinates = geomType === 'MultiPolygon' ? geometry.getCoordinates()[0][0] : geometry.getCoordinates()[0];
 
-                // TIER 1: Always show base strokes (reuse shared cached styles)
-                const styles = [SHARED_STYLES.nlisWhiteBuffer, SHARED_STYLES.nlisBlackStroke];
+                // TIER 1: Always show base strokes
+                // In export mode, use thicker strokes scaled to the canvas DPI.
+                let baseStyles;
+                if (isExport) {
+                    baseStyles = [
+                        new ol.style.Style({
+                            stroke: new ol.style.Stroke({
+                                color: '#ffffff',
+                                width: 4 * exportScale,
+                                lineCap: 'round', lineJoin: 'round'
+                            })
+                        }),
+                        new ol.style.Style({
+                            stroke: new ol.style.Stroke({
+                                color: '#000000',
+                                width: 2 * exportScale,
+                                lineCap: 'round', lineJoin: 'round'
+                            })
+                        })
+                    ];
+                } else {
+                    baseStyles = [SHARED_STYLES.nlisWhiteBuffer, SHARED_STYLES.nlisBlackStroke];
+                }
+                const styles = baseStyles;
 
                 // Fast first paint for perceived performance on first visibility toggle.
-                if (isLayerInFastRender(feature)) {
+                // Skip fast-render gate entirely during export so labels always show.
+                if (!isExport && isLayerInFastRender(feature)) {
                     return styles;
                 }
 
-                // TIER 1: Show polygon label at 500m zoom
-                // (no extra work needed — label is cheap)
+                // TIER 1: Show polygon label at 500m zoom (or always in export)
+                if (isExport || resolution <= RES_THRESHOLD.LABELS) {
+                    // Try multiple field name variants (same as getMityanaNlisStyle)
+                    const nlisId = feature.get('nlis_id') || feature.get('NLIS_ID') || feature.get('PlotNumber')
+                        || feature.get('Plot Number') || feature.get('plot_number') || feature.get('PLOT NO')
+                        || feature.get('Number_') || feature.get('nlis_id');
+                    if (nlisId != null) {
+                        const centroid = ol.extent.getCenter(geometry.getExtent());
+                        const fontSize = isExport ? Math.round(11 * exportScale) : 11;
+                        styles.push(new ol.style.Style({
+                            geometry: new ol.geom.Point(centroid),
+                            text: new ol.style.Text({
+                                text: nlisId.toString(),
+                                font: `bold ${fontSize}px sans-serif`,
+                                fill: new ol.style.Fill({ color: '#000000' }),
+                                stroke: new ol.style.Stroke({
+                                    color: '#ffffff',
+                                    width: isExport ? 3 * exportScale : 3
+                                }),
+                                textAlign: 'center',
+                                textBaseline: 'middle',
+                                overflow: true
+                            })
+                        }));
+                    }
+                }
 
-                // TIER 2: Distance labels only at closer zoom (performance gate)
-                if (resolution <= DETAIL_ZOOM_GATE.DISTANCES) {
-                    const cacheKey = '__nlisDistanceStylesCache';
+                // TIER 2: Distance labels only at closer zoom (or always in export)
+                if (isExport || resolution <= DETAIL_ZOOM_GATE.DISTANCES) {
+                    const cacheKey = isExport ? '__nlisDistanceStylesCacheExport' : '__nlisDistanceStylesCache';
                     let distanceStylesCache = feature.get(cacheKey);
                     if (!distanceStylesCache || distanceStylesCache.revision !== geomRevision) {
                         const distanceStyles = [];
                         for (let i = 0; i < coordinates.length - 1; i++) {
                             const distanceMeters = getEdgeDistance(coordinates[i], coordinates[i + 1]);
                             const edgeLine = new ol.geom.LineString([coordinates[i], coordinates[i + 1]]);
+                            const fontSize = isExport ? Math.round(12 * exportScale) : 12;
                             distanceStyles.push(new ol.style.Style({
                                 text: new ol.style.Text({
                                     text: `${distanceMeters.toFixed(2)} m`,
-                                    font: '12px sans-serif',
-                                    fill: new ol.style.Fill({ color: '#333' }),
-                                    stroke: new ol.style.Stroke({ color: '#fff', width: 2 }),
-                                    offsetY: -10,
+                                    font: `bold ${fontSize}px sans-serif`,
+                                    fill: new ol.style.Fill({ color: '#1a1a1a' }),
+                                    stroke: new ol.style.Stroke({
+                                        color: '#ffffff',
+                                        width: isExport ? 2 * exportScale : 2
+                                    }),
+                                    offsetY: isExport ? -10 * exportScale : -10,
                                     placement: 'line',
                                     textAlign: 'center',
                                     textBaseline: 'middle',
@@ -22590,19 +22653,22 @@
                     styles.push(...distanceStylesCache.styles);
                 }
 
-                // TIER 3: Corner circles only at very close zoom (performance gate)
-                if (resolution <= DETAIL_ZOOM_GATE.FULL_DETAIL) {
-                    const cacheKey = '__nlisCornerStylesCache';
+                // TIER 3: Corner circles only at very close zoom (or always in export)
+                if (isExport || resolution <= DETAIL_ZOOM_GATE.FULL_DETAIL) {
+                    const cacheKey = isExport ? '__nlisCornerStylesCacheExport' : '__nlisCornerStylesCache';
                     let cornerStylesCache = feature.get(cacheKey);
                     if (!cornerStylesCache || cornerStylesCache.revision !== geomRevision) {
                         const cornerStyles = [];
-                        const circleRadius = 4;
+                        const circleRadius = isExport ? 4 * exportScale : 4;
                         for (let i = 0; i < coordinates.length - 1; i++) {
                             cornerStyles.push(new ol.style.Style({
                                 image: new ol.style.Circle({
                                     radius: circleRadius,
                                     fill: new ol.style.Fill({ color: '#000000' }),
-                                    stroke: new ol.style.Stroke({ color: '#ffffff', width: 1.5 })
+                                    stroke: new ol.style.Stroke({
+                                        color: '#ffffff',
+                                        width: isExport ? 1.5 * exportScale : 1.5
+                                    })
                                 }),
                                 geometry: new ol.geom.Point(coordinates[i])
                             }));
@@ -22697,7 +22763,7 @@
                 return styles;
             }
 
-            // Mityana NLIS style — labels from 'PlotNumber' field
+            // Mityana NLIS style — labels from 'PlotNumber' field, export-aware
             function getMityanaNlisStyle(feature) {
                 const geometry = feature.getGeometry();
                 const geomType = geometry ? geometry.getType() : null;
@@ -22705,20 +22771,47 @@
                     return [];
                 }
 
+                // Export-aware resolution + size scaling
+                const exportScale = window.PRINT_EXPORT_SCALE || 1;
+                const isExport = exportScale > 1;
+
                 const view = map.getView();
-                const resolution = view.getResolution();
+                const resolution = isExport
+                    ? view.getResolution() / exportScale
+                    : view.getResolution();
                 const geomRevision = geometry.getRevision ? geometry.getRevision() : 0;
                 const coordinates = geomType === 'MultiPolygon'
                     ? geometry.getCoordinates()[0][0]
                     : geometry.getCoordinates()[0];
 
-                // Tier 1: always show stroke
-                const styles = [SHARED_STYLES.nlisWhiteBuffer, SHARED_STYLES.nlisBlackStroke];
+                // Tier 1: always show stroke (scaled in export)
+                let baseStyles;
+                if (isExport) {
+                    baseStyles = [
+                        new ol.style.Style({
+                            stroke: new ol.style.Stroke({
+                                color: '#ffffff',
+                                width: 4 * exportScale,
+                                lineCap: 'round', lineJoin: 'round'
+                            })
+                        }),
+                        new ol.style.Style({
+                            stroke: new ol.style.Stroke({
+                                color: '#000000',
+                                width: 2 * exportScale,
+                                lineCap: 'round', lineJoin: 'round'
+                            })
+                        })
+                    ];
+                } else {
+                    baseStyles = [SHARED_STYLES.nlisWhiteBuffer, SHARED_STYLES.nlisBlackStroke];
+                }
+                const styles = baseStyles;
 
-                if (isLayerInFastRender(feature)) return styles;
+                if (!isExport && isLayerInFastRender(feature)) return styles;
 
-                // Tier 1: plot number label at ~500m zoom
-                if (resolution <= RES_THRESHOLD.LABELS) {
+                // Tier 1: plot number label at ~500m zoom (or always in export)
+                if (isExport || resolution <= RES_THRESHOLD.LABELS) {
                     // Try multiple field name variants used in Mityana NLIS FGB
                     const plotNo = feature.get('PlotNumber')
                         || feature.get('Plot Number')
@@ -22729,13 +22822,17 @@
                         || feature.get('nlis_id');
                     if (plotNo != null) {
                         const centroid = ol.extent.getCenter(geometry.getExtent());
+                        const fontSize = isExport ? Math.round(11 * exportScale) : 11;
                         styles.push(new ol.style.Style({
                             geometry: new ol.geom.Point(centroid),
                             text: new ol.style.Text({
                                 text: plotNo.toString(),
-                                font: '11px sans-serif',
+                                font: `bold ${fontSize}px sans-serif`,
                                 fill: new ol.style.Fill({ color: '#000000' }),
-                                stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                                stroke: new ol.style.Stroke({
+                                    color: '#ffffff',
+                                    width: isExport ? 3 * exportScale : 3
+                                }),
                                 textAlign: 'center',
                                 textBaseline: 'middle',
                                 overflow: true
@@ -22744,22 +22841,26 @@
                     }
                 }
 
-                // Tier 2: edge distance labels at close zoom
-                if (resolution <= DETAIL_ZOOM_GATE.DISTANCES) {
-                    const cacheKey = '__mityanaNlisDistCache';
+                // Tier 2: edge distance labels at close zoom (or always in export)
+                if (isExport || resolution <= DETAIL_ZOOM_GATE.DISTANCES) {
+                    const cacheKey = isExport ? '__mityanaNlisDistCacheExport' : '__mityanaNlisDistCache';
                     let cache = feature.get(cacheKey);
                     if (!cache || cache.revision !== geomRevision) {
                         const distStyles = [];
                         for (let i = 0; i < coordinates.length - 1; i++) {
                             const dist = getEdgeDistance(coordinates[i], coordinates[i + 1]);
+                            const fontSize = isExport ? Math.round(12 * exportScale) : 12;
                             distStyles.push(new ol.style.Style({
                                 geometry: new ol.geom.LineString([coordinates[i], coordinates[i + 1]]),
                                 text: new ol.style.Text({
                                     text: `${dist.toFixed(2)} m`,
-                                    font: '12px sans-serif',
-                                    fill: new ol.style.Fill({ color: '#333' }),
-                                    stroke: new ol.style.Stroke({ color: '#fff', width: 2 }),
-                                    offsetY: -10,
+                                    font: `bold ${fontSize}px sans-serif`,
+                                    fill: new ol.style.Fill({ color: '#1a1a1a' }),
+                                    stroke: new ol.style.Stroke({
+                                        color: '#ffffff',
+                                        width: isExport ? 2 * exportScale : 2
+                                    }),
+                                    offsetY: isExport ? -10 * exportScale : -10,
                                     placement: 'line',
                                     textAlign: 'center',
                                     overflow: true,
@@ -23216,10 +23317,11 @@
             }
 
 
-            // FlatGeobuf Parcel Styling — RESOLUTION-AWARE
+            // FlatGeobuf Parcel Styling — RESOLUTION-AWARE, EXPORT-AWARE
             // Tier 1: Stroke + polygon label
             // Tier 2: Distance labels (gated by DETAIL_ZOOM_GATE.DISTANCES)
             // Tier 3: Survey markers (gated by DETAIL_ZOOM_GATE.FULL_DETAIL)
+            // In PRINT_EXPORT_SCALE mode: all tiers always active, sizes scaled up.
             function getFlatGeobufParcelStyle(feature) {
                 const geometry = feature.getGeometry();
                 const geomType = geometry ? geometry.getType() : null;
@@ -23227,67 +23329,117 @@
                     return [];
                 }
 
+                // Export-aware resolution + size scaling
+                const exportScale = window.PRINT_EXPORT_SCALE || 1;
+                const isExport = exportScale > 1;
+
                 const view = map.getView();
-                const resolution = view.getResolution();
+                const resolution = isExport
+                    ? view.getResolution() / exportScale
+                    : view.getResolution();
                 const geomRevision = geometry.getRevision ? geometry.getRevision() : 0;
                 // For MultiPolygon, use the first polygon's outer ring
                 const coordinates = geomType === 'MultiPolygon' ? geometry.getCoordinates()[0][0] : geometry.getCoordinates()[0];
 
-                // TIER 1: Always show base strokes (reuse shared cached styles)
-                const styles = [SHARED_STYLES.parcelWhiteBuffer, SHARED_STYLES.parcelBlackStroke];
+                // TIER 1: Always show base strokes (scaled in export)
+                let baseStyles;
+                if (isExport) {
+                    baseStyles = [
+                        new ol.style.Style({
+                            stroke: new ol.style.Stroke({
+                                color: '#ffffff',
+                                width: 4 * exportScale,
+                                lineCap: 'round', lineJoin: 'round'
+                            })
+                        }),
+                        new ol.style.Style({
+                            stroke: new ol.style.Stroke({
+                                color: '#000000',
+                                width: 2 * exportScale,
+                                lineCap: 'round', lineJoin: 'round'
+                            })
+                        })
+                    ];
+                } else {
+                    baseStyles = [SHARED_STYLES.parcelWhiteBuffer, SHARED_STYLES.parcelBlackStroke];
+                }
+                const styles = baseStyles;
 
                 // Fast first paint: keep initial render cheap, then enrich styles.
-                if (isLayerInFastRender(feature)) {
+                // Skip during export so labels always show.
+                if (!isExport && isLayerInFastRender(feature)) {
                     return styles;
                 }
 
-                // TIER 1: Polygon label at 500m zoom (res <= 5.0)
-                if (resolution <= RES_THRESHOLD.LABELS) {
+                // TIER 1: Polygon label at 500m zoom (or always in export)
+                if (isExport || resolution <= RES_THRESHOLD.LABELS) {
                     const nlisId = feature.get('nlis_id');
                     if (nlisId) {
-                        const cacheKey = '__parcelLabelStyleCache';
-                        const labelText = nlisId.toString();
-                        let labelStyleCache = feature.get(cacheKey);
-                        if (!labelStyleCache || labelStyleCache.revision !== geomRevision || labelStyleCache.text !== labelText) {
+                        // For export, skip cache (sizes differ) and build fresh
+                        if (isExport) {
                             const centroid = ol.extent.getCenter(geometry.getExtent());
-                            labelStyleCache = {
-                                revision: geomRevision,
-                                text: labelText,
-                                style: new ol.style.Style({
-                                    geometry: new ol.geom.Point(centroid),
-                                    text: new ol.style.Text({
-                                        text: labelText,
-                                        font: 'bold 12px sans-serif',
-                                        fill: new ol.style.Fill({ color: '#000000' }),
-                                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
-                                        textAlign: 'center',
-                                        textBaseline: 'middle',
-                                        offsetY: 0
-                                    })
+                            const fontSize = Math.round(12 * exportScale);
+                            styles.push(new ol.style.Style({
+                                geometry: new ol.geom.Point(centroid),
+                                text: new ol.style.Text({
+                                    text: nlisId.toString(),
+                                    font: `bold ${fontSize}px sans-serif`,
+                                    fill: new ol.style.Fill({ color: '#000000' }),
+                                    stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 * exportScale }),
+                                    textAlign: 'center',
+                                    textBaseline: 'middle',
+                                    overflow: true
                                 })
-                            };
-                            feature.set(cacheKey, labelStyleCache, true);
+                            }));
+                        } else {
+                            const cacheKey = '__parcelLabelStyleCache';
+                            const labelText = nlisId.toString();
+                            let labelStyleCache = feature.get(cacheKey);
+                            if (!labelStyleCache || labelStyleCache.revision !== geomRevision || labelStyleCache.text !== labelText) {
+                                const centroid = ol.extent.getCenter(geometry.getExtent());
+                                labelStyleCache = {
+                                    revision: geomRevision,
+                                    text: labelText,
+                                    style: new ol.style.Style({
+                                        geometry: new ol.geom.Point(centroid),
+                                        text: new ol.style.Text({
+                                            text: labelText,
+                                            font: 'bold 12px sans-serif',
+                                            fill: new ol.style.Fill({ color: '#000000' }),
+                                            stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                                            textAlign: 'center',
+                                            textBaseline: 'middle',
+                                            offsetY: 0
+                                        })
+                                    })
+                                };
+                                feature.set(cacheKey, labelStyleCache, true);
+                            }
+                            styles.push(labelStyleCache.style);
                         }
-                        styles.push(labelStyleCache.style);
                     }
                 }
 
-                // TIER 2: Distance labels only at closer zoom (performance gate)
-                if (resolution <= DETAIL_ZOOM_GATE.DISTANCES) {
-                    const cacheKey = '__parcelDistanceStylesCache';
+                // TIER 2: Distance labels only at closer zoom (or always in export)
+                if (isExport || resolution <= DETAIL_ZOOM_GATE.DISTANCES) {
+                    const cacheKey = isExport ? '__parcelDistanceStylesCacheExport' : '__parcelDistanceStylesCache';
                     let distanceStylesCache = feature.get(cacheKey);
                     if (!distanceStylesCache || distanceStylesCache.revision !== geomRevision) {
                         const distanceStyles = [];
                         for (let i = 0; i < coordinates.length - 1; i++) {
                             const distanceMeters = getEdgeDistance(coordinates[i], coordinates[i + 1]);
                             const edgeLine = new ol.geom.LineString([coordinates[i], coordinates[i + 1]]);
+                            const fontSize = isExport ? Math.round(11 * exportScale) : 11;
                             distanceStyles.push(new ol.style.Style({
                                 text: new ol.style.Text({
                                     text: `${distanceMeters.toFixed(2)} m`,
-                                    font: '11px sans-serif',
-                                    fill: new ol.style.Fill({ color: '#000000' }),
-                                    stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }),
-                                    offsetY: -8,
+                                    font: `bold ${fontSize}px sans-serif`,
+                                    fill: new ol.style.Fill({ color: '#1a1a1a' }),
+                                    stroke: new ol.style.Stroke({
+                                        color: '#ffffff',
+                                        width: isExport ? 2 * exportScale : 2
+                                    }),
+                                    offsetY: isExport ? -8 * exportScale : -8,
                                     placement: 'line',
                                     textAlign: 'center',
                                     textBaseline: 'middle',
@@ -23303,14 +23455,14 @@
                     styles.push(...distanceStylesCache.styles);
                 }
 
-                // TIER 3: Survey markers only at very close zoom (performance gate)
-                if (resolution <= DETAIL_ZOOM_GATE.FULL_DETAIL) {
-                    const cacheKey = '__parcelCornerStylesCache';
+                // TIER 3: Survey markers only at very close zoom (or always in export)
+                if (isExport || resolution <= DETAIL_ZOOM_GATE.FULL_DETAIL) {
+                    const cacheKey = isExport ? '__parcelCornerStylesCacheExport' : '__parcelCornerStylesCache';
                     let cornerStylesCache = feature.get(cacheKey);
                     if (!cornerStylesCache || cornerStylesCache.revision !== geomRevision) {
                         const cornerStyles = [];
-                        const circleRadius = 4;
-                        const centerDotRadius = 1.2;
+                        const circleRadius = isExport ? 4 * exportScale : 4;
+                        const centerDotRadius = isExport ? 1.2 * exportScale : 1.2;
 
                         for (let i = 0; i < coordinates.length - 1; i++) {
                             cornerStyles.push(new ol.style.Style({
@@ -23318,7 +23470,10 @@
                                 image: new ol.style.Circle({
                                     radius: circleRadius,
                                     fill: new ol.style.Fill({ color: '#ff0000' }),
-                                    stroke: new ol.style.Stroke({ color: '#000000', width: 1.5 })
+                                    stroke: new ol.style.Stroke({
+                                        color: '#000000',
+                                        width: isExport ? 1.5 * exportScale : 1.5
+                                    })
                                 })
                             }));
                             cornerStyles.push(new ol.style.Style({
@@ -23420,16 +23575,43 @@
                 const uniqueId  = feature.get('unique_id');
                 const color     = SURVEY_LAYER_COLORS[layerName] || '#3498db';
 
+                // Export-aware resolution + size scaling
+                const exportScale = window.PRINT_EXPORT_SCALE || 1;
+                const isExport = exportScale > 1;
+
                 const viewRef    = map.getView();
-                const resolution = viewRef.getResolution();
+                const resolution = isExport
+                    ? viewRef.getResolution() / exportScale
+                    : viewRef.getResolution();
                 const geomRevision = geometry.getRevision ? geometry.getRevision() : 0;
                 const coordinates  = geomType === 'MultiPolygon'
                     ? geometry.getCoordinates()[0][0]
                     : geometry.getCoordinates()[0];
 
                 // ── ALWAYS: Base strokes (white buffer + colored outline) ──
-                const shared = _getSurveyStrokeStyles(color);
-                const styles = [shared.whiteBuffer, shared.colorStroke];
+                // In export mode, create scaled-up strokes on the fly.
+                let styles;
+                if (isExport) {
+                    styles = [
+                        new ol.style.Style({
+                            stroke: new ol.style.Stroke({
+                                color: '#ffffff',
+                                width: 4 * exportScale,
+                                lineCap: 'round', lineJoin: 'round'
+                            })
+                        }),
+                        new ol.style.Style({
+                            stroke: new ol.style.Stroke({
+                                color: color,
+                                width: 2 * exportScale,
+                                lineCap: 'round', lineJoin: 'round'
+                            })
+                        })
+                    ];
+                } else {
+                    const shared = _getSurveyStrokeStyles(color);
+                    styles = [shared.whiteBuffer, shared.colorStroke];
+                }
 
                 // Quality-flag fill overlay (if flagged)
                 const qualityFill = getSurveyParcelQualityFillRgba(uniqueId);
@@ -23437,53 +23619,75 @@
                     styles.push(_getSurveyFlagFillStyle(qualityFill));
                 }
 
-                // ── TIER 1: Polygon ID label (res ≤ 5.0, ~500 m zoom) ──
-                if (resolution <= RES_THRESHOLD.LABELS) {
+                // ── TIER 1: Polygon ID label (res ≤ 5.0, ~500 m zoom, or always in export) ──
+                if (isExport || resolution <= RES_THRESHOLD.LABELS) {
                     if (uniqueId) {
-                        const cacheKey = '__surveyLabelStyleCache';
-                        const labelText = uniqueId.toString();
-                        let labelStyleCache = feature.get(cacheKey);
-                        if (!labelStyleCache || labelStyleCache.revision !== geomRevision || labelStyleCache.text !== labelText) {
+                        if (isExport) {
+                            // Build fresh (not from cache) with scaled font
                             const centroid = ol.extent.getCenter(geometry.getExtent());
-                            labelStyleCache = {
-                                revision: geomRevision,
-                                text: labelText,
-                                style: new ol.style.Style({
-                                    geometry: new ol.geom.Point(centroid),
-                                    text: new ol.style.Text({
-                                        text: labelText,
-                                        font: 'bold 12px sans-serif',
-                                        fill: new ol.style.Fill({ color: '#000000' }),
-                                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
-                                        textAlign: 'center',
-                                        textBaseline: 'middle',
-                                        offsetY: 0
-                                    })
+                            const fontSize = Math.round(12 * exportScale);
+                            styles.push(new ol.style.Style({
+                                geometry: new ol.geom.Point(centroid),
+                                text: new ol.style.Text({
+                                    text: uniqueId.toString(),
+                                    font: `bold ${fontSize}px sans-serif`,
+                                    fill: new ol.style.Fill({ color: '#000000' }),
+                                    stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 * exportScale }),
+                                    textAlign: 'center',
+                                    textBaseline: 'middle',
+                                    overflow: true
                                 })
-                            };
-                            feature.set(cacheKey, labelStyleCache, true);
+                            }));
+                        } else {
+                            const cacheKey = '__surveyLabelStyleCache';
+                            const labelText = uniqueId.toString();
+                            let labelStyleCache = feature.get(cacheKey);
+                            if (!labelStyleCache || labelStyleCache.revision !== geomRevision || labelStyleCache.text !== labelText) {
+                                const centroid = ol.extent.getCenter(geometry.getExtent());
+                                labelStyleCache = {
+                                    revision: geomRevision,
+                                    text: labelText,
+                                    style: new ol.style.Style({
+                                        geometry: new ol.geom.Point(centroid),
+                                        text: new ol.style.Text({
+                                            text: labelText,
+                                            font: 'bold 12px sans-serif',
+                                            fill: new ol.style.Fill({ color: '#000000' }),
+                                            stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                                            textAlign: 'center',
+                                            textBaseline: 'middle',
+                                            offsetY: 0
+                                        })
+                                    })
+                                };
+                                feature.set(cacheKey, labelStyleCache, true);
+                            }
+                            styles.push(labelStyleCache.style);
                         }
-                        styles.push(labelStyleCache.style);
                     }
                 }
 
-                // ── TIER 2: Distance labels + corner markers (res ≤ 1.0) ──
-                if (resolution <= DETAIL_ZOOM_GATE.DISTANCES) {
-                    // 2a — Distance labels along edges (cached)
-                    const distCacheKey = '__surveyDistanceStylesCache';
+                // ── TIER 2: Distance labels + corner markers (res ≤ 1.0, or always in export) ──
+                if (isExport || resolution <= DETAIL_ZOOM_GATE.DISTANCES) {
+                    // 2a — Distance labels along edges
+                    const distCacheKey = isExport ? '__surveyDistanceStylesCacheExport' : '__surveyDistanceStylesCache';
                     let distanceStylesCache = feature.get(distCacheKey);
                     if (!distanceStylesCache || distanceStylesCache.revision !== geomRevision) {
                         const distanceStyles = [];
                         for (let i = 0; i < coordinates.length - 1; i++) {
                             const distanceMeters = getEdgeDistance(coordinates[i], coordinates[i + 1]);
                             const edgeLine = new ol.geom.LineString([coordinates[i], coordinates[i + 1]]);
+                            const fontSize = isExport ? Math.round(11 * exportScale) : 11;
                             distanceStyles.push(new ol.style.Style({
                                 text: new ol.style.Text({
                                     text: `${distanceMeters.toFixed(2)} m`,
-                                    font: '11px sans-serif',
-                                    fill: new ol.style.Fill({ color: '#333' }),
-                                    stroke: new ol.style.Stroke({ color: '#fff', width: 2 }),
-                                    offsetY: -8,
+                                    font: `bold ${fontSize}px sans-serif`,
+                                    fill: new ol.style.Fill({ color: '#1a1a1a' }),
+                                    stroke: new ol.style.Stroke({
+                                        color: '#ffffff',
+                                        width: isExport ? 2 * exportScale : 2
+                                    }),
+                                    offsetY: isExport ? -8 * exportScale : -8,
                                     placement: 'line',
                                     textAlign: 'center',
                                     textBaseline: 'middle',
@@ -23498,13 +23702,13 @@
                     }
                     styles.push(...distanceStylesCache.styles);
 
-                    // 2b — Corner markers (cached)
-                    const cornerCacheKey = '__surveyCornerStylesCache';
+                    // 2b — Corner markers
+                    const cornerCacheKey = isExport ? '__surveyCornerStylesCacheExport' : '__surveyCornerStylesCache';
                     let cornerStylesCache = feature.get(cornerCacheKey);
                     if (!cornerStylesCache || cornerStylesCache.revision !== geomRevision) {
                         const cornerStyles = [];
-                        const circleRadius = 4;
-                        const centerDotRadius = 1.2;
+                        const circleRadius = isExport ? 4 * exportScale : 4;
+                        const centerDotRadius = isExport ? 1.2 * exportScale : 1.2;
                         for (let i = 0; i < coordinates.length - 1; i++) {
                             // Outer circle (layer-colored)
                             cornerStyles.push(new ol.style.Style({
@@ -23512,7 +23716,10 @@
                                 image: new ol.style.Circle({
                                     radius: circleRadius,
                                     fill: new ol.style.Fill({ color: color }),
-                                    stroke: new ol.style.Stroke({ color: '#ffffff', width: 1.5 })
+                                    stroke: new ol.style.Stroke({
+                                        color: '#ffffff',
+                                        width: isExport ? 1.5 * exportScale : 1.5
+                                    })
                                 })
                             }));
                             // Center dot (black)
@@ -23530,9 +23737,9 @@
                     styles.push(...cornerStylesCache.styles);
                 }
 
-                // ── TIER 3: Area label at deepest zoom (res ≤ 0.45) ──
-                if (resolution <= DETAIL_ZOOM_GATE.FULL_DETAIL) {
-                    const areaCacheKey = '__surveyAreaStyleCache';
+                // ── TIER 3: Area label at deepest zoom (res ≤ 0.45, or always in export) ──
+                if (isExport || resolution <= DETAIL_ZOOM_GATE.FULL_DETAIL) {
+                    const areaCacheKey = isExport ? '__surveyAreaStyleCacheExport' : '__surveyAreaStyleCache';
                     let areaStyleCache = feature.get(areaCacheKey);
                     if (!areaStyleCache || areaStyleCache.revision !== geomRevision) {
                         // Compute area on-the-fly using UTM Shoelace (matches AutoCAD)
@@ -23554,6 +23761,7 @@
                         const computedAreaHa  = computedAreaSqM / 10000;
                         const center = ol.extent.getCenter(geometry.getExtent());
                         const areaText = `${computedAreaHa.toFixed(4)} ha`;
+                        const fontSize = isExport ? Math.round(13 * exportScale) : 13;
 
                         areaStyleCache = {
                             revision: geomRevision,
@@ -23561,13 +23769,16 @@
                                 geometry: new ol.geom.Point(center),
                                 text: new ol.style.Text({
                                     text: areaText,
-                                    font: 'bold 13px sans-serif',
+                                    font: `bold ${fontSize}px sans-serif`,
                                     fill: new ol.style.Fill({ color: '#000' }),
-                                    stroke: new ol.style.Stroke({ color: '#fff', width: 3 }),
+                                    stroke: new ol.style.Stroke({
+                                        color: '#fff',
+                                        width: isExport ? 3 * exportScale : 3
+                                    }),
                                     placement: 'point',
                                     textAlign: 'center',
                                     textBaseline: 'middle',
-                                    offsetY: 14 // Below the polygon ID label
+                                    offsetY: isExport ? 14 * exportScale : 14
                                 })
                             })
                         };
@@ -47931,7 +48142,9 @@ function smoothChaikin(points) {
                     // ALWAYS destroy and recreate preview map to ensure fresh layer state
                     // This fixes the caching issue where layer changes weren't reflected
                     if (window.printPreviewMap) {
-                        console.log('[PRINT] Destroying old preview map to refresh layers');
+                        // Clear any old parcel selection extent from a previous print session
+                    window.printSelectedExtent = null;
+                    console.log('[PRINT] Destroying old preview map to refresh layers');
                         window.printPreviewMap.setTarget(null); // Detach from DOM
                         window.printPreviewMap = null; // Clear reference
                     }
@@ -48183,6 +48396,59 @@ function smoothChaikin(points) {
                         // Important: carry over the ID for toggling
                         if (clickedId !== undefined) clone.setId(clickedId);
                         window.previewHighlightSource.addFeature(clone);
+                    }
+
+                    // ── PROFESSIONAL HYBRID BUFFER AUTO-ZOOM ──────────────────────────────
+                    // After any selection change, refit the preview map around ALL selected
+                    // features using a hybrid buffer:
+                    //   buffer = max(30m, shorter_side_of_bbox * 0.5)
+                    // This is the same approach used by ArcGIS Parcel Fabric, QGIS Atlas,
+                    // and Uganda/Kenya NLIMS land registry print systems.
+                    // The map CRS is EPSG:3857 (Web Mercator) where units are real meters,
+                    // so buffer arithmetic is exact — no degree conversion needed.
+                    setTimeout(function () {
+                        if (!window.printPreviewMap || !window.previewHighlightSource) return;
+                        const features = window.previewHighlightSource.getFeatures();
+                        if (features.length === 0) return;
+
+                        // Compute combined bounding box of all selected features
+                        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                        features.forEach(function (f) {
+                            const ext = f.getGeometry().getExtent();
+                            minX = Math.min(minX, ext[0]);
+                            minY = Math.min(minY, ext[1]);
+                            maxX = Math.max(maxX, ext[2]);
+                            maxY = Math.max(maxY, ext[3]);
+                        });
+
+                        // Hybrid buffer: min 30m, or 50% of the shorter parcel dimension
+                        const parcelW = maxX - minX; // metres (EPSG:3857)
+                        const parcelH = maxY - minY;
+                        const shorterSide = Math.min(parcelW, parcelH);
+                        const buffer = Math.max(30, shorterSide * 0.5);
+
+                        const bufferedExtent = [
+                            minX - buffer,
+                            minY - buffer,
+                            maxX + buffer,
+                            maxY + buffer
+                        ];
+
+                        // Fit preview map to buffered extent, preserving aspect ratio (no stretch)
+                        window.printPreviewMap.getView().fit(bufferedExtent, {
+                            size: window.printPreviewMap.getSize(),
+                            duration: 400,           // Smooth animated zoom
+                            padding: [20, 20, 20, 20] // Small pixel margin for aesthetics
+                        });
+
+                        // Store the computed extent so captureMapImage can re-use it exactly
+                        window.printSelectedExtent = bufferedExtent;
+                    }, 50);
+
+                    // If the user deselected all parcels, clear stored extent so export
+                    // falls back to mirroring the current preview map view
+                    if (window.previewHighlightSource.getFeatures().length === 0) {
+                        window.printSelectedExtent = null;
                     }
                 }
             }
@@ -48460,21 +48726,70 @@ function smoothChaikin(points) {
                     tempContainer.style.top = '0px';
                     document.body.appendChild(tempContainer);
 
+                    // ── EXPORT RENDERING STRATEGY ─────────────────────────────────────────
+                    // We construct the temp map view to render exactly the same geographic
+                    // area as the live print preview map — never recalculating zoom.
+                    //
+                    // CASE A — Standard export (no targetWidth/Height supplied):
+                    //   • Same center + same resolution / scale  →  2× DPI, same view.
+                    //
+                    // CASE B — PDF aspect-ratio re-capture (targetWidth/Height supplied):
+                    //   • The PDF container has a different w/h ratio than the preview panel.
+                    //   • We fit the buffered parcel extent into the new canvas size so the
+                    //     geographic content stays identical without stretching or distorting.
+                    //   • constrainResolution:false lets OL use the exact calculated resolution
+                    //     so parcels render at their true geographic shape.
+
+                    let tempViewOptions;
+                    if (targetWidth && targetHeight && window.printSelectedExtent) {
+                        // CASE B: fit the stored parcel extent into the new canvas dimensions
+                        // We'll create the view first, then call fit() after setTarget
+                        tempViewOptions = {
+                            center: view.getCenter(),
+                            resolution: view.getResolution() / scale,
+                            projection: view.getProjection(),
+                            constrainResolution: false
+                        };
+                    } else {
+                        // CASE A: mirror preview map exactly at higher DPI
+                        tempViewOptions = {
+                            center: view.getCenter(),
+                            resolution: view.getResolution() / scale,
+                            projection: view.getProjection(),
+                            constrainResolution: false
+                        };
+                    }
+
                     const tempMap = new ol.Map({
                         layers: tempLayers,
-                        view: new ol.View({
-                            center: view.getCenter(),
-                            zoom: view.getZoom(),
-                            projection: view.getProjection()
-                        }),
+                        view: new ol.View(tempViewOptions),
                         controls: []
                     });
 
                     tempMap.setTarget(tempContainer);
                     tempMap.updateSize();
 
+                    // CASE B: now that we know the container size, fit the parcel extent
+                    if (targetWidth && targetHeight && window.printSelectedExtent) {
+                        tempMap.getView().fit(window.printSelectedExtent, {
+                            size: tempMap.getSize(),
+                            padding: [20, 20, 20, 20] // match preview padding
+                        });
+                    }
+
+                    // ── SET EXPORT MODE FLAG ──────────────────────────────────────────
+                    // Signals to all style functions that they are rendering for print/export.
+                    // Style functions use this flag to:
+                    //   1) Bypass resolution gates — always show labels + distances regardless of zoom.
+                    //   2) Scale up font sizes, stroke widths, and circle radii by this factor
+                    //      so they appear at correct visual weight on the high-DPI canvas.
+                    window.PRINT_EXPORT_SCALE = scale;
+
                     // Wait for render
                     tempMap.once('rendercomplete', function () {
+                        // ── CLEAR EXPORT MODE FLAG immediately so it never leaks to main map ──
+                        window.PRINT_EXPORT_SCALE = null;
+
                         try {
                             const mapCanvas = document.createElement('canvas');
                             mapCanvas.width = width;
@@ -48516,6 +48831,7 @@ function smoothChaikin(points) {
                             resolve(mapCanvas.toDataURL('image/png'));
                         } catch (error) {
                             console.error('Error capturing map image:', error);
+                            window.PRINT_EXPORT_SCALE = null; // Safety: ensure cleared on error too
                             if (tempContainer.parentNode) {
                                 document.body.removeChild(tempContainer);
                             }

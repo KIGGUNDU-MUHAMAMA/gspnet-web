@@ -105,6 +105,12 @@ Standard web maps rely on low-accuracy phone GPS (±5 meters), which is insuffic
 - **Coordinate Search:** Navigate to an exact point on Earth. Select your CRS (e.g., Arc 1960 UTM Zone 36N), enter Eastings/Northings, and the map instantly flies to that coordinate.
 - **Coordinate Extractor:** A reverse tool. Click anywhere on the map, or select a drawn polygon, to extract its coordinates into a formatted table (CSV/Excel) for export directly to field controllers or AutoCAD.
 
+### High-Resolution Map Export & Printing
+The Print tool allows users to generate professional, high-resolution PDF map layouts.
+- **Export Scaling Strategy:** When generating exports, the system automatically runs an intelligent **resolution-aware and export-aware rendering pipeline**. Instead of pixelating at high DPIs, the system instructs all parcel styling components (such as stroke widths, label fonts, distance labels, and markers) to scale up proportionally based on the export factor.
+- **Aspect-Ratio Preservation:** When printing a selected area to a defined PDF page size, the platform guarantees that the exact geographic bounding box is maintained. It calculates the correct true resolution without arbitrarily stretching or distorting the geographic content to fit the PDF dimensions.
+- **Always-on Details:** During high-DPI printing, performance gates (like zoom-level restrictions for distance labels, area labels, and survey corner markers) are automatically bypassed so that the final exported PDF contains all critical survey details regardless of the map's current zoom scale.
+
 ### Project Library
 A centralized repository for surveyors to save and manage their datasets. You can query past projects by District, Nature of Survey, Project Name, or Date Range. This ensures field data is never lost and can be reloaded to the map at any time.
 
