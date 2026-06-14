@@ -4431,6 +4431,7 @@
             box-shadow: 0 0 20px rgba(0, 242, 254, 0.15), 0 10px 30px rgba(0, 0, 0, 0.4);
             z-index: 1000;
             display: none;
+            flex-direction: column;
             overflow: hidden;
             max-height: 70vh;
             color: white;
@@ -11104,7 +11105,8 @@
                 right: 0;
                 bottom: 0;
                 width: 100%;
-                max-height: 50vh;
+                max-height: 85vh;
+                height: 85vh;
                 border-radius: 24px 24px 0 0;
                 border-bottom: none;
                 border-left: none;
@@ -11116,11 +11118,14 @@
             }
             .gspnet-panel-inner {
                 flex-direction: column;
+                flex: 1;
+                min-height: 0;
             }
             .gspnet-content {
                 max-height: none;
                 flex: 1;
                 overflow-y: auto;
+                min-height: 0;
             }
             .gspnet-tabs {
                 display: flex;
@@ -11640,7 +11645,8 @@
                 right: 0;
                 bottom: 0;
                 width: 100%;
-                max-height: 50vh;
+                max-height: 85vh;
+                height: 85vh;
                 border-radius: 24px 24px 0 0;
                 border-bottom: none;
                 border-left: none;
@@ -11652,11 +11658,14 @@
             }
             .gspnet-panel-inner {
                 flex-direction: column;
+                flex: 1;
+                min-height: 0;
             }
             .gspnet-content {
                 max-height: none;
                 flex: 1;
                 overflow-y: auto;
+                min-height: 0;
             }
             .gspnet-tabs {
                 display: flex;
@@ -26944,7 +26953,7 @@
                                 }
                             }, 300);
                         } else {
-                            gspnetPanel.style.display = 'block';
+                            gspnetPanel.style.display = 'flex';
                             gspnetPanel.classList.add('active');
                             setTimeout(() => {
                                 gspnetPanel.classList.add('show');
@@ -46196,7 +46205,7 @@ function smoothChaikin(points) {
                     if (window.gisExportEngine && document.getElementById('gisExportPanel')?.classList.contains('open')) {
                         window.gisExportEngine.closePanel();
                     }
-                    if (gspnetPanel && gspnetPanel.style.display === 'block') {
+                    if (gspnetPanel && gspnetPanel.classList.contains('active')) {
                         const gspnetCloseBtn = document.getElementById('gspnet-panel-close');
                         if (gspnetCloseBtn) gspnetCloseBtn.click();
                     }
