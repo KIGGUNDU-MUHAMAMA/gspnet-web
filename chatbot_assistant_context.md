@@ -111,6 +111,26 @@ The Print tool allows users to generate professional, high-resolution PDF map la
 - **Aspect-Ratio Preservation:** When printing a selected area to a defined PDF page size, the platform guarantees that the exact geographic bounding box is maintained. It calculates the correct true resolution without arbitrarily stretching or distorting the geographic content to fit the PDF dimensions.
 - **Always-on Details:** During high-DPI printing, performance gates (like zoom-level restrictions for distance labels, area labels, and survey corner markers) are automatically bypassed so that the final exported PDF contains all critical survey details regardless of the map's current zoom scale.
 
+### Job Record Jacket (JRJ) Generation
+The **CREATE JRJ** module allows users to generate official Job Record Jackets directly from drawn or imported map polygons.
+- **Location:** Accessible via the "CREATE JRJ" button inside the GSP.NET Assist floating action panel (alongside File & CSV, DWG & DXF, DRAWING, and MEASURE).
+
+**Step-by-Step Guide to Creating a JRJ:**
+1. **Open the Tool:** Click the GSP.NET Assist floating action button and select **CREATE JRJ**.
+2. **Fill Metadata:** A panel will appear. Fill in the required fields:
+   - **Block & Plot:** Enter the block and plot numbers (e.g. Block 12, Plot 34).
+   - **Calibration Point:** Enter the calibration point used for the survey (e.g. 71Y176).
+   - **County & District:** Specify the location details.
+   - **Surveyor & Supervisor:** Enter the names for the signature lines.
+   - **Coordinate Reference System (CRS) & Multiplying Factor (MF):** Select your projection (e.g. Arc 1960 UTM Zone 36N) and define the MF.
+3. **Select Parcels:** The map will enter selection mode. Click on the polygons (parcels) you want to include in the JRJ. They will highlight.
+4. **Generate & Export:** Click the **Export JRJ (PDF/CSV)** button.
+5. **Result:** The system will automatically compute the areas, reverse-engineer a single-pass traverse, calculate the field notes, and download a ZIP file.
+6. **The ZIP contains:**
+   - A raw CSV data file with all coordinates.
+   - An 8-page professional PDF report featuring an Index, Automated Job History (with dotted lines for manual filling), Datum Computations, a Working Diagram (with centroid-labeled parcels), Field Notes, a continuous Traverse page, Area Computations, and the Abstract of Final Results. All pages are stamped with the "Geospatial network uganda" footer.
+
+
 ### Project Library
 A centralized repository for surveyors to save and manage their datasets. You can query past projects by District, Nature of Survey, Project Name, or Date Range. This ensures field data is never lost and can be reloaded to the map at any time.
 

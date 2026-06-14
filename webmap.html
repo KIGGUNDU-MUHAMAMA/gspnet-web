@@ -15830,6 +15830,9 @@
                         <div class="gspnet-tab" data-tab="measurement">
                             <i class="fas fa-ruler"></i> <span>MEASURE</span>
                         </div>
+                        <div class="gspnet-tab" id="jrj-create-btn" data-tab="jrj" onclick="activateJrjSelectionMode()">
+                            <i class="fas fa-file-invoice"></i> <span>CREATE JRJ</span>
+                        </div>
                     </div>
 
                     <div class="gspnet-content">
@@ -16084,6 +16087,68 @@
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- PATCH: JRJ Section -->
+                        <div class="gspnet-section" id="jrj-section">
+                            <h3>CREATE JRJ</h3>
+                            <div style="padding: 10px; background: #2c3e50; color: white; border-radius: 5px; margin-bottom: 15px; font-size: 0.9em;">
+                                <strong><i class="fas fa-mouse-pointer"></i> Selection Mode Active</strong><br>
+                                Click polygons on the map to select.<br>
+                                <span id="jrj-selected-count" style="font-weight: bold; font-size: 1.1em; color: #2ecc71;">0</span> selected.
+                            </div>
+                            
+                            <div class="jrj-form" style="display: flex; flex-direction: column; gap: 10px;">
+                                <label style="font-size: 0.8em; color: #7f8c8d; margin-bottom: -5px;">Client *</label>
+                                <input type="text" id="jrj-client" placeholder="e.g. John Doe" style="padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" required>
+                                
+                                <div style="display: flex; gap: 10px;">
+                                    <div style="flex: 1;">
+                                        <label style="font-size: 0.8em; color: #7f8c8d; margin-bottom: -5px;">Block *</label>
+                                        <input type="text" id="jrj-block" placeholder="e.g. 214" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" required>
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <label style="font-size: 0.8em; color: #7f8c8d; margin-bottom: -5px;">Plot *</label>
+                                        <input type="text" id="jrj-plot" placeholder="e.g. 123" style="width: 100%; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" required>
+                                    </div>
+                                </div>
+                                
+                                <label style="font-size: 0.8em; color: #7f8c8d; margin-bottom: -5px;">Calibration Point *</label>
+                                <input type="text" id="jrj-calibration-point" placeholder="e.g. 71y176" style="padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" required>
+                                
+                                <label style="font-size: 0.8em; color: #7f8c8d; margin-bottom: -5px;">District *</label>
+                                <input type="text" id="jrj-district" placeholder="e.g. Wakiso" style="padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" required>
+                                
+                                <label style="font-size: 0.8em; color: #7f8c8d; margin-bottom: -5px;">County *</label>
+                                <input type="text" id="jrj-county" placeholder="e.g. Kyadondo" style="padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" required>
+                                
+                                <label style="font-size: 0.8em; color: #7f8c8d; margin-bottom: -5px;">Surveyor Name *</label>
+                                <input type="text" id="jrj-surveyor-name" placeholder="e.g. Eng. Smith" style="padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" required>
+                                
+                                <label style="font-size: 0.8em; color: #7f8c8d; margin-bottom: -5px;">Supervisor Name</label>
+                                <input type="text" id="jrj-supervisor-name" placeholder="Optional" style="padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;">
+                                
+                                <label style="font-size: 0.8em; color: #7f8c8d; margin-bottom: -5px;">Coordinate System *</label>
+                                <select id="jrj-crs" style="padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" required>
+                                    <option value="EPSG:32636">WGS84 UTM Zone 36N</option>
+                                    <option value="EPSG:32736">WGS84 UTM Zone 36S</option>
+                                    <option value="EPSG:21096">Arc 1960 UTM Zone 36N</option>
+                                    <option value="EPSG:21036">Arc 1960 UTM Zone 36S</option>
+                                </select>
+                                
+                                <label style="font-size: 0.8em; color: #7f8c8d; margin-bottom: -5px;">Multiplying Factor (MF) *</label>
+                                <input type="number" id="jrj-mf" value="0.999435" step="0.000001" style="padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" required>
+                                
+                                <button id="jrj-panel-export-btn" style="padding: 10px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                                    <i class="fas fa-file-archive"></i> Export JRJ Package
+                                </button>
+                                <button id="jrj-panel-cancel-btn" style="padding: 10px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                                    <i class="fas fa-times"></i> Cancel Selection
+                                </button>
+                                <button id="jrj-clear-labels-btn" style="padding: 10px; background: #f39c12; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                                    <i class="fas fa-eraser"></i> Clear Map Labels
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -70201,6 +70266,12 @@ if (document.readyState !== 'loading') {
 <!-- GSPNet Sentinel Analytics Module -->
 <script src="js/sentinel-analytics.js?v=1.2"></script>
 <script src="js/profile-report.js"></script>
+
+<!-- JSZip for ZIP packaging -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<!-- GSPNet JRJ Generator -->
+<script src="js/jrj-generator.js"></script>
 
 <style>
 /* ── Sentinel Analytics Button Styles ────────────────────────────────────── */
