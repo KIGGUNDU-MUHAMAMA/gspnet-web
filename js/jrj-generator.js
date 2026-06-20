@@ -343,8 +343,6 @@ async function generateJrjPackage(features, meta) {
 
     // Traverse Page Logic (Multi-Ring Support)
     const traverseSections = [];
-    const cm1 = stations[0];
-    const cm2 = stations[1];
 
     function buildTraverseForRing(ringObj) {
         const tRows = [];
