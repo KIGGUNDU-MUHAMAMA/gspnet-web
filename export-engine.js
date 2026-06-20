@@ -1268,21 +1268,43 @@
 
         _buildJrjCsv(feature) {
             if (typeof global.JRJEngine === 'undefined') return null;
-            const ring = this._polygonRing(feature);
-            if (ring.length < 3) return null;
+            const rings = this._polygonRings(feature);
+            if (!rings || rings.length === 0 || rings[0].length < 3) return null;
             const crs = this.state.exportCrs;
             const viewProj = this.view.getProjection();
-            const coords = ring.slice(0, -1).map((c, i) => {
-                const t = ol.proj.transform(c, viewProj, crs);
-                return { stn: 'CM' + (i + 1), n: t[1], e: t[0] };
-            });
+            
             try {
+                let cmCounter = 1;
+                const outerCoords = rings[0].slice(0, -1).map((c, i) => {
+                    const t = ol.proj.transform(c, viewProj, crs);
+                    return { stn: 'CM' + (cmCounter++), n: t[1], e: t[0] };
+                });
+
+                const innerCoords = [];
+                for (let i = 1; i < rings.length; i++) {
+                    const innerRing = rings[i].slice(0, -1).map((c, i) => {
+                        const t = ol.proj.transform(c, viewProj, crs);
+                        return { stn: 'CM' + (cmCounter++), n: t[1], e: t[0] };
+                    });
+                    innerCoords.push(innerRing);
+                }
+
                 const engine = new global.JRJEngine();
-                const result = engine.computeAll(coords);
-                let csv = 'JRJ TRAVERSE\nFrom,To,Distance (m),Bearing\n';
+                const result = engine.computeAll(outerCoords, innerCoords);
+                let csv = 'JRJ MAIN TRAVERSE\nFrom,To,Distance (m),Bearing\n';
                 result.traverse.forEach((line) => {
                     csv += line.from + ',' + line.to + ',' + line.distance.toFixed(3) + ',"' + line.bearing.str + '"\n';
                 });
+
+                if (result.insets && result.insets.length > 0) {
+                    result.insets.forEach((inset, idx) => {
+                        csv += `\nEXCLUSION ${idx + 1} TRAVERSE\nFrom,To,Distance (m),Bearing\n`;
+                        inset.traverse.forEach((line) => {
+                            csv += line.from + ',' + line.to + ',' + line.distance.toFixed(3) + ',"' + line.bearing.str + '"\n';
+                        });
+                    });
+                }
+
                 csv += '\nAREA\nSq Meters,Hectares,Acres\n';
                 csv += result.area.sqMeters.toFixed(2) + ',' + result.area.hectares.toFixed(4) + ',' + result.area.acres.toFixed(4) + '\n';
                 return csv;
@@ -1291,11 +1313,11 @@
             }
         }
 
-        _polygonRing(feature) {
+        _polygonRings(feature) {
             const g = feature.getGeometry();
             if (!g) return [];
-            if (g.getType() === 'Polygon') return g.getCoordinates()[0];
-            if (g.getType() === 'MultiPolygon') return g.getPolygon(0).getCoordinates()[0];
+            if (g.getType() === 'Polygon') return g.getCoordinates();
+            if (g.getType() === 'MultiPolygon') return g.getPolygon(0).getCoordinates();
             return [];
         }
 

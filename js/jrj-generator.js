@@ -216,59 +216,72 @@ async function generateJrjPackage(features, meta) {
         
         let ringsToProcess = [];
         if (geom.getType() === 'Polygon') {
-            ringsToProcess.push(geom.getCoordinates()[0]);
+            ringsToProcess.push({ rings: geom.getCoordinates(), plotIdStr: featureLabel ? `${featureLabel}` : `Plot ${plotCounter++}` });
         } else if (geom.getType() === 'MultiPolygon') {
             const polys = geom.getCoordinates();
-            polys.forEach(poly => ringsToProcess.push(poly[0]));
+            polys.forEach((poly, index) => {
+                let pId = featureLabel ? `${featureLabel}` : `Plot ${plotCounter}`;
+                if (polys.length > 1) pId += ` (Part ${index + 1})`;
+                ringsToProcess.push({ rings: poly, plotIdStr: pId });
+            });
+            if (!featureLabel) plotCounter++;
         } else {
             return;
         }
 
-        ringsToProcess.forEach((coordinates, ringIndex) => {
-            const metricCoords = coordinates.map(c => {
-                return (sourceProjCode !== destProj) ? ol.proj.transform(c, sourceProjCode, destProj) : c;
-            });
-
-            if (stations.length === 0 && metricCoords.length > 0) {
-                const baseN = metricCoords[0][1];
-                const baseE = metricCoords[0][0];
-                stations.push({ id: 'CM1', n: baseN - 1.5, e: baseE - 28.8 });
-                stations.push({ id: 'CM2', n: baseN - 16.5, e: baseE - 14.5 });
-            }
-
-            let plotIdStr = featureLabel ? `${featureLabel}` : `Plot ${plotCounter}`;
-            if (ringsToProcess.length > 1) plotIdStr += ` (Part ${ringIndex + 1})`;
-            if (!featureLabel && ringIndex === ringsToProcess.length - 1) plotCounter++;
-
-            const plot = { id: plotIdStr, coords: [], areaSqm: 0 };
+        ringsToProcess.forEach((polyData) => {
+            const plot = { id: polyData.plotIdStr, outerRing: null, innerRings: [], netAreaSqm: 0 };
             
-            let area = 0;
-            for (let i = 0; i < metricCoords.length - 1; i++) {
-                const curr = metricCoords[i];
-                const next = metricCoords[i + 1];
+            polyData.rings.forEach((ringCoords, ringIndex) => {
+                const metricCoords = ringCoords.map(c => {
+                    return (sourceProjCode !== destProj) ? ol.proj.transform(c, sourceProjCode, destProj) : c;
+                });
+
+                if (stations.length === 0 && metricCoords.length > 0 && ringIndex === 0) {
+                    const baseN = metricCoords[0][1];
+                    const baseE = metricCoords[0][0];
+                    stations.push({ id: 'CM1', n: baseN - 1.5, e: baseE - 28.8 });
+                    stations.push({ id: 'CM2', n: baseN - 16.5, e: baseE - 14.5 });
+                }
+
+                const ringObj = { coords: [], areaSqm: 0, isExclusion: ringIndex > 0 };
+                let area = 0;
+                for (let i = 0; i < metricCoords.length - 1; i++) {
+                    const curr = metricCoords[i];
+                    const next = metricCoords[i + 1];
+                    
+                    const crossProduct = (curr[1] * next[0]) - (next[1] * curr[0]);
+                    area += crossProduct;
+                    
+                    const dist = getGridDistance(curr[0], curr[1], next[0], next[1]);
+                    
+                    let stnId = null;
+                    for (let s of stations) {
+                        if (Math.abs(s.e - curr[0]) < 0.001 && Math.abs(s.n - curr[1]) < 0.001) {
+                            stnId = s.id; break;
+                        }
+                    }
+                    if (!stnId) {
+                        stnId = 'CM' + stnCounter++;
+                        stations.push({ id: stnId, n: curr[1], e: curr[0] });
+                    }
+                    
+                    ringObj.coords.push({ stn: stnId, n: curr[1], e: curr[0], dist: dist, crossProd: crossProduct });
+                }
                 
-                const crossProduct = (curr[1] * next[0]) - (next[1] * curr[0]);
-                area += crossProduct;
-                
-                const dist = getGridDistance(curr[0], curr[1], next[0], next[1]);
-                
-                let stnId = null;
-                for (let s of stations) {
-                    if (Math.abs(s.e - curr[0]) < 0.001 && Math.abs(s.n - curr[1]) < 0.001) {
-                        stnId = s.id; break;
+                if (ringObj.coords.length > 0) {
+                    ringObj.coords.push({ stn: ringObj.coords[0].stn, n: ringObj.coords[0].n, e: ringObj.coords[0].e, dist: 0, crossProd: 0 });
+                    ringObj.areaSqm = Math.abs(area) / 2;
+                    if (ringIndex === 0) {
+                        plot.outerRing = ringObj;
+                        plot.netAreaSqm += ringObj.areaSqm;
+                    } else {
+                        plot.innerRings.push(ringObj);
+                        plot.netAreaSqm -= ringObj.areaSqm;
                     }
                 }
-                if (!stnId) {
-                    stnId = 'CM' + stnCounter++;
-                    stations.push({ id: stnId, n: curr[1], e: curr[0] });
-                }
-                
-                plot.coords.push({ stn: stnId, n: curr[1], e: curr[0], dist: dist, crossProd: crossProduct });
-            }
-            
-            if (plot.coords.length > 0) {
-                plot.coords.push({ stn: plot.coords[0].stn, n: plot.coords[0].n, e: plot.coords[0].e, dist: 0, crossProd: 0 });
-                plot.areaSqm = Math.abs(area) / 2;
+            });
+            if (plot.outerRing) {
                 plots.push(plot);
             }
         });
@@ -328,39 +341,66 @@ async function generateJrjPackage(features, meta) {
         }
     }
 
-    // Traverse Page Logic (Single Pass)
-    const traverseRows = [];
-    const cm3 = stations[2];
-    const cmN = stations[stations.length - 1];
+    // Traverse Page Logic (Multi-Ring Support)
+    const traverseSections = [];
+    const cm1 = stations[0];
+    const cm2 = stations[1];
 
-    const brg1_3fmt = formatBearing(getGridBearing(cm3.e, cm3.n, cm1.e, cm1.n));
-    traverseRows.push({ stn: 'CM1', isHeader: true, obs: brg1_3fmt, adj: brg1_3fmt });
-    const brg2_3fmt = formatBearing(getGridBearing(cm3.e, cm3.n, cm2.e, cm2.n));
-    traverseRows.push({ stn: 'CM2', isHeader: true, obs: brg2_3fmt, adj: brg2_3fmt });
-    
-    let sumDist = 0;
-    let curN = cm3.n, curE = cm3.e;
-    traverseRows.push({ stn: cm3.id, isStart: true, n: curN, e: curE });
+    function buildTraverseForRing(ringObj) {
+        const tRows = [];
+        if (!ringObj || ringObj.coords.length < 2) return { rows: tRows, sumDist: 0 };
+        const stnObj = (id) => stations.find(s => s.id === id);
+        const startStnObj = stnObj(ringObj.coords[0].stn);
+        if (!startStnObj) return { rows: tRows, sumDist: 0 };
 
-    for (let i = 2; i < stations.length - 1; i++) {
-        const p1 = stations[i];
-        const p2 = stations[i+1];
-        const dist = getGridDistance(p1.e, p1.n, p2.e, p2.n);
-        const fmt = formatBearing(getGridBearing(p1.e, p1.n, p2.e, p2.n));
-        const dN = p2.n - p1.n;
-        const dE = p2.e - p1.e;
-        curN += dN; curE += dE; sumDist += dist;
-        traverseRows.push({ stn: p2.id, obs: fmt, adj: fmt, dist: dist, dN: dN, dE: dE, n: curN, e: curE });
+        const brg1_fmt = formatBearing(getGridBearing(startStnObj.e, startStnObj.n, cm1.e, cm1.n));
+        tRows.push({ stn: 'CM1', isHeader: true, obs: brg1_fmt, adj: brg1_fmt });
+        const brg2_fmt = formatBearing(getGridBearing(startStnObj.e, startStnObj.n, cm2.e, cm2.n));
+        tRows.push({ stn: 'CM2', isHeader: true, obs: brg2_fmt, adj: brg2_fmt });
+        
+        let sumDist = 0;
+        let curN = startStnObj.n, curE = startStnObj.e;
+        tRows.push({ stn: startStnObj.id, isStart: true, n: curN, e: curE });
+
+        for (let i = 0; i < ringObj.coords.length - 1; i++) {
+            const p1 = stnObj(ringObj.coords[i].stn);
+            const p2 = stnObj(ringObj.coords[i+1].stn);
+            if (!p1 || !p2) continue;
+            const dist = getGridDistance(p1.e, p1.n, p2.e, p2.n);
+            const fmt = formatBearing(getGridBearing(p1.e, p1.n, p2.e, p2.n));
+            const dN = p2.n - p1.n;
+            const dE = p2.e - p1.e;
+            curN += dN; curE += dE; sumDist += dist;
+            tRows.push({ stn: p2.id, obs: fmt, adj: fmt, dist: dist, dN: dN, dE: dE, n: curN, e: curE });
+        }
+
+        const lastStnObj = stnObj(ringObj.coords[ringObj.coords.length - 2].stn);
+        if (lastStnObj) {
+            const distT1 = getGridDistance(lastStnObj.e, lastStnObj.n, cm1.e, cm1.n);
+            const fmtT1 = formatBearing(getGridBearing(lastStnObj.e, lastStnObj.n, cm1.e, cm1.n));
+            sumDist += distT1;
+            tRows.push({ stn: 'CM1', obs: fmtT1, adj: fmtT1, dist: distT1, dN: cm1.n - lastStnObj.n, dE: cm1.e - lastStnObj.e, n: cm1.n, e: cm1.e, isTie: true });
+            
+            const distT2 = getGridDistance(lastStnObj.e, lastStnObj.n, cm2.e, cm2.n);
+            const fmtT2 = formatBearing(getGridBearing(lastStnObj.e, lastStnObj.n, cm2.e, cm2.n));
+            tRows.push({ stn: 'CM2', obs: fmtT2, adj: fmtT2, dist: distT2, dN: cm2.n - lastStnObj.n, dE: cm2.e - lastStnObj.e, n: cm2.n, e: cm2.e, isTie: true });
+        }
+        return { rows: tRows, sumDist: sumDist };
     }
 
-    // Tie back
-    const distT1 = getGridDistance(cmN.e, cmN.n, cm1.e, cm1.n);
-    const fmtT1 = formatBearing(getGridBearing(cmN.e, cmN.n, cm1.e, cm1.n));
-    sumDist += distT1;
-    traverseRows.push({ stn: 'CM1', obs: fmtT1, adj: fmtT1, dist: distT1, dN: cm1.n - cmN.n, dE: cm1.e - cmN.e, n: cm1.n, e: cm1.e, isTie: true });
-    const distT2 = getGridDistance(cmN.e, cmN.n, cm2.e, cm2.n);
-    const fmtT2 = formatBearing(getGridBearing(cmN.e, cmN.n, cm2.e, cm2.n));
-    traverseRows.push({ stn: 'CM2', obs: fmtT2, adj: fmtT2, dist: distT2, dN: cm2.n - cmN.n, dE: cm2.e - cmN.e, n: cm2.n, e: cm2.e, isTie: true });
+    plots.forEach((plot) => {
+        if (plot.outerRing) {
+            const tr = buildTraverseForRing(plot.outerRing);
+            traverseSections.push({ title: plots.length > 1 ? `${plot.id} BOUNDARY` : `MAIN TRAVERSE`, ...tr });
+        }
+        plot.innerRings.forEach((inner, idx) => {
+            const tr = buildTraverseForRing(inner);
+            traverseSections.push({ title: `${plot.id} - EXCLUSION ${idx + 1} BOUNDARY`, ...tr });
+        });
+    });
+
+    const cm3 = stations[2];
+    const cmN = stations[stations.length - 1];
 
     // Datum Computations
     const datumPairs = [{from: cm1, to: cm3}, {from: cm2, to: cm3}, {from: cm1, to: cmN}, {from: cm2, to: cmN}];
@@ -386,20 +426,23 @@ async function generateJrjPackage(features, meta) {
     csv += "\n";
 
     csv += "TRAVERSE PAGE\nSTN,OBS.BRG D,M,S,corr,ADJ.BRG D,M,S,DIST,±Δ N,corr,±ΔE,corr,NORTHINGS,EASTINGS,STN,REMARKS\n";
-    traverseRows.forEach(row => {
-        if (row.isHeader) {
-            csv += `${row.stn},${row.obs.deg},${row.obs.min},${row.obs.sec},0,${row.adj.deg},${row.adj.min},${row.adj.sec},,,,,,,,,\n`;
-        } else if (row.isStart) {
-            csv += `${row.stn},,,,,,,,,,,,,${row.n.toFixed(2)},${row.e.toFixed(2)},${row.stn},0\n`;
-        } else if (row.isTie) {
-            csv += `${row.stn},${row.obs.deg},${row.obs.min},${row.obs.sec},0,${row.adj.deg},${row.adj.min},${row.adj.sec},${row.dist.toFixed(2)},${row.dN.toFixed(2)},,${row.dE.toFixed(2)},,${row.n.toFixed(2)},${row.e.toFixed(2)},,\n`;
-        } else {
-            csv += `${row.stn},${row.obs.deg},${row.obs.min},${row.obs.sec},0,${row.adj.deg},${row.adj.min},${row.adj.sec},${row.dist.toFixed(2)},${row.dN.toFixed(2)},0.00,${row.dE.toFixed(2)},0.00,${row.n.toFixed(2)},${row.e.toFixed(2)},${row.stn},\n`;
-        }
+    traverseSections.forEach(section => {
+        csv += `${section.title},,,,,,,,,,,,,,,,\n`;
+        section.rows.forEach(row => {
+            if (row.isHeader) {
+                csv += `${row.stn},${row.obs.deg},${row.obs.min},${row.obs.sec},0,${row.adj.deg},${row.adj.min},${row.adj.sec},,,,,,,,,\n`;
+            } else if (row.isStart) {
+                csv += `${row.stn},,,,,,,,,,,,,${row.n.toFixed(2)},${row.e.toFixed(2)},${row.stn},0\n`;
+            } else if (row.isTie) {
+                csv += `${row.stn},${row.obs.deg},${row.obs.min},${row.obs.sec},0,${row.adj.deg},${row.adj.min},${row.adj.sec},${row.dist.toFixed(2)},${row.dN.toFixed(2)},,${row.dE.toFixed(2)},,${row.n.toFixed(2)},${row.e.toFixed(2)},,\n`;
+            } else {
+                csv += `${row.stn},${row.obs.deg},${row.obs.min},${row.obs.sec},0,${row.adj.deg},${row.adj.min},${row.adj.sec},${row.dist.toFixed(2)},${row.dN.toFixed(2)},0.00,${row.dE.toFixed(2)},0.00,${row.n.toFixed(2)},${row.e.toFixed(2)},${row.stn},\n`;
+            }
+        });
+        csv += `,,,,,,,,,,,,,,,,0.00,0.00,,\n`;
+        csv += `angular misclosure is,0,,,,,,,,Linear misclosure is,0.00,in,${section.sumDist.toFixed(2)},,,,\n`;
+        csv += `misclosure per stn is,0,,,,,,,,OR,1,in,2803873,,,,\n\n`;
     });
-    csv += `,,,,,,,,,,,,,,,,0.00,0.00,,\n`;
-    csv += `angular misclosure is,0,,,,,,,,Linear misclosure is,0.00,in,${sumDist.toFixed(2)},,,,\n`;
-    csv += `misclosure per stn is,0,,,,,,,,OR,1,in,2803873,,,,\n\n`;
 
     csv += "DATUM COMPUTATIONS\nI/S NO:,0\nstation,Northing,Easting,comp bearing,dist (m)\n";
     datumPairs.forEach(pair => {
@@ -412,13 +455,27 @@ async function generateJrjPackage(features, meta) {
 
     csv += "AREA COMPUTATIONS\n";
     plots.forEach(plot => {
-        csv += `${plot.id}\nStation,N(m),E(m),Cross-Product,DISTANCE (m)\n`;
-        csv += `${plot.coords[0].stn},${plot.coords[0].n.toFixed(3)},${plot.coords[0].e.toFixed(3)},,\n`;
-        for (let i = 1; i < plot.coords.length; i++) {
-            csv += `${plot.coords[i].stn},${plot.coords[i].n.toFixed(3)},${plot.coords[i].e.toFixed(3)},${plot.coords[i-1].crossProd.toExponential(2)},${plot.coords[i-1].dist.toFixed(3)}\n`;
+        csv += `${plot.id} - OUTER BOUNDARY\nStation,N(m),E(m),Cross-Product,DISTANCE (m)\n`;
+        if (plot.outerRing) {
+            csv += `${plot.outerRing.coords[0].stn},${plot.outerRing.coords[0].n.toFixed(3)},${plot.outerRing.coords[0].e.toFixed(3)},,\n`;
+            for (let i = 1; i < plot.outerRing.coords.length; i++) {
+                csv += `${plot.outerRing.coords[i].stn},${plot.outerRing.coords[i].n.toFixed(3)},${plot.outerRing.coords[i].e.toFixed(3)},${plot.outerRing.coords[i-1].crossProd.toExponential(2)},${plot.outerRing.coords[i-1].dist.toFixed(3)}\n`;
+            }
+            csv += `Outer Area =, ${plot.outerRing.areaSqm.toFixed(3)} sq m\n\n`;
         }
-        const ac = plot.areaSqm / 4046.8564224;
-        csv += `hectares =,${(plot.areaSqm / 10000).toFixed(3)}\nAcres =,${ac.toFixed(3)}\ndecimals =,${(ac * 100).toFixed(3)}\nsquare metres =,${plot.areaSqm.toFixed(3)}\n\n`;
+        
+        plot.innerRings.forEach((inner, idx) => {
+            csv += `${plot.id} - EXCLUSION ${idx + 1}\nStation,N(m),E(m),Cross-Product,DISTANCE (m)\n`;
+            csv += `${inner.coords[0].stn},${inner.coords[0].n.toFixed(3)},${inner.coords[0].e.toFixed(3)},,\n`;
+            for (let i = 1; i < inner.coords.length; i++) {
+                csv += `${inner.coords[i].stn},${inner.coords[i].n.toFixed(3)},${inner.coords[i].e.toFixed(3)},${inner.coords[i-1].crossProd.toExponential(2)},${inner.coords[i-1].dist.toFixed(3)}\n`;
+            }
+            csv += `Less Area =, ${inner.areaSqm.toFixed(3)} sq m\n\n`;
+        });
+        
+        const ac = plot.netAreaSqm / 4046.8564224;
+        csv += `NET AREA COMPUTATION FOR ${plot.id}\n`;
+        csv += `hectares =,${(plot.netAreaSqm / 10000).toFixed(3)}\nAcres =,${ac.toFixed(3)}\ndecimals =,${(ac * 100).toFixed(3)}\nsquare metres =,${plot.netAreaSqm.toFixed(3)}\n\n`;
     });
 
     // --- PDF BUILDING ---
@@ -576,13 +633,21 @@ All misclosures are within the acceptable limits.`;
 
     doc.setDrawColor(0);
     
-    doc.setLineDashPattern([], 0); 
-    doc.setLineWidth(0.8);
-    plots.forEach(plot => {
+    function drawRing(ring, isOuter) {
+        if (!ring) return { sumX: 0, sumY: 0, numPoints: 0 };
         let sumX = 0, sumY = 0;
-        for (let i = 0; i < plot.coords.length - 1; i++) {
-            const p1 = plot.coords[i];
-            const p2 = plot.coords[i+1];
+        
+        if (isOuter) {
+            doc.setLineDashPattern([], 0); 
+            doc.setLineWidth(0.8);
+        } else {
+            doc.setLineDashPattern([2, 2], 0); 
+            doc.setLineWidth(0.4);
+        }
+
+        for (let i = 0; i < ring.coords.length - 1; i++) {
+            const p1 = ring.coords[i];
+            const p2 = ring.coords[i+1];
             const xy1 = toPageXY(p1.e, p1.n);
             const xy2 = toPageXY(p2.e, p2.n);
             doc.line(xy1.x, xy1.y, xy2.x, xy2.y);
@@ -596,18 +661,27 @@ All misclosures are within the acceptable limits.`;
             if (angleDeg > 90) angleDeg -= 180;
             else if (angleDeg < -90) angleDeg += 180;
 
-            doc.setFontSize(8);
+            let fontSize = 8;
+            if (scale < 0.2) fontSize = 6;
+            else if (scale < 0.5) fontSize = 7;
+            
+            doc.setFontSize(fontSize);
             doc.setFont('helvetica', 'normal');
-            doc.text(`${p1.dist.toFixed(2)}m`, midX, midY - 2, { angle: -angleDeg, align: 'center' });
+            doc.text(`${p1.dist.toFixed(2)}m`, midX, midY - 1, { angle: -angleDeg, align: 'center' });
             
             sumX += xy1.x;
             sumY += xy1.y;
         }
+        return { sumX, sumY, numPoints: ring.coords.length - 1 };
+    }
 
-        const numPoints = plot.coords.length - 1;
-        if (numPoints > 0) {
-            const centerX = sumX / numPoints;
-            const centerY = sumY / numPoints;
+    plots.forEach(plot => {
+        const outerRes = drawRing(plot.outerRing, true);
+        plot.innerRings.forEach(inner => drawRing(inner, false));
+
+        if (outerRes.numPoints > 0) {
+            const centerX = outerRes.sumX / outerRes.numPoints;
+            const centerY = outerRes.sumY / outerRes.numPoints;
             doc.setFontSize(12);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(0, 0, 0);
@@ -661,75 +735,125 @@ All misclosures are within the acceptable limits.`;
     doc.addPage();
     startY = drawHeader("TRAVERSE PAGE", "PAGE 9", false);
     
-    const trData = [];
-    traverseRows.forEach(row => {
-        if (row.isHeader) {
-            trData.push([row.stn, row.obs.deg, row.obs.min, row.obs.sec, "0", row.adj.deg, row.adj.min, row.adj.sec, "", "", "", "", "", "", "", "", ""]);
-        } else if (row.isStart) {
-            trData.push([row.stn, "", "", "", "", "", "", "", "", "", "", "", "", row.n.toFixed(2), row.e.toFixed(2), row.stn, "0"]);
-        } else if (row.isTie) {
-            trData.push([row.stn, row.obs.deg, row.obs.min, row.obs.sec, "0", row.adj.deg, row.adj.min, row.adj.sec, row.dist.toFixed(2), row.dN.toFixed(2), "", row.dE.toFixed(2), "", row.n.toFixed(2), row.e.toFixed(2), "", ""]);
-        } else {
-            trData.push([row.stn, row.obs.deg, row.obs.min, row.obs.sec, "0", row.adj.deg, row.adj.min, row.adj.sec, row.dist.toFixed(2), row.dN.toFixed(2), "0.00", row.dE.toFixed(2), "0.00", row.n.toFixed(2), row.e.toFixed(2), row.stn, ""]);
-        }
-    });
+    let currentY = startY;
+    traverseSections.forEach(section => {
+        const trData = [];
+        section.rows.forEach(row => {
+            if (row.isHeader) {
+                trData.push([row.stn, row.obs.deg, row.obs.min, row.obs.sec, "0", row.adj.deg, row.adj.min, row.adj.sec, "", "", "", "", "", "", "", "", ""]);
+            } else if (row.isStart) {
+                trData.push([row.stn, "", "", "", "", "", "", "", "", "", "", "", "", row.n.toFixed(2), row.e.toFixed(2), row.stn, "0"]);
+            } else if (row.isTie) {
+                trData.push([row.stn, row.obs.deg, row.obs.min, row.obs.sec, "0", row.adj.deg, row.adj.min, row.adj.sec, row.dist.toFixed(2), row.dN.toFixed(2), "", row.dE.toFixed(2), "", row.n.toFixed(2), row.e.toFixed(2), "", ""]);
+            } else {
+                trData.push([row.stn, row.obs.deg, row.obs.min, row.obs.sec, "0", row.adj.deg, row.adj.min, row.adj.sec, row.dist.toFixed(2), row.dN.toFixed(2), "0.00", row.dE.toFixed(2), "0.00", row.n.toFixed(2), row.e.toFixed(2), row.stn, ""]);
+            }
+        });
 
-    doc.autoTable({
-        startY: startY,
-        head: [['STN', 'D', 'M', 'S', 'cor', 'D', 'M', 'S', 'DIST', '±Δ N', 'cor', '±ΔE', 'cor', 'NORTHINGS', 'EASTINGS', 'STN', 'REMARKS']],
-        body: trData,
-        theme: 'grid',
-        headStyles: { fontStyle: 'bold', fillColor: [236, 240, 241], textColor: [0,0,0] },
-        styles: { fontSize: 7, halign: 'center', cellPadding: 1, lineWidth: 0.1 }
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text(section.title, marginX, currentY);
+        
+        doc.autoTable({
+            startY: currentY + 3,
+            head: [['STN', 'D', 'M', 'S', 'cor', 'D', 'M', 'S', 'DIST', '±Δ N', 'cor', '±ΔE', 'cor', 'NORTHINGS', 'EASTINGS', 'STN', 'REMARKS']],
+            body: trData,
+            theme: 'grid',
+            headStyles: { fontStyle: 'bold', fillColor: [236, 240, 241], textColor: [0,0,0] },
+            styles: { fontSize: 7, halign: 'center', cellPadding: 1, lineWidth: 0.1 }
+        });
+        
+        currentY = doc.lastAutoTable.finalY + 5;
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`angular misclosure is 0`, marginX, currentY);
+        doc.text(`misclosure per stn is 0`, marginX, currentY + 5);
+        doc.text(`Linear misclosure is 0.00 in ${section.sumDist.toFixed(2)}`, marginX + 100, currentY);
+        doc.text(`OR 1 in 2803873`, marginX + 100, currentY + 5);
+        
+        currentY += 15;
     });
-    
-    doc.setFontSize(8);
-    doc.text(`angular misclosure is 0`, marginX, doc.lastAutoTable.finalY + 10);
-    doc.text(`misclosure per stn is 0`, marginX, doc.lastAutoTable.finalY + 15);
-    doc.text(`Linear misclosure is 0.00 in ${sumDist.toFixed(2)}`, marginX + 100, doc.lastAutoTable.finalY + 10);
-    doc.text(`OR 1 in 2803873`, marginX + 100, doc.lastAutoTable.finalY + 15);
 
     // --- PHYSICAL PAGE 10: AREA COMPUTATIONS ---
     doc.addPage();
     startY = drawHeader("AREA COMPUTATION", "PAGE 10", false);
     
-    let currentY = startY;
+    let currentYArea = startY;
     plots.forEach(plot => {
-        if (currentY > 230) {
+        if (currentYArea > 230) {
             doc.addPage();
-            currentY = drawHeader("AREA COMPUTATION", "PAGE 10 (Cont.)", false);
+            currentYArea = drawHeader("AREA COMPUTATION", "PAGE 10 (Cont.)", false);
         }
 
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
-        doc.text(plot.id.toUpperCase(), marginX, currentY);
-        currentY += 4;
+        doc.text(plot.id.toUpperCase(), marginX, currentYArea);
+        currentYArea += 4;
 
-        const aData = [];
-        aData.push([plot.coords[0].stn, plot.coords[0].n.toFixed(3), plot.coords[0].e.toFixed(3), "", ""]);
-        for (let i = 1; i < plot.coords.length; i++) {
-            aData.push([plot.coords[i].stn, plot.coords[i].n.toFixed(3), plot.coords[i].e.toFixed(3), plot.coords[i-1].crossProd.toExponential(2), plot.coords[i-1].dist.toFixed(3)]);
+        if (plot.outerRing) {
+            doc.setFontSize(9);
+            doc.text("OUTER BOUNDARY", marginX, currentYArea);
+            currentYArea += 2;
+            const aData = [];
+            aData.push([plot.outerRing.coords[0].stn, plot.outerRing.coords[0].n.toFixed(3), plot.outerRing.coords[0].e.toFixed(3), "", ""]);
+            for (let i = 1; i < plot.outerRing.coords.length; i++) {
+                aData.push([plot.outerRing.coords[i].stn, plot.outerRing.coords[i].n.toFixed(3), plot.outerRing.coords[i].e.toFixed(3), plot.outerRing.coords[i-1].crossProd.toExponential(2), plot.outerRing.coords[i-1].dist.toFixed(3)]);
+            }
+
+            doc.autoTable({
+                startY: currentYArea,
+                head: [['Station', 'N(m)', 'E(m)', 'Cross-Product', 'DISTANCE (m)']],
+                body: aData,
+                theme: 'grid',
+                headStyles: { fontStyle: 'bold', fillColor: [236, 240, 241], textColor: [0,0,0] },
+                styles: { fontSize: 8, halign: 'center', lineWidth: 0.1 }
+            });
+            currentYArea = doc.lastAutoTable.finalY + 5;
+            doc.text(`Outer Area = ${plot.outerRing.areaSqm.toFixed(3)} sq m`, marginX + 20, currentYArea);
+            currentYArea += 8;
         }
 
-        doc.autoTable({
-            startY: currentY,
-            head: [['Station', 'N(m)', 'E(m)', 'Cross-Product', 'DISTANCE (m)']],
-            body: aData,
-            theme: 'grid',
-            headStyles: { fontStyle: 'bold', fillColor: [236, 240, 241], textColor: [0,0,0] },
-            styles: { fontSize: 8, halign: 'center', lineWidth: 0.1 }
+        plot.innerRings.forEach((inner, idx) => {
+            if (currentYArea > 240) {
+                doc.addPage();
+                currentYArea = drawHeader("AREA COMPUTATION", "PAGE 10 (Cont.)", false);
+            }
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`EXCLUSION ${idx + 1}`, marginX, currentYArea);
+            currentYArea += 2;
+            
+            const aData = [];
+            aData.push([inner.coords[0].stn, inner.coords[0].n.toFixed(3), inner.coords[0].e.toFixed(3), "", ""]);
+            for (let i = 1; i < inner.coords.length; i++) {
+                aData.push([inner.coords[i].stn, inner.coords[i].n.toFixed(3), inner.coords[i].e.toFixed(3), inner.coords[i-1].crossProd.toExponential(2), inner.coords[i-1].dist.toFixed(3)]);
+            }
+
+            doc.autoTable({
+                startY: currentYArea,
+                head: [['Station', 'N(m)', 'E(m)', 'Cross-Product', 'DISTANCE (m)']],
+                body: aData,
+                theme: 'grid',
+                headStyles: { fontStyle: 'bold', fillColor: [236, 240, 241], textColor: [0,0,0] },
+                styles: { fontSize: 8, halign: 'center', lineWidth: 0.1 }
+            });
+            currentYArea = doc.lastAutoTable.finalY + 5;
+            doc.text(`Less Area = ${inner.areaSqm.toFixed(3)} sq m`, marginX + 20, currentYArea);
+            currentYArea += 8;
         });
 
-        currentY = doc.lastAutoTable.finalY + 5;
-        const ac = plot.areaSqm / 4046.8564224;
+        const ac = plot.netAreaSqm / 4046.8564224;
         
         doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text("NET AREA", marginX, currentYArea);
+        currentYArea += 5;
         doc.setFont('helvetica', 'normal');
-        doc.text(`hectares = ${(plot.areaSqm / 10000).toFixed(3)}`, marginX + 20, currentY);
-        doc.text(`Acres = ${ac.toFixed(3)}`, marginX + 20, currentY + 5);
-        doc.text(`decimals = ${(ac * 100).toFixed(3)}`, marginX + 20, currentY + 10);
-        doc.text(`square metres = ${plot.areaSqm.toFixed(3)}`, marginX + 20, currentY + 15);
-        currentY += 25;
+        doc.text(`hectares = ${(plot.netAreaSqm / 10000).toFixed(3)}`, marginX + 20, currentYArea);
+        doc.text(`Acres = ${ac.toFixed(3)}`, marginX + 20, currentYArea + 5);
+        doc.text(`decimals = ${(ac * 100).toFixed(3)}`, marginX + 20, currentYArea + 10);
+        doc.text(`square metres = ${plot.netAreaSqm.toFixed(3)}`, marginX + 20, currentYArea + 15);
+        currentYArea += 25;
     });
 
     // --- PHYSICAL PAGE 11: ABSTRACT OF FINAL RESULTS ---

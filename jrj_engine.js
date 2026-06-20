@@ -18,17 +18,43 @@ class JRJEngine {
      * @param {Array} coords - Array of points: [{ stn: 'CM1', n: 1000, e: 5000 }, ...]
      * @returns {Object} - Complete computation results including traverse, area, etc.
      */
-    computeAll(coords) {
+    computeAll(coords, innerCoords = []) {
         if (!coords || coords.length < 3) {
             throw new Error("At least 3 coordinates are required to compute a JRJ.");
         }
 
         const traverse = this.computeTraverse(coords);
-        const area = this.computeArea(coords);
+        let areaObj = this.computeArea(coords);
+        let insets = [];
+        let netAreaSqMeters = areaObj.sqMeters;
+
+        if (innerCoords && innerCoords.length > 0) {
+            innerCoords.forEach(inner => {
+                if (inner && inner.length >= 3) {
+                    const innerTraverse = this.computeTraverse(inner);
+                    const innerArea = this.computeArea(inner);
+                    insets.push({ traverse: innerTraverse, area: innerArea });
+                    netAreaSqMeters -= innerArea.sqMeters;
+                }
+            });
+        }
+
+        const areaHectares = netAreaSqMeters / 10000;
+        const areaAcres = areaHectares * 2.47105;
+
+        const area = {
+            sqMeters: netAreaSqMeters,
+            hectares: areaHectares,
+            acres: areaAcres,
+            outerDetails: areaObj.details,
+            insetDetails: insets.map(i => i.area.details)
+        };
+
         const datum = this.computeDatum(coords);
 
         return {
             traverse,
+            insets,
             area,
             datum,
             coordinates: coords,
