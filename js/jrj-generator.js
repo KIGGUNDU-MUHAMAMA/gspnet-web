@@ -635,12 +635,18 @@ All misclosures are within the acceptable limits.`;
         if (!ring) return { sumX: 0, sumY: 0, numPoints: 0 };
         let sumX = 0, sumY = 0;
         
+        let baseLineWidth = 0.8;
+        if (scale < 0.05) baseLineWidth = 0.2;
+        else if (scale < 0.1) baseLineWidth = 0.3;
+        else if (scale < 0.2) baseLineWidth = 0.4;
+        else if (scale < 0.5) baseLineWidth = 0.6;
+
         if (isOuter) {
             doc.setLineDashPattern([], 0); 
-            doc.setLineWidth(0.8);
+            doc.setLineWidth(baseLineWidth);
         } else {
             doc.setLineDashPattern([2, 2], 0); 
-            doc.setLineWidth(0.4);
+            doc.setLineWidth(baseLineWidth * 0.5);
         }
 
         for (let i = 0; i < ring.coords.length - 1; i++) {
@@ -660,12 +666,15 @@ All misclosures are within the acceptable limits.`;
             else if (angleDeg < -90) angleDeg += 180;
 
             let fontSize = 8;
-            if (scale < 0.2) fontSize = 6;
-            else if (scale < 0.5) fontSize = 7;
+            let offset = 2;
+            if (scale < 0.05) { fontSize = 3; offset = 0.5; }
+            else if (scale < 0.1) { fontSize = 4; offset = 1; }
+            else if (scale < 0.2) { fontSize = 5; offset = 1; }
+            else if (scale < 0.5) { fontSize = 6; offset = 1.5; }
             
             doc.setFontSize(fontSize);
             doc.setFont('helvetica', 'normal');
-            doc.text(`${p1.dist.toFixed(2)}m`, midX, midY - 1, { angle: -angleDeg, align: 'center' });
+            doc.text(`${p1.dist.toFixed(2)}m`, midX, midY - offset, { angle: -angleDeg, align: 'center' });
             
             sumX += xy1.x;
             sumY += xy1.y;
@@ -691,13 +700,21 @@ All misclosures are within the acceptable limits.`;
         }
     });
 
+    let stnFontSize = 9;
+    let stnRadius = 1.2;
+    let stnOffset = 2;
+    if (scale < 0.05) { stnFontSize = 3; stnRadius = 0.3; stnOffset = 0.5; }
+    else if (scale < 0.1) { stnFontSize = 4; stnRadius = 0.5; stnOffset = 1; }
+    else if (scale < 0.2) { stnFontSize = 5; stnRadius = 0.7; stnOffset = 1; }
+    else if (scale < 0.5) { stnFontSize = 7; stnRadius = 0.9; stnOffset = 1.5; }
+
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
+    doc.setFontSize(stnFontSize);
     stations.forEach(s => {
         const xy = toPageXY(s.e, s.n);
         doc.setFillColor(255, 0, 0); 
-        doc.circle(xy.x, xy.y, 1.2, 'F');
-        doc.text(s.id, xy.x + 2, xy.y - 2);
+        doc.circle(xy.x, xy.y, stnRadius, 'F');
+        doc.text(s.id, xy.x + stnOffset, xy.y - stnOffset);
     });
 
     // --- PHYSICAL PAGE 8: FIELD NOTES ---
