@@ -4883,6 +4883,107 @@
             border-radius: 3px;
         }
 
+        /* ======== Block / Plot FGB Search Styles ======== */
+        .fgb-search-section {
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .fgb-search-section.active {
+            display: flex;
+        }
+        .fgb-active-layers {
+            font-size: 12px;
+            padding: 8px 10px;
+            background: rgba(46, 204, 113, 0.1);
+            border: 1px solid rgba(46, 204, 113, 0.3);
+            border-radius: 6px;
+            color: #2ecc71;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .fgb-active-layers.warning {
+            background: rgba(255, 170, 0, 0.1);
+            border-color: rgba(255, 170, 0, 0.3);
+            color: #ffaa00;
+        }
+        .fgb-search-section .form-group label .field-badge {
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .fgb-search-section .form-group label .field-badge.step1 {
+            background: rgba(52, 152, 219, 0.2);
+            color: #3498db;
+        }
+        .fgb-search-section .form-group label .field-badge.step2 {
+            background: rgba(155, 89, 182, 0.2);
+            color: #9b59b6;
+        }
+        .fgb-selected-block-indicator {
+            display: none;
+            padding: 8px 10px;
+            background: rgba(52, 152, 219, 0.1);
+            border: 1px solid rgba(52, 152, 219, 0.3);
+            border-radius: 6px;
+            font-size: 12px;
+            color: #3498db;
+            align-items: center;
+            gap: 6px;
+        }
+        .fgb-selected-block-indicator.active {
+            display: flex;
+        }
+        .fgb-selected-block-indicator .clear-selection {
+            margin-left: auto;
+            cursor: pointer;
+            color: #e74c3c;
+            font-weight: bold;
+            font-size: 16px;
+            line-height: 1;
+            padding: 0 4px;
+            border-radius: 3px;
+            transition: background 0.15s;
+        }
+        .fgb-selected-block-indicator .clear-selection:hover {
+            background: rgba(231, 76, 60, 0.15);
+        }
+        .fgb-search-status {
+            font-size: 12px;
+            padding: 4px 0;
+            min-height: 18px;
+            line-height: 1.4;
+        }
+        .parcel-results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .parcel-results-table thead th {
+            text-align: left;
+            padding: 8px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e0e0e0;
+            font-weight: 600;
+            color: #333;
+        }
+        .parcel-results-table tr.fgb-result-row {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .parcel-results-table tr.fgb-result-row:hover {
+            background: rgba(52, 152, 219, 0.12);
+        }
+        .parcel-results-table tr.fgb-result-row td {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        /* ======== End Block / Plot FGB Search Styles ======== */
+
         .project-library-header {
             background: linear-gradient(135deg, #1a2a6c, #3498db) !important;
             color: white !important;
@@ -19052,14 +19153,40 @@
                 </div>
                 <div class="parcel-search-panel-body">
                     <form id="parcelSearchForm" class="parcel-search-form">
-                        <div class="form-group" style="display: flex; gap: 15px; margin-bottom: 15px; justify-content: center; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+                        <div class="form-group" style="display: flex; gap: 12px; margin-bottom: 15px; justify-content: center; border-bottom: 1px solid #eee; padding-bottom: 10px; flex-wrap: wrap;">
                             <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-weight: 500;">
-                                <input type="radio" name="searchType" value="parcels" checked onchange="document.getElementById('parcelSearchUniqueIdLabel').innerText='Unique Identifier'"> Survey Parcels
+                                <input type="radio" name="searchType" value="blockplot" onchange="toggleParcelSearchMode('blockplot')"> Block / Plot
                             </label>
                             <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-weight: 500;">
-                                <input type="radio" name="searchType" value="controls" onchange="document.getElementById('parcelSearchUniqueIdLabel').innerText='Control Name'"> Survey Controls
+                                <input type="radio" name="searchType" value="parcels" checked onchange="toggleParcelSearchMode('parcels')"> Survey Parcels
+                            </label>
+                            <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-weight: 500;">
+                                <input type="radio" name="searchType" value="controls" onchange="toggleParcelSearchMode('controls')"> Survey Controls
                             </label>
                         </div>
+
+                        <!-- Block / Plot FGB Search Section (hidden by default) -->
+                        <div id="fgbSearchSection" class="fgb-search-section">
+                            <div id="fgbActiveLayers" class="fgb-active-layers">
+                                <i class="fas fa-layer-group"></i> <span id="fgbActiveLayerText">Turn on Block &amp; NLIS layers first</span>
+                            </div>
+                            <div class="form-group">
+                                <label for="fgbBlockInput"><span class="field-badge step1">Step 1</span> Block Number</label>
+                                <input type="text" id="fgbBlockInput" class="form-input" placeholder="e.g., 214">
+                            </div>
+                            <div id="fgbSelectedBlockIndicator" class="fgb-selected-block-indicator">
+                                <i class="fas fa-vector-square"></i> <span id="fgbSelectedBlockText">No block selected</span>
+                                <span class="clear-selection" id="fgbClearBlockSelection" title="Clear selection">&times;</span>
+                            </div>
+                            <div class="form-group">
+                                <label for="fgbPlotInput"><span class="field-badge step2">Step 2</span> Plot Number</label>
+                                <input type="text" id="fgbPlotInput" class="form-input" placeholder="Select a block first" disabled>
+                            </div>
+                            <div id="fgbSearchStatus" class="fgb-search-status"></div>
+                        </div>
+
+                        <!-- Standard Parcel/Controls Search Fields (visible by default) -->
+                        <div id="parcelSearchStandardFields">
                         <div class="form-group">
                             <label for="parcelSearchDistrict">District</label>
                             <select id="parcelSearchDistrict" name="district" class="form-select">
@@ -19104,6 +19231,7 @@
                                 <option value="ITRF-UGANDA">ITRF-UGANDA (Controls)</option>
                                 <option value="ARC-1960">ARC-1960 (Controls)</option>
                             </select>
+                        </div>
                         </div>
 
                         <div class="form-actions">
@@ -34978,9 +35106,607 @@
             if (parcelSearchForm) {
                 parcelSearchForm.addEventListener('submit', async function (e) {
                     e.preventDefault();
-                    await searchParcels();
+                    const searchTypeEl = document.querySelector('input[name="searchType"]:checked');
+                    const searchType = searchTypeEl ? searchTypeEl.value : 'parcels';
+                    if (searchType === 'blockplot') {
+                        await searchBlocksAndPlots();
+                    } else {
+                        await searchParcels();
+                    }
                 });
             }
+
+            // ========================================
+            // BLOCK / PLOT FGB SEARCH ENGINE
+            // ========================================
+
+            // Highlight layers for Block/Plot search
+            const fgbBlockHighlightSource = new ol.source.Vector();
+            const fgbBlockHighlightLayer = new ol.layer.Vector({
+                source: fgbBlockHighlightSource,
+                style: new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#3498db', width: 3 }),
+                    fill: new ol.style.Fill({ color: 'rgba(52, 152, 219, 0.2)' })
+                }),
+                zIndex: 9998
+            });
+
+            const fgbPlotHighlightSource = new ol.source.Vector();
+            const fgbPlotHighlightLayer = new ol.layer.Vector({
+                source: fgbPlotHighlightSource,
+                style: new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#f1c40f', width: 3 }),
+                    fill: new ol.style.Fill({ color: 'rgba(241, 196, 15, 0.25)' })
+                }),
+                zIndex: 9999
+            });
+
+            const fgbSelectedBlockSource = new ol.source.Vector();
+            const fgbSelectedBlockLayer = new ol.layer.Vector({
+                source: fgbSelectedBlockSource,
+                style: new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#e74c3c', width: 3, lineDash: [8, 6] }),
+                    fill: new ol.style.Fill({ color: 'rgba(231, 76, 60, 0.08)' })
+                }),
+                zIndex: 9997
+            });
+
+            map.addLayer(fgbBlockHighlightLayer);
+            map.addLayer(fgbPlotHighlightLayer);
+            map.addLayer(fgbSelectedBlockLayer);
+
+            // State for selected block
+            window._fgbSelectedBlock = null; // { feature, layerTitle, label }
+
+            // Field resolution helpers — checks all known attribute name variants
+            function getLabelForLayer(feature, layerTitle) {
+                const titleLower = (layerTitle || '').toLowerCase();
+                let v = null;
+                
+                // Mukono Blocks uses 'Number_'
+                if (titleLower === 'mukono blocks') {
+                    v = feature.get('Number_');
+                }
+                // Mityana Blocks uses 'BLOCK NO' variants
+                else if (titleLower.includes('mityana') && titleLower.includes('block')) {
+                    v = feature.get('BLOCK NO') || feature.get('Block No') || feature.get('block_no') 
+                        || feature.get('BlockNo') || feature.get('BLOCKNO') || feature.get('BLOCK_NO')
+                        || feature.get('nlis_id');
+                }
+                // Mityana NLIS uses 'PlotNumber' variants
+                else if (titleLower.includes('mityana') && (titleLower.includes('nlis') || titleLower.includes('nlsi'))) {
+                    v = feature.get('PlotNumber') || feature.get('Plot Number') || feature.get('PLOTNUMBER')
+                        || feature.get('plot_number') || feature.get('PLOT NO') || feature.get('Plot_No')
+                        || feature.get('nlis_id');
+                }
+                // All other layers (generic blocks + generic NLIS) use 'nlis_id'
+                else {
+                    v = feature.get('nlis_id') || feature.get('NLIS_ID');
+                }
+                
+                return v != null ? v.toString().replace(/[\u0000-\u001F\u007F-\u009F]/g, '').trim() : null;
+            }
+
+            // Toggle search mode — shows/hides appropriate form fields
+            function toggleParcelSearchMode(mode) {
+                const standardFields = document.getElementById('parcelSearchStandardFields');
+                const fgbSection = document.getElementById('fgbSearchSection');
+                const labelEl = document.getElementById('parcelSearchUniqueIdLabel');
+
+                if (mode === 'blockplot') {
+                    if (standardFields) standardFields.style.display = 'none';
+                    if (fgbSection) fgbSection.classList.add('active');
+                    updateFgbActiveLayers();
+                } else {
+                    if (standardFields) standardFields.style.display = '';
+                    if (fgbSection) fgbSection.classList.remove('active');
+                    if (mode === 'parcels' && labelEl) labelEl.innerText = 'Unique Identifier';
+                    if (mode === 'controls' && labelEl) labelEl.innerText = 'Control Name';
+                }
+            }
+            window.toggleParcelSearchMode = toggleParcelSearchMode;
+
+            // Update active layers indicator
+            function updateFgbActiveLayers() {
+                const indicator = document.getElementById('fgbActiveLayers');
+                const textEl = document.getElementById('fgbActiveLayerText');
+                if (!indicator || !textEl) return;
+
+                const visibleBlocks = [];
+                const visibleNlis = [];
+
+                if (typeof gspnetLayers !== 'undefined') {
+                    gspnetLayers.forEach(layer => {
+                        if (layer.getVisible()) {
+                            const title = layer.get('title') || '';
+                            const titleLower = title.toLowerCase();
+                            if (titleLower.includes('block')) {
+                                visibleBlocks.push(title);
+                            } else if (titleLower.includes('nlis') || titleLower.includes('nlsi')) {
+                                visibleNlis.push(title);
+                            }
+                        }
+                    });
+                }
+
+                if (visibleBlocks.length === 0 && visibleNlis.length === 0) {
+                    indicator.className = 'fgb-active-layers warning';
+                    textEl.textContent = 'No Block or NLIS layers are visible. Turn on layers in the layer switcher first.';
+                } else {
+                    indicator.className = 'fgb-active-layers';
+                    const parts = [];
+                    if (visibleBlocks.length > 0) parts.push(visibleBlocks.length + ' Block layer(s)');
+                    if (visibleNlis.length > 0) parts.push(visibleNlis.length + ' NLIS layer(s)');
+                    textEl.textContent = parts.join(' \u2022 ') + ' active';
+                }
+            }
+
+            // Clear block selection
+            function clearBlockSelection() {
+                window._fgbSelectedBlock = null;
+                fgbSelectedBlockSource.clear();
+                fgbPlotHighlightSource.clear();
+
+                const indicator = document.getElementById('fgbSelectedBlockIndicator');
+                if (indicator) indicator.classList.remove('active');
+
+                const plotInput = document.getElementById('fgbPlotInput');
+                if (plotInput) {
+                    plotInput.disabled = true;
+                    plotInput.placeholder = 'Select a block first';
+                    plotInput.value = '';
+                }
+
+                const statusDiv = document.getElementById('fgbSearchStatus');
+                if (statusDiv) statusDiv.textContent = '';
+
+                const resultsDiv = document.getElementById('parcelSearchResults');
+                if (resultsDiv) resultsDiv.style.display = 'none';
+            }
+
+            // Attach clear button listener
+            const fgbClearBtn = document.getElementById('fgbClearBlockSelection');
+            if (fgbClearBtn) {
+                fgbClearBtn.addEventListener('click', clearBlockSelection);
+            }
+
+            // Select a specific block from search results
+            function selectBlock(feature, layerTitle, label) {
+                window._fgbSelectedBlock = { feature: feature, layerTitle: layerTitle, label: label };
+
+                fgbSelectedBlockSource.clear();
+                fgbBlockHighlightSource.clear();
+                fgbPlotHighlightSource.clear();
+                fgbSelectedBlockSource.addFeature(feature);
+
+                // Zoom to selected block
+                const extent = feature.getGeometry().getExtent();
+                map.getView().fit(extent, { padding: [50, 50, 50, 50], duration: 600, maxZoom: 17 });
+
+                // Update indicator
+                const indicator = document.getElementById('fgbSelectedBlockIndicator');
+                const textEl = document.getElementById('fgbSelectedBlockText');
+                if (indicator) indicator.classList.add('active');
+                if (textEl) textEl.textContent = 'Block ' + label + ' \u2014 ' + layerTitle;
+
+                // Enable plot input
+                const plotInput = document.getElementById('fgbPlotInput');
+                if (plotInput) {
+                    plotInput.disabled = false;
+                    plotInput.placeholder = 'Search plots in Block ' + label;
+                    plotInput.focus();
+                }
+
+                const statusDiv = document.getElementById('fgbSearchStatus');
+                if (statusDiv) {
+                    statusDiv.textContent = 'Block ' + label + ' selected. Now enter a Plot Number and click Search.';
+                    statusDiv.style.color = '#3498db';
+                }
+
+                // Hide results table
+                const resultsDiv = document.getElementById('parcelSearchResults');
+                if (resultsDiv) resultsDiv.style.display = 'none';
+            }
+
+            // ========================================
+            // MAIN SEARCH FUNCTION: searchBlocksAndPlots
+            // ========================================
+            async function searchBlocksAndPlots() {
+                const blockInput = document.getElementById('fgbBlockInput');
+                const plotInput = document.getElementById('fgbPlotInput');
+                const statusDiv = document.getElementById('fgbSearchStatus');
+                const resultsDiv = document.getElementById('parcelSearchResults');
+                const resultsTable = document.getElementById('parcelResultsTable');
+
+                const blockTerm = blockInput ? blockInput.value.trim() : '';
+                const plotTerm = plotInput ? plotInput.value.trim() : '';
+
+                updateFgbActiveLayers();
+
+                const hasSelectedBlock = window._fgbSelectedBlock != null;
+
+                // Validation
+                if (!blockTerm && !plotTerm) {
+                    if (statusDiv) {
+                        statusDiv.textContent = 'Please enter a Block Number or Plot Number.';
+                        statusDiv.style.color = '#ff4a4a';
+                    }
+                    return;
+                }
+
+                if (plotTerm && !hasSelectedBlock && !blockTerm) {
+                    if (statusDiv) {
+                        statusDiv.textContent = 'Please search for and select a Block first (Step 1), then search for a Plot (Step 2).';
+                        statusDiv.style.color = '#ffaa00';
+                    }
+                    return;
+                }
+
+                if (blockTerm && hasSelectedBlock) {
+                    clearBlockSelection();
+                }
+
+                // Make sure CSS animation exists for the spinner
+                if (!document.getElementById('fgb-spinner-style')) {
+                    const style = document.createElement('style');
+                    style.id = 'fgb-spinner-style';
+                    style.textContent = '@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }';
+                    document.head.appendChild(style);
+                }
+
+                const spinnerHtml = '<span class="loading-spinner" style="display:inline-block;width:12px;height:12px;border:2px solid #3498db;border-top:2px solid transparent;border-radius:50%;animation:spin 1s linear infinite;margin-right:8px;vertical-align:middle;"></span>';
+
+                // Helper to search loaded vector features first, then fallback to FGB HTTP Range Requests
+                async function scanLayerForMatches(layer, searchTerm, isPlotSearch, selectedBlockExtent) {
+                    let matches = [];
+                    const termLower = searchTerm.toLowerCase();
+                    const layerTitle = layer.get('title');
+
+                    // 1. Vector source check (if layer is already loaded!)
+                    const source = layer.getSource();
+                    if (source && typeof source.getFeatures === 'function') {
+                        const features = source.getFeatures();
+                        if (features.length > 0) {
+                            let matchCount = 0;
+                            features.forEach(f => {
+                                const label = getLabelForLayer(f, layerTitle);
+                                if (!label) return;
+                                const labelLower = String(label).toLowerCase();
+                                if (labelLower === termLower || labelLower.includes(termLower)) {
+                                    if (isPlotSearch && selectedBlockExtent) {
+                                        const geom = f.getGeometry();
+                                        if (!geom || !ol.extent.intersects(geom.getExtent(), selectedBlockExtent)) return;
+                                    }
+                                    f.set('__layerTitle', layerTitle, true);
+                                    matches.push({
+                                        feature: f,
+                                        label: label,
+                                        layerTitle: layerTitle
+                                    });
+                                    matchCount++;
+                                }
+                            });
+                            if (matches.length > 0) return matches;
+                        }
+                    }
+
+                    // 2. FGB Streaming Fallback
+                    const url = layer._fgbUrl;
+                    const fallbackUrl = layer._fgbFallbackUrl;
+                    
+                    let rect = undefined;
+                    if (isPlotSearch && selectedBlockExtent) {
+                        // flatgeobuf.deserialize extent filter needs EPSG:4326 coords
+                        const extent4326 = ol.proj.transformExtent(selectedBlockExtent, map.getView().getProjection(), 'EPSG:4326');
+                        rect = {
+                            minX: extent4326[0],
+                            minY: extent4326[1],
+                            maxX: extent4326[2],
+                            maxY: extent4326[3]
+                        };
+                    }
+
+                    async function tryFetch(fgbUrl) {
+                        if (!fgbUrl) return false;
+                        try {
+                            let iter;
+                            if (rect) {
+                                // Use spatial index over HTTP Range requests (requires URL + rect)
+                                iter = flatgeobuf.deserialize(fgbUrl, rect);
+                            } else {
+                                // Full file scan: fetch manually and pass Uint8Array to deserialize
+                                const response = await fetch(fgbUrl, { mode: 'cors' });
+                                if (!response.ok) return false;
+                                const buf = await response.arrayBuffer();
+                                iter = flatgeobuf.deserialize(new Uint8Array(buf));
+                            }
+
+                            let matchCount = 0;
+                            const geojsonFormat = new ol.format.GeoJSON();
+                            
+                            for await (const feature of iter) {
+                                const properties = feature.properties || {};
+                                
+                                // 1. Mock an ol.Feature interface for getLabelForLayer (super fast!)
+                                const mockFeature = {
+                                    get: function(key) { return properties[key]; }
+                                };
+                                
+                                const label = getLabelForLayer(mockFeature, layerTitle);
+                                if (!label) continue;
+                                
+                                const labelLower = String(label).toLowerCase();
+                                if (labelLower === termLower || labelLower.includes(termLower)) {
+                                    // 2. Only parse into a real ol.Feature if it matches our search
+                                    const geojsonObj = {
+                                        type: 'Feature',
+                                        properties: properties,
+                                        geometry: feature.geometry || null
+                                    };
+                                    
+                                    try {
+                                        const olFeature = geojsonFormat.readFeature(geojsonObj, {
+                                            dataProjection: 'EPSG:4326',
+                                            featureProjection: map.getView().getProjection()
+                                        });
+                                        
+                                        // Extra precise spatial check for plots
+                                        if (isPlotSearch && selectedBlockExtent) {
+                                            const geom = olFeature.getGeometry();
+                                            if (!geom || !ol.extent.intersects(geom.getExtent(), selectedBlockExtent)) continue;
+                                        }
+                                        
+                                        olFeature.set('__layerTitle', layerTitle, true);
+                                        matches.push({
+                                            feature: olFeature,
+                                            label: label,
+                                            layerTitle: layerTitle
+                                        });
+                                        matchCount++;
+                                    } catch (e) {
+                                        console.warn("Could not parse matched feature geometry", label, e);
+                                    }
+                                }
+                                
+                                // Safety limit to avoid hanging the browser if term is too broad
+                                if (matchCount > 100) break;
+                            }
+                            return true;
+                        } catch (e) {
+                            console.warn(`[FGB Search] Error scanning ${fgbUrl}:`, e);
+                            return false;
+                        }
+                    }
+
+                    let success = await tryFetch(url);
+                    if (!success && fallbackUrl) {
+                        success = await tryFetch(fallbackUrl);
+                    }
+                    return matches;
+                }
+
+                // ---- BLOCK SEARCH ----
+                if (blockTerm && !window._fgbSelectedBlock) {
+                    if (statusDiv) {
+                        statusDiv.innerHTML = spinnerHtml + '<span style="vertical-align:middle;">Searching blocks...</span>';
+                        statusDiv.style.color = '#3498db';
+                    }
+
+                    fgbBlockHighlightSource.clear();
+                    fgbPlotHighlightSource.clear();
+                    fgbSelectedBlockSource.clear();
+
+                    const matches = [];
+                    let layersSearched = 0;
+
+                    // Collect target block layers: currently we just search the VISIBLE ones
+                    const targetLayers = [];
+                    if (typeof gspnetLayers !== 'undefined') {
+                        gspnetLayers.forEach(function(layer) {
+                            if (!layer.getVisible()) return;
+                            const title = (layer.get('title') || '').toLowerCase();
+                            if (title.includes('block')) {
+                                targetLayers.push(layer);
+                            }
+                        });
+                    }
+
+                    if (targetLayers.length === 0) {
+                        if (statusDiv) {
+                            statusDiv.textContent = 'No Block layers are currently visible. Turn on a Block layer in the layer switcher first.';
+                            statusDiv.style.color = '#ffaa00';
+                        }
+                        return;
+                    }
+
+                    // Scan FGB files concurrently
+                    const searchPromises = targetLayers.map(layer => {
+                        layersSearched++;
+                        return scanLayerForMatches(layer, blockTerm, false, null);
+                    });
+
+                    const resultsArray = await Promise.all(searchPromises);
+                    resultsArray.forEach(res => matches.push(...res));
+
+                    if (matches.length === 0) {
+                        if (statusDiv) {
+                            statusDiv.textContent = 'No blocks found matching "' + blockTerm + '" across ' + layersSearched + ' layer(s).';
+                            statusDiv.style.color = '#ffaa00';
+                        }
+                        if (resultsDiv) resultsDiv.style.display = 'none';
+                        return;
+                    }
+
+                    // Highlight all matching blocks
+                    matches.forEach(function(m) { fgbBlockHighlightSource.addFeature(m.feature); });
+
+                    // Zoom to all matches
+                    const blockExtent = fgbBlockHighlightSource.getExtent();
+                    map.getView().fit(blockExtent, { padding: [50, 50, 50, 50], duration: 800, maxZoom: 17 });
+
+                    if (statusDiv) {
+                        statusDiv.textContent = 'Found ' + matches.length + ' block(s) matching "' + blockTerm + '". Click a result below to select.';
+                        statusDiv.style.color = '#2ecc71';
+                    }
+
+                    // Show results table
+                    if (resultsDiv && resultsTable) {
+                        resultsDiv.style.display = 'block';
+                        var tableHTML = '<table class="parcel-results-table"><thead><tr>' +
+                            '<th>Block</th><th>Layer (District)</th>' +
+                            '</tr></thead><tbody>';
+
+                        matches.forEach(function(m, idx) {
+                            tableHTML += '<tr class="fgb-result-row" data-fgb-match-idx="' + idx + '">' +
+                                '<td><strong>' + m.label + '</strong></td>' +
+                                '<td>' + m.layerTitle + '</td>' +
+                                '</tr>';
+                        });
+                        tableHTML += '</tbody></table>';
+                        resultsTable.innerHTML = tableHTML;
+
+                        // Click handlers for block selection
+                        resultsTable.querySelectorAll('tr.fgb-result-row').forEach(function(row) {
+                            row.addEventListener('click', function() {
+                                var idx = parseInt(this.getAttribute('data-fgb-match-idx'));
+                                var match = matches[idx];
+                                if (match) {
+                                    // Auto-enable corresponding NLIS layers
+                                    const districtPrefix = match.layerTitle.split(' ')[0]; // e.g. "Mukono"
+                                    if (districtPrefix && typeof gspnetLayers !== 'undefined') {
+                                        gspnetLayers.forEach(function(layer) {
+                                            const title = layer.get('title') || '';
+                                            if (title.startsWith(districtPrefix) && (title.toLowerCase().includes('nlis') || title.toLowerCase().includes('nlsi'))) {
+                                                if (!layer.getVisible()) {
+                                                    layer.setVisible(true);
+                                                }
+                                            }
+                                        });
+                                    }
+                                    
+                                    selectBlock(match.feature, match.layerTitle, match.label);
+                                    updateFgbActiveLayers();
+                                }
+                            });
+                        });
+                    }
+
+                    return;
+                }
+
+                // ---- PLOT SEARCH (within selected block) ----
+                if (plotTerm && window._fgbSelectedBlock) {
+                    if (statusDiv) {
+                        statusDiv.innerHTML = spinnerHtml + '<span style="vertical-align:middle;">Searching plots in Block ' + window._fgbSelectedBlock.label + '...</span>';
+                        statusDiv.style.color = '#3498db';
+                    }
+
+                    fgbPlotHighlightSource.clear();
+                    fgbBlockHighlightSource.clear();
+
+                    const selectedBlockExtent = window._fgbSelectedBlock.feature.getGeometry().getExtent();
+                    const plotMatches = [];
+                    let plotLayersSearched = 0;
+
+                    // Collect target NLIS layers
+                    const districtPrefix = window._fgbSelectedBlock.layerTitle.split(' ')[0];
+                    const targetLayers = [];
+                    
+                    if (typeof gspnetLayers !== 'undefined') {
+                        gspnetLayers.forEach(function(layer) {
+                            if (!layer.getVisible()) return;
+                            const title = layer.get('title') || '';
+                            const titleLower = title.toLowerCase();
+                            
+                            if (titleLower.includes('nlis') || titleLower.includes('nlsi')) {
+                                // Prioritize layers matching the block's district prefix
+                                if (title.startsWith(districtPrefix)) {
+                                    targetLayers.push(layer);
+                                } else {
+                                    // also search other visible NLIS layers just in case
+                                    targetLayers.push(layer);
+                                }
+                            }
+                        });
+                    }
+
+                    const uniqueTargetLayers = [...new Set(targetLayers)];
+
+                    if (uniqueTargetLayers.length === 0) {
+                        if (statusDiv) {
+                            statusDiv.textContent = 'No NLIS (plot) layers are currently visible. Turn on an NLIS layer in the layer switcher.';
+                            statusDiv.style.color = '#ffaa00';
+                        }
+                        return;
+                    }
+
+                    // Scan FGB files concurrently with spatial index filter
+                    const searchPromises = uniqueTargetLayers.map(layer => {
+                        plotLayersSearched++;
+                        return scanLayerForMatches(layer, plotTerm, true, selectedBlockExtent);
+                    });
+
+                    const resultsArray = await Promise.all(searchPromises);
+                    resultsArray.forEach(res => plotMatches.push(...res));
+
+                    if (plotMatches.length === 0) {
+                        var bLabel = window._fgbSelectedBlock.label;
+                        if (statusDiv) {
+                            statusDiv.textContent = 'No plots matching "' + plotTerm + '" found within Block ' + bLabel + '.';
+                            statusDiv.style.color = '#ffaa00';
+                        }
+                        if (resultsDiv) resultsDiv.style.display = 'none';
+                        return;
+                    }
+
+                    // Highlight matching plots
+                    plotMatches.forEach(function(m) { fgbPlotHighlightSource.addFeature(m.feature); });
+
+                    // Zoom to all matching plots
+                    const plotExtent = fgbPlotHighlightSource.getExtent();
+                    map.getView().fit(plotExtent, { padding: [50, 50, 50, 50], duration: 800, maxZoom: 19 });
+
+                    if (statusDiv) {
+                        statusDiv.textContent = 'Found ' + plotMatches.length + ' plot(s) matching "' + plotTerm + '" in Block ' + window._fgbSelectedBlock.label + '.';
+                        statusDiv.style.color = '#2ecc71';
+                    }
+
+                    // Show results table
+                    if (resultsDiv && resultsTable) {
+                        resultsDiv.style.display = 'block';
+                        var plotTableHTML = '<table class="parcel-results-table"><thead><tr>' +
+                            '<th>Plot</th><th>Layer</th>' +
+                            '</tr></thead><tbody>';
+
+                        plotMatches.forEach(function(m, idx) {
+                            plotTableHTML += '<tr class="fgb-result-row" data-fgb-plot-idx="' + idx + '">' +
+                                '<td><strong>' + m.label + '</strong></td>' +
+                                '<td>' + m.layerTitle + '</td>' +
+                                '</tr>';
+                        });
+                        plotTableHTML += '</tbody></table>';
+                        resultsTable.innerHTML = plotTableHTML;
+
+                        // Click handlers to zoom to individual plots
+                        resultsTable.querySelectorAll('tr.fgb-result-row').forEach(function(row) {
+                            row.addEventListener('click', function() {
+                                var idx = parseInt(this.getAttribute('data-fgb-plot-idx'));
+                                var match = plotMatches[idx];
+                                if (match) {
+                                    var plotFitExtent = match.feature.getGeometry().getExtent();
+                                    map.getView().fit(plotFitExtent, { padding: [30, 30, 30, 30], duration: 500, maxZoom: 20 });
+                                }
+                            });
+                        });
+                    }
+
+                    return;
+                }
+            }
+
+            // ========================================
+            // END BLOCK / PLOT FGB SEARCH ENGINE
+            // ========================================
 
             // Populate parcel search form
             function populateParcelSearchForm() {
