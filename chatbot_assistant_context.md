@@ -96,6 +96,22 @@ Standard web maps rely on low-accuracy phone GPS (±5 meters), which is insuffic
      - **Upload Mode:** Enables continuous auto-capture to record a street-view route. This leverages the **Cloudflare Mapillary Proxy** to seamlessly bundle images into a ZIP and upload them directly to Mapillary without CORS errors. Use the **START**, **UPLOAD**, and **CLOSE** buttons on the HUD to manage your capture session.
    - **Export your work** — export all marked points and polygons as **CSV**, **KML**, or **DXF** directly from your phone or tablet in the field.
 
+### Field Navigator (Turn-by-Turn GPS)
+The Field Navigator transforms GSP.NET into a fully interactive, Google Maps-style navigation system to guide surveyors directly to any parcel or coordinate.
+
+**Key Features:**
+- **Navigation HUD (Heads-Up Display):** Once navigation starts, a sleek overlay appears displaying live Speed (km/h), Distance Remaining, Time Remaining (ETA), and the next Maneuver Instruction. The side panel automatically hides to maximize the map view.
+- **Intelligent Basemaps:** During navigation, all heavy overlay layers are hidden, and the active basemap (e.g., OpenStreetMap or Satellite) is kept visible to provide clear street context. Your original layers are restored upon exiting.
+- **Voice Guidance:** A male voice (if supported by your device) announces the total distance at the start. It continues to provide audio prompts as you approach turns (e.g., "Turn left in 100 meters") and announces when you have arrived at your destination.
+- **Dynamic Route Recalculation:** If you deviate more than 50 meters from the planned route, the system intelligently issues a "Recalculating route" audio prompt and instantly fetches a new route from your live GPS location.
+- **Auto-Rotation:** The map is fully interactive but automatically rotates to match your heading as you move. When you exit navigation, it snaps perfectly back to North.
+
+**How to Use:**
+1. **Option A (Right-Click):** Right-click (or long-press on mobile) anywhere on the map or on a specific parcel to open the context menu, then select **"Navigate Here"**.
+2. **Option B (Feature Info):** Click on any parcel to open its info popup. Scroll to the bottom and click the blue **"Navigate to this Parcel"** button.
+3. **Option C (Manual Entry):** Open the GSP.NET Assist floating panel, click the **ROUTING** tab, and enter your Start and End coordinates manually. You can click the "Current Location" (crosshairs) button to instantly drop a pin at your live GPS location.
+4. Once the route is calculated, click the **"START NAVIGATION"** button to enter Drive Mode. Click the red **"EXIT"** button on the HUD to stop.
+
 ### Coordinate Search & Extractor
 - **Video Tutorial:** [LOCATE AND COORD SEARCH BUTTON FUNCTIONALITY. HOW TO USE](https://youtu.be/Qm-I5EgVPKc?si=CSHWqerhAq_m9z3a)
 - **Video Tutorial:** [COORD SEARCH AND INFO BUTTON WORK FLOWS](https://youtu.be/RLen8aigI5w?si=7IOG3nbwFk4yzGgS)

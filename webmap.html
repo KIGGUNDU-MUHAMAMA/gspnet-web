@@ -3539,10 +3539,21 @@
             width: 100px;
             flex-shrink: 0;
             padding-top: 20px;
+            overflow-y: auto;
+        }
+
+        /* Custom scrollbar for tabs */
+        .gspnet-tabs::-webkit-scrollbar {
+            width: 4px;
+        }
+        .gspnet-tabs::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
         }
 
         .gspnet-tab {
-            padding: 15px 10px;
+            padding: 10px 5px;
+            font-size: 0.8rem;
             text-align: center;
             border-bottom: none;
             border-right: 3px solid transparent;
@@ -3566,7 +3577,7 @@
             margin-right: 0;
             margin-bottom: 5px;
             display: block;
-            font-size: 1.2rem;
+            font-size: 1.0rem;
             filter: drop-shadow(0 0 2px rgba(255,255,255,0.5));
         }
 
@@ -15976,6 +15987,9 @@
                         <div class="gspnet-tab" id="jrj-create-btn" data-tab="jrj" onclick="activateJrjSelectionMode()">
                             <i class="fas fa-file-invoice"></i> <span>CREATE JRJ</span>
                         </div>
+                        <div class="gspnet-tab" data-tab="routing">
+                            <i class="fas fa-directions"></i> <span>ROUTING</span>
+                        </div>
                     </div>
 
                     <div class="gspnet-content">
@@ -16291,6 +16305,45 @@
                                 </button>
                                 <button id="jrj-clear-labels-btn" style="padding: 10px; background: #f39c12; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px;">
                                     <i class="fas fa-eraser"></i> Clear Map Labels
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Routing Section -->
+                        <div class="gspnet-section" id="routing-section" data-tab="routing">
+                            <h3><i class="fas fa-route"></i> FIELD NAVIGATOR</h3>
+                            <div style="padding: 10px; background: #2c3e50; color: white; border-radius: 5px; margin-bottom: 15px; font-size: 0.9em;">
+                                <strong><i class="fas fa-info-circle"></i> Survey-Grade Navigation</strong><br>
+                                Navigate directly to any cadastral parcel using real-time GPS and audio guidance.
+                            </div>
+                            
+                            <div class="routing-form" style="display: flex; flex-direction: column; gap: 10px;">
+                                <label style="font-size: 0.8em; color: #7f8c8d; margin-bottom: -5px;">Start Point</label>
+                                <div style="display: flex; gap: 5px;">
+                                    <input type="text" id="route-start-input" placeholder="Current Location" style="flex: 1; padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" readonly>
+                                    <button id="route-start-gps-btn" title="Use Live GPS" style="padding: 8px 12px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;"><i class="fas fa-crosshairs"></i></button>
+                                </div>
+
+                                <label style="font-size: 0.8em; color: #7f8c8d; margin-bottom: -5px;">Destination</label>
+                                <input type="text" id="route-end-input" placeholder="Click a parcel or 'Navigate Here'" style="padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" readonly>
+                                
+                                <div id="route-stats" style="display: none; padding: 10px; background: #ecf0f1; border-radius: 4px; margin-top: 10px;">
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                        <span style="color: #7f8c8d; font-weight: bold;">Distance:</span>
+                                        <span id="route-distance-val" style="color: #2c3e50; font-weight: bold;">--</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between;">
+                                        <span style="color: #7f8c8d; font-weight: bold;">Est. Time:</span>
+                                        <span id="route-time-val" style="color: #2c3e50; font-weight: bold;">--</span>
+                                    </div>
+                                </div>
+                                
+                                <button id="route-go-btn" style="padding: 12px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; font-weight: bold; font-size: 1.1em; display: flex; align-items: center; justify-content: center; gap: 8px; opacity: 0.5; pointer-events: none;">
+                                    <i class="fas fa-car"></i> START NAVIGATION
+                                </button>
+                                
+                                <button id="route-cancel-btn" style="display: none; padding: 10px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 5px; font-weight: bold; align-items: center; justify-content: center; gap: 5px;">
+                                    <i class="fas fa-stop"></i> Stop Navigation
                                 </button>
                             </div>
                         </div>
@@ -65279,6 +65332,7 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
 
     <!-- Condominium Viewer Module (uses Three.js r128 loaded in head) -->
     <script src="jrj_engine.js"></script>
+    <script src="js/routing-engine.js"></script>
     <script src="jrj_pdf.js"></script>
     <script src="condo-viewer.js"></script>
 
