@@ -112,6 +112,16 @@ The Field Navigator transforms GSP.NET into a fully interactive, Google Maps-sty
 3. **Option C (Manual Entry):** Open the GSP.NET Assist floating panel, click the **ROUTING** tab, and enter your Start and End coordinates manually. You can click the "Current Location" (crosshairs) button to instantly drop a pin at your live GPS location.
 4. Once the route is calculated, click the **"START NAVIGATION"** button to enter Drive Mode. Click the red **"EXIT"** button on the HUD to stop.
 
+### Advanced Block & Plot Parcel Search
+GSP.NET features a lightning-fast search engine that queries the entire national database directly in the browser without needing to download massive datasets. It uses advanced spatial indexing (Flatgeobuf).
+
+**How to Use:**
+1. Open the **Parcel Search** panel from the top navigation bar.
+2. Select the **District** you are searching in (e.g., Wakiso, Kampala, Mukono).
+3. Select whether you are searching for a **Block** (the overarching survey grid) or a specific **Plot** (an individual parcel within a block).
+4. Enter the Block Number and/or Plot Number in the search field.
+5. As you type, the system instantly streams the matching parcel boundaries from the cloud, highlights them in neon yellow on the map, and automatically zooms the camera to fit the results. 
+
 ### Coordinate Search & Extractor
 - **Video Tutorial:** [LOCATE AND COORD SEARCH BUTTON FUNCTIONALITY. HOW TO USE](https://youtu.be/Qm-I5EgVPKc?si=CSHWqerhAq_m9z3a)
 - **Video Tutorial:** [COORD SEARCH AND INFO BUTTON WORK FLOWS](https://youtu.be/RLen8aigI5w?si=7IOG3nbwFk4yzGgS)
