@@ -15990,6 +15990,9 @@
                         <div class="gspnet-tab" data-tab="routing">
                             <i class="fas fa-directions"></i> <span>ROUTING</span>
                         </div>
+                        <div class="gspnet-tab" data-tab="analysis">
+                            <i class="fas fa-layer-group"></i> <span>ANALYSIS</span>
+                        </div>
                     </div>
 
                     <div class="gspnet-content">
@@ -16345,6 +16348,58 @@
                                 <button id="route-cancel-btn" style="display: none; padding: 10px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 5px; font-weight: bold; align-items: center; justify-content: center; gap: 5px;">
                                     <i class="fas fa-stop"></i> Stop Navigation
                                 </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Analysis Section -->
+                        <div class="gspnet-section" id="analysis-section" data-tab="analysis">
+                            <h3><i class="fas fa-layer-group"></i> SPATIAL ANALYSIS</h3>
+                            <div style="padding: 10px; background: #2c3e50; color: white; border-radius: 5px; margin-bottom: 15px; font-size: 0.9em;">
+                                <strong><i class="fas fa-info-circle"></i> Geoprocessing Engine</strong><br>
+                                Run complex spatial operations like Buffer and Intersect instantly in the browser.
+                            </div>
+                            
+                            <div style="display: flex; flex-direction: column; gap: 10px;">
+                                <label style="font-size: 0.8em; color: #7f8c8d; margin-bottom: -5px;">Select Tool</label>
+                                <select id="analysis-tool-select" style="padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 14px;">
+                                    <option value="buffer">Buffer (Setbacks / Wayleaves)</option>
+                                    <option value="intersect">Intersect (Overlaps)</option>
+                                    <option value="union">Union (Merge)</option>
+                                    <option value="difference">Difference (Erase)</option>
+                                </select>
+
+                                <!-- Buffer Options -->
+                                <div id="analysis-buffer-opts" style="display: flex; flex-direction: column; gap: 5px; margin-top: 5px;">
+                                    <label style="font-size: 0.8em; color: #7f8c8d;">Buffer Distance (meters)</label>
+                                    <input type="number" id="analysis-buffer-distance" value="30" step="1" style="padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;">
+                                </div>
+
+                                <div style="margin-top: 10px;">
+                                    <label style="font-size: 0.8em; color: #7f8c8d; display: block; margin-bottom: 5px;">Input Features</label>
+                                    <div style="display: flex; gap: 5px;">
+                                        <button id="analysis-draw-point-btn" class="gsp-btn" style="flex: 1; padding: 8px; background: #34495e; color: white; border: none; border-radius: 4px; cursor: pointer;"><i class="fas fa-map-pin"></i> Draw Pin</button>
+                                        <button id="analysis-draw-line-btn" class="gsp-btn" style="flex: 1; padding: 8px; background: #34495e; color: white; border: none; border-radius: 4px; cursor: pointer;"><i class="fas fa-route"></i> Draw Line</button>
+                                    </div>
+                                    <button id="analysis-select-btn" style="width: 100%; padding: 8px; background: #2980b9; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 5px;">
+                                        <i class="fas fa-mouse-pointer"></i> Select Existing Parcel(s)
+                                    </button>
+                                    <div id="analysis-selection-status" style="font-size: 0.8em; color: #e67e22; margin-top: 5px; font-weight: bold;">0 features selected</div>
+                                </div>
+
+                                <button id="analysis-run-btn" style="padding: 12px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; font-weight: bold; font-size: 1.1em; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                    <i class="fas fa-play"></i> RUN ANALYSIS
+                                </button>
+                                
+                                <div id="analysis-results-panel" style="display: none; padding: 10px; background: #ecf0f1; border-radius: 4px; margin-top: 10px;">
+                                    <div style="font-weight: bold; color: #2c3e50; margin-bottom: 5px;"><i class="fas fa-check-circle" style="color: #27ae60;"></i> Analysis Complete</div>
+                                    <div id="analysis-result-text" style="font-size: 0.9em; color: #34495e; margin-bottom: 10px;"></div>
+                                    
+                                    <div style="display: flex; gap: 5px;">
+                                        <button id="analysis-export-dxf-btn" style="flex: 1; padding: 8px; background: #8e44ad; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em;"><i class="fas fa-download"></i> DXF</button>
+                                        <button id="analysis-export-pdf-btn" style="flex: 1; padding: 8px; background: #c0392b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em;"><i class="fas fa-file-pdf"></i> Report</button>
+                                        <button id="analysis-clear-btn" style="flex: 1; padding: 8px; background: #7f8c8d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em;"><i class="fas fa-trash"></i> Clear</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -71083,6 +71138,8 @@ if (document.readyState !== 'loading') {
 <script src="js/rover-camera.js?v=3"></script>
 <script src="js/mapillary-uploader.js?v=2"></script>
 
+<!-- GSPNet Spatial Analysis Engine -->
+<script src="js/spatial-analysis.js"></script>
 </body>
 
 <!-- GSPNet Sentinel Analytics Module -->
