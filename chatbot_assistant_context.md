@@ -54,6 +54,10 @@ The GSP.NET Assist button acts as a floating command center. It provides:
 - **File Uploads (CSV, DXF, DWG, GeoJSON):** Allows surveyors to instantly overlay CAD/survey data onto the map. The system automatically detects coordinate systems (like Arc 1960 UTM Zone 36N) and reprojects them to WGS84 for web rendering.
 - **Drawing Tools:** Offers point, line, and polygon drawing features. It includes advanced snapping (vertex and edge) to ensure new subdivisions perfectly align with existing boundaries.
 - **Measurement Tools:** Allows you to measure distances and calculate polygon areas on the fly. 
+- **Spatial Analysis Engine (Turf.js):** Provides a dedicated **ANALYSIS** tab to perform professional geoprocessing workflows directly in the browser. 
+  - Supports four core operations: **Buffer** (for setbacks/wayleaves), **Intersect** (overlaps), **Union** (merge), and **Difference** (erasure).
+  - You can select existing map parcels, or use the integrated **Draw Pin** / **Draw Line** tools to quickly sketch features for buffering. Selecting multiple parcels is as easy as clicking on them sequentially.
+  - The tool calculates resulting areas and provides high-res **PDF Report** generation (with a map snapshot) and **DXF Export** capabilities (with options to select standard output CRSs like UTM Zone 36N). 
 
 ### CAD Integration & DXF Interpolation
 GSP.NET includes a powerful native **CAD Inspector** for working directly with CAD files:

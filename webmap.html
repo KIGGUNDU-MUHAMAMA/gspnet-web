@@ -16394,6 +16394,18 @@
                                     <div style="font-weight: bold; color: #2c3e50; margin-bottom: 5px;"><i class="fas fa-check-circle" style="color: #27ae60;"></i> Analysis Complete</div>
                                     <div id="analysis-result-text" style="font-size: 0.9em; color: #34495e; margin-bottom: 10px;"></div>
                                     
+                                    <div style="margin-bottom: 10px;">
+                                        <label style="font-size: 0.8em; color: #7f8c8d;">Export Coordinate System (for DXF)</label>
+                                        <select id="analysis-export-crs" style="width: 100%; padding: 6px; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 13px;">
+                                            <option value="EPSG:3857">Web Mercator (Default - EPSG:3857)</option>
+                                            <option value="EPSG:4326">WGS84 Lat/Lon (EPSG:4326)</option>
+                                            <option value="EPSG:21095">Arc 1960 UTM Zone 35N (EPSG:21095)</option>
+                                            <option value="EPSG:21096">Arc 1960 UTM Zone 36N (EPSG:21096)</option>
+                                            <option value="EPSG:32635">WGS84 UTM Zone 35N (EPSG:32635)</option>
+                                            <option value="EPSG:32636">WGS84 UTM Zone 36N (EPSG:32636)</option>
+                                        </select>
+                                    </div>
+
                                     <div style="display: flex; gap: 5px;">
                                         <button id="analysis-export-dxf-btn" style="flex: 1; padding: 8px; background: #8e44ad; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em;"><i class="fas fa-download"></i> DXF</button>
                                         <button id="analysis-export-pdf-btn" style="flex: 1; padding: 8px; background: #c0392b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em;"><i class="fas fa-file-pdf"></i> Report</button>

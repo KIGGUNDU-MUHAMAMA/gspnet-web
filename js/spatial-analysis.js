@@ -78,6 +78,7 @@ const SpatialAnalysis = {
         // Initialize Select Interaction
         this.selectInteraction = new ol.interaction.Select({
             multi: true, // Allow selecting multiple features
+            toggleCondition: ol.events.condition.click, // Toggle selection on normal click without needing shift
             style: null // Use default selection styling from map if any, or null to keep original but we handle highlighting
         });
         
@@ -289,6 +290,8 @@ const SpatialAnalysis = {
     exportToDxf: function() {
         if (!this.lastResultGeoJSON) return;
         
+        const targetCrs = document.getElementById('analysis-export-crs') ? document.getElementById('analysis-export-crs').value : 'EPSG:3857';
+
         let dxf = '0\\nSECTION\\n2\\nENTITIES\\n';
         
         // A very basic DXF polyline exporter for the result
@@ -296,7 +299,11 @@ const SpatialAnalysis = {
             const ring = coords[0]; // external ring
             dxf += '0\\nLWPOLYLINE\\n100\\nAcDbEntity\\n8\\nANALYSIS_RESULT\\n100\\nAcDbPolyline\\n90\\n' + ring.length + '\\n70\\n1\\n';
             ring.forEach(pt => {
-                 dxf += '10\\n' + pt[0].toFixed(8) + '\\n20\\n' + pt[1].toFixed(8) + '\\n';
+                 let exportPt = pt;
+                 if (targetCrs !== 'EPSG:3857' && window.proj4) {
+                     exportPt = proj4('EPSG:3857', targetCrs, pt);
+                 }
+                 dxf += '10\\n' + exportPt[0].toFixed(8) + '\\n20\\n' + exportPt[1].toFixed(8) + '\\n';
             });
         };
 
