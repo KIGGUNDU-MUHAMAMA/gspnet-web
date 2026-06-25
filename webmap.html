@@ -114,6 +114,12 @@
     <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png?v=3">
     <link rel="icon" type="image/png" sizes="64x64" href="assets/icons/favicon-64.png?v=3">
     <link rel="apple-touch-icon" sizes="64x64" href="assets/icons/favicon-64.png?v=3">
+    <!-- PWA Manifest & Theme -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="GSP.NET">
 
     <!-- Supabase Integration for Chat -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -3552,8 +3558,8 @@
         }
 
         .gspnet-tab {
-            padding: 10px 5px;
-            font-size: 0.8rem;
+            padding: 7px 4px;
+            font-size: 0.75rem;
             text-align: center;
             border-bottom: none;
             border-right: 3px solid transparent;
@@ -4460,7 +4466,7 @@
             display: none;
             flex-direction: column;
             overflow: hidden;
-            max-height: 70vh;
+            max-height: 85vh;
             color: white;
             opacity: 0;
             transform: scale(0.95) translateY(10px);
@@ -15993,6 +15999,9 @@
                         <div class="gspnet-tab" data-tab="analysis">
                             <i class="fas fa-layer-group"></i> <span>ANALYSIS</span>
                         </div>
+                        <div class="gspnet-tab" data-tab="offline">
+                            <i class="fas fa-cloud-download-alt"></i> <span>OFFLINE</span>
+                        </div>
                     </div>
 
                     <div class="gspnet-content">
@@ -16414,6 +16423,83 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- ═══════════ OFFLINE / PWA Section ═══════════ -->
+                        <div class="gspnet-section" id="offline-section" data-tab="offline">
+                            <h3><i class="fas fa-cloud-download-alt" style="color: #00f2fe;"></i> Offline Mode</h3>
+
+                            <!-- Update Banner (hidden by default) -->
+                            <div id="offline-update-banner" style="display:none; background: linear-gradient(135deg, #667eea, #764ba2); padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; font-size: 0.85em;">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <i class="fas fa-rocket"></i>
+                                    <span>A new version of GSP.NET is available!</span>
+                                </div>
+                                <button id="offline-update-btn" style="margin-top:8px; width:100%; padding:6px; background:rgba(255,255,255,0.2); color:white; border:1px solid rgba(255,255,255,0.4); border-radius:6px; cursor:pointer; font-weight:600;">Update Now</button>
+                            </div>
+
+                            <!-- Connection Status -->
+                            <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 12px; margin-bottom: 12px;">
+                                <div style="display:flex; align-items:center; justify-content:space-between;">
+                                    <span style="font-size:0.85em; color:rgba(255,255,255,0.7);">Connection</span>
+                                    <div id="offline-connection-status" style="display:flex; align-items:center; gap:6px; font-weight:600; font-size:0.85em;">
+                                        <span style="width:10px;height:10px;border-radius:50%;background:#27ae60;display:inline-block;"></span>
+                                        Connected
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Download Region -->
+                            <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px; margin-bottom: 12px;">
+                                <div style="font-weight:600; font-size:0.9em; margin-bottom:8px;"><i class="fas fa-map-marked-alt" style="color:#00f2fe; margin-right:6px;"></i>Download Map Region</div>
+                                <p style="font-size:0.78em; color:rgba(255,255,255,0.5); margin-bottom:10px;">Downloads the current map view (max 1 km²) including the active basemap, GSP.NET layers, and survey polygons for offline field use.</p>
+                                <button id="offline-download-btn" style="width:100%; padding:10px; background:linear-gradient(135deg,#00f2fe,#4facfe); color:#0f172a; border:none; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.9em; transition:all 0.2s;"><i class="fas fa-download"></i> Download Current View for Offline</button>
+
+                                <!-- Progress -->
+                                <div id="offline-progress-container" style="display:none; margin-top:10px;">
+                                    <div style="display:flex; justify-content:space-between; font-size:0.78em; margin-bottom:4px;">
+                                        <span id="offline-progress-text">Downloading tiles...</span>
+                                        <span id="offline-progress-percent">0%</span>
+                                    </div>
+                                    <div style="width:100%; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
+                                        <div id="offline-progress-bar" style="width:0%; height:100%; background:linear-gradient(90deg,#00f2fe,#4facfe); border-radius:3px; transition:width 0.3s;"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Storage Meter -->
+                            <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px; margin-bottom: 12px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                    <span style="font-weight:600; font-size:0.85em;"><i class="fas fa-database" style="color:#f39c12; margin-right:6px;"></i>Storage</span>
+                                    <span style="font-size:0.8em; color:rgba(255,255,255,0.6);"><span id="offline-storage-used">0 MB</span> / <span id="offline-storage-total">500 MB</span></span>
+                                </div>
+                                <div style="width:100%; height:8px; background:rgba(255,255,255,0.1); border-radius:4px; overflow:hidden;">
+                                    <div id="offline-storage-bar-fill" style="width:0%; height:100%; background:linear-gradient(90deg,#27ae60,#2ecc71); border-radius:4px; transition:width 0.5s;"></div>
+                                </div>
+                            </div>
+
+                            <!-- Sync Queue -->
+                            <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px; margin-bottom: 12px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <div>
+                                        <span style="font-weight:600; font-size:0.85em;"><i class="fas fa-sync-alt" style="color:#3498db; margin-right:6px;"></i>Sync Queue</span>
+                                        <div style="font-size:0.78em; color:rgba(255,255,255,0.5); margin-top:2px;"><span id="offline-sync-count">0</span> item(s) pending upload</div>
+                                    </div>
+                                    <button id="offline-sync-btn" style="padding:6px 14px; background:rgba(52,152,219,0.3); color:#3498db; border:1px solid rgba(52,152,219,0.4); border-radius:6px; cursor:pointer; font-size:0.8em; font-weight:600;">Sync Now</button>
+                                </div>
+                            </div>
+
+                            <!-- Cached Regions -->
+                            <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px; margin-bottom: 12px;">
+                                <div style="font-weight:600; font-size:0.85em; margin-bottom:10px;"><i class="fas fa-folder-open" style="color:#e67e22; margin-right:6px;"></i>Saved Offline Regions</div>
+                                <div id="offline-cached-regions-list" style="max-height:150px; overflow-y:auto;">
+                                    <div style="font-size:0.8em; color:rgba(255,255,255,0.4); text-align:center; padding:15px;">No regions downloaded yet</div>
+                                </div>
+                            </div>
+
+                            <!-- Clear Cache -->
+                            <button id="offline-clear-btn" style="width:100%; padding:8px; background:rgba(231,76,60,0.15); color:#e74c3c; border:1px solid rgba(231,76,60,0.3); border-radius:8px; cursor:pointer; font-size:0.85em; font-weight:600;"><i class="fas fa-trash-alt"></i> Clear All Cached Data</button>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -71152,6 +71238,21 @@ if (document.readyState !== 'loading') {
 
 <!-- GSPNet Spatial Analysis Engine -->
 <script src="js/spatial-analysis.js"></script>
+
+<!-- PWA Offline Manager & Service Worker Registration -->
+<script src="js/offline-manager.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').then(registration => {
+            console.log('ServiceWorker registration successful with scope: ', registration.scope);
+        }).catch(err => {
+            console.warn('ServiceWorker registration failed: ', err);
+        });
+    });
+}
+</script>
+
 </body>
 
 <!-- GSPNet Sentinel Analytics Module -->

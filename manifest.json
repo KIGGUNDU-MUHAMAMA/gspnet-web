@@ -1,0 +1,43 @@
+{
+    "name": "Geospatial Network Uganda",
+    "short_name": "GSP.NET",
+    "description": "Uganda's premier web-based Cadastral & Geospatial Intelligence platform — Professional GIS, RTK Rover, Spatial Analysis, and Field Surveying tools.",
+    "start_url": "/webmap.html",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "any",
+    "theme_color": "#0f172a",
+    "background_color": "#0f172a",
+    "icons": [
+        {
+            "src": "assets/icons/icon-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "assets/icons/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "assets/icons/favicon-64.png",
+            "sizes": "64x64",
+            "type": "image/png"
+        }
+    ],
+    "categories": ["productivity", "utilities", "business"],
+    "lang": "en",
+    "dir": "ltr",
+    "screenshots": [],
+    "shortcuts": [
+        {
+            "name": "Open Webmap",
+            "short_name": "Map",
+            "description": "Open the GSP.NET professional webmap",
+            "url": "/webmap.html",
+            "icons": [{"src": "assets/icons/icon-192x192.png", "sizes": "192x192"}]
+        }
+    ]
+}
