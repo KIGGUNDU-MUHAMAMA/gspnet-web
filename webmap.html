@@ -15978,11 +15978,8 @@
                     aria-label="Close panel">&times;</button>
                 <div class="gspnet-panel-inner">
                     <div class="gspnet-tabs">
-                        <div class="gspnet-tab active" data-tab="file-csv-upload">
-                            <i class="fas fa-file-csv"></i> <span>File & CSV</span>
-                        </div>
-                        <div class="gspnet-tab" data-tab="dwg-dxf-upload">
-                            <i class="fas fa-drafting-compass"></i> <span>DWG & DXF</span>
+                        <div class="gspnet-tab" data-tab="offline">
+                            <i class="fas fa-cloud-download-alt"></i> <span>OFFLINE</span>
                         </div>
                         <div class="gspnet-tab" data-tab="drawing">
                             <i class="fas fa-pen-fancy"></i> <span>DRAWING</span>
@@ -15990,17 +15987,20 @@
                         <div class="gspnet-tab" data-tab="measurement">
                             <i class="fas fa-ruler"></i> <span>MEASURE</span>
                         </div>
-                        <div class="gspnet-tab" id="jrj-create-btn" data-tab="jrj" onclick="activateJrjSelectionMode()">
-                            <i class="fas fa-file-invoice"></i> <span>CREATE JRJ</span>
-                        </div>
                         <div class="gspnet-tab" data-tab="routing">
                             <i class="fas fa-directions"></i> <span>ROUTING</span>
                         </div>
                         <div class="gspnet-tab" data-tab="analysis">
                             <i class="fas fa-layer-group"></i> <span>ANALYSIS</span>
                         </div>
-                        <div class="gspnet-tab" data-tab="offline">
-                            <i class="fas fa-cloud-download-alt"></i> <span>OFFLINE</span>
+                        <div class="gspnet-tab" id="jrj-create-btn" data-tab="jrj" onclick="activateJrjSelectionMode()">
+                            <i class="fas fa-file-invoice"></i> <span>CREATE JRJ</span>
+                        </div>
+                        <div class="gspnet-tab active" data-tab="file-csv-upload">
+                            <i class="fas fa-file-csv"></i> <span>File & CSV</span>
+                        </div>
+                        <div class="gspnet-tab" data-tab="dwg-dxf-upload">
+                            <i class="fas fa-drafting-compass"></i> <span>DWG & DXF</span>
                         </div>
                     </div>
 
@@ -16451,7 +16451,6 @@
                             <!-- Download Region -->
                             <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 14px; margin-bottom: 12px;">
                                 <div style="font-weight:600; font-size:0.9em; margin-bottom:8px;"><i class="fas fa-map-marked-alt" style="color:#00f2fe; margin-right:6px;"></i>Download Map Region</div>
-                                <p style="font-size:0.78em; color:rgba(255,255,255,0.5); margin-bottom:10px;">Downloads the current map view (max 1 km²) including the active basemap, GSP.NET layers, and survey polygons for offline field use.</p>
                                 <button id="offline-download-btn" style="width:100%; padding:10px; background:linear-gradient(135deg,#00f2fe,#4facfe); color:#0f172a; border:none; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.9em; transition:all 0.2s;"><i class="fas fa-download"></i> Download Current View for Offline</button>
 
                                 <!-- Progress -->
