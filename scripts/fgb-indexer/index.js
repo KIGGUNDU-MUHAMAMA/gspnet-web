@@ -36,7 +36,7 @@ const findProp = (props, possibleKeys) => {
 };
 
 const getPlot = (props) => findProp(props, ['plot', 'plotnumber', 'lotnumber', 'lot']);
-const getBlock = (props) => findProp(props, ['block', 'blocknumber']);
+const getBlock = (props) => findProp(props, ['block', 'blocknumber', 'Number_']);
 const getParcelId = (props) => findProp(props, ['parcelid', 'nlisid', 'uniqueid']);
 const getDistrict = (props) => findProp(props, ['district']);
 const getSubcounty = (props) => findProp(props, ['subcounty', 'county']);
@@ -48,19 +48,12 @@ const buildSearchText = (props) => {
     const keys = Object.keys(props);
     for (const k of keys) {
         const keyLower = k.toLowerCase();
-        if (
-            keyLower.includes('plot') ||
-            keyLower.includes('block') ||
-            keyLower.includes('parcel') ||
-            keyLower.includes('lot') ||
-            keyLower.includes('nlis') ||
-            keyLower.includes('name') ||
-            keyLower.includes('label') ||
-            keyLower.includes('district') ||
-            keyLower.includes('county') ||
-            keyLower.includes('parish')
-        ) {
-            if (props[k]) parts.push(props[k].toString().trim());
+        // Ignore internal identifiers
+        if (keyLower === 'id' || keyLower === 'fid' || keyLower === 'geometry' || keyLower === 'geom') {
+            continue;
+        }
+        if (props[k] !== null && props[k] !== undefined) {
+            parts.push(props[k].toString().trim());
         }
     }
     // De-duplicate array
