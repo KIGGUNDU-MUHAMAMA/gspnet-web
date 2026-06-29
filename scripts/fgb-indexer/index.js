@@ -2,6 +2,7 @@ import { S3Client, ListObjectsV2Command, GetObjectCommand } from "@aws-sdk/clien
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createClient } from "@supabase/supabase-js";
 import { deserialize } from "flatgeobuf/lib/mjs/geojson.js";
+import WebSocket from 'ws';
 
 // 1. Setup Environment
 const s3 = new S3Client({
@@ -16,7 +17,11 @@ const bucketName = process.env.CLOUDFLARE_R2_BUCKET;
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  {
+    auth: { persistSession: false },
+    realtime: { transport: WebSocket }
+  }
 );
 
 // Helper functions to aggressively find attributes despite schema mismatches
