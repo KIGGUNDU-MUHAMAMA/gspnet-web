@@ -34956,20 +34956,11 @@
                     openPopup();
                 }
 
-                async function runSearch(isAdvanced = false) {
+                async function runSearch() {
                     let q = input.value.trim();
                     
-                    let advD = document.getElementById('advDistrict').value.trim();
-                    let advB = document.getElementById('advBlock').value.trim();
-                    let advP = document.getElementById('advPlot').value.trim();
-
-                    if (!isAdvanced && !q) {
+                    if (!q) {
                         setError('Enter a place name to search.');
-                        openPopup();
-                        return;
-                    }
-                    if (isAdvanced && !advD && !advB && !advP) {
-                        setError('Enter at least one advanced search criteria.');
                         openPopup();
                         return;
                     }
@@ -34985,23 +34976,16 @@
                     btn.disabled = true;
                     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Searching...</span>';
                     
-                    const advBtnText = document.getElementById('advSearchSubmitBtn');
-                    if(advBtnText) advBtnText.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
                     try {
                         // 1. Prepare Supabase query for Parcels
                         let supabaseQuery = window.supabaseClient.from('parcel_index').select('*');
 
-                        if (isAdvanced) {
-                            return; // Handled by separate Block/Plot UI logic now
-                        } else {
-                            // Split query into tokens, ignore filler words
-                            const tokens = q.toLowerCase().split(/\s+/).filter(w => w && w !== 'block' && w !== 'plot' && w !== 'parcel' && w !== 'district');
-                            tokens.forEach(t => {
-                                // Must match token in either layer_name (district) OR search_text (block/plot)
-                                supabaseQuery = supabaseQuery.or(`layer_name.ilike.%${t}%,search_text.ilike.%${t}%`);
-                            });
-                        }
+                        // Split query into tokens, ignore filler words
+                        const tokens = q.toLowerCase().split(/\s+/).filter(w => w && w !== 'block' && w !== 'plot' && w !== 'parcel' && w !== 'district');
+                        tokens.forEach(t => {
+                            // Must match token in either layer_name (district) OR search_text (block/plot)
+                            supabaseQuery = supabaseQuery.or(`layer_name.ilike.%${t}%,search_text.ilike.%${t}%`);
+                        });
                         
                         const supabasePromise = supabaseQuery.limit(10);
 
