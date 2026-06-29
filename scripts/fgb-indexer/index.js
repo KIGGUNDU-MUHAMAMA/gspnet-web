@@ -3,6 +3,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createClient } from "@supabase/supabase-js";
 import { deserialize } from "flatgeobuf/lib/mjs/geojson.js";
 import WebSocket from 'ws';
+global.WebSocket = WebSocket;
 
 // 1. Setup Environment
 const s3 = new S3Client({
