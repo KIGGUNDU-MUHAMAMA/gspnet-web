@@ -10818,6 +10818,25 @@
             align-items: center;
             gap: 6px;
         }
+        
+        .search-btn:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+        
+        .search-btn.advanced-btn {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 10px;
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .search-btn.advanced-btn:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+        
+        .parcel-icon {
+            color: #27ae60;
+        }
 
         /* ── Place Search Floating Popup ── */
         #placeSearchPopup {
@@ -15473,14 +15492,17 @@
             <div class="map-bottom-controls">
                 <div class="map-controls-row">
                     <div class="search-container">
-                        <div class="search-box" id="placeSearchBox">
+                        <div class="search-box unified-omnibar" id="placeSearchBox">
                             <input type="text" class="search-input" id="placeSearch"
-                                placeholder="Search a place in Uganda..."
+                                placeholder="Search places, blocks, or plots..."
                                 autocomplete="off"
-                                aria-label="Search place"
+                                aria-label="Unified Search"
                                 enterkeyhint="search">
-                            <button type="button" class="search-btn" id="placeSearchBtn">
+                            <button type="button" class="search-btn" id="placeSearchBtn" title="Search">
                                 <i class="fas fa-search"></i> <span>Search</span>
+                            </button>
+                            <button type="button" class="search-btn advanced-btn" id="advancedSearchBtn" title="Advanced Search" onclick="alert('Advanced Search panel coming soon!')">
+                                <i class="fas fa-sliders-h"></i>
                             </button>
                         </div>
                     </div>
@@ -34765,17 +34787,20 @@
                 const closeBtn = document.getElementById('pspCloseBtn');
                 let lastReqAt = 0;
 
-                // OSM type → icon mapping
+                // OSM type -> icon mapping
                 const typeIcons = {
                     city: 'fa-city', town: 'fa-city', village: 'fa-home',
                     suburb: 'fa-map-signs', county: 'fa-flag', state: 'fa-flag',
                     country: 'fa-globe', road: 'fa-road', highway: 'fa-road',
                     river: 'fa-water', lake: 'fa-water', forest: 'fa-tree',
                     park: 'fa-leaf', school: 'fa-school', hospital: 'fa-hospital',
-                    administrative: 'fa-landmark'
+                    administrative: 'fa-landmark',
+                    // Parcel types
+                    parcel: 'fa-draw-polygon', block: 'fa-vector-square'
                 };
-                function iconFor(type) {
-                    const t = (type || '').toLowerCase();
+                function iconFor(item) {
+                    if (item.is_parcel) return item.type === 'block' ? 'fa-vector-square' : 'fa-draw-polygon';
+                    const t = (item.type || '').toLowerCase();
                     return typeIcons[t] || 'fa-map-marker-alt';
                 }
 
@@ -34848,10 +34873,10 @@
                         b.type = 'button';
                         b.className = 'place-result-btn';
                         const name = item.display_name || 'Unnamed';
-                        const type = item.type || item.class || '';
-                        const icon = iconFor(type);
+                        const type = item.is_parcel ? 'Cadastral Parcel' : (item.type || item.class || '');
+                        const icon = iconFor(item);
                         b.innerHTML =
-                            '<span class="place-result-icon"><i class="fas ' + icon + '"></i></span>' +
+                            '<span class="place-result-icon ' + (item.is_parcel ? 'parcel-icon' : '') + '"><i class="fas ' + icon + '"></i></span>' +
                             '<span class="place-result-text">' +
                               '<span class="place-result-name">' + name + '</span>' +
                               (type ? '<span class="place-result-type">' + type + '</span>' : '') +
@@ -34885,12 +34910,58 @@
                     btn.disabled = true;
                     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Searching...</span>';
                     try {
-                        const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=7&countrycodes=ug&addressdetails=0&q=' + encodeURIComponent(q);
-                        const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
-                        if (!res.ok) throw new Error('Search failed (' + res.status + ')');
-                        const data = await res.json();
-                        renderResults(Array.isArray(data) ? data : []);
+                        // 1. Prepare Supabase query for Parcels
+                        // Convert "Block 2 Plot 1" -> "'Block':* & '2':* & 'Plot':* & '1':*"
+                        const tsQuery = q.split(/\s+/).map(w => `'${w}':*`).join(' & ');
+                        const supabasePromise = window.supabaseClient
+                            .from('parcel_index')
+                            .select('*')
+                            .textSearch('search_text', tsQuery)
+                            .limit(10);
+
+                        // 2. Prepare Nominatim query for Places
+                        const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=ug&addressdetails=0&q=' + encodeURIComponent(q);
+                        const nominatimPromise = fetch(url, { headers: { 'Accept-Language': 'en' } }).then(res => res.json());
+
+                        // 3. Run both concurrently
+                        const [supaRes, nomData] = await Promise.all([supabasePromise, nominatimPromise]);
+                        
+                        let combinedResults = [];
+
+                        // Process Supabase Parcels
+                        if (supaRes.data && supaRes.data.length > 0) {
+                            supaRes.data.forEach(p => {
+                                let displayName = ``;
+                                if (p.plot && p.block) displayName = `Plot ${p.plot}, Block ${p.block}`;
+                                else if (p.plot) displayName = `Plot ${p.plot}`;
+                                else if (p.block) displayName = `Block ${p.block}`;
+                                else if (p.parcel_id) displayName = `Parcel ${p.parcel_id}`;
+                                else displayName = `${p.feature_type} (${p.layer_name})`;
+
+                                if (p.district) displayName += `, ${p.district}`;
+                                
+                                combinedResults.push({
+                                    display_name: displayName,
+                                    type: p.feature_type || 'parcel',
+                                    lon: p.centroid_x,
+                                    lat: p.centroid_y,
+                                    boundingbox: p.bbox_ymin ? [p.bbox_ymin, p.bbox_ymax, p.bbox_xmin, p.bbox_xmax] : null,
+                                    is_parcel: true
+                                });
+                            });
+                        }
+
+                        // Process Nominatim Places
+                        if (Array.isArray(nomData)) {
+                            nomData.forEach(p => {
+                                p.is_parcel = false;
+                                combinedResults.push(p);
+                            });
+                        }
+
+                        renderResults(combinedResults);
                     } catch(e) {
+                        console.error("Search Error:", e);
                         setError(e.message || 'Search could not complete. Check your connection.');
                         ul.innerHTML = '';
                         openPopup();
