@@ -10838,6 +10838,40 @@
             color: #27ae60;
         }
 
+        /* ── Advanced Search Panel ── */
+        .advanced-search-panel {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background: #fff;
+            border: 1px solid rgba(0, 120, 80, 0.25);
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            margin-top: 8px;
+            z-index: 999999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .adv-search-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .adv-search-row label {
+            font-size: 0.8rem;
+            color: #555;
+            font-weight: 600;
+        }
+        .adv-search-row input {
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
         /* ── Place Search Floating Popup ── */
         #placeSearchPopup {
             position: fixed;
@@ -15501,8 +15535,27 @@
                             <button type="button" class="search-btn" id="placeSearchBtn" title="Search">
                                 <i class="fas fa-search"></i> <span>Search</span>
                             </button>
-                            <button type="button" class="search-btn advanced-btn" id="advancedSearchBtn" title="Advanced Search" onclick="alert('Advanced Search panel coming soon!')">
+                            <button type="button" class="search-btn advanced-btn" id="advancedSearchBtn" title="Advanced Search">
                                 <i class="fas fa-sliders-h"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- Advanced Search Panel -->
+                        <div class="advanced-search-panel" id="advancedSearchPanel" style="display: none;">
+                            <div class="adv-search-row">
+                                <label>District/Location</label>
+                                <input type="text" id="advDistrict" placeholder="e.g. Mukono">
+                            </div>
+                            <div class="adv-search-row">
+                                <label>Block</label>
+                                <input type="text" id="advBlock" placeholder="e.g. 115">
+                            </div>
+                            <div class="adv-search-row">
+                                <label>Plot</label>
+                                <input type="text" id="advPlot" placeholder="e.g. 42">
+                            </div>
+                            <button type="button" class="search-btn" id="advSearchSubmitBtn" style="width: 100%; justify-content: center; margin-top: 5px;">
+                                <i class="fas fa-search"></i> <span>Find Parcel</span>
                             </button>
                         </div>
                     </div>
@@ -34892,14 +34945,25 @@
                     openPopup();
                 }
 
-                async function runSearch() {
-                    const q = input.value.trim();
-                    setError('');
-                    if (!q) {
+                async function runSearch(isAdvanced = false) {
+                    let q = input.value.trim();
+                    
+                    let advD = document.getElementById('advDistrict').value.trim();
+                    let advB = document.getElementById('advBlock').value.trim();
+                    let advP = document.getElementById('advPlot').value.trim();
+
+                    if (!isAdvanced && !q) {
                         setError('Enter a place name to search.');
                         openPopup();
                         return;
                     }
+                    if (isAdvanced && !advD && !advB && !advP) {
+                        setError('Enter at least one advanced search criteria.');
+                        openPopup();
+                        return;
+                    }
+
+                    setError('');
                     const now = Date.now();
                     if (now - lastReqAt < 1100) {
                         setError('Please wait a moment before searching again.');
@@ -34909,19 +34973,35 @@
                     lastReqAt = now;
                     btn.disabled = true;
                     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Searching...</span>';
+                    
+                    const advBtnText = document.getElementById('advSearchSubmitBtn');
+                    if(advBtnText) advBtnText.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
                     try {
                         // 1. Prepare Supabase query for Parcels
-                        // Convert "Block 2 Plot 1" -> "'Block':* & '2':* & 'Plot':* & '1':*"
-                        const tsQuery = q.split(/\s+/).map(w => `'${w}':*`).join(' & ');
-                        const supabasePromise = window.supabaseClient
-                            .from('parcel_index')
-                            .select('*')
-                            .textSearch('search_text', tsQuery)
-                            .limit(10);
+                        let supabaseQuery = window.supabaseClient.from('parcel_index').select('*');
 
-                        // 2. Prepare Nominatim query for Places
-                        const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=ug&addressdetails=0&q=' + encodeURIComponent(q);
-                        const nominatimPromise = fetch(url, { headers: { 'Accept-Language': 'en' } }).then(res => res.json());
+                        if (isAdvanced) {
+                            if (advD) supabaseQuery = supabaseQuery.ilike('layer_name', `%${advD}%`);
+                            if (advB) supabaseQuery = supabaseQuery.eq('block', advB);
+                            if (advP) supabaseQuery = supabaseQuery.eq('plot', advP);
+                        } else {
+                            // Split query into tokens, ignore filler words
+                            const tokens = q.toLowerCase().split(/\s+/).filter(w => w && w !== 'block' && w !== 'plot' && w !== 'parcel' && w !== 'district');
+                            tokens.forEach(t => {
+                                // Must match token in either layer_name (district) OR search_text (block/plot)
+                                supabaseQuery = supabaseQuery.or(`layer_name.ilike.%${t}%,search_text.ilike.%${t}%`);
+                            });
+                        }
+                        
+                        const supabasePromise = supabaseQuery.limit(10);
+
+                        // 2. Prepare Nominatim query for Places (only if not advanced)
+                        let nominatimPromise = Promise.resolve([]);
+                        if (!isAdvanced) {
+                            const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=ug&addressdetails=0&q=' + encodeURIComponent(q);
+                            nominatimPromise = fetch(url, { headers: { 'Accept-Language': 'en' } }).then(res => res.json()).catch(() => []);
+                        }
 
                         // 3. Run both concurrently
                         const [supaRes, nomData] = await Promise.all([supabasePromise, nominatimPromise]);
@@ -34968,20 +35048,42 @@
                     } finally {
                         btn.disabled = false;
                         btn.innerHTML = '<i class="fas fa-search"></i> <span>Search</span>';
+                        if(document.getElementById('advSearchSubmitBtn')) document.getElementById('advSearchSubmitBtn').innerHTML = '<i class="fas fa-search"></i> <span>Find Parcel</span>';
                     }
                 }
 
-                btn.addEventListener('click', function() { void runSearch(); });
+                btn.addEventListener('click', function() { void runSearch(false); });
                 input.addEventListener('keydown', function(e) {
-                    if (e.key === 'Enter') { e.preventDefault(); void runSearch(); }
+                    if (e.key === 'Enter') { e.preventDefault(); void runSearch(false); }
                     if (e.key === 'Escape') closePopup();
                 });
                 closeBtn.addEventListener('click', closePopup);
-                // Close popup on outside click
+                
+                // Advanced panel toggle
+                const advPanel = document.getElementById('advancedSearchPanel');
+                document.getElementById('advancedSearchBtn').addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    advPanel.style.display = advPanel.style.display === 'none' ? 'flex' : 'none';
+                    if (advPanel.style.display === 'flex') closePopup();
+                });
+
+                document.getElementById('advSearchSubmitBtn').addEventListener('click', function() {
+                    void runSearch(true);
+                });
+                
+                ['advDistrict', 'advBlock', 'advPlot'].forEach(id => {
+                    document.getElementById(id).addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter') { e.preventDefault(); void runSearch(true); }
+                    });
+                });
+
+                // Close popup and adv panel on outside click
                 document.addEventListener('click', function(e) {
                     if (!document.getElementById('placeSearchBox').contains(e.target) &&
-                        !popup.contains(e.target)) {
+                        !popup.contains(e.target) &&
+                        !advPanel.contains(e.target)) {
                         closePopup();
+                        advPanel.style.display = 'none';
                     }
                 });
 
