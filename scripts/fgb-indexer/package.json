@@ -1,0 +1,16 @@
+{
+  "name": "fgb-indexer",
+  "version": "1.0.0",
+  "description": "Indexes Cloudflare R2 FGB files into Supabase",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.600.0",
+    "@aws-sdk/s3-request-presigner": "^3.600.0",
+    "@supabase/supabase-js": "^2.40.0",
+    "flatgeobuf": "^3.30.2"
+  }
+}
