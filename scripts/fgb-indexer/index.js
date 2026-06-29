@@ -91,6 +91,7 @@ async function processLayer(fileKey) {
   const batchSize = 1000;
   let batch = [];
   let count = 0;
+  const seenFeatureIds = new Map();
 
   for await (const feature of iter) {
     const props = feature.properties || {};
@@ -127,7 +128,10 @@ async function processLayer(fileKey) {
     const plot = getPlot(props);
     const parcelId = getParcelId(props);
     
-    const featureId = parcelId || props.id || `${filename}_feat_${count}`;
+    let baseFeatureId = parcelId || props.id || `${filename}_feat_${count}`;
+    let occurrences = seenFeatureIds.get(baseFeatureId) || 0;
+    seenFeatureIds.set(baseFeatureId, occurrences + 1);
+    const featureId = occurrences === 0 ? baseFeatureId : `${baseFeatureId}_dup_${occurrences}`;
 
     batch.push({
       layer_name: filename,
