@@ -5,7 +5,7 @@
  * Bump CACHE_VERSION when deploying updates.
  */
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 
 /* ─── Cache Names ─────────────────────────────────────────────────────── */
 const CACHE_SHELL   = `gspnet-shell-${CACHE_VERSION}`;
