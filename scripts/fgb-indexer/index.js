@@ -147,9 +147,11 @@ async function processLayer(fileKey) {
 
     count++;
 
-    // Upload in batches of 1000
+    // Upload in batches of 1000 with a delay to save Disk IO budget
     if (batch.length >= batchSize) {
       await uploadBatch(batch, filename);
+      // Wait 1 second between batches to let Supabase IO burst balance recover
+      await new Promise(resolve => setTimeout(resolve, 1000));
       batch = [];
     }
   }
