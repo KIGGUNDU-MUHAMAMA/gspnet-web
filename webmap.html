@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta http-equiv="Permissions-Policy" content="geolocation=()">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <title>GEOSPATIALNETWORKUG - WEB MAPPING PLATFORM</title>
@@ -2431,6 +2431,21 @@
         .signature-line { border-bottom: 1px solid #000; width: 200px; margin-top: 40px; }
         .stamp-box { border: 1px solid #666; width: 120px; height: 120px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 12px; color: #666; }
         .footer { text-align: center; margin-top: 30px; padding: 10px; background: #f3f4f6; font-size: 10px; font-style: italic; }
+    </style>
+    <style>
+        /* Native PWA Enhancements */
+        html, body {
+            overscroll-behavior-y: none;
+        }
+        .native-ui, .panel, .modal, button, .ol-control {
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+        input, textarea, [contenteditable="true"] {
+            user-select: auto;
+            -webkit-user-select: auto;
+        }
     </style>
 </head>
 <body>
@@ -71585,6 +71600,108 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 
+    <!-- PWA & Mobile Native Enhancements -->
+    <script>
+        // 1. Intercept Hardware Back Button to close panels
+        window.addEventListener('load', () => {
+            if (window.history && window.history.pushState) {
+                window.history.replaceState({ root: true }, '');
+                window.history.pushState({ app: true }, '');
+            }
+        });
+
+        window.addEventListener('popstate', (e) => {
+            if (e.state && e.state.root) {
+                let closedSomething = false;
+                
+                const tryClose = (el, closeFn) => {
+                    if (el && (el.style.display !== 'none' && window.getComputedStyle(el).display !== 'none')) {
+                        if (typeof closeFn === 'function') closeFn();
+                        else el.style.display = 'none';
+                        closedSomething = true;
+                        return true;
+                    }
+                    return false;
+                };
+
+                // Specific panels
+                const profileOverlay = document.getElementById('profile-report-overlay');
+                if (profileOverlay) { profileOverlay.remove(); closedSomething = true; }
+                
+                if (!closedSomething) tryClose(document.getElementById('chat-panel'), () => { document.getElementById('chat-panel').classList.remove('active'); document.getElementById('chat-panel').style.display = 'none'; });
+                
+                // Active modals
+                if (!closedSomething) {
+                    const modals = document.querySelectorAll('.modal');
+                    for (let m of modals) {
+                        if (m.style.display === 'flex' || m.style.display === 'block') {
+                            m.style.display = 'none';
+                            closedSomething = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // Generic sidebar panels
+                const panels = ['featureInfo', 'gspnet-assist-panel', 'gisExportPanel', 'condoPanel', 'cesium3dPanel', 'parcelSearchPanel', 'projectLibraryPanel'];
+                if (!closedSomething) {
+                    for (let pid of panels) {
+                        if (tryClose(document.getElementById(pid))) break;
+                    }
+                }
+
+                if (closedSomething) {
+                    // Repush the app state to trap the back button again
+                    window.history.pushState({ app: true }, '');
+                } else {
+                    // Nothing to close, let it naturally navigate back
+                    window.history.back();
+                }
+            }
+        });
+
+        // 2. PWA Installation Logic
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            // Add a custom install button to the main sidebar or user menu dynamically
+            const userMenu = document.getElementById('userProfileDetails');
+            if (userMenu && !document.getElementById('pwa-install-btn')) {
+                const btn = document.createElement('button');
+                btn.id = 'pwa-install-btn';
+                btn.innerHTML = '<i class="fas fa-download"></i> Install App on Phone';
+                btn.style.cssText = 'width: 100%; text-align: left; background: none; border: none; padding: 10px 15px; color: #10b981; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 14px; margin-top: 10px; border-top: 1px solid #e2e8f0;';
+                btn.onclick = async () => {
+                    if (deferredPrompt) {
+                        deferredPrompt.prompt();
+                        const { outcome } = await deferredPrompt.userChoice;
+                        if (outcome === 'accepted') {
+                            btn.remove();
+                        }
+                        deferredPrompt = null;
+                    }
+                };
+                userMenu.appendChild(btn);
+            }
+        });
+
+        // iOS Install Prompt helper
+        const isIos = () => {
+            const userAgent = window.navigator.userAgent.toLowerCase();
+            return /iphone|ipad|ipod/.test(userAgent);
+        };
+        const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator.standalone);
+        
+        if (isIos() && !isInStandaloneMode()) {
+            // Show toast for iOS
+            setTimeout(() => {
+                if (typeof showToast === 'function') {
+                    showToast('To install the app, tap Share below and select "Add to Home Screen".', 'info');
+                }
+            }, 3000);
+        }
+    </script>
 </body>
 
 <!-- GSPNet Sentinel Analytics Module -->

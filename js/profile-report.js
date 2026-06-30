@@ -97,7 +97,7 @@ window.generateProfileReport = async function(user) {
                             <p style="margin: 2px 0 0 0; color: #64748b; font-size: 13px;">Generated on ${new Date().toLocaleDateString()}</p>
                         </div>
                     </div>
-                    <button id="close-report-btn" onclick="document.getElementById('profile-report-overlay').remove()" style="background: transparent; border: none; color: #64748b; width: 32px; height: 32px; cursor: pointer; transition: color 0.2s; display: flex; align-items: center; justify-content: center; font-size: 24px;">&times;</button>
+                    <button id="close-report-btn" onclick="document.getElementById('profile-report-overlay').remove()" style="position: absolute; top: 16px; right: 16px; z-index: 50; background: #f1f5f9; border: none; color: #64748b; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; transition: background 0.2s, color 0.2s; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">&times;</button>
                 </div>
             </div>
 

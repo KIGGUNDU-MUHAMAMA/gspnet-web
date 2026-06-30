@@ -79,7 +79,7 @@ window.OfflineManager = {
         if (!window.map) return null;
         const layers = window.map.getLayers().getArray();
         for (const group of layers) {
-            if (group.get('title') === 'Base maps') {
+            if (group.get('title') && group.get('title').toLowerCase() === 'base maps') {
                 const basemaps = group.getLayers().getArray();
                 for (const basemap of basemaps) {
                     if (basemap.getVisible()) {
