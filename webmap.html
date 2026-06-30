@@ -15560,8 +15560,8 @@
                             <div class="adv-search-row">
                                 <label>2. Plot Search (within block)</label>
                                 <div style="display:flex; width: 100%;">
-                                    <input type="text" id="advPlot" placeholder="e.g. 42" disabled style="border-radius: 4px 0 0 4px; opacity: 0.6;">
-                                    <button type="button" class="search-btn" id="bpSearchPlotBtn" disabled style="border-radius: 0 4px 4px 0; padding: 4px 8px; opacity: 0.6;">
+                                    <input type="text" id="advPlot" placeholder="e.g. 42" style="border-radius: 4px 0 0 4px;">
+                                    <button type="button" class="search-btn" id="bpSearchPlotBtn" style="border-radius: 0 4px 4px 0; padding: 4px 8px;">
                                         <i class="fas fa-search"></i>
                                     </button>
                                 </div>
@@ -34989,12 +34989,10 @@
                         
                         const supabasePromise = supabaseQuery.limit(10);
 
-                        // 2. Prepare Nominatim query for Places (only if not advanced)
+                        // 2. Prepare Nominatim query for Places
                         let nominatimPromise = Promise.resolve([]);
-                        if (!isAdvanced) {
-                            const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=ug&addressdetails=0&q=' + encodeURIComponent(q);
-                            nominatimPromise = fetch(url, { headers: { 'Accept-Language': 'en' } }).then(res => res.json()).catch(() => []);
-                        }
+                        const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=ug&addressdetails=0&q=' + encodeURIComponent(q);
+                        nominatimPromise = fetch(url, { headers: { 'Accept-Language': 'en' } }).then(res => res.json()).catch(() => []);
 
                         // 3. Run both concurrently
                         const [supaRes, nomData] = await Promise.all([supabasePromise, nominatimPromise]);
@@ -35146,14 +35144,7 @@
                                     window.map.getView().fit(extent, { padding: [50, 50, 50, 50], duration: 800 });
                                 }
 
-                                // Enable plot search
-                                const pInp = document.getElementById('advPlot');
-                                const pBtn = document.getElementById('bpSearchPlotBtn');
-                                pInp.disabled = false;
-                                pInp.style.opacity = 1;
-                                pBtn.disabled = false;
-                                pBtn.style.opacity = 1;
-                                pInp.focus();
+                                document.getElementById('advPlot').focus();
                             });
                             bResults.appendChild(div);
                         });
@@ -35167,7 +35158,7 @@
                     const plotTerm = document.getElementById('advPlot').value.trim();
                     const pStatus = document.getElementById('bpPlotStatus');
                     const pResults = document.getElementById('bpPlotResults');
-                    if (!plotTerm || !selectedBlockExtent) return;
+                    if (!plotTerm) return;
                     
                     const { activePlots } = getActiveFgbLayers();
                     if (activePlots.length === 0) {
@@ -35179,20 +35170,34 @@
                     pResults.innerHTML = '';
                     
                     try {
-                        const { data, error } = await window.supabaseClient.from('parcel_index')
+                        let query = window.supabaseClient.from('parcel_index')
                             .select('*')
                             .in('layer_name', activePlots)
-                            .ilike('search_text', `%${plotTerm}%`)
-                            .gte('centroid_x', selectedBlockExtent.xmin - 0.0001)
-                            .lte('centroid_x', selectedBlockExtent.xmax + 0.0001)
-                            .gte('centroid_y', selectedBlockExtent.ymin - 0.0001)
-                            .lte('centroid_y', selectedBlockExtent.ymax + 0.0001)
-                            .limit(20);
+                            .ilike('search_text', `%${plotTerm}%`);
+
+                        if (selectedBlockExtent) {
+                            query = query.gte('centroid_x', selectedBlockExtent.xmin - 0.0001)
+                                         .lte('centroid_x', selectedBlockExtent.xmax + 0.0001)
+                                         .gte('centroid_y', selectedBlockExtent.ymin - 0.0001)
+                                         .lte('centroid_y', selectedBlockExtent.ymax + 0.0001);
+                        }
+                        
+                        const { data, error } = await query.limit(20);
                         
                         if (error) throw error;
                         
                         if (!data || data.length === 0) {
-                            pStatus.textContent = 'No matching plots found in block.';
+                            if (selectedBlockExtent) {
+                                pStatus.innerHTML = 'No matching plots found in selected block. <a href="#" id="bpClearBlock" style="color:#3498db;text-decoration:underline;">Search everywhere</a>';
+                                document.getElementById('bpClearBlock').addEventListener('click', (e) => {
+                                    e.preventDefault();
+                                    selectedBlockExtent = null;
+                                    document.querySelectorAll('#bpBlockResults div').forEach(d => d.style.background = 'transparent');
+                                    document.getElementById('bpSearchPlotBtn').click();
+                                });
+                            } else {
+                                pStatus.textContent = 'No matching plots found anywhere.';
+                            }
                             return;
                         }
 
