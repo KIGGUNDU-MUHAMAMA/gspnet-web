@@ -287,6 +287,10 @@ async function generateJrjPackage(features, meta) {
         });
     });
 
+    if (plots.length > 0) {
+        plots[plots.length - 1].id = "RESDUE PLOT";
+    }
+
     if (stations.length < 5) {
         throw new Error("Invalid polygon selection.");
     }
@@ -341,29 +345,29 @@ async function generateJrjPackage(features, meta) {
         }
     }
 
-    // Traverse Page Logic (Multi-Ring Support)
-    const traverseSections = [];
-
-    function buildTraverseForRing(ringObj) {
+    // Traverse Page Logic (Single Unified Traverse)
+    function buildUnifiedTraverse() {
         const tRows = [];
-        if (!ringObj || ringObj.coords.length < 2) return { rows: tRows, sumDist: 0 };
-        const stnObj = (id) => stations.find(s => s.id === id);
-        const startStnObj = stnObj(ringObj.coords[0].stn);
-        if (!startStnObj) return { rows: tRows, sumDist: 0 };
+        if (stations.length < 3) return { rows: tRows, sumDist: 0 };
 
-        const brg1_fmt = formatBearing(getGridBearing(startStnObj.e, startStnObj.n, cm1.e, cm1.n));
+        const startStn = stations[2];
+        const endStn = stations[stations.length - 1];
+
+        // Orientation: bearings from CM3 to CM1 and CM2
+        const brg1_fmt = formatBearing(getGridBearing(startStn.e, startStn.n, cm1.e, cm1.n));
         tRows.push({ stn: 'CM1', isHeader: true, obs: brg1_fmt, adj: brg1_fmt });
-        const brg2_fmt = formatBearing(getGridBearing(startStnObj.e, startStnObj.n, cm2.e, cm2.n));
+        const brg2_fmt = formatBearing(getGridBearing(startStn.e, startStn.n, cm2.e, cm2.n));
         tRows.push({ stn: 'CM2', isHeader: true, obs: brg2_fmt, adj: brg2_fmt });
-        
-        let sumDist = 0;
-        let curN = startStnObj.n, curE = startStnObj.e;
-        tRows.push({ stn: startStnObj.id, isStart: true, n: curN, e: curE });
 
-        for (let i = 0; i < ringObj.coords.length - 1; i++) {
-            const p1 = stnObj(ringObj.coords[i].stn);
-            const p2 = stnObj(ringObj.coords[i+1].stn);
-            if (!p1 || !p2) continue;
+        // Starting station
+        let sumDist = 0;
+        let curN = startStn.n, curE = startStn.e;
+        tRows.push({ stn: startStn.id, isStart: true, n: curN, e: curE });
+
+        // Walk through all stations linearly (same order as field notes)
+        for (let i = 2; i < stations.length - 1; i++) {
+            const p1 = stations[i];
+            const p2 = stations[i + 1];
             const dist = getGridDistance(p1.e, p1.n, p2.e, p2.n);
             const fmt = formatBearing(getGridBearing(p1.e, p1.n, p2.e, p2.n));
             const dN = p2.n - p1.n;
@@ -372,30 +376,20 @@ async function generateJrjPackage(features, meta) {
             tRows.push({ stn: p2.id, obs: fmt, adj: fmt, dist: dist, dN: dN, dE: dE, n: curN, e: curE });
         }
 
-        const lastStnObj = stnObj(ringObj.coords[ringObj.coords.length - 2].stn);
-        if (lastStnObj) {
-            const distT1 = getGridDistance(lastStnObj.e, lastStnObj.n, cm1.e, cm1.n);
-            const fmtT1 = formatBearing(getGridBearing(lastStnObj.e, lastStnObj.n, cm1.e, cm1.n));
-            sumDist += distT1;
-            tRows.push({ stn: 'CM1', obs: fmtT1, adj: fmtT1, dist: distT1, dN: cm1.n - lastStnObj.n, dE: cm1.e - lastStnObj.e, n: cm1.n, e: cm1.e, isTie: true });
-            
-            const distT2 = getGridDistance(lastStnObj.e, lastStnObj.n, cm2.e, cm2.n);
-            const fmtT2 = formatBearing(getGridBearing(lastStnObj.e, lastStnObj.n, cm2.e, cm2.n));
-            tRows.push({ stn: 'CM2', obs: fmtT2, adj: fmtT2, dist: distT2, dN: cm2.n - lastStnObj.n, dE: cm2.e - lastStnObj.e, n: cm2.n, e: cm2.e, isTie: true });
-        }
+        // Tie-back from last station to CM1 and CM2
+        const distT1 = getGridDistance(endStn.e, endStn.n, cm1.e, cm1.n);
+        const fmtT1 = formatBearing(getGridBearing(endStn.e, endStn.n, cm1.e, cm1.n));
+        tRows.push({ stn: 'CM1', obs: fmtT1, adj: fmtT1, dist: distT1, dN: cm1.n - endStn.n, dE: cm1.e - endStn.e, n: cm1.n, e: cm1.e, isTie: true });
+
+        const distT2 = getGridDistance(endStn.e, endStn.n, cm2.e, cm2.n);
+        const fmtT2 = formatBearing(getGridBearing(endStn.e, endStn.n, cm2.e, cm2.n));
+        tRows.push({ stn: 'CM2', obs: fmtT2, adj: fmtT2, dist: distT2, dN: cm2.n - endStn.n, dE: cm2.e - endStn.e, n: cm2.n, e: cm2.e, isTie: true });
+
         return { rows: tRows, sumDist: sumDist };
     }
 
-    plots.forEach((plot) => {
-        if (plot.outerRing) {
-            const tr = buildTraverseForRing(plot.outerRing);
-            traverseSections.push({ title: plots.length > 1 ? `${plot.id} BOUNDARY` : `MAIN TRAVERSE`, ...tr });
-        }
-        plot.innerRings.forEach((inner, idx) => {
-            const tr = buildTraverseForRing(inner);
-            traverseSections.push({ title: `${plot.id} - EXCLUSION ${idx + 1} BOUNDARY`, ...tr });
-        });
-    });
+    const unifiedTraverse = buildUnifiedTraverse();
+
 
     const cm3 = stations[2];
     const cmN = stations[stations.length - 1];
@@ -423,24 +417,23 @@ async function generateJrjPackage(features, meta) {
     });
     csv += "\n";
 
-    csv += "TRAVERSE PAGE\nSTN,OBS.BRG D,M,S,corr,ADJ.BRG D,M,S,DIST,±Δ N,corr,±ΔE,corr,NORTHINGS,EASTINGS,STN,REMARKS\n";
-    traverseSections.forEach(section => {
-        csv += `${section.title},,,,,,,,,,,,,,,,\n`;
-        section.rows.forEach(row => {
-            if (row.isHeader) {
-                csv += `${row.stn},${row.obs.deg},${row.obs.min},${row.obs.sec},0,${row.adj.deg},${row.adj.min},${row.adj.sec},,,,,,,,,\n`;
-            } else if (row.isStart) {
-                csv += `${row.stn},,,,,,,,,,,,,${row.n.toFixed(2)},${row.e.toFixed(2)},${row.stn},0\n`;
-            } else if (row.isTie) {
-                csv += `${row.stn},${row.obs.deg},${row.obs.min},${row.obs.sec},0,${row.adj.deg},${row.adj.min},${row.adj.sec},${row.dist.toFixed(2)},${row.dN.toFixed(2)},,${row.dE.toFixed(2)},,${row.n.toFixed(2)},${row.e.toFixed(2)},,\n`;
-            } else {
-                csv += `${row.stn},${row.obs.deg},${row.obs.min},${row.obs.sec},0,${row.adj.deg},${row.adj.min},${row.adj.sec},${row.dist.toFixed(2)},${row.dN.toFixed(2)},0.00,${row.dE.toFixed(2)},0.00,${row.n.toFixed(2)},${row.e.toFixed(2)},${row.stn},\n`;
-            }
-        });
-        csv += `,,,,,,,,,,,,,,,,0.00,0.00,,\n`;
-        csv += `angular misclosure is,0,,,,,,,,Linear misclosure is,0.00,in,${section.sumDist.toFixed(2)},,,,\n`;
-        csv += `misclosure per stn is,0,,,,,,,,OR,1,in,2803873,,,,\n\n`;
+    csv += "TRAVERSE PAGE\nSTN,OBS.BRG D,M,S,corr,ADJ.BRG D,M,S,DIST,\u00b1\u0394 N,corr,\u00b1\u0394E,corr,NORTHINGS,EASTINGS,STN,REMARKS\n";
+    csv += `MAIN TRAVERSE,,,,,,,,,,,,,,,,\n`;
+    unifiedTraverse.rows.forEach(row => {
+        if (row.isHeader) {
+            csv += `${row.stn},${row.obs.deg},${row.obs.min},${row.obs.sec},0,${row.adj.deg},${row.adj.min},${row.adj.sec},,,,,,,,,\n`;
+        } else if (row.isStart) {
+            csv += `${row.stn},,,,,,,,,,,,,${row.n.toFixed(2)},${row.e.toFixed(2)},${row.stn},0\n`;
+        } else if (row.isTie) {
+            csv += `${row.stn},${row.obs.deg},${row.obs.min},${row.obs.sec},0,${row.adj.deg},${row.adj.min},${row.adj.sec},${row.dist.toFixed(2)},${row.dN.toFixed(2)},,${row.dE.toFixed(2)},,${row.n.toFixed(2)},${row.e.toFixed(2)},,\n`;
+        } else {
+            csv += `${row.stn},${row.obs.deg},${row.obs.min},${row.obs.sec},0,${row.adj.deg},${row.adj.min},${row.adj.sec},${row.dist.toFixed(2)},${row.dN.toFixed(2)},0.00,${row.dE.toFixed(2)},0.00,${row.n.toFixed(2)},${row.e.toFixed(2)},${row.stn},\n`;
+        }
     });
+    csv += `,,,,,,,,,,,,,,,,0.00,0.00,,\n`;
+    csv += `angular misclosure is,0,,,,,,,,Linear misclosure is,0.00,in,${unifiedTraverse.sumDist.toFixed(2)},,,,\n`;
+    csv += `misclosure per stn is,0,,,,,,,,OR,1,in,2803873,,,,\n\n`;
+
 
     csv += "DATUM COMPUTATIONS\nI/S NO:,0\nstation,Northing,Easting,comp bearing,dist (m)\n";
     datumPairs.forEach(pair => {
@@ -453,7 +446,7 @@ async function generateJrjPackage(features, meta) {
 
     csv += "AREA COMPUTATIONS\n";
     plots.forEach(plot => {
-        csv += `${plot.id} - OUTER BOUNDARY\nStation,N(m),E(m),Cross-Product,DISTANCE (m)\n`;
+        csv += `${plot.id}\nStation,N(m),E(m),Cross-Product,DISTANCE (m)\n`;
         if (plot.outerRing) {
             csv += `${plot.outerRing.coords[0].stn},${plot.outerRing.coords[0].n.toFixed(3)},${plot.outerRing.coords[0].e.toFixed(3)},,\n`;
             for (let i = 1; i < plot.outerRing.coords.length; i++) {
@@ -599,8 +592,21 @@ All misclosures are within the acceptable limits.`;
 
     // --- PHYSICAL PAGE 7: WORKING DIAGRAM ---
     doc.addPage();
-    drawHeader("WORKING DIAGRAM", "PAGE 7");
-    
+    drawHeader("WORKING DIAGRAM", "PAGE 7", false);
+
+    // ═══ Double-Line Page Border ═══
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.4);
+    doc.rect(8, 33, 194, 256);
+    doc.setLineWidth(0.2);
+    doc.rect(10, 35, 190, 252);
+
+    // ═══ Layout Constants ═══
+    const frmL = 10, frmR = 200, frmT = 35, frmB = 287;
+    const frmW = frmR - frmL;
+    const frmH = frmB - frmT;
+
+    // ═══ Compute Bounding Box ═══
     let minN = Infinity, maxN = -Infinity, minE = Infinity, maxE = -Infinity;
     stations.forEach(s => {
         if (s.n < minN) minN = s.n;
@@ -609,73 +615,169 @@ All misclosures are within the acceptable limits.`;
         if (s.e > maxE) maxE = s.e;
     });
 
-    const drawW = 170; 
-    const drawH = 180; 
-    const dN = maxN - minN;
-    const dE = maxE - minE;
-    const safeDN = dN === 0 ? 1 : dN;
-    const safeDE = dE === 0 ? 1 : dE;
-    
-    const scale = Math.min((drawW * 0.8) / safeDE, (drawH * 0.8) / safeDN);
-    const centerN = (minN + maxN) / 2;
-    const centerE = (minE + maxE) / 2;
-    const pageCenterX = 105; 
-    const pageCenterY = 140; 
+    const rangeN = maxN - minN || 1;
+    const rangeE = maxE - minE || 1;
+    const plotPad = 0.15;
+    const padMinN = minN - rangeN * plotPad;
+    const padMaxN = maxN + rangeN * plotPad;
+    const padMinE = minE - rangeE * plotPad;
+    const padMaxE = maxE + rangeE * plotPad;
+
+    const scaleE_d = frmW / (padMaxE - padMinE);
+    const scaleN_d = frmH / (padMaxN - padMinN);
+    const drawScale = Math.min(scaleE_d, scaleN_d);
+
+    const centerN_d = (padMinN + padMaxN) / 2;
+    const centerE_d = (padMinE + padMaxE) / 2;
+    const frmCX = (frmL + frmR) / 2;
+    const frmCY = (frmT + frmB) / 2;
 
     function toPageXY(e, n) {
         return {
-            x: pageCenterX + (e - centerE) * scale,
-            y: pageCenterY - (n - centerN) * scale 
+            x: frmCX + (e - centerE_d) * drawScale,
+            y: frmCY - (n - centerN_d) * drawScale
         };
     }
 
+    // ═══ Nice interval helper ═══
+    function niceGridInterval(range, targetDivs) {
+        const rough = range / targetDivs;
+        const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+        const res = rough / mag;
+        let nice;
+        if (res <= 1.5) nice = 1;
+        else if (res <= 3.5) nice = 2;
+        else if (res <= 7.5) nice = 5;
+        else nice = 10;
+        return nice * mag;
+    }
+
+    // ═══ Coordinate Grid Frame ═══
     doc.setDrawColor(0);
-    
-    function drawRing(ring, isOuter) {
+    doc.setLineWidth(0.3);
+    doc.setLineDashPattern([], 0);
+    doc.rect(frmL, frmT, frmW, frmH);
+
+    const gridInterval = niceGridInterval(Math.max(rangeN, rangeE), 6);
+    const gridStartN = Math.floor(padMinN / gridInterval) * gridInterval;
+    const gridStartE = Math.floor(padMinE / gridInterval) * gridInterval;
+
+    // Northing grid lines (horizontal)
+    for (let gn = gridStartN; gn <= padMaxN + gridInterval; gn += gridInterval) {
+        const pt = toPageXY(centerE_d, gn);
+        if (pt.y >= frmT && pt.y <= frmB) {
+            doc.setDrawColor(180);
+            doc.setLineWidth(0.1);
+            doc.setLineDashPattern([1, 2], 0);
+            doc.line(frmL, pt.y, frmR, pt.y);
+            doc.setDrawColor(0);
+            doc.setLineDashPattern([], 0);
+            doc.setLineWidth(0.2);
+            doc.line(frmL, pt.y, frmL + 2, pt.y);
+            doc.line(frmR - 2, pt.y, frmR, pt.y);
+            doc.setFontSize(5);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(0);
+            doc.text(gn.toFixed(0), frmL + 2, pt.y - 1, { align: 'left' });
+        }
+    }
+
+    // Easting grid lines (vertical)
+    for (let ge = gridStartE; ge <= padMaxE + gridInterval; ge += gridInterval) {
+        const pt = toPageXY(ge, centerN_d);
+        if (pt.x >= frmL && pt.x <= frmR) {
+            doc.setDrawColor(180);
+            doc.setLineWidth(0.1);
+            doc.setLineDashPattern([1, 2], 0);
+            doc.line(pt.x, frmT, pt.x, frmB);
+            doc.setDrawColor(0);
+            doc.setLineDashPattern([], 0);
+            doc.setLineWidth(0.2);
+            doc.line(pt.x, frmB, pt.x, frmB - 2);
+            doc.line(pt.x, frmT, pt.x, frmT + 2);
+            doc.setFontSize(5);
+            doc.setTextColor(0);
+            doc.text(ge.toFixed(0), pt.x, frmB - 2, { align: 'center' });
+        }
+    }
+
+    // ═══ North Arrow ═══
+    const naX = frmR - 8;
+    const naY = frmT + 14;
+    const naH_a = 10;
+    const naHW = 2.5;
+    const naTip = naY - naH_a / 2;
+    const naBase = naY + naH_a / 2;
+    const naMid = naY - naH_a * 0.08;
+
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.2);
+    doc.setLineDashPattern([], 0);
+    doc.setFillColor(0, 0, 0);
+    doc.triangle(naX, naTip, naX - naHW, naBase, naX, naMid, 'F');
+    doc.setFillColor(255, 255, 255);
+    doc.triangle(naX, naTip, naX + naHW, naBase, naX, naMid, 'FD');
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0);
+    doc.text('N', naX, naTip - 2, { align: 'center' });
+    doc.setFontSize(4);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Grid', naX, naBase + 3, { align: 'center' });
+
+    // ═══ Boundary Lines + Bearing & Distance Annotations ═══
+    doc.setTextColor(0);
+
+    function drawRingPro(ring, isOuter) {
         if (!ring) return { sumX: 0, sumY: 0, numPoints: 0 };
         let sumX = 0, sumY = 0;
-        
-        let baseLineWidth = 0.8;
-        if (scale < 0.05) baseLineWidth = 0.2;
-        else if (scale < 0.1) baseLineWidth = 0.3;
-        else if (scale < 0.2) baseLineWidth = 0.4;
-        else if (scale < 0.5) baseLineWidth = 0.6;
 
-        if (isOuter) {
-            doc.setLineDashPattern([], 0); 
-            doc.setLineWidth(baseLineWidth);
-        } else {
-            doc.setLineDashPattern([2, 2], 0); 
-            doc.setLineWidth(baseLineWidth * 0.5);
-        }
+        doc.setLineDashPattern(isOuter ? [] : [1.5, 1.5], 0);
+        doc.setLineWidth(isOuter ? 0.3 : 0.15);
+        doc.setDrawColor(0);
 
         for (let i = 0; i < ring.coords.length - 1; i++) {
             const p1 = ring.coords[i];
-            const p2 = ring.coords[i+1];
+            const p2 = ring.coords[i + 1];
             const xy1 = toPageXY(p1.e, p1.n);
             const xy2 = toPageXY(p2.e, p2.n);
             doc.line(xy1.x, xy1.y, xy2.x, xy2.y);
 
             const midX = (xy1.x + xy2.x) / 2;
             const midY = (xy1.y + xy2.y) / 2;
-            
             const dx = xy2.x - xy1.x;
             const dy = xy2.y - xy1.y;
+            const segLen = Math.sqrt(dx * dx + dy * dy);
+
+            if (segLen < 8) {
+                sumX += xy1.x;
+                sumY += xy1.y;
+                continue;
+            }
+
+            // Perpendicular direction for label offset
+            const nx = -dy / segLen;
+            const ny = dx / segLen;
+
+            // Text rotation
             let angleDeg = Math.atan2(dy, dx) * (180 / Math.PI);
             if (angleDeg > 90) angleDeg -= 180;
             else if (angleDeg < -90) angleDeg += 180;
 
-            let fontSize = 8;
-            let offset = 2;
-            if (scale < 0.05) { fontSize = 3; offset = 0.5; }
-            else if (scale < 0.1) { fontSize = 4; offset = 1; }
-            else if (scale < 0.2) { fontSize = 5; offset = 1; }
-            else if (scale < 0.5) { fontSize = 6; offset = 1.5; }
-            
+            let fontSize = 6;
+            let labelGap = 2.0;
+            if (drawScale < 0.05) { fontSize = 2.5; labelGap = 1.0; }
+            else if (drawScale < 0.1) { fontSize = 3; labelGap = 1.2; }
+            else if (drawScale < 0.2) { fontSize = 4; labelGap = 1.5; }
+            else if (drawScale < 0.5) { fontSize = 5; labelGap = 1.8; }
+
+            // Distance label (one side)
             doc.setFontSize(fontSize);
             doc.setFont('helvetica', 'normal');
-            doc.text(`${p1.dist.toFixed(2)}m`, midX, midY - offset, { angle: -angleDeg, align: 'center' });
-            
+            doc.text(p1.dist.toFixed(2) + 'm', midX + nx * labelGap, midY + ny * labelGap, { angle: -angleDeg, align: 'center' });
+
+            // Bearing label removed per user request
+
             sumX += xy1.x;
             sumY += xy1.y;
         }
@@ -683,39 +785,188 @@ All misclosures are within the acceptable limits.`;
     }
 
     plots.forEach(plot => {
-        const outerRes = drawRing(plot.outerRing, true);
-        plot.innerRings.forEach(inner => drawRing(inner, false));
+        const outerRes = drawRingPro(plot.outerRing, true);
+        plot.innerRings.forEach(inner => drawRingPro(inner, false));
 
+        // Plot name label at centroid
         if (outerRes.numPoints > 0) {
-            const centerX = outerRes.sumX / outerRes.numPoints;
-            const centerY = outerRes.sumY / outerRes.numPoints;
-            doc.setFontSize(12);
+            const pcx = outerRes.sumX / outerRes.numPoints;
+            const pcy = outerRes.sumY / outerRes.numPoints;
+            doc.setFontSize(10);
             doc.setFont('helvetica', 'bold');
-            doc.setTextColor(0, 0, 0);
+            doc.setTextColor(0);
             let labelText = plot.id.toUpperCase();
-            if (labelText.startsWith('PLOT ')) {
-                labelText = labelText.replace('PLOT ', '');
-            }
-            doc.text(labelText, centerX, centerY, { align: 'center' });
+            if (labelText.startsWith('PLOT ')) labelText = labelText.replace('PLOT ', '');
+            doc.text(labelText, pcx, pcy, { align: 'center' });
         }
     });
 
-    let stnFontSize = 9;
-    let stnRadius = 1.2;
-    let stnOffset = 2;
-    if (scale < 0.05) { stnFontSize = 3; stnRadius = 0.3; stnOffset = 0.5; }
-    else if (scale < 0.1) { stnFontSize = 4; stnRadius = 0.5; stnOffset = 1; }
-    else if (scale < 0.2) { stnFontSize = 5; stnRadius = 0.7; stnOffset = 1; }
-    else if (scale < 0.5) { stnFontSize = 7; stnRadius = 0.9; stnOffset = 1.5; }
+    // ═══ Exclusion Hatching ═══
+    function clipLineToPolygon(lx1, ly1, lx2, ly2, polygon) {
+        const intersections = [];
+        for (let pi = 0; pi < polygon.length - 1; pi++) {
+            const ax = polygon[pi].x, ay = polygon[pi].y;
+            const bx = polygon[pi + 1].x, by = polygon[pi + 1].y;
+            const d1x = lx2 - lx1, d1y = ly2 - ly1;
+            const d2x = bx - ax, d2y = by - ay;
+            const cross = d1x * d2y - d1y * d2x;
+            if (Math.abs(cross) < 1e-10) continue;
+            const t = ((ax - lx1) * d2y - (ay - ly1) * d2x) / cross;
+            const u = ((ax - lx1) * d1y - (ay - ly1) * d1x) / cross;
+            if (u >= 0 && u <= 1 && t >= 0 && t <= 1) intersections.push(t);
+        }
+        intersections.sort((a, b) => a - b);
+        const segs = [];
+        for (let si = 0; si + 1 < intersections.length; si += 2) {
+            segs.push({
+                x1: lx1 + intersections[si] * (lx2 - lx1), y1: ly1 + intersections[si] * (ly2 - ly1),
+                x2: lx1 + intersections[si + 1] * (lx2 - lx1), y2: ly1 + intersections[si + 1] * (ly2 - ly1)
+            });
+        }
+        return segs;
+    }
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(stnFontSize);
-    stations.forEach(s => {
-        const xy = toPageXY(s.e, s.n);
-        doc.setFillColor(255, 0, 0); 
-        doc.circle(xy.x, xy.y, stnRadius, 'F');
-        doc.text(s.id, xy.x + stnOffset, xy.y - stnOffset);
+    plots.forEach(plot => {
+        plot.innerRings.forEach(inner => {
+            const pts = inner.coords.map(c => toPageXY(c.e, c.n));
+            let hMinX = Infinity, hMaxX = -Infinity, hMinY = Infinity, hMaxY = -Infinity;
+            pts.forEach(p => { hMinX = Math.min(hMinX, p.x); hMaxX = Math.max(hMaxX, p.x); hMinY = Math.min(hMinY, p.y); hMaxY = Math.max(hMaxY, p.y); });
+
+            const hatchSpacing = 3;
+            doc.setLineWidth(0.08);
+            doc.setDrawColor(0);
+            doc.setLineDashPattern([], 0);
+
+            const diag = hMaxX - hMinX + hMaxY - hMinY;
+            for (let hd = 0; hd <= diag; hd += hatchSpacing) {
+                const hlx1 = hMinX, hly1 = hMinY + hd;
+                const hlx2 = hMinX + hd, hly2 = hMinY;
+                const hSegs = clipLineToPolygon(hlx1, hly1, hlx2, hly2, pts);
+                hSegs.forEach(hs => doc.line(hs.x1, hs.y1, hs.x2, hs.y2));
+            }
+
+            // "EXCL." label
+            const exclCX = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+            const exclCY = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+            doc.setFontSize(5);
+            doc.setFont('helvetica', 'italic');
+            doc.setTextColor(0);
+            doc.text('EXCL.', exclCX, exclCY, { align: 'center' });
+        });
     });
+
+    // ═══ CM Tie Lines ═══
+    const firstBdyStn = stations[2];
+    const lastBdyStn = stations[stations.length - 1];
+    doc.setLineWidth(0.1);
+    doc.setDrawColor(0);
+    doc.setLineDashPattern([0.5, 1, 2, 1], 0);
+
+    [cm1, cm2].forEach(cmPt => {
+        const cmXY = toPageXY(cmPt.e, cmPt.n);
+        const firstXY = toPageXY(firstBdyStn.e, firstBdyStn.n);
+        const lastXY = toPageXY(lastBdyStn.e, lastBdyStn.n);
+        doc.line(firstXY.x, firstXY.y, cmXY.x, cmXY.y);
+        doc.line(lastXY.x, lastXY.y, cmXY.x, cmXY.y);
+    });
+
+    // ═══ Station Symbols & Smart Labels ═══
+    doc.setLineDashPattern([], 0);
+
+    // Centroid of boundary stations for label offset direction
+    const bdyStns = stations.slice(2);
+    const centN_lbl = bdyStns.reduce((s, st) => s + st.n, 0) / bdyStns.length;
+    const centE_lbl = bdyStns.reduce((s, st) => s + st.e, 0) / bdyStns.length;
+
+    let stnFontSize = 7;
+    let stnTriSize = 1.5;
+    let stnCircR = 0.8;
+    let lblOffset = 4;
+    if (drawScale < 0.05) { stnFontSize = 3; stnTriSize = 0.4; stnCircR = 0.3; lblOffset = 1.5; }
+    else if (drawScale < 0.1) { stnFontSize = 4; stnTriSize = 0.6; stnCircR = 0.4; lblOffset = 2; }
+    else if (drawScale < 0.2) { stnFontSize = 5; stnTriSize = 0.8; stnCircR = 0.5; lblOffset = 2.5; }
+    else if (drawScale < 0.5) { stnFontSize = 6; stnTriSize = 1.0; stnCircR = 0.6; lblOffset = 3; }
+
+    stations.forEach(stn => {
+        const xy = toPageXY(stn.e, stn.n);
+        const isControl = (stn.id === 'CM1' || stn.id === 'CM2');
+
+        doc.setDrawColor(0);
+        doc.setLineWidth(0.2);
+
+        if (isControl) {
+            // Filled triangle for control marks
+            doc.setFillColor(0, 0, 0);
+            doc.triangle(
+                xy.x, xy.y - stnTriSize,
+                xy.x - stnTriSize, xy.y + stnTriSize * 0.7,
+                xy.x + stnTriSize, xy.y + stnTriSize * 0.7,
+                'F'
+            );
+        } else {
+            // Open circle for boundary stations
+            doc.setFillColor(255, 255, 255);
+            doc.circle(xy.x, xy.y, stnCircR, 'FD');
+        }
+
+        // Smart label: offset away from centroid of boundary stations
+        const centXY = toPageXY(centE_lbl, centN_lbl);
+        let ldx = xy.x - centXY.x;
+        let ldy = xy.y - centXY.y;
+        const lLen = Math.sqrt(ldx * ldx + ldy * ldy);
+        if (lLen > 0.01) { ldx /= lLen; ldy /= lLen; }
+        else { ldx = 1; ldy = -1; }
+
+        const labelX = xy.x + ldx * lblOffset;
+        const labelY = xy.y + ldy * lblOffset;
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(stnFontSize);
+        doc.setTextColor(0);
+        doc.text(stn.id, labelX, labelY, { align: 'center' });
+    });
+
+    // ═══ Scale Bar ═══
+    const sbX = frmL + 4;
+    const sbY = frmB - 4;
+    const maxBarW = 60;
+    const maxGroundDist = maxBarW / drawScale;
+    const scaleBarDist = niceGridInterval(maxGroundDist, 4);
+    const barLenMm = scaleBarDist * drawScale;
+    const numSegs = 4;
+    const segLenMm = barLenMm / numSegs;
+    const barH_s = 2;
+
+    doc.setLineWidth(0.2);
+    doc.setDrawColor(0);
+    doc.setLineDashPattern([], 0);
+
+    for (let si = 0; si < numSegs; si++) {
+        const sx = sbX + si * segLenMm;
+        if (si % 2 === 0) {
+            doc.setFillColor(0, 0, 0);
+            doc.rect(sx, sbY, segLenMm, barH_s, 'F');
+        } else {
+            doc.setFillColor(255, 255, 255);
+            doc.rect(sx, sbY, segLenMm, barH_s, 'FD');
+        }
+    }
+
+    doc.setFontSize(5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0);
+    for (let si = 0; si <= numSegs; si++) {
+        const lblVal = (scaleBarDist / numSegs) * si;
+        doc.text(lblVal.toFixed(0), sbX + si * segLenMm, sbY - 1, { align: 'center' });
+    }
+    doc.text('m', sbX + barLenMm + 2, sbY + 1.5);
+
+    const repFrac = Math.round(1000 / drawScale);
+    doc.setFontSize(6);
+    doc.text('Scale  1 : ' + repFrac, sbX + barLenMm + 6, sbY + 1.5);
+
+    // ═══ Title Block (Removed per user request) ═══
+
 
     // --- PHYSICAL PAGE 8: FIELD NOTES ---
     doc.addPage();
@@ -749,45 +1000,41 @@ All misclosures are within the acceptable limits.`;
     // --- PHYSICAL PAGE 9: TRAVERSE ---
     doc.addPage();
     startY = drawHeader("TRAVERSE PAGE", "PAGE 9", false);
-    
-    let currentY = startY;
-    traverseSections.forEach(section => {
-        const trData = [];
-        section.rows.forEach(row => {
-            if (row.isHeader) {
-                trData.push([row.stn, row.obs.deg, row.obs.min, row.obs.sec, "0", row.adj.deg, row.adj.min, row.adj.sec, "", "", "", "", "", "", "", "", ""]);
-            } else if (row.isStart) {
-                trData.push([row.stn, "", "", "", "", "", "", "", "", "", "", "", "", row.n.toFixed(2), row.e.toFixed(2), row.stn, "0"]);
-            } else if (row.isTie) {
-                trData.push([row.stn, row.obs.deg, row.obs.min, row.obs.sec, "0", row.adj.deg, row.adj.min, row.adj.sec, row.dist.toFixed(2), row.dN.toFixed(2), "", row.dE.toFixed(2), "", row.n.toFixed(2), row.e.toFixed(2), "", ""]);
-            } else {
-                trData.push([row.stn, row.obs.deg, row.obs.min, row.obs.sec, "0", row.adj.deg, row.adj.min, row.adj.sec, row.dist.toFixed(2), row.dN.toFixed(2), "0.00", row.dE.toFixed(2), "0.00", row.n.toFixed(2), row.e.toFixed(2), row.stn, ""]);
-            }
-        });
 
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.text(section.title, marginX, currentY);
-        
-        doc.autoTable({
-            startY: currentY + 3,
-            head: [['STN', 'D', 'M', 'S', 'cor', 'D', 'M', 'S', 'DIST', '±Δ N', 'cor', '±ΔE', 'cor', 'NORTHINGS', 'EASTINGS', 'STN', 'REMARKS']],
-            body: trData,
-            theme: 'grid',
-            headStyles: { fontStyle: 'bold', fillColor: [236, 240, 241], textColor: [0,0,0] },
-            styles: { fontSize: 7, halign: 'center', cellPadding: 1, lineWidth: 0.1 }
-        });
-        
-        currentY = doc.lastAutoTable.finalY + 5;
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`angular misclosure is 0`, marginX, currentY);
-        doc.text(`misclosure per stn is 0`, marginX, currentY + 5);
-        doc.text(`Linear misclosure is 0.00 in ${section.sumDist.toFixed(2)}`, marginX + 100, currentY);
-        doc.text(`OR 1 in 2803873`, marginX + 100, currentY + 5);
-        
-        currentY += 15;
+    const trData = [];
+    unifiedTraverse.rows.forEach(row => {
+        if (row.isHeader) {
+            trData.push([row.stn, row.obs.deg, row.obs.min, row.obs.sec, "0", row.adj.deg, row.adj.min, row.adj.sec, "", "", "", "", "", "", "", "", ""]);
+        } else if (row.isStart) {
+            trData.push([row.stn, "", "", "", "", "", "", "", "", "", "", "", "", row.n.toFixed(2), row.e.toFixed(2), row.stn, "0"]);
+        } else if (row.isTie) {
+            trData.push([row.stn, row.obs.deg, row.obs.min, row.obs.sec, "0", row.adj.deg, row.adj.min, row.adj.sec, row.dist.toFixed(2), row.dN.toFixed(2), "", row.dE.toFixed(2), "", row.n.toFixed(2), row.e.toFixed(2), "", ""]);
+        } else {
+            trData.push([row.stn, row.obs.deg, row.obs.min, row.obs.sec, "0", row.adj.deg, row.adj.min, row.adj.sec, row.dist.toFixed(2), row.dN.toFixed(2), "0.00", row.dE.toFixed(2), "0.00", row.n.toFixed(2), row.e.toFixed(2), row.stn, ""]);
+        }
     });
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text("MAIN TRAVERSE", marginX, startY);
+
+    doc.autoTable({
+        startY: startY + 3,
+        head: [['STN', 'D', 'M', 'S', 'cor', 'D', 'M', 'S', 'DIST', '\u00b1\u0394 N', 'cor', '\u00b1\u0394E', 'cor', 'NORTHINGS', 'EASTINGS', 'STN', 'REMARKS']],
+        body: trData,
+        theme: 'grid',
+        headStyles: { fontStyle: 'bold', fillColor: [236, 240, 241], textColor: [0,0,0] },
+        styles: { fontSize: 7, halign: 'center', cellPadding: 1, lineWidth: 0.1 }
+    });
+
+    let traverseEndY = doc.lastAutoTable.finalY + 5;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text('angular misclosure is 0', marginX, traverseEndY);
+    doc.text('misclosure per stn is 0', marginX, traverseEndY + 5);
+    doc.text('Linear misclosure is 0.00 in ' + unifiedTraverse.sumDist.toFixed(2), marginX + 100, traverseEndY);
+    doc.text('OR 1 in 2803873', marginX + 100, traverseEndY + 5);
+
 
     // --- PHYSICAL PAGE 10: AREA COMPUTATIONS ---
     doc.addPage();
@@ -807,8 +1054,6 @@ All misclosures are within the acceptable limits.`;
 
         if (plot.outerRing) {
             doc.setFontSize(9);
-            doc.text("OUTER BOUNDARY", marginX, currentYArea);
-            currentYArea += 2;
             const aData = [];
             aData.push([plot.outerRing.coords[0].stn, plot.outerRing.coords[0].n.toFixed(3), plot.outerRing.coords[0].e.toFixed(3), "", ""]);
             for (let i = 1; i < plot.outerRing.coords.length; i++) {
