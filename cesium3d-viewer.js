@@ -1776,12 +1776,12 @@
                     terrainHeight = viewer.scene.globe.getHeight(carto) || 0;
                 }
                 
-                let modelUri = 'assets/models/maple_tree.glb';
-                let hasModel = await checkHasModel('maple_tree');
+                let modelUri = `assets/models/${symbol_key}.glb`;
+                let hasModel = await checkHasModel(symbol_key);
                 
                 if (!hasModel) {
-                    hasModel = await checkHasModel(symbol_key);
-                    if (hasModel) modelUri = `assets/models/${symbol_key}.glb`;
+                    hasModel = await checkHasModel('tree_deciduous');
+                    if (hasModel) modelUri = 'assets/models/tree_deciduous.glb';
                 }
 
                 if (hasModel) {
@@ -1790,7 +1790,7 @@
                         position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], terrainHeight),
                         model: {
                             uri: modelUri,
-                            scale: 0.03,
+                            scale: 2.0,
                             distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 300)
                         },
                         name: name || 'Tree',
