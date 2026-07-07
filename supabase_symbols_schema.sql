@@ -528,6 +528,48 @@ INSERT INTO public.symbol_catalog (symbol_key, category, name, description, svg,
 ON CONFLICT (symbol_key) DO NOTHING;
 
 -- ============================================
+-- 3D ENHANCEMENTS: POWER INFRASTRUCTURE SYMBOLS
+-- ============================================
+INSERT INTO public.symbol_catalog (symbol_key, name, category, description, default_style, tags)
+VALUES
+  -- Power Poles (Points)
+  ('powerline_tower_ehv', 'EHV Tower (400/220kV)', 'point', 'Extra high voltage steel lattice transmission tower', '{"color":"#dc2626","size":28}'::jsonb, ARRAY['power', 'tower', 'ehv']),
+  ('powerline_tower_hv', 'HV Tower (132kV)', 'point', 'High voltage steel lattice transmission tower', '{"color":"#ea580c","size":26}'::jsonb, ARRAY['power', 'tower', 'hv']),
+  ('powerline_pole_mv33', 'MV Pole (33kV)', 'point', 'Medium voltage 33kV pole (concrete/wood)', '{"color":"#ca8a04","size":22}'::jsonb, ARRAY['power', 'pole', 'mv']),
+  ('powerline_pole_mv11', 'MV Pole (11kV)', 'point', 'Medium voltage 11kV pole (wood)', '{"color":"#65a30d","size":20}'::jsonb, ARRAY['power', 'pole', 'mv']),
+  ('powerline_pole_lv', 'LV Pole (415/240V)', 'point', 'Low voltage distribution pole', '{"color":"#6b7280","size":18}'::jsonb, ARRAY['power', 'pole', 'lv']),
+  
+  -- Power Lines (Lines)
+  ('powerline_ehv', 'EHV Line (400/220kV)', 'line', 'Extra high voltage transmission line', '{"strokeColor":"#dc2626","strokeWidth":4}'::jsonb, ARRAY['power', 'line', 'ehv']),
+  ('powerline_hv', 'HV Line (132kV)', 'line', 'High voltage transmission line', '{"strokeColor":"#ea580c","strokeWidth":3}'::jsonb, ARRAY['power', 'line', 'hv']),
+  ('powerline_mv33', 'MV Line (33kV)', 'line', 'Medium voltage 33kV line', '{"strokeColor":"#ca8a04","strokeWidth":2.5}'::jsonb, ARRAY['power', 'line', 'mv']),
+  ('powerline_mv11', 'MV Line (11kV)', 'line', 'Medium voltage 11kV line', '{"strokeColor":"#65a30d","strokeWidth":2}'::jsonb, ARRAY['power', 'line', 'mv']),
+  ('powerline_lv', 'LV Line (415/240V)', 'line', 'Low voltage distribution line', '{"strokeColor":"#9ca3af","strokeWidth":1.5,"strokeDash":[5,5]}'::jsonb, ARRAY['power', 'line', 'lv'])
+ON CONFLICT (symbol_key) DO NOTHING;
+
+-- ============================================
+-- MIGRATION: DEFAULT HEIGHTS FOR EXISTING BUILDINGS
+-- ============================================
+UPDATE public.map_features
+SET metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('height_m',
+  CASE symbol_key
+    WHEN 'building_residential' THEN 4
+    WHEN 'building_commercial'  THEN 8
+    WHEN 'building_industrial'  THEN 6
+    WHEN 'school'               THEN 5
+    WHEN 'health_facility'      THEN 6
+    WHEN 'market'               THEN 4
+    WHEN 'worship_place'        THEN 8
+    WHEN 'public_office'        THEN 7
+  END
+)
+WHERE symbol_key IN (
+  'building_residential','building_commercial','building_industrial',
+  'school','health_facility','market','worship_place','public_office'
+)
+AND (metadata->>'height_m') IS NULL;
+
+-- ============================================
 -- COMPLETION MESSAGE
 -- ============================================
 DO $$

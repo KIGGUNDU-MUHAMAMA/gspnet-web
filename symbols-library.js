@@ -56,6 +56,8 @@ async function initSymbolsLibrary(olMap, supabase) {
     console.log('[SL] initSymbolsLibrary called', { hasMap: !!olMap, hasSupabase: !!supabase });
     map = olMap;
     supabaseClient = supabase;
+    window._slSupabase = supabase; // Expose for Cesium 3D
+
 
     console.log('[SL] Symbols Library: Initializing...');
 
@@ -81,6 +83,8 @@ async function initSymbolsLibrary(olMap, supabase) {
         // Setup OpenLayers layer
         console.log('[SL] Setting up features layer...');
         setupFeaturesLayer();
+        window._slFeaturesSource = featuresSource; // Expose for Cesium 3D
+
 
         // Setup UI event handlers
         console.log('[SL] Setting up UI handlers...');
@@ -447,8 +451,9 @@ function createPointStyle(symbol, style, props, displayName = '') {
         })
     ];
 
-    // Add label (default ON for points)
-    if (displayName) {
+    // Add label (conditional on zoom for points)
+    const zoom = map ? map.getView().getZoom() : 0;
+    if (displayName && zoom >= 16) {
         styles.push(new ol.style.Style({
             text: new ol.style.Text({
                 text: displayName,
@@ -505,7 +510,8 @@ function createLineStyle(style, props, displayName = '') {
     // Convert hex color to rgba
     const rgba = hexToRgba(strokeColor, strokeOpacity);
 
-    const textStyle = buildLabelTextStyle(displayName, '11px sans-serif');
+    const zoom = map ? map.getView().getZoom() : 0;
+    const textStyle = (displayName && zoom >= 16) ? buildLabelTextStyle(displayName, '11px sans-serif') : null;
     if (textStyle) {
         textStyle.setPlacement('line');
     }
@@ -533,13 +539,14 @@ function createPolygonStyle(style, props, displayName = '') {
     const fillRgba = hexToRgba(fillColor, fillOpacity);
     const strokeRgba = hexToRgba(strokeColor, strokeOpacity);
 
+    const zoom = map ? map.getView().getZoom() : 0;
     return new ol.style.Style({
         fill: new ol.style.Fill({ color: fillRgba }),
         stroke: new ol.style.Stroke({
             color: strokeRgba,
             width: strokeWidth
         }),
-        text: buildLabelTextStyle(displayName, '11px sans-serif')
+        text: (displayName && zoom >= 16) ? buildLabelTextStyle(displayName, '11px sans-serif') : undefined
     });
 }
 
@@ -1427,7 +1434,7 @@ function stopDrawing() {
 }
 
 /**
- * Handle draw end event
+ * Handle draw end event - open Feature Attribute Modal
  */
 function handleDrawEnd(event) {
     const feature = event.feature;
@@ -1437,26 +1444,207 @@ function handleDrawEnd(event) {
 
     // Remove the temporary feature (we'll add it after saving)
     featuresSource.removeFeature(feature);
-
-    // Prompt user for feature attributes
-    const inputName = prompt(`Name for this ${selectedSymbol.name}:`, `New ${selectedSymbol.name}`);
-    if (inputName === null) {
-        showMessage('Feature creation cancelled', 'info');
-        return;
+    
+    // Clear any previous snapping interactions for a clean state
+    clearDrawingSnapping();
+    
+    if (drawInteraction) {
+        map.removeInteraction(drawInteraction);
+        drawInteraction = null;
     }
-    const name = String(inputName).trim() || makeAutoName(selectedSymbol, selectedSymbol.geom_type);
 
-    const description = prompt('Description (optional):', '');
+    showFeatureAttributeModal(geometry, selectedSymbol);
+}
 
-    // Save feature
-    saveFeature(geometry, {
-        name: name,
-        description: description || null,
-        symbol_key: selectedSymbol.symbol_key,
-        geom_type: selectedSymbol.geom_type,
-        status: 'existing',
-        style: selectedSymbol.default_style || {}
-    });
+function showFeatureAttributeModal(geometry, symbol) {
+    // Inject modal if it doesn't exist
+    let modal = document.getElementById('featureAttributeModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'featureAttributeModal';
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 100000;
+            display: none; align-items: center; justify-content: center;
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    const isBuilding = symbol.symbol_key.startsWith('building_') || 
+                       ['school', 'health_facility', 'market', 'worship_place', 'public_office'].includes(symbol.symbol_key);
+    const isPowerPole = symbol.symbol_key.startsWith('powerline_tower_') || symbol.symbol_key.startsWith('powerline_pole_');
+    const isPowerLine = symbol.symbol_key.startsWith('powerline_') && !isPowerPole;
+    const isTree = symbol.symbol_key.startsWith('tree_');
+    const isWetland = symbol.symbol_key === 'wetland';
+    
+    let defaultHeight = 4;
+    if (isBuilding) {
+        const hMap = {
+            'building_residential': 4, 'building_commercial': 8, 'building_industrial': 6,
+            'school': 5, 'health_facility': 6, 'market': 4, 'worship_place': 8, 'public_office': 7
+        };
+        defaultHeight = hMap[symbol.symbol_key] || 4;
+    } else if (isPowerPole) {
+        const hMap = {
+            'powerline_tower_ehv': 40, 'powerline_tower_hv': 30, 'powerline_pole_mv33': 12,
+            'powerline_pole_mv11': 9, 'powerline_pole_lv': 6
+        };
+        defaultHeight = hMap[symbol.symbol_key] || 9;
+    }
+
+    let extraFields = '';
+    
+    if (isBuilding) {
+        extraFields = `
+            <hr style="margin:12px 0; border:0; border-top:1px solid #e5e7eb;">
+            <div style="font-size:11px; font-weight:600; color:#6b7280; margin-bottom:8px; text-transform:uppercase;">Building Properties</div>
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-weight: 600; font-size:13px; margin-bottom: 4px;">Height (m) *</label>
+                <input type="number" id="famHeight" value="${defaultHeight}" step="0.1" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px;" />
+                <div style="font-size:11px; color:#6b7280; margin-top:4px;">(1 floor ≈ 3m, enter total height in metres)</div>
+            </div>
+        `;
+    } else if (isPowerPole) {
+        let voltage = "Unknown";
+        if (symbol.symbol_key.includes('ehv')) voltage = "400/220kV EHV";
+        if (symbol.symbol_key.includes('_hv')) voltage = "132kV HV";
+        if (symbol.symbol_key.includes('mv33')) voltage = "33kV MV";
+        if (symbol.symbol_key.includes('mv11')) voltage = "11kV MV";
+        if (symbol.symbol_key.includes('_lv')) voltage = "415/240V LV";
+        extraFields = `
+            <hr style="margin:12px 0; border:0; border-top:1px solid #e5e7eb;">
+            <div style="font-size:11px; font-weight:600; color:#6b7280; margin-bottom:8px; text-transform:uppercase;">Pole Properties</div>
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-weight: 600; font-size:13px; margin-bottom: 4px;">Voltage</label>
+                <input type="text" disabled value="${voltage}" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; background:#f3f4f6;" />
+            </div>
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-weight: 600; font-size:13px; margin-bottom: 4px;">Pole Height (m) *</label>
+                <input type="number" id="famHeight" value="${defaultHeight}" step="0.1" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px;" />
+            </div>
+        `;
+    } else if (isPowerLine) {
+        let voltage = "Unknown";
+        if (symbol.symbol_key.includes('ehv')) voltage = "400/220kV EHV";
+        if (symbol.symbol_key.includes('_hv')) voltage = "132kV HV";
+        if (symbol.symbol_key.includes('mv33')) voltage = "33kV MV";
+        if (symbol.symbol_key.includes('mv11')) voltage = "11kV MV";
+        if (symbol.symbol_key.includes('_lv')) voltage = "415/240V LV";
+        extraFields = `
+            <hr style="margin:12px 0; border:0; border-top:1px solid #e5e7eb;">
+            <div style="font-size:11px; font-weight:600; color:#6b7280; margin-bottom:8px; text-transform:uppercase;">Power Line Properties</div>
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-weight: 600; font-size:13px; margin-bottom: 4px;">Voltage</label>
+                <input type="text" disabled value="${voltage}" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; background:#f3f4f6;" />
+            </div>
+        `;
+    } else if (isTree) {
+        extraFields = `
+            <hr style="margin:12px 0; border:0; border-top:1px solid #e5e7eb;">
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-weight: 600; font-size:13px; margin-bottom: 4px;">Species (Optional)</label>
+                <input type="text" id="famSpecies" placeholder="e.g. Eucalyptus" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px;" />
+            </div>
+        `;
+    } else if (isWetland) {
+        extraFields = `
+            <hr style="margin:12px 0; border:0; border-top:1px solid #e5e7eb;">
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-weight: 600; font-size:13px; margin-bottom: 4px;">Wetland Type</label>
+                <select id="famWetlandType" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px;">
+                    <option value="marsh">Marsh</option>
+                    <option value="swamp">Swamp</option>
+                    <option value="seasonal">Seasonal</option>
+                </select>
+            </div>
+        `;
+    }
+
+    const defaultName = `New ${symbol.name}`;
+
+    modal.innerHTML = `
+        <div style="background: white; padding: 20px; border-radius: 12px; width: 380px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); font-family: sans-serif;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h3 style="margin:0; font-size:16px; font-weight:700;">New ${symbol.name}</h3>
+                <button id="famCloseTopBtn" style="background:none; border:none; font-size:18px; cursor:pointer; color:#6b7280;">&times;</button>
+            </div>
+            
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-weight: 600; font-size:13px; margin-bottom: 4px;">Name *</label>
+                <input type="text" id="famName" value="${defaultName}" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px;" />
+            </div>
+            
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-weight: 600; font-size:13px; margin-bottom: 4px;">Description</label>
+                <textarea id="famDesc" rows="2" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px;"></textarea>
+            </div>
+            
+            <div style="margin-bottom: 12px;">
+                <label style="display: block; font-weight: 600; font-size:13px; margin-bottom: 4px;">Status</label>
+                <select id="famStatus" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px;">
+                    <option value="existing" selected>Existing</option>
+                    <option value="proposed">Proposed</option>
+                    <option value="under_construction">Under Construction</option>
+                </select>
+            </div>
+            
+            ${extraFields}
+            
+            <div style="display: flex; gap: 10px; margin-top:20px;">
+                <button id="famCancelBtn" style="flex: 1; padding: 10px; background: #f3f4f6; color: #374151; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">Cancel</button>
+                <button id="famSaveBtn" style="flex: 1; padding: 10px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">💾 Save Feature</button>
+            </div>
+        </div>
+    `;
+
+    modal.style.display = 'flex';
+
+    const closeFn = () => {
+        modal.style.display = 'none';
+        showMessage('Feature creation cancelled', 'info');
+    };
+
+    document.getElementById('famCloseTopBtn').onclick = closeFn;
+    document.getElementById('famCancelBtn').onclick = closeFn;
+    
+    document.getElementById('famSaveBtn').onclick = () => {
+        const name = document.getElementById('famName').value.trim() || defaultName;
+        const desc = document.getElementById('famDesc').value.trim();
+        const status = document.getElementById('famStatus').value;
+        
+        let metadata = {};
+        
+        if (isBuilding || isPowerPole) {
+            const hVal = parseFloat(document.getElementById('famHeight').value);
+            metadata.height_m = isNaN(hVal) ? defaultHeight : hVal;
+        }
+        if (isPowerPole || isPowerLine) {
+            if (symbol.symbol_key.includes('ehv')) metadata.voltage = "400/220kV";
+            if (symbol.symbol_key.includes('_hv')) metadata.voltage = "132kV";
+            if (symbol.symbol_key.includes('mv33')) metadata.voltage = "33kV";
+            if (symbol.symbol_key.includes('mv11')) metadata.voltage = "11kV";
+            if (symbol.symbol_key.includes('_lv')) metadata.voltage = "415/240V";
+        }
+        if (isTree) {
+            const spec = document.getElementById('famSpecies').value.trim();
+            if (spec) metadata.species = spec;
+        }
+        if (isWetland) {
+            metadata.wetland_type = document.getElementById('famWetlandType').value;
+        }
+
+        modal.style.display = 'none';
+        
+        saveFeature(geometry, {
+            name: name,
+            description: desc || null,
+            symbol_key: symbol.symbol_key,
+            geom_type: symbol.geom_type,
+            status: status,
+            style: symbol.default_style || {},
+            metadata: Object.keys(metadata).length > 0 ? metadata : null
+        });
+    };
 }
 
 function clearDrawingSnapping() {
@@ -1576,7 +1764,8 @@ async function saveFeature(geometry, attributes) {
             name: attributes.name,
             description: attributes.description,
             status: attributes.status,
-            style: attributes.style
+            style: attributes.style,
+            metadata: attributes.metadata
         });
 
         if (error) throw error;
@@ -1590,6 +1779,11 @@ async function saveFeature(geometry, attributes) {
 
         // Reload features to show the new one
         await loadFeatures();
+
+        // Refresh 3D viewer if available
+        if (typeof window.cesium3dRefreshSymbols === 'function') {
+            setTimeout(window.cesium3dRefreshSymbols, 1500);
+        }
 
     } catch (error) {
         console.error('[SL] Failed to save feature:', error);

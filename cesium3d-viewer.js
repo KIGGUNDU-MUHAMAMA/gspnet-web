@@ -68,6 +68,14 @@
     let vegetationCollection = null;
     let _treeCanvas          = null;
 
+    // Symbols Library 3D
+    let symbolsLibEnabled   = false;
+    let symbolsLibEntities  = new Set();
+    let symbolsLibBbox      = null;
+    let symbolsLibLoadedIds = new Set();
+    let _wetlandMat         = null;
+    let _conflictPulseIds   = new Set();
+
     // ── ELEVATION-RAMP CANVAS (Standard Topo Palette) ─────────────────────────
     function buildElevationRampCanvas() {
         const c = document.createElement('canvas');
@@ -1423,6 +1431,9 @@
         const treeBtn = document.getElementById('cesium3dTreeBtn');
         if (treeBtn) treeBtn.onclick = async () => { await toggleVegetation(!vegetationEnabled); };
 
+        const symToggle = document.getElementById('cesium3dSymbolsLib');
+        if (symToggle) symToggle.onchange = (e) => toggleSymbolsLib3D(e.target.checked);
+
         // Profile panel controls
         const ppClose  = document.getElementById('cesium3dProfileClose');
         if (ppClose) ppClose.onclick = () => { const pp = document.getElementById('cesium3dProfilePanel'); if (pp) pp.style.display = 'none'; };
@@ -1437,7 +1448,454 @@
         viewer.camera.moveEnd.addEventListener(() => { if (vegetationEnabled) loadVegetationForView(); });
     }
 
+    // ── SYMBOLS LIBRARY 3D DISPATCHER ─────────────────────────────────────────
+
+    function getAltitudeTier() {
+        if (!viewer) return 'far';
+        const h = viewer.camera.positionCartographic.height;
+        if (h > 8000) return 'far';
+        if (h > 1500) return 'mid';
+        if (h > 300)  return 'close';
+        return 'ground';
+    }
+
+    function buildWetlandMaterial() {
+        if (!_wetlandMat) {
+            _wetlandMat = new Cesium.Material({
+                fabric: {
+                    uniforms: { time: 0.0 },
+                    source: `
+                        czm_material czm_getMaterial(czm_materialInput mi) {
+                            czm_material m = czm_getDefaultMaterial(mi);
+                            float t = czm_frameNumber * 0.015;
+                            float wave = sin(mi.st.x * 80.0 + t) * cos(mi.st.y * 60.0 + t * 0.7);
+                            vec3 water = mix(vec3(0.13,0.83,0.93), vec3(0.05,0.55,0.65), wave*0.5+0.5);
+                            float reed = step(0.85, fract(mi.st.x * 30.0 + mi.st.y * 5.0));
+                            m.diffuse = mix(water, vec3(0.15,0.28,0.12), reed * 0.65);
+                            m.alpha = 0.45;
+                            return m;
+                        }
+                    `
+                }
+            });
+        }
+        return _wetlandMat;
+    }
+
+    function renderSymbolFeature3D(feature) {
+        if (!symbolsLibEnabled) return;
+
+        const id = feature.getId();
+        if (!id || symbolsLibLoadedIds.has(id)) return;
+        symbolsLibLoadedIds.add(id);
+
+        const geom = feature.getGeometry();
+        if (!geom) return;
+        const type = geom.getType();
+        const symbol_key = feature.get('symbol_key');
+        if (!symbol_key) return;
+
+        const metadata = feature.get('metadata') || {};
+        const name = feature.get('name') || '';
+
+        const tier = getAltitudeTier();
+
+        if (type === 'Polygon' || type === 'MultiPolygon') {
+            const polys = type === 'Polygon' ? [geom.getCoordinates()] : geom.getCoordinates();
+            polys.forEach(polyCoords => {
+                const ring = polyCoords[0];
+                if (!ring || ring.length < 3) return;
+                const pos = ring.map(c => {
+                    const ll = ol.proj.transform(c, 'EPSG:3857', 'EPSG:4326');
+                    return Cesium.Cartesian3.fromDegrees(ll[0], ll[1]);
+                });
+
+                const isBuilding = symbol_key.startsWith('building_') || 
+                                   ['school', 'health_facility', 'market', 'worship_place', 'public_office'].includes(symbol_key);
+                
+                if (isBuilding) {
+                    const height = metadata.height_m || 4;
+                    let color = '#3b82f6';
+                    if (symbol_key.includes('residential')) color = '#8b5cf6';
+                    if (symbol_key.includes('commercial')) color = '#0ea5e9';
+                    if (symbol_key.includes('industrial')) color = '#64748b';
+                    if (symbol_key === 'school') color = '#eab308';
+                    if (symbol_key === 'health_facility') color = '#ef4444';
+
+                    const e = viewer.entities.add({
+                        polygon: {
+                            hierarchy: pos,
+                            extrudedHeight: height,
+                            material: Cesium.Color.fromCssColorString(color).withAlpha(0.8),
+                            outline: tier !== 'far',
+                            outlineColor: Cesium.Color.fromCssColorString(color).darken(0.3, new Cesium.Color())
+                        }
+                    });
+                    symbolsLibEntities.add(e.id);
+                    
+                    if (tier === 'ground' || tier === 'close') {
+                        let sx = 0, sy = 0;
+                        ring.forEach(c => { sx += c[0]; sy += c[1]; });
+                        const centLL = ol.proj.transform([sx/ring.length, sy/ring.length], 'EPSG:3857', 'EPSG:4326');
+                        const le = viewer.entities.add({
+                            position: Cesium.Cartesian3.fromDegrees(centLL[0], centLL[1], height + 2),
+                            label: {
+                                text: name,
+                                font: '12px sans-serif',
+                                fillColor: Cesium.Color.WHITE,
+                                outlineColor: Cesium.Color.BLACK,
+                                outlineWidth: 2,
+                                style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                                verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                                distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 500)
+                            }
+                        });
+                        symbolsLibEntities.add(le.id);
+                    }
+                } else if (symbol_key === 'forest') {
+                    if (tier !== 'far') {
+                        const bounds = feature.getGeometry().getExtent();
+                        const llBounds = ol.proj.transformExtent(bounds, 'EPSG:3857', 'EPSG:4326');
+                        let count = tier === 'ground' ? 200 : (tier === 'close' ? 150 : 50);
+                        const canvas = _treeCanvas || buildTreeCanvas();
+                        _treeCanvas = canvas;
+                        
+                        let seed = 1;
+                        for (let i = 0; i < String(id).length; i++) seed += String(id).charCodeAt(i);
+                        const random = () => {
+                            const x = Math.sin(seed++) * 10000;
+                            return x - Math.floor(x);
+                        };
+
+                        for (let i = 0; i < count; i++) {
+                            const lon = llBounds[0] + random() * (llBounds[2] - llBounds[0]);
+                            const lat = llBounds[1] + random() * (llBounds[3] - llBounds[1]);
+                            const pt = ol.proj.transform([lon, lat], 'EPSG:4326', 'EPSG:3857');
+                            if (geom.intersectsCoordinate(pt)) {
+                                const e = viewer.entities.add({
+                                    position: Cesium.Cartesian3.fromDegrees(lon, lat),
+                                    billboard: {
+                                        image: canvas,
+                                        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                                        scale: 0.8 + random() * 0.4
+                                    }
+                                });
+                                symbolsLibEntities.add(e.id);
+                            }
+                        }
+                    } else {
+                        const e = viewer.entities.add({
+                            polygon: {
+                                hierarchy: pos,
+                                material: Cesium.Color.fromCssColorString('#22c55e').withAlpha(0.6)
+                            }
+                        });
+                        symbolsLibEntities.add(e.id);
+                    }
+                } else if (symbol_key === 'waterbody') {
+                    const waterMat = new Cesium.WaterMaterialProperty({
+                        baseWaterColor: Cesium.Color.fromCssColorString('#0284c7').withAlpha(0.8),
+                        blendColor: Cesium.Color.fromCssColorString('#0369a1').withAlpha(0.6),
+                        normalMap: 'https://cesium.com/downloads/cesiumjs/releases/1.107/Build/Cesium/Assets/Textures/waterNormals.jpg',
+                        frequency: 1000.0,
+                        animationSpeed: 0.01,
+                        amplitude: 10.0
+                    });
+                    const e = viewer.entities.add({
+                        polygon: {
+                            hierarchy: pos,
+                            material: waterMat,
+                            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+                        }
+                    });
+                    symbolsLibEntities.add(e.id);
+                } else if (symbol_key === 'wetland') {
+                    const e = viewer.entities.add({
+                        polygon: {
+                            hierarchy: pos,
+                            material: new Cesium.ColorMaterialProperty(Cesium.Color.fromCssColorString('#0ea5e9').withAlpha(0.3))
+                        }
+                    });
+                    e.polygon.material = buildWetlandMaterial();
+                    symbolsLibEntities.add(e.id);
+                } else if (symbol_key === 'conflict_overlap') {
+                    const e = viewer.entities.add({
+                        polygon: {
+                            hierarchy: pos,
+                            material: Cesium.Color.fromCssColorString('#ef4444').withAlpha(0.35),
+                            outline: true,
+                            outlineColor: Cesium.Color.fromCssColorString('#ef4444'),
+                            outlineWidth: 3
+                        }
+                    });
+                    symbolsLibEntities.add(e.id);
+                    _conflictPulseIds.add(e.id);
+                    
+                    let sx = 0, sy = 0;
+                    ring.forEach(c => { sx += c[0]; sy += c[1]; });
+                    const centLL = ol.proj.transform([sx/ring.length, sy/ring.length], 'EPSG:3857', 'EPSG:4326');
+                    const le = viewer.entities.add({
+                        position: Cesium.Cartesian3.fromDegrees(centLL[0], centLL[1], 10),
+                        label: {
+                            text: '⚠ CONFLICT ZONE',
+                            font: 'bold 14px sans-serif',
+                            fillColor: Cesium.Color.RED,
+                            outlineColor: Cesium.Color.WHITE,
+                            outlineWidth: 2,
+                            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                            verticalOrigin: Cesium.VerticalOrigin.BOTTOM
+                        }
+                    });
+                    symbolsLibEntities.add(le.id);
+                } else {
+                    const e = viewer.entities.add({
+                        polygon: {
+                            hierarchy: pos,
+                            material: Cesium.Color.fromCssColorString('#94a3b8').withAlpha(0.4),
+                            outline: true,
+                            outlineColor: Cesium.Color.fromCssColorString('#64748b')
+                        }
+                    });
+                    symbolsLibEntities.add(e.id);
+                }
+            });
+
+        } else if (type === 'Point') {
+            const ll = ol.proj.transform(geom.getCoordinates(), 'EPSG:3857', 'EPSG:4326');
+            const isPowerPole = symbol_key.startsWith('powerline_tower_') || symbol_key.startsWith('powerline_pole_');
+            const isTree = symbol_key.startsWith('tree_');
+
+            if (isPowerPole) {
+                if (tier === 'far') return;
+                const height = metadata.height_m || (symbol_key.includes('ehv') ? 40 : (symbol_key.includes('_hv') ? 30 : (symbol_key.includes('mv33') ? 12 : (symbol_key.includes('mv11') ? 9 : 6))));
+                let color = '#6b7280';
+                if (symbol_key.includes('ehv')) color = '#dc2626';
+                if (symbol_key.includes('_hv')) color = '#ea580c';
+                if (symbol_key.includes('mv33')) color = '#ca8a04';
+                if (symbol_key.includes('mv11')) color = '#65a30d';
+
+                const e = viewer.entities.add({
+                    position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], height / 2),
+                    cylinder: {
+                        length: height,
+                        topRadius: symbol_key.includes('tower') ? 0.2 : 0.3,
+                        bottomRadius: symbol_key.includes('tower') ? 2.5 : 0.3,
+                        material: Cesium.Color.fromCssColorString(color)
+                    }
+                });
+                symbolsLibEntities.add(e.id);
+            } else if (isTree) {
+                if (tier === 'far') return;
+                const canvas = _treeCanvas || buildTreeCanvas();
+                _treeCanvas = canvas;
+                const e = viewer.entities.add({
+                    position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1]),
+                    billboard: {
+                        image: canvas,
+                        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                        scale: 1.0
+                    }
+                });
+                symbolsLibEntities.add(e.id);
+            } else {
+                const e = viewer.entities.add({
+                    position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1]),
+                    point: {
+                        color: Cesium.Color.BLUE,
+                        pixelSize: 8,
+                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+                    }
+                });
+                symbolsLibEntities.add(e.id);
+            }
+        } else if (type === 'LineString' || type === 'MultiLineString') {
+            const lines = type === 'LineString' ? [geom.getCoordinates()] : geom.getCoordinates();
+            lines.forEach(lc => {
+                if (!lc || lc.length < 2) return;
+                const pos = lc.map(c => {
+                    const ll = ol.proj.transform(c, 'EPSG:3857', 'EPSG:4326');
+                    return Cesium.Cartesian3.fromDegrees(ll[0], ll[1]);
+                });
+
+                const isPowerLine = symbol_key.startsWith('powerline_') && !symbol_key.includes('pole') && !symbol_key.includes('tower');
+                if (isPowerLine) {
+                    let color = '#9ca3af';
+                    let width = 1.5;
+                    if (symbol_key.includes('ehv')) { color = '#dc2626'; width = 4; }
+                    else if (symbol_key.includes('_hv')) { color = '#ea580c'; width = 3; }
+                    else if (symbol_key.includes('mv33')) { color = '#ca8a04'; width = 2.5; }
+                    else if (symbol_key.includes('mv11')) { color = '#65a30d'; width = 2; }
+
+                    const mat = symbol_key.includes('_lv') 
+                        ? Cesium.Color.fromCssColorString(color)
+                        : new Cesium.PolylineGlowMaterialProperty({
+                            glowPower: 0.2,
+                            taperPower: 1,
+                            color: Cesium.Color.fromCssColorString(color)
+                        });
+
+                    const e = viewer.entities.add({
+                        polyline: {
+                            positions: pos,
+                            width: width * 2,
+                            material: mat,
+                            clampToGround: true
+                        }
+                    });
+                    symbolsLibEntities.add(e.id);
+                } else {
+                    const e = viewer.entities.add({
+                        polyline: {
+                            positions: pos,
+                            width: 2,
+                            material: Cesium.Color.fromCssColorString('#3b82f6'),
+                            clampToGround: true
+                        }
+                    });
+                    symbolsLibEntities.add(e.id);
+                }
+            });
+        }
+    }
+
+    async function loadSymbolsLib3DFeatures() {
+        if (!symbolsLibEnabled) return;
+
+        const statusDiv = document.getElementById('cesium3dSymbolsStatus');
+        if (statusDiv) {
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'cesium3d-symbol-loading';
+            statusDiv.textContent = 'Loading symbols...';
+        }
+
+        // 1. Load from OpenLayers source
+        if (window._slFeaturesSource) {
+            const features = window._slFeaturesSource.getFeatures();
+            features.forEach(f => renderSymbolFeature3D(f));
+        }
+
+        // 2. Load from Supabase
+        await fetchSymbolsLibFromSupabase();
+
+        if (statusDiv) {
+            statusDiv.className = '';
+            statusDiv.textContent = `${symbolsLibEntities.size} features loaded`;
+        }
+    }
+
+    async function fetchSymbolsLibFromSupabase() {
+        if (!symbolsLibEnabled || !window._slSupabase || !viewer) return;
+
+        const rect = viewer.camera.computeViewRectangle(viewer.scene.globe.ellipsoid);
+        if (!rect) return;
+
+        const w = Cesium.Math.toDegrees(rect.west);
+        const s = Cesium.Math.toDegrees(rect.south);
+        const e = Cesium.Math.toDegrees(rect.east);
+        const n = Cesium.Math.toDegrees(rect.north);
+
+        if (symbolsLibBbox) {
+            const dx = (e - w) * 0.3;
+            const dy = (n - s) * 0.3;
+            if (w >= symbolsLibBbox.west - dx && e <= symbolsLibBbox.east + dx &&
+                s >= symbolsLibBbox.south - dy && n <= symbolsLibBbox.north + dy) {
+                return;
+            }
+        }
+
+        symbolsLibBbox = {
+            west: w - (e - w) * 0.2,
+            south: s - (n - s) * 0.2,
+            east: e + (e - w) * 0.2,
+            north: n + (n - s) * 0.2
+        };
+
+        try {
+            const { data, error } = await window._slSupabase.rpc('get_features_bbox', {
+                min_lon: symbolsLibBbox.west,
+                min_lat: symbolsLibBbox.south,
+                max_lon: symbolsLibBbox.east,
+                max_lat: symbolsLibBbox.north,
+                lim: 1000
+            });
+            if (error) throw error;
+
+            if (data && data.features) {
+                const format = new ol.format.GeoJSON();
+                const features = format.readFeatures(data, {
+                    featureProjection: 'EPSG:3857',
+                    dataProjection: 'EPSG:4326'
+                });
+                features.forEach(f => renderSymbolFeature3D(f));
+            }
+        } catch (err) {
+            console.error('[SL-3D] Bbox fetch error:', err);
+        }
+    }
+
+    function toggleSymbolsLib3D(enabled) {
+        symbolsLibEnabled = enabled;
+        if (enabled) {
+            loadSymbolsLib3DFeatures();
+            viewer.camera.moveEnd.addEventListener(onCameraStopForSymbols);
+            viewer.scene.postRender.addEventListener(pulseConflictZones);
+        } else {
+            symbolsLibEntities.forEach(id => viewer.entities.removeById(id));
+            symbolsLibEntities.clear();
+            symbolsLibLoadedIds.clear();
+            _conflictPulseIds.clear();
+            symbolsLibBbox = null;
+            viewer.camera.moveEnd.removeEventListener(onCameraStopForSymbols);
+            viewer.scene.postRender.removeEventListener(pulseConflictZones);
+            
+            const statusDiv = document.getElementById('cesium3dSymbolsStatus');
+            if (statusDiv) statusDiv.style.display = 'none';
+        }
+    }
+
+    let _symbolsPanTimeout = null;
+    function onCameraStopForSymbols() {
+        if (!symbolsLibEnabled) return;
+        clearTimeout(_symbolsPanTimeout);
+        _symbolsPanTimeout = setTimeout(() => {
+            fetchSymbolsLibFromSupabase().then(() => {
+                const statusDiv = document.getElementById('cesium3dSymbolsStatus');
+                if (statusDiv) {
+                    statusDiv.className = '';
+                    statusDiv.textContent = `${symbolsLibEntities.size} features loaded`;
+                }
+            });
+        }, 800);
+    }
+
+    function pulseConflictZones() {
+        if (_conflictPulseIds.size === 0) return;
+        const pulse = 0.25 + 0.15 * Math.sin(Date.now() / 600);
+        _conflictPulseIds.forEach(id => {
+            const e = viewer.entities.getById(id);
+            if (e && e.polygon) {
+                e.polygon.material = Cesium.Color.fromCssColorString('#ef4444').withAlpha(pulse);
+            }
+        });
+    }
+
+    window.cesium3dRefreshSymbols = () => {
+        if (!symbolsLibEnabled) return;
+        if (window._slFeaturesSource) {
+            const features = window._slFeaturesSource.getFeatures();
+            features.forEach(f => renderSymbolFeature3D(f));
+            
+            const statusDiv = document.getElementById('cesium3dSymbolsStatus');
+            if (statusDiv) {
+                statusDiv.textContent = `${symbolsLibEntities.size} features loaded`;
+            }
+        }
+    };
+
     // ── INIT ──────────────────────────────────────────────────────────────────
+
     document.addEventListener('DOMContentLoaded', function () {
         const btn = document.getElementById('launchCesium3DBtn');
         if (btn) btn.addEventListener('click', () => window.launchCesium3DGlobe());

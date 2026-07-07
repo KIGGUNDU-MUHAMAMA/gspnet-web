@@ -659,3 +659,12 @@
 
     .terrain-modal-cards { padding: 16px; }
 }
+
+/* ---------- Symbols Library Status ---------- */
+@keyframes cesiumSymbolPulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.4; }
+}
+.cesium3d-symbol-loading {
+    animation: cesiumSymbolPulse 1.2s ease-in-out infinite;
+}
