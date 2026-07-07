@@ -10569,6 +10569,53 @@
         }
         #cesium3dContainer .cesium-viewer { width: 100% !important; height: 100% !important; }
         #cesium3dContainer .cesium-viewer-bottom { display: none !important; }
+        
+        /* --- Cesium 3D Left Toolbar --- */
+        .cesium3d-left-toolbar {
+            position: absolute; top: 80px; left: 16px; z-index: 1000;
+            display: flex; flex-direction: column; gap: 8px;
+            background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(10px);
+            padding: 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .cesium3d-tool-btn {
+            width: 42px; height: 42px; border-radius: 8px; border: none;
+            background: rgba(255,255,255,0.05); color: #cbd5e1;
+            font-size: 1.1rem; cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .cesium3d-tool-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+        .cesium3d-tool-btn.active { background: #3b82f6; color: #fff; box-shadow: 0 0 10px rgba(59,130,246,0.5); }
+        
+        /* --- Cesium 3D Measure Badge --- */
+        .cesium3d-measure-badge {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: rgba(15,23,42,0.85); backdrop-filter: blur(8px);
+            padding: 10px 20px; border-radius: 20px; color: #fff; font-size: 0.95rem;
+            display: none; align-items: center; gap: 12px; z-index: 1000;
+            border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        #cesium3dMeasureClear { background: none; border: none; color: #f87171; font-size: 1.2rem; cursor: pointer; }
+        #cesium3dMeasureClear:hover { color: #ef4444; transform: scale(1.1); }
+        
+        /* --- Cesium 3D Info Popup --- */
+        .cesium3d-info-popup {
+            position: absolute; display: none; z-index: 1000;
+            background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(12px);
+            color: #f1f5f9; padding: 15px; border-radius: 8px; font-size: 0.85rem;
+            border: 1px solid rgba(255,255,255,0.15); min-width: 200px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.4); pointer-events: auto;
+            transform: translate(-50%, -120%); margin-top: -10px;
+        }
+        .cesium3d-popup-close {
+            position: absolute; top: 5px; right: 5px; background: none; border: none;
+            color: #94a3b8; cursor: pointer; font-size: 1.1rem;
+        }
+        .cesium3d-popup-close:hover { color: #fff; }
+        .cesium3d-info-popup table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+        .cesium3d-info-popup td { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .cesium3d-info-popup td:first-child { color: #94a3b8; padding-right: 15px; }
+
 
         /* --- Cesium 3D Control Bar --- */
         .cesium3d-controls {
@@ -17171,6 +17218,34 @@
                         <i class="fas fa-draw-polygon"></i>
                         <span id="cesium3dAoiInfo">AOI Active</span>
                         <button id="cesium3dAoiBadgeClose" class="cesium3d-badge-close" title="Clear AOI">×</button>
+                    </div>
+
+                    <!-- Left Toolbar (3D Interactions) -->
+                    <div class="cesium3d-left-toolbar" id="cesium3dLeftToolbar">
+                        <button class="cesium3d-tool-btn active" id="cesium3dToolSelect" title="Select / Info">
+                            <i class="fas fa-mouse-pointer"></i>
+                        </button>
+                        <button class="cesium3d-tool-btn" id="cesium3dToolMeasure" title="Measure Distance">
+                            <i class="fas fa-ruler-combined"></i>
+                        </button>
+                        <button class="cesium3d-tool-btn" id="cesium3dToolSun" title="Toggle Sun & Shadows">
+                            <i class="fas fa-sun"></i>
+                        </button>
+                        <button class="cesium3d-tool-btn" id="cesium3dToolFly" title="Drone Flight Mode">
+                            <i class="fas fa-plane"></i>
+                        </button>
+                    </div>
+
+                    <!-- Measurement badge -->
+                    <div class="cesium3d-measure-badge" id="cesium3dMeasureBadge">
+                        <span>Distance: <b id="cesium3dMeasureDist">0.00 m</b></span>
+                        <button id="cesium3dMeasureClear" title="Clear Measurement">&times;</button>
+                    </div>
+
+                    <!-- Info Popup Box (hidden by default) -->
+                    <div class="cesium3d-info-popup" id="cesium3dInfoPopup">
+                        <button class="cesium3d-popup-close" id="cesium3dInfoPopupClose">&times;</button>
+                        <div id="cesium3dInfoPopupContent"></div>
                     </div>
 
                     <!-- Settings toggle (top-right) -->

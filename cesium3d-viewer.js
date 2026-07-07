@@ -76,6 +76,30 @@
     let _wetlandMat         = null;
     let _conflictPulseIds   = new Set();
 
+    // Advanced 3D Tools
+    let currentTool = 'select'; // 'select', 'measure'
+    let infoHandler = null;
+    let measureHandler = null;
+    let measurePoints = [];
+    let measureLineEntity = null;
+    let measurePointsEntities = [];
+    let sunEnabled = false;
+
+    // GLTF Model Cache
+    const _modelCheckCache = new Map();
+    async function checkHasModel(symbol_key) {
+        if (_modelCheckCache.has(symbol_key)) return _modelCheckCache.get(symbol_key);
+        try {
+            const resp = await fetch(`assets/models/${symbol_key}.glb`, { method: 'HEAD' });
+            const exists = resp.ok;
+            _modelCheckCache.set(symbol_key, exists);
+            return exists;
+        } catch(e) {
+            _modelCheckCache.set(symbol_key, false);
+            return false;
+        }
+    }
+
     // ── ELEVATION-RAMP CANVAS (Standard Topo Palette) ─────────────────────────
     function buildElevationRampCanvas() {
         const c = document.createElement('canvas');
@@ -1446,6 +1470,8 @@
 
         // Refresh vegetation on camera stop
         viewer.camera.moveEnd.addEventListener(() => { if (vegetationEnabled) loadVegetationForView(); });
+
+        initAdvancedTools();
     }
 
     // ── SYMBOLS LIBRARY 3D DISPATCHER ─────────────────────────────────────────
@@ -1697,15 +1723,32 @@
                     terrainHeight = viewer.scene.globe.getHeight(carto) || 0;
                 }
 
-                const e = viewer.entities.add({
-                    position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], terrainHeight + (height / 2) - 0.5),
-                    cylinder: {
-                        length: height,
-                        topRadius: symbol_key.includes('tower') ? 0.2 : 0.3,
-                        bottomRadius: symbol_key.includes('tower') ? 2.5 : 0.3,
-                        material: Cesium.Color.fromCssColorString(color)
-                    }
-                });
+                const hasModel = await checkHasModel(symbol_key);
+                let e;
+                if (hasModel) {
+                    e = viewer.entities.add({
+                        position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], terrainHeight),
+                        model: {
+                            uri: `assets/models/${symbol_key}.glb`,
+                            scale: 1.0,
+                            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+                        },
+                        name: name || 'Power Pole',
+                        properties: { layerType: 'symbols-lib', metadata: metadata }
+                    });
+                } else {
+                    e = viewer.entities.add({
+                        position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], terrainHeight + (height / 2) - 0.5),
+                        cylinder: {
+                            length: height,
+                            topRadius: symbol_key.includes('tower') ? 0.2 : 0.3,
+                            bottomRadius: symbol_key.includes('tower') ? 2.5 : 0.3,
+                            material: Cesium.Color.fromCssColorString(color)
+                        },
+                        name: name || 'Power Pole',
+                        properties: { layerType: 'symbols-lib', metadata: metadata }
+                    });
+                }
                 symbolsLibEntities.add(e.id);
             } else if (isTree) {
                 if (tier === 'far') return;
@@ -1728,28 +1771,47 @@
                     terrainHeight = viewer.scene.globe.getHeight(carto) || 0;
                 }
                 
-                // Trunk
-                const trunk = viewer.entities.add({
-                    position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], terrainHeight + (trunkHeight / 2) - 0.5),
-                    cylinder: {
-                        length: trunkHeight,
-                        topRadius: trunkRadius * 0.8,
-                        bottomRadius: trunkRadius,
-                        material: Cesium.Color.fromCssColorString('#5c4033') // Dark brown
-                    }
-                });
-                symbolsLibEntities.add(trunk.id);
+                const hasModel = await checkHasModel(symbol_key);
+                if (hasModel) {
+                    const e = viewer.entities.add({
+                        position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], terrainHeight),
+                        model: {
+                            uri: `assets/models/${symbol_key}.glb`,
+                            scale: 1.0,
+                            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+                        },
+                        name: name || 'Tree',
+                        properties: { layerType: 'symbols-lib', metadata: metadata }
+                    });
+                    symbolsLibEntities.add(e.id);
+                } else {
+                    // Trunk
+                    const trunk = viewer.entities.add({
+                        position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], terrainHeight + (trunkHeight / 2) - 0.5),
+                        cylinder: {
+                            length: trunkHeight,
+                            topRadius: trunkRadius * 0.8,
+                            bottomRadius: trunkRadius,
+                            material: Cesium.Color.fromCssColorString('#5c4033') // Dark brown
+                        },
+                        name: name || 'Tree',
+                        properties: { layerType: 'symbols-lib', metadata: metadata }
+                    });
+                    symbolsLibEntities.add(trunk.id);
 
-                // Canopy
-                const canopy = viewer.entities.add({
-                    position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], terrainHeight + trunkHeight + canopyRadii.z * 0.6 - 0.5),
-                    ellipsoid: {
-                        radii: canopyRadii,
-                        material: Cesium.Color.fromCssColorString('#2f855a'), // Forest green
-                        outline: false
-                    }
-                });
-                symbolsLibEntities.add(canopy.id);
+                    // Canopy
+                    const canopy = viewer.entities.add({
+                        position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], terrainHeight + trunkHeight + canopyRadii.z * 0.6 - 0.5),
+                        ellipsoid: {
+                            radii: canopyRadii,
+                            material: Cesium.Color.fromCssColorString('#2f855a'), // Forest green
+                            outline: false
+                        },
+                        name: name || 'Tree Canopy',
+                        properties: { layerType: 'symbols-lib', metadata: metadata }
+                    });
+                    symbolsLibEntities.add(canopy.id);
+                }
             } else {
                 const e = viewer.entities.add({
                     position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1]),
@@ -1965,6 +2027,211 @@
                 e.polygon.material = Cesium.Color.fromCssColorString('#ef4444').withAlpha(pulse);
             }
         });
+    }
+
+    // ── ADVANCED 3D TOOLS ──────────────────────────────────────────────────
+    function initAdvancedTools() {
+        const btnSelect = document.getElementById('cesium3dToolSelect');
+        const btnMeasure = document.getElementById('cesium3dToolMeasure');
+        const btnSun = document.getElementById('cesium3dToolSun');
+        const btnFly = document.getElementById('cesium3dToolFly');
+        const btnMeasureClear = document.getElementById('cesium3dMeasureClear');
+        const infoPopupClose = document.getElementById('cesium3dInfoPopupClose');
+
+        if (btnSelect) btnSelect.onclick = () => setTool('select');
+        if (btnMeasure) btnMeasure.onclick = () => setTool('measure');
+        if (btnSun) btnSun.onclick = toggleSun;
+        if (btnFly) btnFly.onclick = flyThroughMode;
+        if (btnMeasureClear) btnMeasureClear.onclick = clearMeasurement;
+        if (infoPopupClose) infoPopupClose.onclick = closeInfoPopup;
+
+        // Info Handler
+        if (infoHandler) infoHandler.destroy();
+        infoHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+        infoHandler.setInputAction(function (movement) {
+            if (currentTool !== 'select') return;
+            const pickedObject = viewer.scene.pick(movement.position);
+            if (Cesium.defined(pickedObject) && pickedObject.id) {
+                showInfoPopup(pickedObject.id, movement.position);
+            } else {
+                closeInfoPopup();
+            }
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+        // Measure Handler
+        if (measureHandler) measureHandler.destroy();
+        measureHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+        measureHandler.setInputAction(function (movement) {
+            if (currentTool !== 'measure') return;
+            
+            const ray = viewer.camera.getPickRay(movement.position);
+            const cartesian = viewer.scene.pickPosition(movement.position) || viewer.scene.globe.pick(ray, viewer.scene);
+            
+            if (Cesium.defined(cartesian)) {
+                addMeasurePoint(cartesian);
+            }
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+    }
+
+    function setTool(tool) {
+        currentTool = tool;
+        document.getElementById('cesium3dToolSelect').classList.toggle('active', tool === 'select');
+        document.getElementById('cesium3dToolMeasure').classList.toggle('active', tool === 'measure');
+        
+        if (tool !== 'measure') {
+            document.getElementById('cesium3dMeasureBadge').style.display = 'none';
+        } else {
+            if (measurePoints.length > 0) document.getElementById('cesium3dMeasureBadge').style.display = 'flex';
+        }
+        if (tool !== 'select') closeInfoPopup();
+    }
+
+    function addMeasurePoint(cartesian) {
+        measurePoints.push(cartesian);
+        const pt = viewer.entities.add({
+            position: cartesian,
+            point: { pixelSize: 10, color: Cesium.Color.YELLOW, outlineColor: Cesium.Color.BLACK, outlineWidth: 2, disableDepthTestDistance: Number.POSITIVE_INFINITY }
+        });
+        measurePointsEntities.push(pt);
+
+        if (measurePoints.length === 2) {
+            measureLineEntity = viewer.entities.add({
+                polyline: {
+                    positions: measurePoints,
+                    width: 4,
+                    material: new Cesium.PolylineDashMaterialProperty({ color: Cesium.Color.YELLOW }),
+                    depthFailMaterial: new Cesium.PolylineDashMaterialProperty({ color: Cesium.Color.YELLOW.withAlpha(0.5) })
+                }
+            });
+            const dist = Cesium.Cartesian3.distance(measurePoints[0], measurePoints[1]);
+            document.getElementById('cesium3dMeasureDist').textContent = dist.toFixed(2) + ' m';
+            document.getElementById('cesium3dMeasureBadge').style.display = 'flex';
+            
+            measurePoints = [];
+        } else if (measurePoints.length === 1 && measureLineEntity) {
+            clearMeasurement(false); 
+            measurePoints.push(cartesian);
+            measurePointsEntities.push(viewer.entities.add({
+                position: cartesian,
+                point: { pixelSize: 10, color: Cesium.Color.YELLOW, outlineColor: Cesium.Color.BLACK, outlineWidth: 2, disableDepthTestDistance: Number.POSITIVE_INFINITY }
+            }));
+        }
+    }
+
+    function clearMeasurement(hideBadge = true) {
+        if (measureLineEntity) viewer.entities.remove(measureLineEntity);
+        measurePointsEntities.forEach(e => viewer.entities.remove(e));
+        measureLineEntity = null;
+        measurePointsEntities = [];
+        measurePoints = [];
+        if (hideBadge) document.getElementById('cesium3dMeasureBadge').style.display = 'none';
+    }
+
+    function showInfoPopup(entity, screenPos) {
+        let html = '<b>Selected Feature</b><br><table>';
+        if (entity.name) html += `<tr><td>Name</td><td>${entity.name}</td></tr>`;
+        if (entity.properties && entity.properties.layerType) {
+            html += `<tr><td>Layer</td><td>${entity.properties.layerType.getValue()}</td></tr>`;
+        }
+        if (entity.properties && entity.properties.metadata) {
+            const meta = entity.properties.metadata.getValue();
+            for (const key in meta) {
+                html += `<tr><td>${key}</td><td>${meta[key]}</td></tr>`;
+            }
+        }
+        html += '</table>';
+        
+        let hasFly = false;
+        if (entity.polyline && entity.polyline.positions) {
+            hasFly = true;
+            html += `<button id="cesium3dFlyBtn" style="margin-top:10px; width:100%; padding:8px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer;"><i class="fas fa-plane"></i> Drone Fly-Through</button>`;
+        }
+        
+        const popup = document.getElementById('cesium3dInfoPopup');
+        document.getElementById('cesium3dInfoPopupContent').innerHTML = html;
+        popup.style.display = 'block';
+        popup.style.left = screenPos.x + 'px';
+        popup.style.top = screenPos.y + 'px';
+
+        if (hasFly) {
+            document.getElementById('cesium3dFlyBtn').onclick = () => executeFlyThrough(entity);
+        }
+    }
+
+    function closeInfoPopup() {
+        const popup = document.getElementById('cesium3dInfoPopup');
+        if (popup) popup.style.display = 'none';
+    }
+
+    function toggleSun() {
+        sunEnabled = !sunEnabled;
+        document.getElementById('cesium3dToolSun').classList.toggle('active', sunEnabled);
+        
+        viewer.scene.globe.enableLighting = sunEnabled;
+        viewer.shadows = sunEnabled;
+        if (sunEnabled) {
+            viewer.terrainShadows = Cesium.ShadowMode.ENABLED;
+            viewer.clock.currentTime = Cesium.JulianDate.fromIso8601('2024-06-15T15:00:00Z');
+            viewer.clock.multiplier = 0;
+            if (typeof showToast === 'function') showToast('Realistic Sun & Shadows Enabled', 'success');
+        } else {
+            viewer.terrainShadows = Cesium.ShadowMode.DISABLED;
+            viewer.clock.currentTime = Cesium.JulianDate.fromIso8601('2024-06-15T08:00:00Z');
+            if (typeof showToast === 'function') showToast('Sun & Shadows Disabled', 'info');
+        }
+    }
+
+    function flyThroughMode() {
+        if (typeof showToast === 'function') showToast('Click on a Powerline to fly along it.', 'info');
+        setTool('select');
+    }
+
+    function executeFlyThrough(entity) {
+        closeInfoPopup();
+        const positions = entity.polyline.positions.getValue(viewer.clock.currentTime);
+        if (!positions || positions.length < 2) return;
+        
+        if (typeof showToast === 'function') showToast('Starting Drone Flight...', 'success');
+        
+        let i = 0;
+        function flyNext() {
+            if (i >= positions.length - 1) {
+                if (typeof showToast === 'function') showToast('Flight complete.', 'info');
+                return;
+            }
+            
+            const p1 = positions[i];
+            const p2 = positions[i+1];
+            
+            const c1 = Cesium.Cartographic.fromCartesian(p1);
+            const c2 = Cesium.Cartographic.fromCartesian(p2);
+            
+            const y = Math.sin(c2.longitude - c1.longitude) * Math.cos(c2.latitude);
+            const x = Math.cos(c1.latitude) * Math.sin(c2.latitude) - Math.sin(c1.latitude) * Math.cos(c2.latitude) * Math.cos(c2.longitude - c1.longitude);
+            const bearing = Math.atan2(y, x);
+            
+            // Fly 15m above the wire
+            c1.height += 15;
+            const dest = Cesium.Cartographic.toCartesian(c1);
+            
+            const dist = Cesium.Cartesian3.distance(p1, p2);
+            const duration = Math.max(1.5, dist / 30.0); // 30 m/s
+            
+            viewer.camera.flyTo({
+                destination: dest,
+                orientation: {
+                    heading: bearing,
+                    pitch: Cesium.Math.toRadians(-20),
+                    roll: 0.0
+                },
+                duration: duration,
+                easingFunction: Cesium.EasingFunction.LINEAR_NONE,
+                complete: () => { i++; flyNext(); }
+            });
+        }
+        
+        // Start sequence
+        flyNext();
     }
 
     window.cesium3dRefreshSymbols = () => {
