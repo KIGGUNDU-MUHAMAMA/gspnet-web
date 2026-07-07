@@ -1684,13 +1684,25 @@
                 if (symbol_key.includes('mv33')) color = '#ca8a04';
                 if (symbol_key.includes('mv11')) color = '#65a30d';
 
+                const carto = Cesium.Cartographic.fromDegrees(ll[0], ll[1]);
+                let terrainHeight = 0;
+                if (viewer.terrainProvider && viewer.terrainProvider.availability) {
+                    try {
+                        const updated = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, [carto]);
+                        terrainHeight = updated[0].height || 0;
+                    } catch(e) {
+                        terrainHeight = viewer.scene.globe.getHeight(carto) || 0;
+                    }
+                } else {
+                    terrainHeight = viewer.scene.globe.getHeight(carto) || 0;
+                }
+
                 const e = viewer.entities.add({
-                    position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], (height / 2) - 0.5),
+                    position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], terrainHeight + (height / 2) - 0.5),
                     cylinder: {
                         length: height,
                         topRadius: symbol_key.includes('tower') ? 0.2 : 0.3,
                         bottomRadius: symbol_key.includes('tower') ? 2.5 : 0.3,
-                        heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
                         material: Cesium.Color.fromCssColorString(color)
                     }
                 });
@@ -1702,15 +1714,27 @@
                 const trunkHeight = 3.0;
                 const trunkRadius = 0.4;
                 const canopyRadii = new Cesium.Cartesian3(3.0, 3.0, 3.5);
+
+                const carto = Cesium.Cartographic.fromDegrees(ll[0], ll[1]);
+                let terrainHeight = 0;
+                if (viewer.terrainProvider && viewer.terrainProvider.availability) {
+                    try {
+                        const updated = await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, [carto]);
+                        terrainHeight = updated[0].height || 0;
+                    } catch(e) {
+                        terrainHeight = viewer.scene.globe.getHeight(carto) || 0;
+                    }
+                } else {
+                    terrainHeight = viewer.scene.globe.getHeight(carto) || 0;
+                }
                 
                 // Trunk
                 const trunk = viewer.entities.add({
-                    position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], (trunkHeight / 2) - 0.5),
+                    position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], terrainHeight + (trunkHeight / 2) - 0.5),
                     cylinder: {
                         length: trunkHeight,
                         topRadius: trunkRadius * 0.8,
                         bottomRadius: trunkRadius,
-                        heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
                         material: Cesium.Color.fromCssColorString('#5c4033') // Dark brown
                     }
                 });
@@ -1718,10 +1742,9 @@
 
                 // Canopy
                 const canopy = viewer.entities.add({
-                    position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], trunkHeight + canopyRadii.z * 0.6 - 0.5),
+                    position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], terrainHeight + trunkHeight + canopyRadii.z * 0.6 - 0.5),
                     ellipsoid: {
                         radii: canopyRadii,
-                        heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
                         material: Cesium.Color.fromCssColorString('#2f855a'), // Forest green
                         outline: false
                     }

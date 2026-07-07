@@ -1490,7 +1490,12 @@ function handleDrawEnd(event) {
             description: '',
             status: 'existing',
             style: selectedSymbol.default_style || {},
-            metadata: { height_m: selectedSymbol.symbol_key.startsWith('powerline_') ? 9 : 4 }
+            metadata: { 
+                height_m: selectedSymbol.symbol_key.includes('ehv') ? 40 : 
+                          selectedSymbol.symbol_key.includes('_hv') ? 30 : 
+                          selectedSymbol.symbol_key.includes('mv33') ? 12 : 
+                          selectedSymbol.symbol_key.startsWith('powerline_') ? 9 : 4
+            }
         });
         // Re-enable snapping for the next continuous draw
         enableDrawingSnapping();
