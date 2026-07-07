@@ -1659,9 +1659,7 @@
                         polygon: {
                             hierarchy: pos,
                             material: Cesium.Color.fromCssColorString('#ef4444').withAlpha(0.35),
-                            outline: true,
-                            outlineColor: Cesium.Color.fromCssColorString('#ef4444'),
-                            outlineWidth: 3
+                            outline: false
                         }
                     });
                     symbolsLibEntities.add(e.id);
