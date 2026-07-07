@@ -1525,10 +1525,11 @@
                     const e = viewer.entities.add({
                         polygon: {
                             hierarchy: pos,
+                            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                            extrudedHeightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
                             extrudedHeight: height,
                             material: Cesium.Color.fromCssColorString(color).withAlpha(0.8),
-                            outline: tier !== 'far',
-                            outlineColor: Cesium.Color.fromCssColorString(color).darken(0.3, new Cesium.Color())
+                            outline: false
                         }
                     });
                     symbolsLibEntities.add(e.id);

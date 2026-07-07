@@ -1361,8 +1361,8 @@ async function loadFeatures() {
 
             // Upsert features (update existing, add new)
             features.forEach(feature => {
-                const id = feature.get('id');
-                if (loadedFeatures.has(id)) {
+                const id = feature.getId();
+                if (id && loadedFeatures.has(id)) {
                     // Update existing
                     const existing = loadedFeatures.get(id);
                     existing.setGeometry(feature.getGeometry());
