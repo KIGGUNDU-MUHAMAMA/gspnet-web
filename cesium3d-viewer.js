@@ -1482,7 +1482,7 @@
         return _wetlandMat;
     }
 
-    function renderSymbolFeature3D(feature) {
+    async function renderSymbolFeature3D(feature) {
         if (!symbolsLibEnabled) return;
 
         const id = feature.getId();
@@ -1685,7 +1685,7 @@
                 if (symbol_key.includes('mv11')) color = '#65a30d';
 
                 const e = viewer.entities.add({
-                    position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], height / 2),
+                    position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], (height / 2) - 0.5),
                     cylinder: {
                         length: height,
                         topRadius: symbol_key.includes('tower') ? 0.2 : 0.3,
@@ -1705,7 +1705,7 @@
                 
                 // Trunk
                 const trunk = viewer.entities.add({
-                    position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], trunkHeight / 2),
+                    position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], (trunkHeight / 2) - 0.5),
                     cylinder: {
                         length: trunkHeight,
                         topRadius: trunkRadius * 0.8,
@@ -1718,7 +1718,7 @@
 
                 // Canopy
                 const canopy = viewer.entities.add({
-                    position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], trunkHeight + canopyRadii.z * 0.6),
+                    position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], trunkHeight + canopyRadii.z * 0.6 - 0.5),
                     ellipsoid: {
                         radii: canopyRadii,
                         heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
@@ -1758,14 +1758,53 @@
                     else if (symbol_key.includes('mv11')) { color = '#65a30d'; width = 2; height = 9; }
                     else height = 6;
 
+                    // Convert to Cartographic to get terrain height
+                    const cartographics = pos.map(p => Cesium.Cartographic.fromCartesian(p));
+                    
+                    if (viewer.terrainProvider && viewer.terrainProvider.availability) {
+                        try {
+                            await Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, cartographics);
+                        } catch(e) {
+                            cartographics.forEach(c => { c.height = viewer.scene.globe.getHeight(c) || 0; });
+                        }
+                    } else {
+                        cartographics.forEach(c => { c.height = viewer.scene.globe.getHeight(c) || 0; });
+                    }
+
+                    const curvePositions = [];
+                    for (let i = 0; i < cartographics.length - 1; i++) {
+                        const ptA = cartographics[i];
+                        const ptB = cartographics[i + 1];
+                        
+                        // Set pole top heights
+                        const hA = (ptA.height || 0) + height;
+                        const hB = (ptB.height || 0) + height;
+
+                        const cartA = Cesium.Cartesian3.fromRadians(ptA.longitude, ptA.latitude, hA);
+                        const cartB = Cesium.Cartesian3.fromRadians(ptB.longitude, ptB.latitude, hB);
+
+                        const segments = 10;
+                        const dist = Cesium.Cartesian3.distance(cartA, cartB);
+                        const sag = dist * 0.05; // 5% sag factor
+
+                        for (let j = 0; j <= segments; j++) {
+                            if (j === 0 && i > 0) continue; // Avoid duplicate vertex
+                            const t = j / segments;
+                            const lon = Cesium.Math.lerp(ptA.longitude, ptB.longitude, t);
+                            const lat = Cesium.Math.lerp(ptA.latitude, ptB.latitude, t);
+                            const h = Cesium.Math.lerp(hA, hB, t);
+                            
+                            // Parabolic sag equation: 4 * sag * (t^2 - t)
+                            const currentSag = 4 * sag * (t * t - t);
+                            curvePositions.push(Cesium.Cartesian3.fromRadians(lon, lat, h + currentSag));
+                        }
+                    }
+
                     const e = viewer.entities.add({
-                        corridor: {
-                            positions: pos,
-                            width: width / 3,
-                            height: height,
-                            heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
-                            material: Cesium.Color.fromCssColorString(color),
-                            outline: false
+                        polyline: {
+                            positions: curvePositions,
+                            width: width,
+                            material: Cesium.Color.fromCssColorString(color)
                         }
                     });
                     symbolsLibEntities.add(e.id);
