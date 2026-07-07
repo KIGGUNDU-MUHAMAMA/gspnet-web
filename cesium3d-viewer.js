@@ -1877,7 +1877,8 @@
 
                         const segments = 10;
                         const dist = Cesium.Cartesian3.distance(cartA, cartB);
-                        const sag = dist * 0.05; // 5% sag factor
+                        let sag = dist * 0.05; // 5% sag factor
+                        if (!symbol_key.includes('lv') && !symbol_key.includes('mv')) sag = 0;
 
                         for (let j = 0; j <= segments; j++) {
                             if (j === 0 && i > 0) continue; // Avoid duplicate vertex
