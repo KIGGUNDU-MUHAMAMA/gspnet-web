@@ -1785,42 +1785,17 @@
                 }
 
                 if (hasModel) {
-                    // Close-up: High-Poly GLTF Model
+                    // Render Low-Poly GLTF Model at all zoom levels
                     const e = viewer.entities.add({
                         position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], terrainHeight),
                         model: {
                             uri: modelUri,
-                            scale: 2.0,
-                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 300)
+                            scale: 0.6
                         },
                         name: name || 'Tree',
                         properties: { layerType: 'symbols-lib', metadata: metadata }
                     });
                     symbolsLibEntities.add(e.id);
-
-                    // Far-away: Procedural LOD fallback (Prevents lag)
-                    const trunkLod = viewer.entities.add({
-                        position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], terrainHeight + (trunkHeight / 2) - 0.5),
-                        cylinder: {
-                            length: trunkHeight,
-                            topRadius: trunkRadius * 0.8,
-                            bottomRadius: trunkRadius,
-                            material: Cesium.Color.fromCssColorString('#5c4033'),
-                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(300, 15000)
-                        }
-                    });
-                    symbolsLibEntities.add(trunkLod.id);
-
-                    const canopyLod = viewer.entities.add({
-                        position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], terrainHeight + trunkHeight + canopyRadii.z * 0.6 - 0.5),
-                        ellipsoid: {
-                            radii: canopyRadii,
-                            material: Cesium.Color.fromCssColorString('#2f855a'),
-                            outline: false,
-                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(300, 15000)
-                        }
-                    });
-                    symbolsLibEntities.add(canopyLod.id);
                 } else {
                     // Trunk
                     const trunk = viewer.entities.add({
