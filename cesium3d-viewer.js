@@ -1791,8 +1791,7 @@
                         model: {
                             uri: modelUri,
                             scale: 0.03,
-                            minimumPixelSize: 32,
-                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 800)
+                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 300)
                         },
                         name: name || 'Tree',
                         properties: { layerType: 'symbols-lib', metadata: metadata }
@@ -1807,7 +1806,7 @@
                             topRadius: trunkRadius * 0.8,
                             bottomRadius: trunkRadius,
                             material: Cesium.Color.fromCssColorString('#5c4033'),
-                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(800, 15000)
+                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(300, 15000)
                         }
                     });
                     symbolsLibEntities.add(trunkLod.id);
@@ -1818,7 +1817,7 @@
                             radii: canopyRadii,
                             material: Cesium.Color.fromCssColorString('#2f855a'),
                             outline: false,
-                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(800, 15000)
+                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(300, 15000)
                         }
                     });
                     symbolsLibEntities.add(canopyLod.id);
