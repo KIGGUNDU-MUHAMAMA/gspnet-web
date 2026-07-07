@@ -516,15 +516,20 @@ INSERT INTO public.symbol_catalog (symbol_key, category, name, description, svg,
   '{"fillColor": "#38bdf8", "fillOpacity": 0.28, "strokeColor": "#0369a1", "strokeWidth": 1.6, "strokeOpacity": 0.9}'::jsonb,
   ARRAY['hazard', 'flood', 'risk']),
 
-('landslide_zone', 'polygon', 'Landslide Risk Zone', 'Area susceptible to landslides',
-  NULL,
-  '{"fillColor": "#fca5a5", "fillOpacity": 0.28, "strokeColor": "#b91c1c", "strokeWidth": 1.6, "strokeOpacity": 0.9}'::jsonb,
-  ARRAY['hazard', 'landslide', 'risk']),
-
-('conflict_overlap', 'polygon', 'Conflict Overlap', 'Overlapping claims requiring adjudication',
-  NULL,
-  '{"fillColor": "#f43f5e", "fillOpacity": 0.25, "strokeColor": "#9f1239", "strokeWidth": 2.0, "strokeOpacity": 1.0}'::jsonb,
-  ARRAY['qa', 'overlap', 'conflict'])
+('landslide_zone', 'Landslide Risk Zone', 'polygon', 'Area susceptible to landslides', '{"fillColor": "#fca5a5", "fillOpacity": 0.28, "strokeColor": "#b91c1c", "strokeWidth": 1.6, "strokeOpacity": 0.9}'::jsonb, ARRAY['hazard', 'landslide', 'risk']),
+('conflict_overlap', 'Conflict Overlap', 'polygon', 'Overlapping claims requiring adjudication', '{"fillColor": "#f43f5e", "fillOpacity": 0.25, "strokeColor": "#9f1239", "strokeWidth": 2.0, "strokeOpacity": 1.0}'::jsonb, ARRAY['qa', 'overlap', 'conflict']),
+('tree_deciduous', 'Deciduous Tree', 'point', 'Generic deciduous tree', '{"color": "#15803d", "size": 24, "opacity": 1.0}'::jsonb, ARRAY['environment', 'tree', 'deciduous']),
+('tree_coniferous', 'Coniferous Tree', 'point', 'Pine or coniferous tree', '{"color": "#0f766e", "size": 24, "opacity": 1.0}'::jsonb, ARRAY['environment', 'tree', 'conifer']),
+('powerline_tower_ehv', 'EHV Transmission Tower', 'point', 'Extra High Voltage (400/220kV)', '{"color": "#dc2626", "size": 28, "opacity": 1.0}'::jsonb, ARRAY['utility', 'power', 'ehv']),
+('powerline_tower_hv', 'HV Transmission Tower', 'point', 'High Voltage (132kV)', '{"color": "#ea580c", "size": 26, "opacity": 1.0}'::jsonb, ARRAY['utility', 'power', 'hv']),
+('powerline_pole_mv33', 'MV Pole (33kV)', 'point', 'Medium Voltage Distribution (33kV)', '{"color": "#ca8a04", "size": 24, "opacity": 1.0}'::jsonb, ARRAY['utility', 'power', 'mv33']),
+('powerline_pole_mv11', 'MV Pole (11kV)', 'point', 'Medium Voltage Distribution (11kV)', '{"color": "#65a30d", "size": 22, "opacity": 1.0}'::jsonb, ARRAY['utility', 'power', 'mv11']),
+('powerline_pole_lv', 'LV Pole', 'point', 'Low Voltage Distribution (415/240V)', '{"color": "#4b5563", "size": 20, "opacity": 1.0}'::jsonb, ARRAY['utility', 'power', 'lv']),
+('powerline_ehv', 'EHV Line', 'line', 'Extra High Voltage Line', '{"strokeColor": "#dc2626", "strokeWidth": 4, "strokeOpacity": 0.9}'::jsonb, ARRAY['utility', 'power', 'ehv', 'line']),
+('powerline_hv', 'HV Line', 'line', 'High Voltage Line', '{"strokeColor": "#ea580c", "strokeWidth": 3, "strokeOpacity": 0.9}'::jsonb, ARRAY['utility', 'power', 'hv', 'line']),
+('powerline_mv33', 'MV Line (33kV)', 'line', 'Medium Voltage Line (33kV)', '{"strokeColor": "#ca8a04", "strokeWidth": 2.5, "strokeOpacity": 0.9}'::jsonb, ARRAY['utility', 'power', 'mv33', 'line']),
+('powerline_mv11', 'MV Line (11kV)', 'line', 'Medium Voltage Line (11kV)', '{"strokeColor": "#65a30d", "strokeWidth": 2, "strokeOpacity": 0.9}'::jsonb, ARRAY['utility', 'power', 'mv11', 'line']),
+('powerline_lv', 'LV Line', 'line', 'Low Voltage Line', '{"strokeColor": "#4b5563", "strokeWidth": 1.5, "strokeOpacity": 0.9}'::jsonb, ARRAY['utility', 'power', 'lv', 'line'])
 ON CONFLICT (symbol_key) DO NOTHING;
 
 -- ============================================

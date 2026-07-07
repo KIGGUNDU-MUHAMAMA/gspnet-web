@@ -1532,6 +1532,7 @@
                     const e = viewer.entities.add({
                         polygon: {
                             hierarchy: pos,
+                            height: 0,
                             heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
                             extrudedHeightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
                             extrudedHeight: height,
@@ -1672,7 +1673,7 @@
         } else if (type === 'Point') {
             const ll = ol.proj.transform(geom.getCoordinates(), 'EPSG:3857', 'EPSG:4326');
             const isPowerPole = symbol_key.startsWith('powerline_tower_') || symbol_key.startsWith('powerline_pole_');
-            const isTree = symbol_key.startsWith('tree_');
+            const isTree = symbol_key.startsWith('tree_') || symbol_key.includes('tree');
 
             if (isPowerPole) {
                 if (tier === 'far') return;
@@ -1689,6 +1690,7 @@
                         length: height,
                         topRadius: symbol_key.includes('tower') ? 0.2 : 0.3,
                         bottomRadius: symbol_key.includes('tower') ? 2.5 : 0.3,
+                        heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
                         material: Cesium.Color.fromCssColorString(color)
                     }
                 });
@@ -1708,6 +1710,7 @@
                         length: trunkHeight,
                         topRadius: trunkRadius * 0.8,
                         bottomRadius: trunkRadius,
+                        heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
                         material: Cesium.Color.fromCssColorString('#5c4033') // Dark brown
                     }
                 });
@@ -1718,6 +1721,7 @@
                     position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], trunkHeight + canopyRadii.z * 0.6),
                     ellipsoid: {
                         radii: canopyRadii,
+                        heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
                         material: Cesium.Color.fromCssColorString('#2f855a'), // Forest green
                         outline: false
                     }

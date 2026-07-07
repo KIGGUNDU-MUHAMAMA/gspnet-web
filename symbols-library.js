@@ -125,10 +125,16 @@ async function loadSymbolCatalog() {
             console.log('[SL] Sample record:', JSON.stringify(symbolCatalog[0]));
 
             // Remap: category -> geom_type with normalization
-            symbolCatalog = symbolCatalog.map(s => ({
-                ...s,
-                geom_type: normalizeGeomType(s.category)
-            }));
+            // Also ensure we inject the high-quality local SVGs if the DB is missing them
+            const localSeeds = getExpandedCatalogSeedRows();
+            symbolCatalog = symbolCatalog.map(s => {
+                const seed = localSeeds.find(l => l.symbol_key === s.symbol_key);
+                return {
+                    ...s,
+                    geom_type: normalizeGeomType(s.category),
+                    svg: s.svg || (seed ? seed.svg : null)
+                };
+            });
 
             console.log('[SL] geom_type values after mapping:', [...new Set(symbolCatalog.map(s => s.geom_type))]);
         }
