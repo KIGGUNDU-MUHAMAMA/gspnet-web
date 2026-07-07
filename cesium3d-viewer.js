@@ -1514,7 +1514,14 @@
                                    ['school', 'health_facility', 'market', 'worship_place', 'public_office'].includes(symbol_key);
                 
                 if (isBuilding) {
-                    const height = metadata.height_m || 4;
+                    let defaultHeight = 6;
+                    if (symbol_key.includes('commercial')) defaultHeight = 12;
+                    if (symbol_key.includes('industrial')) defaultHeight = 10;
+                    if (symbol_key === 'school') defaultHeight = 8;
+                    if (symbol_key === 'health_facility') defaultHeight = 8;
+                    if (symbol_key === 'worship_place') defaultHeight = 15;
+                    const height = metadata.height_m || defaultHeight;
+
                     let color = '#3b82f6';
                     if (symbol_key.includes('residential')) color = '#8b5cf6';
                     if (symbol_key.includes('commercial')) color = '#0ea5e9';
@@ -1528,7 +1535,7 @@
                             heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
                             extrudedHeightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
                             extrudedHeight: height,
-                            material: Cesium.Color.fromCssColorString(color).withAlpha(0.8),
+                            material: Cesium.Color.fromCssColorString(color).withAlpha(1.0),
                             outline: false
                         }
                     });
@@ -1688,18 +1695,34 @@
                 symbolsLibEntities.add(e.id);
             } else if (isTree) {
                 if (tier === 'far') return;
-                const canvas = _treeCanvas || buildTreeCanvas();
-                _treeCanvas = canvas;
-                const e = viewer.entities.add({
-                    position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1]),
-                    billboard: {
-                        image: canvas,
-                        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-                        scale: 1.0
+                
+                // Procedural 3D Tree: Cylinder trunk + Ellipsoid canopy
+                const trunkHeight = 3.0;
+                const trunkRadius = 0.4;
+                const canopyRadii = new Cesium.Cartesian3(3.0, 3.0, 3.5);
+                
+                // Trunk
+                const trunk = viewer.entities.add({
+                    position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], trunkHeight / 2),
+                    cylinder: {
+                        length: trunkHeight,
+                        topRadius: trunkRadius * 0.8,
+                        bottomRadius: trunkRadius,
+                        material: Cesium.Color.fromCssColorString('#5c4033') // Dark brown
                     }
                 });
-                symbolsLibEntities.add(e.id);
+                symbolsLibEntities.add(trunk.id);
+
+                // Canopy
+                const canopy = viewer.entities.add({
+                    position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], trunkHeight + canopyRadii.z * 0.6),
+                    ellipsoid: {
+                        radii: canopyRadii,
+                        material: Cesium.Color.fromCssColorString('#2f855a'), // Forest green
+                        outline: false
+                    }
+                });
+                symbolsLibEntities.add(canopy.id);
             } else {
                 const e = viewer.entities.add({
                     position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1]),
@@ -1724,25 +1747,21 @@
                 if (isPowerLine) {
                     let color = '#9ca3af';
                     let width = 1.5;
-                    if (symbol_key.includes('ehv')) { color = '#dc2626'; width = 4; }
-                    else if (symbol_key.includes('_hv')) { color = '#ea580c'; width = 3; }
-                    else if (symbol_key.includes('mv33')) { color = '#ca8a04'; width = 2.5; }
-                    else if (symbol_key.includes('mv11')) { color = '#65a30d'; width = 2; }
-
-                    const mat = symbol_key.includes('_lv') 
-                        ? Cesium.Color.fromCssColorString(color)
-                        : new Cesium.PolylineGlowMaterialProperty({
-                            glowPower: 0.2,
-                            taperPower: 1,
-                            color: Cesium.Color.fromCssColorString(color)
-                        });
+                    let height = 9;
+                    if (symbol_key.includes('ehv')) { color = '#dc2626'; width = 4; height = 40; }
+                    else if (symbol_key.includes('_hv')) { color = '#ea580c'; width = 3; height = 30; }
+                    else if (symbol_key.includes('mv33')) { color = '#ca8a04'; width = 2.5; height = 12; }
+                    else if (symbol_key.includes('mv11')) { color = '#65a30d'; width = 2; height = 9; }
+                    else height = 6;
 
                     const e = viewer.entities.add({
-                        polyline: {
+                        corridor: {
                             positions: pos,
-                            width: width * 2,
-                            material: mat,
-                            clampToGround: true
+                            width: width / 3,
+                            height: height,
+                            heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
+                            material: Cesium.Color.fromCssColorString(color),
+                            outline: false
                         }
                     });
                     symbolsLibEntities.add(e.id);
