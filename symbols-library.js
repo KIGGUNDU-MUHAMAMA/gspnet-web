@@ -28,7 +28,11 @@ const REQUIRED_EXPANDED_SYMBOL_KEYS = [
     'access_blocked', 'photo_evidence_point', 'bridge', 'sewer_line',
     'drainage_channel', 'school', 'health_facility', 'market',
     'worship_place', 'public_office', 'wetland', 'flood_zone',
-    'landslide_zone', 'conflict_overlap'
+    'landslide_zone', 'conflict_overlap',
+    'tree_deciduous', 'tree_coniferous',
+    'powerline_tower_ehv', 'powerline_tower_hv', 
+    'powerline_pole_mv33', 'powerline_pole_mv11', 'powerline_pole_lv',
+    'powerline_ehv', 'powerline_hv', 'powerline_mv33', 'powerline_mv11', 'powerline_lv'
 ];
 
 /**
@@ -183,7 +187,25 @@ function getExpandedCatalogSeedRows() {
         { symbol_key: 'wetland', category: 'polygon', name: 'Wetland', description: 'Wetland or marsh area', svg: null, default_style: { fillColor: '#22d3ee', fillOpacity: 0.3, strokeColor: '#0891b2', strokeWidth: 1.5, strokeOpacity: 0.9 }, tags: ['hydrology', 'wetland', 'environment'] },
         { symbol_key: 'flood_zone', category: 'polygon', name: 'Flood Risk Zone', description: 'Area prone to seasonal flooding', svg: null, default_style: { fillColor: '#38bdf8', fillOpacity: 0.28, strokeColor: '#0369a1', strokeWidth: 1.6, strokeOpacity: 0.9 }, tags: ['hazard', 'flood', 'risk'] },
         { symbol_key: 'landslide_zone', category: 'polygon', name: 'Landslide Risk Zone', description: 'Area susceptible to landslides', svg: null, default_style: { fillColor: '#fca5a5', fillOpacity: 0.28, strokeColor: '#b91c1c', strokeWidth: 1.6, strokeOpacity: 0.9 }, tags: ['hazard', 'landslide', 'risk'] },
-        { symbol_key: 'conflict_overlap', category: 'polygon', name: 'Conflict Overlap', description: 'Overlapping claims requiring adjudication', svg: null, default_style: { fillColor: '#f43f5e', fillOpacity: 0.25, strokeColor: '#9f1239', strokeWidth: 2.0, strokeOpacity: 1.0 }, tags: ['qa', 'overlap', 'conflict'] }
+        { symbol_key: 'conflict_overlap', category: 'polygon', name: 'Conflict Overlap', description: 'Overlapping claims requiring adjudication', svg: null, default_style: { fillColor: '#f43f5e', fillOpacity: 0.25, strokeColor: '#9f1239', strokeWidth: 2.0, strokeOpacity: 1.0 }, tags: ['qa', 'overlap', 'conflict'] },
+        
+        // New Trees
+        { symbol_key: 'tree_deciduous', category: 'point', name: 'Deciduous Tree', description: 'Generic deciduous tree', svg: '<svg viewBox="0 0 24 24"><path d="M12 2L6 14H10V22H14V14H18L12 2Z" fill="currentColor"/></svg>', default_style: { color: '#15803d', size: 24, opacity: 1.0 }, tags: ['environment', 'tree', 'deciduous'] },
+        { symbol_key: 'tree_coniferous', category: 'point', name: 'Coniferous Tree', description: 'Pine or coniferous tree', svg: '<svg viewBox="0 0 24 24"><path d="M12 2L4 18H10V22H14V18H20L12 2Z" fill="currentColor"/></svg>', default_style: { color: '#0f766e', size: 24, opacity: 1.0 }, tags: ['environment', 'tree', 'conifer'] },
+        
+        // New Power Poles
+        { symbol_key: 'powerline_tower_ehv', category: 'point', name: 'EHV Transmission Tower', description: 'Extra High Voltage (400/220kV)', svg: '<svg viewBox="0 0 24 24"><path d="M12 2L4 22h3l1.5-6h7l1.5 6h3L12 2zm-4 12l4-10 4 10H8z" fill="currentColor"/></svg>', default_style: { color: '#dc2626', size: 28, opacity: 1.0 }, tags: ['utility', 'power', 'ehv'] },
+        { symbol_key: 'powerline_tower_hv', category: 'point', name: 'HV Transmission Tower', description: 'High Voltage (132kV)', svg: '<svg viewBox="0 0 24 24"><path d="M12 2L5 22h2.5l2-8h5l2 8H19L12 2zm-3 10l3-8 3 8H9z" fill="currentColor"/></svg>', default_style: { color: '#ea580c', size: 26, opacity: 1.0 }, tags: ['utility', 'power', 'hv'] },
+        { symbol_key: 'powerline_pole_mv33', category: 'point', name: 'MV Pole (33kV)', description: 'Medium Voltage Distribution (33kV)', svg: '<svg viewBox="0 0 24 24"><path d="M11 2v4H5v2h6v14h2V8h6V6h-6V2h-2z" fill="currentColor"/></svg>', default_style: { color: '#ca8a04', size: 24, opacity: 1.0 }, tags: ['utility', 'power', 'mv33'] },
+        { symbol_key: 'powerline_pole_mv11', category: 'point', name: 'MV Pole (11kV)', description: 'Medium Voltage Distribution (11kV)', svg: '<svg viewBox="0 0 24 24"><path d="M11 4v4H7v2h4v12h2V10h4V8h-4V4h-2z" fill="currentColor"/></svg>', default_style: { color: '#65a30d', size: 22, opacity: 1.0 }, tags: ['utility', 'power', 'mv11'] },
+        { symbol_key: 'powerline_pole_lv', category: 'point', name: 'LV Pole', description: 'Low Voltage Distribution (415/240V)', svg: '<svg viewBox="0 0 24 24"><path d="M11 6v4H8v2h3v10h2V12h3v-2h-3V6h-2z" fill="currentColor"/></svg>', default_style: { color: '#4b5563', size: 20, opacity: 1.0 }, tags: ['utility', 'power', 'lv'] },
+        
+        // New Power Lines
+        { symbol_key: 'powerline_ehv', category: 'line', name: 'EHV Line', description: 'Extra High Voltage Line', svg: null, default_style: { strokeColor: '#dc2626', strokeWidth: 4, strokeOpacity: 0.9, strokeDash: [] }, tags: ['utility', 'power', 'ehv', 'line'] },
+        { symbol_key: 'powerline_hv', category: 'line', name: 'HV Line', description: 'High Voltage Line', svg: null, default_style: { strokeColor: '#ea580c', strokeWidth: 3, strokeOpacity: 0.9, strokeDash: [] }, tags: ['utility', 'power', 'hv', 'line'] },
+        { symbol_key: 'powerline_mv33', category: 'line', name: 'MV Line (33kV)', description: 'Medium Voltage Line (33kV)', svg: null, default_style: { strokeColor: '#ca8a04', strokeWidth: 2.5, strokeOpacity: 0.9, strokeDash: [] }, tags: ['utility', 'power', 'mv33', 'line'] },
+        { symbol_key: 'powerline_mv11', category: 'line', name: 'MV Line (11kV)', description: 'Medium Voltage Line (11kV)', svg: null, default_style: { strokeColor: '#65a30d', strokeWidth: 2, strokeOpacity: 0.9, strokeDash: [] }, tags: ['utility', 'power', 'mv11', 'line'] },
+        { symbol_key: 'powerline_lv', category: 'line', name: 'LV Line', description: 'Low Voltage Line', svg: null, default_style: { strokeColor: '#4b5563', strokeWidth: 1.5, strokeOpacity: 0.9, strokeDash: [] }, tags: ['utility', 'power', 'lv', 'line'] }
     ];
 }
 
@@ -1449,6 +1471,26 @@ function handleDrawEnd(event) {
     // Clear any previous snapping interactions for a clean state
     clearDrawingSnapping();
     
+    const geomType = geometry.getType();
+    const isBuilding = selectedSymbol.symbol_key.startsWith('building_') || 
+                       ['school', 'health_facility', 'market', 'worship_place', 'public_office'].includes(selectedSymbol.symbol_key);
+
+    // Auto-save Points (except buildings) to allow continuous rapid drawing
+    if (geomType === 'Point' && !isBuilding) {
+        saveFeature(geometry, {
+            geom_type: geomType,
+            symbol_key: selectedSymbol.symbol_key,
+            name: `New ${selectedSymbol.name}`,
+            description: '',
+            status: 'existing',
+            style: selectedSymbol.default_style || {},
+            metadata: { height_m: selectedSymbol.symbol_key.startsWith('powerline_') ? 9 : 4 }
+        });
+        // Re-enable snapping for the next continuous draw
+        enableDrawingSnapping();
+        return;
+    }
+
     if (drawInteraction) {
         map.removeInteraction(drawInteraction);
         drawInteraction = null;
