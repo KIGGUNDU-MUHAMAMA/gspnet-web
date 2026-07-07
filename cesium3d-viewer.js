@@ -1727,9 +1727,11 @@
                 let e;
                 if (hasModel) {
                     let modelScale = 1.0;
-                    if (symbol_key.includes('lv')) modelScale = 8.0;
-                    else if (symbol_key.includes('mv')) modelScale = 11.0;
-                    else if (symbol_key.includes('tower')) modelScale = 0.004;
+                    if (symbol_key.includes('lv')) modelScale = 8.0;          // ~6m
+                    else if (symbol_key.includes('mv11')) modelScale = 12.0;  // ~9m
+                    else if (symbol_key.includes('mv33')) modelScale = 16.0;  // ~12m
+                    else if (symbol_key.includes('ehv')) modelScale = 0.0133; // ~40m
+                    else if (symbol_key.includes('tower')) modelScale = 0.01; // ~30m
 
                     e = viewer.entities.add({
                         position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], terrainHeight),
