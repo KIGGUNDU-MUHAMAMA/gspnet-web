@@ -1740,7 +1740,7 @@
             }
         } else if (type === 'LineString' || type === 'MultiLineString') {
             const lines = type === 'LineString' ? [geom.getCoordinates()] : geom.getCoordinates();
-            lines.forEach(lc => {
+            lines.forEach(async lc => {
                 if (!lc || lc.length < 2) return;
                 const pos = lc.map(c => {
                     const ll = ol.proj.transform(c, 'EPSG:3857', 'EPSG:4326');
