@@ -1844,7 +1844,7 @@
                     return Cesium.Cartesian3.fromDegrees(ll[0], ll[1]);
                 });
 
-                const isPowerLine = symbol_key.startsWith('powerline_') && !symbol_key.includes('pole') && !symbol_key.includes('tower');
+                const isPowerLine = symbol_key.includes('powerline') && !symbol_key.includes('pole') && !symbol_key.includes('tower');
                 if (isPowerLine) {
                     let color = '#9ca3af';
                     let width = 1.5;
