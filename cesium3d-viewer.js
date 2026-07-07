@@ -1727,8 +1727,9 @@
                 let e;
                 if (hasModel) {
                     let modelScale = 1.0;
-                    if (symbol_key.includes('lv') || symbol_key.includes('mv')) modelScale = 30.0;
-                    if (symbol_key.includes('tower')) modelScale = 0.015;
+                    if (symbol_key.includes('lv')) modelScale = 8.0;
+                    else if (symbol_key.includes('mv')) modelScale = 11.0;
+                    else if (symbol_key.includes('tower')) modelScale = 0.004;
 
                     e = viewer.entities.add({
                         position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], terrainHeight),
@@ -1781,7 +1782,7 @@
                         position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], terrainHeight),
                         model: {
                             uri: `assets/models/${symbol_key}.glb`,
-                            scale: 85.0,
+                            scale: 18.0,
                             minimumPixelSize: 48
                         },
                         name: name || 'Tree',
