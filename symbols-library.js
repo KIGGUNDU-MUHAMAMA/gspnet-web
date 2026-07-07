@@ -464,6 +464,7 @@ function createPointStyle(symbol, style, props, displayName = '') {
 
     // Tint SVG icon with color
     let svg = symbol.svg || '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>';
+    if (!svg.includes('xmlns=')) svg = svg.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ');
     if (!svg.includes('width=')) svg = svg.replace('<svg ', '<svg width="24" height="24" ');
     svg = svg.replace(/currentColor/g, color);
 
