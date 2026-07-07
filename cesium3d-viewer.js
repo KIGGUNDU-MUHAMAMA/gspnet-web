@@ -1726,11 +1726,16 @@
                 const hasModel = await checkHasModel(symbol_key);
                 let e;
                 if (hasModel) {
+                    let modelScale = 1.0;
+                    if (symbol_key.includes('lv') || symbol_key.includes('mv')) modelScale = 30.0;
+                    if (symbol_key.includes('tower')) modelScale = 0.08;
+
                     e = viewer.entities.add({
                         position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], terrainHeight),
                         model: {
                             uri: `assets/models/${symbol_key}.glb`,
-                            scale: 1.0,
+                            scale: modelScale,
+                            minimumPixelSize: 64,
                             heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
                         },
                         name: name || 'Power Pole',
@@ -1777,7 +1782,8 @@
                         position: Cesium.Cartesian3.fromDegrees(ll[0], ll[1], terrainHeight),
                         model: {
                             uri: `assets/models/${symbol_key}.glb`,
-                            scale: 1.0,
+                            scale: 45.0,
+                            minimumPixelSize: 64,
                             heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
                         },
                         name: name || 'Tree',
