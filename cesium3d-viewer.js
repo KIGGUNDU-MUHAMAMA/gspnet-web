@@ -1868,7 +1868,37 @@
                         cartographics.forEach(c => { c.height = viewer.scene.globe.getHeight(c) || 0; });
                     }
 
-                    const curvePositions = [];
+                    const wireConfigs = [];
+                    if (symbol_key.includes('ehv')) {
+                        wireConfigs.push({ offsetRight: -4, offsetHeight: -5 });
+                        wireConfigs.push({ offsetRight: -5.5, offsetHeight: -13 });
+                        wireConfigs.push({ offsetRight: -4, offsetHeight: -21 });
+                        wireConfigs.push({ offsetRight: 4, offsetHeight: -5 });
+                        wireConfigs.push({ offsetRight: 5.5, offsetHeight: -13 });
+                        wireConfigs.push({ offsetRight: 4, offsetHeight: -21 });
+                        wireConfigs.push({ offsetRight: -2, offsetHeight: 0 }); // Shield
+                        wireConfigs.push({ offsetRight: 2, offsetHeight: 0 });  // Shield
+                    } else if (symbol_key.includes('_hv')) {
+                        wireConfigs.push({ offsetRight: -3, offsetHeight: -2 });
+                        wireConfigs.push({ offsetRight: -4, offsetHeight: -7 });
+                        wireConfigs.push({ offsetRight: -3, offsetHeight: -12 });
+                        wireConfigs.push({ offsetRight: 3, offsetHeight: -2 });
+                        wireConfigs.push({ offsetRight: 4, offsetHeight: -7 });
+                        wireConfigs.push({ offsetRight: 3, offsetHeight: -12 });
+                    } else if (symbol_key.includes('mv33')) {
+                        wireConfigs.push({ offsetRight: 0, offsetHeight: 0 });
+                        wireConfigs.push({ offsetRight: -1.2, offsetHeight: 0 });
+                        wireConfigs.push({ offsetRight: 1.2, offsetHeight: 0 });
+                    } else if (symbol_key.includes('mv11')) {
+                        wireConfigs.push({ offsetRight: 0, offsetHeight: 0 });
+                        wireConfigs.push({ offsetRight: -0.8, offsetHeight: 0 });
+                        wireConfigs.push({ offsetRight: 0.8, offsetHeight: 0 });
+                    } else {
+                        wireConfigs.push({ offsetRight: 0, offsetHeight: 0 });
+                    }
+
+                    const allWires = wireConfigs.map(() => []);
+
                     for (let i = 0; i < cartographics.length - 1; i++) {
                         const ptA = cartographics[i];
                         const ptB = cartographics[i + 1];
@@ -1880,10 +1910,22 @@
                         const cartA = Cesium.Cartesian3.fromRadians(ptA.longitude, ptA.latitude, hA);
                         const cartB = Cesium.Cartesian3.fromRadians(ptB.longitude, ptB.latitude, hB);
 
+                        // Calculate Right vector for perpendicular offsets
+                        const forward = new Cesium.Cartesian3();
+                        Cesium.Cartesian3.subtract(cartB, cartA, forward);
+                        Cesium.Cartesian3.normalize(forward, forward);
+
+                        const up = new Cesium.Cartesian3();
+                        Cesium.Cartesian3.normalize(cartA, up);
+
+                        const right = new Cesium.Cartesian3();
+                        Cesium.Cartesian3.cross(forward, up, right);
+                        Cesium.Cartesian3.normalize(right, right);
+
                         const segments = 10;
                         const dist = Cesium.Cartesian3.distance(cartA, cartB);
-                        let sag = dist * 0.05; // 5% sag factor
-                        if (!symbol_key.includes('lv') && !symbol_key.includes('mv')) sag = 0;
+                        let sag = dist * 0.05; 
+                        if (!symbol_key.includes('lv') && !symbol_key.includes('mv')) sag = dist * 0.03; // HV sags slightly less
 
                         for (let j = 0; j <= segments; j++) {
                             if (j === 0 && i > 0) continue; // Avoid duplicate vertex
@@ -1894,18 +1936,31 @@
                             
                             // Parabolic sag equation: 4 * sag * (t^2 - t)
                             const currentSag = 4 * sag * (t * t - t);
-                            curvePositions.push(Cesium.Cartesian3.fromRadians(lon, lat, h + currentSag));
+                            
+                            wireConfigs.forEach((wire, wIdx) => {
+                                const baseCartesian = Cesium.Cartesian3.fromRadians(lon, lat, h + currentSag + wire.offsetHeight);
+                                
+                                const offsetVec = new Cesium.Cartesian3();
+                                Cesium.Cartesian3.multiplyByScalar(right, wire.offsetRight, offsetVec);
+                                
+                                const finalPos = new Cesium.Cartesian3();
+                                Cesium.Cartesian3.add(baseCartesian, offsetVec, finalPos);
+                                
+                                allWires[wIdx].push(finalPos);
+                            });
                         }
                     }
 
-                    const e = viewer.entities.add({
-                        polyline: {
-                            positions: curvePositions,
-                            width: width,
-                            material: Cesium.Color.fromCssColorString(color)
-                        }
+                    allWires.forEach(positions => {
+                        const e = viewer.entities.add({
+                            polyline: {
+                                positions: positions,
+                                width: width,
+                                material: Cesium.Color.fromCssColorString(color)
+                            }
+                        });
+                        symbolsLibEntities.add(e.id);
                     });
-                    symbolsLibEntities.add(e.id);
                 } else {
                     const e = viewer.entities.add({
                         polyline: {
