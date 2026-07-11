@@ -374,10 +374,12 @@ function setupFeaturesLayer() {
         wrapX: false
     });
 
+    const maxResMultiplier = window.innerWidth <= 768 ? 5 : 1;
     featuresLayer = new ol.layer.Vector({
         source: featuresSource,
         style: featureStyleFunction,
-        zIndex: 1000 // High z-index to render above other layers
+        zIndex: 1000, // High z-index to render above other layers
+        maxResolution: 5.0 * maxResMultiplier // Hide at distant zoom levels
     });
 
     map.addLayer(featuresLayer);
@@ -459,7 +461,7 @@ function featureStyleFunction(feature) {
  */
 function createPointStyle(symbol, style, props, displayName = '') {
     const color = style.color || '#000000';
-    const size = style.size || 24;
+    const size = (style.size || 24) * 0.6; // Scale down 2D symbols by 40% to prevent clutter
     const opacity = style.opacity !== undefined ? style.opacity : 1.0;
 
     // Tint SVG icon with color
