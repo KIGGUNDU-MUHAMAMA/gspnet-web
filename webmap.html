@@ -22590,6 +22590,8 @@
                 visible: false
             }));
 
+            const maxResMultiplier = window.innerWidth <= 768 ? 5 : 1;
+
             // Build layers with deferred loading (only download .fgb when toggled visible)
             layerConfigs.forEach(config => {
                 const source = new ol.source.Vector({
@@ -22604,7 +22606,7 @@
                 const layer = new ol.layer.Vector({
                     title: config.name,
                     source: source,
-                    maxResolution: isProtected || isForest ? 10 : 5.0,
+                    maxResolution: (isProtected || isForest ? 10 : 5.0) * maxResMultiplier,
                     style: isForest ?
                         function (feature) { return getForestReservesStyle(feature); } :
                         isProtected ?
@@ -22804,7 +22806,7 @@
                     zIndex: 600,
                     style: config.styleFn,
                     visible: false,
-                    maxResolution: 5.0
+                    maxResolution: 5.0 * maxResMultiplier
                 });
 
                 // Deferred flatgeobuf loading
@@ -23625,7 +23627,7 @@
                 const layer = new ol.layer.Vector({
                     title: config.name,
                     source: source,
-                    maxResolution: 10,
+                    maxResolution: 10 * maxResMultiplier,
                     style: isWetlands ? 
                         function(feature) { return getWetlandsStyle(feature); } :
                         isForest ?
