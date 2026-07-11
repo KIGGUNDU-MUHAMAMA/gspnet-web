@@ -22425,9 +22425,9 @@
 
             // Define Environmental Layers (Wetlands, Forests, Protected Areas)
             const environmentalData = [
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson/uganda_wetlands.fgb', fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/geojeson/uganda_wetlands.fgb', title: 'NEMA' },
-                { url: 'https://data.geospatialnetworkug.xyz/WAKISO/uganda-forests-reserve.fgb', title: 'Uganda Forests Reserve' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/protectedareas.fgb', title: 'Protected Areas' }
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson/uganda_wetlands.fgb', fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/geojeson/uganda_wetlands.fgb', title: 'NEMA (REF)' },
+                { url: 'https://data.geospatialnetworkug.xyz/WAKISO/uganda-forests-reserve.fgb', title: 'Uganda Forests Reserve (REF)' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/protectedareas.fgb', title: 'Protected Areas (REF)' }
             ];
 
             // Create buffered extent function for FlatGeobuf loading strategy
@@ -22596,8 +22596,8 @@
                     strategy: ol.loadingstrategy.bbox
                 });
                 // Blocks layers removed per compliance agreement — no isBlock needed
-                const isProtected = config.name === 'Protected Areas';
-                const isForest = config.name === 'Uganda Forests Reserve';
+                const isProtected = config.name === 'Protected Areas (REF)';
+                const isForest = config.name === 'Uganda Forests Reserve (REF)';
                 // Mityana ref layer has its own style function (historical data structure difference)
                 const isMitRef = config.name === 'GSPNET-MIT-REF';
 
@@ -23484,15 +23484,15 @@
 
                 // Only add label when zoomed in enough (res <= 5.0, ~500m)
                 if (resolution <= RES_THRESHOLD.LABELS) {
-                    const nlisId = feature.get('nlis_id');
-                    if (nlisId) {
+                    const refId = feature.get('__refId') || 'REF-ENV';
+                    if (refId) {
                         const centroid = ol.extent.getCenter(geometry.getExtent());
                         styles.push(new ol.style.Style({
                             geometry: new ol.geom.Point(centroid),
                             text: new ol.style.Text({
-                                text: nlisId.toString(),
-                                font: 'bold 12px sans-serif',
-                                fill: new ol.style.Fill({ color: '#000000' }),
+                                text: refId.toString(),
+                                font: 'italic bold 12px sans-serif',
+                                fill: new ol.style.Fill({ color: '#888888' }), // Grey out slightly to show it's reference
                                 stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
                                 textAlign: 'center',
                                 textBaseline: 'middle',
@@ -23521,15 +23521,15 @@
 
                 // Only add label when zoomed in enough (res <= 5.0, ~500m)
                 if (resolution <= RES_THRESHOLD.LABELS) {
-                    const name = feature.get('Name') || feature.get('name');
-                    if (name) {
+                    const refId = feature.get('__refId') || 'REF-ENV';
+                    if (refId) {
                         const centroid = ol.extent.getCenter(geometry.getExtent());
                         styles.push(new ol.style.Style({
                             geometry: new ol.geom.Point(centroid), // centroid is safe for multipoly via getExtent
                             text: new ol.style.Text({
-                                text: name.toString(),
-                                font: 'bold 12px sans-serif',
-                                fill: new ol.style.Fill({ color: '#004d00' }), // Dark Green
+                                text: refId.toString(),
+                                font: 'italic bold 12px sans-serif',
+                                fill: new ol.style.Fill({ color: '#888888' }), 
                                 stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
                                 textAlign: 'center',
                                 textBaseline: 'middle',
@@ -23583,15 +23583,15 @@
 
                 // Only add label when zoomed in enough
                 if (resolution <= RES_THRESHOLD.LABELS) {
-                    let name = feature.get('class_name') || feature.get('descriptio') || feature.get('waterwash') || feature.get('name') || feature.get('Name') || '';
-                    if (name) {
+                    let refId = feature.get('__refId') || 'REF-ENV';
+                    if (refId) {
                         const centroid = ol.extent.getCenter(geometry.getExtent());
                         styles.push(new ol.style.Style({
                             geometry: new ol.geom.Point(centroid),
                             text: new ol.style.Text({
-                                text: name.toString(),
-                                font: 'bold 12px sans-serif',
-                                fill: new ol.style.Fill({ color: '#2ecc71' }),
+                                text: refId.toString(),
+                                font: 'italic bold 12px sans-serif',
+                                fill: new ol.style.Fill({ color: '#888888' }),
                                 stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
                                 textAlign: 'center',
                                 textBaseline: 'middle',
@@ -23605,6 +23605,7 @@
 
             // Create Environmental Layers Group
             const environmentalLayersArray = [];
+            let envRefCounter = 1;
             const environmentalConfigs = environmentalData.map(layerData => ({
                 name: layerData.title,
                 url: layerData.url,
@@ -23617,9 +23618,9 @@
                     strategy: ol.loadingstrategy.bbox
                 });
                 
-                const isWetlands = config.name === 'NEMA';
-                const isForest = config.name === 'Uganda Forests Reserve';
-                const isProtected = config.name === 'Protected Areas';
+                const isWetlands = config.name === 'NEMA (REF)';
+                const isForest = config.name === 'Uganda Forests Reserve (REF)';
+                const isProtected = config.name === 'Protected Areas (REF)';
 
                 const layer = new ol.layer.Vector({
                     title: config.name,
@@ -23645,6 +23646,9 @@
                     const feature = evt.feature;
                     if (feature && typeof feature.set === 'function') {
                         feature.set('__layerTitle', config.name, true);
+                        if (!feature.get('__refId')) {
+                            feature.set('__refId', 'REF-ENV-' + String(envRefCounter++).padStart(3, '0'), true);
+                        }
                     }
                 });
 
@@ -23691,7 +23695,7 @@
             });
 
             const environmentalLayerGroup = new ol.layer.Group({
-                title: 'ENVIRONMENTAL LAYERS',
+                title: 'Environmental Reference Data',
                 fold: 'close',
                 layers: environmentalLayersArray,
                 zIndex: 890 // Below GSPNET Layers but above basemaps
@@ -48725,12 +48729,36 @@ function smoothChaikin(points) {
                     });
 
                     if (feature) {
+                        // Check if this is an Environmental Reference feature
+                        if (feature.get('__refId')) {
+                            const refId = feature.get('__refId');
+                            const layerName = feature.get('__layerTitle') || 'Environmental Reference';
+                            
+                            featureInfoContent.innerHTML = `
+                                <div style="font-family:'Inter',system-ui,sans-serif;padding:4px 0;">
+                                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                                        <span style="background:#0f766e;color:#fff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.5px;">REF DATA</span>
+                                        <span style="font-size:11px;color:#64748b;">${layerName}</span>
+                                    </div>
+
+                                    <div style="background:linear-gradient(135deg,#042f2e,#115e59);border-radius:10px;padding:14px 16px;margin-bottom:12px;text-align:center;">
+                                        <div style="color:#94a3b8;font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">System ID</div>
+                                        <div style="color:#fff;font-size:22px;font-weight:800;letter-spacing:2px;">${refId}</div>
+                                    </div>
+
+                                    <div style="background:#fef2f2;border-left:3px solid #ef4444;border-radius:0 6px 6px 0;padding:10px 12px;font-size:11px;color:#b91c1c;line-height:1.6;">
+                                        <strong>⚠️ NOTICE:</strong> This data is for reference purposes only and is not official. Please consult the relevant authoritative bodies (e.g., NEMA, NFA) for official environmental mapping.
+                                    </div>
+                                </div>`;
+                            return;
+                        }
+
                         const props = feature.getProperties();
                         let content = '<h3>Feature Information</h3>';
                         content += '<table border="1" style="border-collapse:collapse; font-size:12px; width:100%; margin-top:10px;">';
 
                         for (let key in props) {
-                            if (key !== 'geometry') {
+                            if (key !== 'geometry' && !key.startsWith('__')) {
                                 content += `<tr><td style="padding:4px; background-color:#f5f5f5; font-weight:bold;">${key}</td><td style="padding:4px;">${props[key]}</td></tr>`;
                             }
                         }
