@@ -1887,12 +1887,12 @@
                         wireConfigs.push({ offsetRight: 3, offsetHeight: -12 });
                     } else if (symbol_key.includes('mv33')) {
                         wireConfigs.push({ offsetRight: 0, offsetHeight: 0 });
-                        wireConfigs.push({ offsetRight: -1.2, offsetHeight: 0 });
-                        wireConfigs.push({ offsetRight: 1.2, offsetHeight: 0 });
+                        wireConfigs.push({ offsetRight: -3, offsetHeight: 0 });
+                        wireConfigs.push({ offsetRight: 3, offsetHeight: 0 });
                     } else if (symbol_key.includes('mv11')) {
                         wireConfigs.push({ offsetRight: 0, offsetHeight: 0 });
-                        wireConfigs.push({ offsetRight: -0.8, offsetHeight: 0 });
-                        wireConfigs.push({ offsetRight: 0.8, offsetHeight: 0 });
+                        wireConfigs.push({ offsetRight: -3, offsetHeight: 0 });
+                        wireConfigs.push({ offsetRight: 3, offsetHeight: 0 });
                     } else {
                         wireConfigs.push({ offsetRight: 0, offsetHeight: 0 });
                     }
