@@ -379,7 +379,7 @@ function setupFeaturesLayer() {
         source: featuresSource,
         style: featureStyleFunction,
         zIndex: 1000, // High z-index to render above other layers
-        maxResolution: 5.0 * maxResMultiplier // Hide at distant zoom levels
+        maxResolution: 2.0 * maxResMultiplier // Hide at distant zoom levels
     });
 
     map.addLayer(featuresLayer);
@@ -391,7 +391,12 @@ function setupFeaturesLayer() {
  */
 const styleCache = new Map();
 
-function featureStyleFunction(feature) {
+function featureStyleFunction(feature, resolution) {
+    const maxResMultiplier = window.innerWidth <= 768 ? 5 : 1;
+    if (resolution > 2.0 * maxResMultiplier) {
+        return null;
+    }
+
     const props = feature.getProperties();
     const symbolKey = props.symbol_key;
     const geomType = normalizeGeomType(props.geom_type || props.category);
