@@ -156,7 +156,10 @@
         // ============================================
         const SUPABASE_URL = 'https://kwssgfanbntfjdclchfi.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3c3NnZmFuYm50ZmpkY2xjaGZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNjM4ODUsImV4cCI6MjA3MDkzOTg4NX0.zPKcOwWdWu3-7ii19c2ep6g2i-kCTaUBZablTYDgZwA';
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Guard: only call createClient if the Supabase CDN has loaded
+        const supabaseClient = (window.supabase && typeof window.supabase.createClient === 'function')
+            ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+            : null;
         window.supabaseClient = supabaseClient; // Store globally to prevent duplicate initialization
 
         // ============================================
@@ -2939,8 +2942,13 @@
         window.supabaseKey = window.supabaseKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3c3NnZmFuYm50ZmpkY2xjaGZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNjM4ODUsImV4cCI6MjA3MDkzOTg4NX0.zPKcOwWdWu3-7ii19c2ep6g2i-kCTaUBZablTYDgZwA';
         const supabaseUrl = window.supabaseUrl;
         const supabaseKey = window.supabaseKey;
-        if (typeof window.supabaseClient === 'undefined') {
-            supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        if (typeof window.supabaseClient === 'undefined' || window.supabaseClient === null) {
+            // Guard: only init if CDN is loaded and supabaseClient not already set
+            if (window.supabase && typeof window.supabase.createClient === 'function') {
+                supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+            } else {
+                supabase = null;
+            }
             window.supabaseClient = supabase; // Store in window for global access
         } else {
             supabase = window.supabaseClient;
@@ -16373,6 +16381,9 @@
                                     <button class="measurement-btn" id="measureAzimuth" title="Measure Azimuth">
                                         <i class="fas fa-compass"></i> Azimuth
                                     </button>
+                                    <button class="measurement-btn" id="measureAnnotate" title="Annotate Parcel Boundaries">
+                                        <i class="fas fa-pencil-ruler"></i> Annotate
+                                    </button>
                                 </div>
 
                                 <div class="measurement-actions">
@@ -19543,9 +19554,7 @@
                 <div class="parcel-search-panel-body">
                     <form id="parcelSearchForm" class="parcel-search-form">
                         <div class="form-group" style="display: flex; gap: 12px; margin-bottom: 15px; justify-content: center; border-bottom: 1px solid #eee; padding-bottom: 10px; flex-wrap: wrap;">
-                            <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-weight: 500;">
-                                <input type="radio" name="searchType" value="blockplot" onchange="toggleParcelSearchMode('blockplot')"> Block / Plot
-                            </label>
+
                             <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-weight: 500;">
                                 <input type="radio" name="searchType" value="parcels" checked onchange="toggleParcelSearchMode('parcels')"> Survey Parcels
                             </label>
@@ -22384,53 +22393,34 @@
             graticule.setMap(map);
 
             // Define all layers from the provided list (using working SRS codes from 8.html)
-            // FlatGeobuf layer configurations from FLATGEOBUF-LAYERS.txt
+            // FlatGeobuf layer configurations — GSPNET Reference Cadastral Layers
+            // NOTE: Renamed per compliance agreement with Commissioner of Lands & Surveys, Uganda.
+            // Blocks layers removed. NLIS naming removed. Internal GSPNET-XXX-REF codes used.
             const layersData = [
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/arua.nlis.fgb', title: 'Arua NLIS' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/gulu.nlis.fgb', title: 'Gulu NLIS' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/gulublocks.fgb', title: 'Gulu Blocks' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/jinja.nlis.fgb', title: 'Jinja NLIS' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/jinjablocks.fgb', title: 'Jinja Blocks' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/kabale.nlis.fgb', title: 'Kabale NLIS' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/kabaleblocks.fgb', title: 'Kabale Blocks' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/kabalore.nlis.fgb', title: 'Kabalore NLIS' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/kabaloreblocks.fgb', title: 'Kabalore Blocks' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/kampala.nlsi1.fgb', title: 'Kampala NLSI 1' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/kampala.nlsi2.fgb', title: 'Kampala NLSI 2' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/kampalablocks.fgb', title: 'Kampala Blocks' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/kibaale.nlis.fgb', title: 'Kibaale NLIS' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/kibaaleblocks.fgb', title: 'Kibaale Blocks' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/lira.nlis.fgb', title: 'Lira NLIS' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/lirablocks.fgb', title: 'Lira Blocks' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/luwero.nlis.fgb', title: 'Luwero NLIS' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/luweroblocks.fgb', title: 'Luwero Blocks' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/masaka.nlis.fgb', title: 'Masaka NLIS' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/masakablocks.fgb', title: 'Masaka Blocks' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/masindi.nlis.fgb', title: 'Masindi NLIS' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/masindiblocks.fgb', title: 'Masindi Blocks' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/mbale.nlis.fgb', title: 'Mbale NLIS' },
-                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/mbaleblocks.fgb', title: 'Mbale Blocks' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mbarara.nlis.fgb', title: 'Mbarara NLIS' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mbararablocks.fgb', title: 'Mbarara Blocks' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson/mityana.nlis.fgb', fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/geojeson/mityana.nlis.fgb', title: 'Mityana NLIS' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson/mityana.blocks.fgb', fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/geojeson/mityana.blocks.fgb', title: 'Mityana Blocks' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/moroto.nlis.fgb', title: 'Moroto NLIS' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/morotoblock.fgb', title: 'Moroto Block' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mpigi.nlis.fgb', title: 'Mpigi NLIS' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mpigiblocks.fgb', title: 'Mpigi Blocks' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson/mukono.nlis1.fgb', title: 'Mukono NLIS 1' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson/mukono.nlis2.fgb', title: 'Mukono NLIS 2' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson/mukono.blocks.fgb', title: 'Mukono Blocks' },
-
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/rukingiri.nlis.fgb', title: 'Rukungiri NLIS' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/rukungiriblocks.fgb', title: 'Rukungiri Blocks' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/Ssoroti.nlis.fgb', title: 'Soroti NLIS' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/sorotiblocks.fgb', title: 'Soroti Blocks' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/tororo.nlis.fgb', title: 'Tororo NLIS' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/tororoblocks.fgb', title: 'Tororo Blocks' },
-                { url: 'https://data.geospatialnetworkug.xyz/WAKISO/wakiso.nlis1.fgb', title: 'Wakiso NLIS 1' },
-                { url: 'https://data.geospatialnetworkug.xyz/WAKISO/wakiso.nlis2.fgb', title: 'Wakiso NLIS 2' },
-                { url: 'https://data.geospatialnetworkug.xyz/WAKISO/wakisoblocks.fgb', title: 'Wakiso Blocks' }
+                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/arua.nlis.fgb', title: 'GSPNET-ARU-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/gulu.nlis.fgb', title: 'GSPNET-GUL-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/jinja.nlis.fgb', title: 'GSPNET-JIN-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/kabale.nlis.fgb', title: 'GSPNET-KAB-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/kabalore.nlis.fgb', title: 'GSPNET-KLR-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/kampala.nlsi1.fgb', title: 'GSPNET-KLA-REF-A' },
+                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/kampala.nlsi2.fgb', title: 'GSPNET-KLA-REF-B' },
+                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/kibaale.nlis.fgb', title: 'GSPNET-KIB-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/lira.nlis.fgb', title: 'GSPNET-LIR-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/luwero.nlis.fgb', title: 'GSPNET-LUW-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/masaka.nlis.fgb', title: 'GSPNET-MSK-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/masindi.nlis.fgb', title: 'GSPNET-MSN-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/mbale.nlis.fgb', title: 'GSPNET-MBA-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mbarara.nlis.fgb', title: 'GSPNET-MBR-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson/mityana.nlis.fgb', fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/geojeson/mityana.nlis.fgb', title: 'GSPNET-MIT-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/moroto.nlis.fgb', title: 'GSPNET-MOR-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mpigi.nlis.fgb', title: 'GSPNET-MPI-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson/mukono.nlis1.fgb', title: 'GSPNET-MUK-REF-A' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson/mukono.nlis2.fgb', title: 'GSPNET-MUK-REF-B' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/rukingiri.nlis.fgb', title: 'GSPNET-RUK-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/Ssoroti.nlis.fgb', title: 'GSPNET-SRT-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/tororo.nlis.fgb', title: 'GSPNET-TRR-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/WAKISO/wakiso.nlis1.fgb', title: 'GSPNET-WKS-REF-A' },
+                { url: 'https://data.geospatialnetworkug.xyz/WAKISO/wakiso.nlis2.fgb', title: 'GSPNET-WKS-REF-B' }
             ];
 
             // Define Environmental Layers (Wetlands, Forests, Protected Areas)
@@ -22493,9 +22483,9 @@
 
             // Resolution thresholds for progressive detail
             const RES_THRESHOLD = {
-                LABELS: 5.0,      // ~500m scale bar: show polygons + labels
-                DISTANCES: 2.0,   // ~200m scale bar: add distance measurements
-                FULL_DETAIL: 1.0  // ~100m scale bar: all details (markers, haversine, etc.)
+                LABELS: 1.5,      // ~150m scale bar: show labels only when zoomed in close
+                DISTANCES: 0.8,   // ~80m scale bar: add distance measurements
+                FULL_DETAIL: 0.45 // ~45m scale bar: all details (markers, haversine, etc.)
             };
             // Additional zoom gates for expensive vector detail on heavy FlatGeobuf layers.
             // Keep boundaries responsive at wider scales; render heavy annotations only when closer.
@@ -22605,30 +22595,23 @@
                 const source = new ol.source.Vector({
                     strategy: ol.loadingstrategy.bbox
                 });
-                const isBlock = config.name.toLowerCase().includes('blocks') || config.name.toLowerCase().includes('block');
+                // Blocks layers removed per compliance agreement — no isBlock needed
                 const isProtected = config.name === 'Protected Areas';
                 const isForest = config.name === 'Uganda Forests Reserve';
-                const isMityanaBlocks = config.name === 'Mityana Blocks';
-                const isMityanaBlock = config.name === 'Mityana Block';
-                const isMityanaNlis = config.name === 'Mityana NLIS';
+                // Mityana ref layer has its own style function (historical data structure difference)
+                const isMitRef = config.name === 'GSPNET-MIT-REF';
 
                 const layer = new ol.layer.Vector({
                     title: config.name,
                     source: source,
-                    maxResolution: isBlock || isProtected || isForest ? 10 : 5.0,
+                    maxResolution: isProtected || isForest ? 10 : 5.0,
                     style: isForest ?
                         function (feature) { return getForestReservesStyle(feature); } :
                         isProtected ?
                         function (feature) { return getProtectedAreasStyle(feature); } :
-                        config.name === 'Mukono Blocks' ?
-                            function (feature) { return getMukonoBlocksStyle(feature); } :
-                        (isMityanaBlocks || isMityanaBlock) ?
-                            function (feature) { return getMityanaBlocksStyle(feature); } :
-                        isMityanaNlis ?
-                            function (feature) { return getMityanaNlisStyle(feature); } :
-                            isBlock ?
-                                function (feature) { return getBlockBoundaryStyle(feature); } :
-                                function (feature) { return getFlatGeobufParcelStyle(feature); },
+                        isMitRef ?
+                            function (feature) { return getMitRefStyle(feature); } :
+                            function (feature) { return getGspnetRefStyle(feature); },
                     visible: config.visible
                 });
 
@@ -23155,12 +23138,13 @@
                 return vincentyDistance(p1[0], p1[1], p2[0], p2[1]);
             }
 
-            // NLIS Polygon style function — RESOLUTION-AWARE
-            // Tier 1 (res <= 5.0, ~500m): Stroke + labels
-            // Tier 2: + distance labels (gated by DETAIL_ZOOM_GATE.DISTANCES)
-            // Tier 3: + corner circles (gated by DETAIL_ZOOM_GATE.FULL_DETAIL)
+            // GSPNET Reference Cadastral Style — RESOLUTION-AWARE
+            // Compliance: No NLIS IDs, no plot numbers, no distance annotations.
+            // Internal R-XXXX Ref ID shown at label zoom. Corner circles kept.
+            // Tier 1 (res <= 5.0): Stroke + internal Ref ID label
+            // Tier 2 (FULL_DETAIL): + corner circles
             // In PRINT_EXPORT_SCALE mode: all tiers always active, sizes scaled up.
-            function getNlisPolygonStyle(feature) {
+            function getGspnetRefStyle(feature) {
                 const geometry = feature.getGeometry();
                 const geomType = geometry ? geometry.getType() : null;
                 if (!geometry || (geomType !== 'Polygon' && geomType !== 'MultiPolygon')) {
@@ -23168,15 +23152,10 @@
                 }
 
                 // ── Export-aware resolution + size scaling ──
-                // When PRINT_EXPORT_SCALE is set, bypass all resolution gates and scale
-                // font sizes / stroke widths up by the export factor so they print crisply.
                 const exportScale = window.PRINT_EXPORT_SCALE || 1;
                 const isExport = exportScale > 1;
 
                 const view = map.getView();
-                // Use the effective resolution: in export mode we divide by scale because
-                // the temp map renders at resolution/scale (2× DPI), so the style function
-                // must use the correspondingly lower threshold to pass the gate.
                 const resolution = isExport
                     ? view.getResolution() / exportScale
                     : view.getResolution();
@@ -23184,8 +23163,7 @@
                 // For MultiPolygon, use the first polygon's outer ring
                 const coordinates = geomType === 'MultiPolygon' ? geometry.getCoordinates()[0][0] : geometry.getCoordinates()[0];
 
-                // TIER 1: Always show base strokes
-                // In export mode, use thicker strokes scaled to the canvas DPI.
+                // TIER 1: Always show base strokes (scaled in export)
                 let baseStyles;
                 if (isExport) {
                     baseStyles = [
@@ -23209,25 +23187,35 @@
                 }
                 const styles = baseStyles;
 
-                // Fast first paint for perceived performance on first visibility toggle.
-                // Skip fast-render gate entirely during export so labels always show.
+                // Fast first paint — skip enrichment on initial load
                 if (!isExport && isLayerInFastRender(feature)) {
                     return styles;
                 }
 
-                // TIER 1: Show polygon label at 500m zoom (or always in export)
+                // TIER 1: Show internal GSPNET Ref ID at label zoom (R-XXXX format)
+                // This ID is derived from the feature's sequential index within its source.
+                // It has NO relationship to any NLIS, plot, or government identifier.
                 if (isExport || resolution <= RES_THRESHOLD.LABELS) {
-                    // Try multiple field name variants (same as getMityanaNlisStyle)
-                    const nlisId = feature.get('nlis_id') || feature.get('NLIS_ID') || feature.get('PlotNumber')
-                        || feature.get('Plot Number') || feature.get('plot_number') || feature.get('PLOT NO')
-                        || feature.get('Number_') || feature.get('nlis_id');
-                    if (nlisId != null) {
+                    const cacheKey = '__gspnetRefIdLabelCache';
+                    let labelCache = feature.get(cacheKey);
+                    if (!labelCache || labelCache.revision !== geomRevision) {
+                        // Generate internal Ref ID from feature's unique ID in the FGB source
+                        const rawId = feature.getId != null ? feature.getId() : null;
+                        let refIndex = 1;
+                        if (rawId != null && !isNaN(parseInt(rawId))) {
+                            refIndex = Math.abs(parseInt(rawId)) % 9999 + 1;
+                        } else {
+                            // Fallback: use geometry centroid hash as a stable index
+                            const ext = geometry.getExtent();
+                            refIndex = (Math.abs(Math.round((ext[0] + ext[1]) * 100)) % 9999) + 1;
+                        }
+                        const refId = 'R-' + String(refIndex).padStart(4, '0');
                         const centroid = ol.extent.getCenter(geometry.getExtent());
                         const fontSize = isExport ? Math.round(11 * exportScale) : 11;
-                        styles.push(new ol.style.Style({
+                        const labelStyle = new ol.style.Style({
                             geometry: new ol.geom.Point(centroid),
                             text: new ol.style.Text({
-                                text: nlisId.toString(),
+                                text: refId,
                                 font: `bold ${fontSize}px sans-serif`,
                                 fill: new ol.style.Fill({ color: '#000000' }),
                                 stroke: new ol.style.Stroke({
@@ -23238,48 +23226,16 @@
                                 textBaseline: 'middle',
                                 overflow: true
                             })
-                        }));
+                        });
+                        labelCache = { revision: geomRevision, style: labelStyle };
+                        feature.set(cacheKey, labelCache, true);
                     }
+                    styles.push(labelCache.style);
                 }
 
-                // TIER 2: Distance labels only at closer zoom (or always in export)
-                if (isExport || resolution <= DETAIL_ZOOM_GATE.DISTANCES) {
-                    const cacheKey = isExport ? '__nlisDistanceStylesCacheExport' : '__nlisDistanceStylesCache';
-                    let distanceStylesCache = feature.get(cacheKey);
-                    if (!distanceStylesCache || distanceStylesCache.revision !== geomRevision) {
-                        const distanceStyles = [];
-                        for (let i = 0; i < coordinates.length - 1; i++) {
-                            const distanceMeters = getEdgeDistance(coordinates[i], coordinates[i + 1]);
-                            const edgeLine = new ol.geom.LineString([coordinates[i], coordinates[i + 1]]);
-                            const fontSize = isExport ? Math.round(12 * exportScale) : 12;
-                            distanceStyles.push(new ol.style.Style({
-                                text: new ol.style.Text({
-                                    text: `${distanceMeters.toFixed(2)} m`,
-                                    font: `bold ${fontSize}px sans-serif`,
-                                    fill: new ol.style.Fill({ color: '#1a1a1a' }),
-                                    stroke: new ol.style.Stroke({
-                                        color: '#ffffff',
-                                        width: isExport ? 2 * exportScale : 2
-                                    }),
-                                    offsetY: isExport ? -10 * exportScale : -10,
-                                    placement: 'line',
-                                    textAlign: 'center',
-                                    textBaseline: 'middle',
-                                    overflow: true,
-                                    maxAngle: Math.PI / 4
-                                }),
-                                geometry: edgeLine
-                            }));
-                        }
-                        distanceStylesCache = { revision: geomRevision, styles: distanceStyles };
-                        feature.set(cacheKey, distanceStylesCache, true);
-                    }
-                    styles.push(...distanceStylesCache.styles);
-                }
-
-                // TIER 3: Corner circles only at very close zoom (or always in export)
+                // TIER 2: Corner circles only at very close zoom (or always in export)
                 if (isExport || resolution <= DETAIL_ZOOM_GATE.FULL_DETAIL) {
-                    const cacheKey = isExport ? '__nlisCornerStylesCacheExport' : '__nlisCornerStylesCache';
+                    const cacheKey = isExport ? '__gspnetCornerStylesCacheExport' : '__gspnetCornerStylesCache';
                     let cornerStylesCache = feature.get(cacheKey);
                     if (!cornerStylesCache || cornerStylesCache.revision !== geomRevision) {
                         const cornerStyles = [];
@@ -23305,6 +23261,7 @@
 
                 return styles;
             }
+
 
             // Mukono Blocks style — RESOLUTION-AWARE (uses shared cached styles)
             function getMukonoBlocksStyle(feature) {
@@ -23387,8 +23344,10 @@
                 return styles;
             }
 
-            // Mityana NLIS style — labels from 'PlotNumber' field, export-aware
-            function getMityanaNlisStyle(feature) {
+            // Mityana Reference Cadastral Style — RESOLUTION-AWARE
+            // Compliance: No PlotNumber, NLIS ID, or distance labels shown.
+            // Internal R-XXXX Ref ID derived from FGB feature index.
+            function getMitRefStyle(feature) {
                 const geometry = feature.getGeometry();
                 const geomType = geometry ? geometry.getType() : null;
                 if (!geometry || (geomType !== 'Polygon' && geomType !== 'MultiPolygon')) {
@@ -23404,9 +23363,6 @@
                     ? view.getResolution() / exportScale
                     : view.getResolution();
                 const geomRevision = geometry.getRevision ? geometry.getRevision() : 0;
-                const coordinates = geomType === 'MultiPolygon'
-                    ? geometry.getCoordinates()[0][0]
-                    : geometry.getCoordinates()[0];
 
                 // Tier 1: always show stroke (scaled in export)
                 let baseStyles;
@@ -23434,23 +23390,26 @@
 
                 if (!isExport && isLayerInFastRender(feature)) return styles;
 
-                // Tier 1: plot number label at ~500m zoom (or always in export)
+                // Tier 1: internal GSPNET Ref ID label (R-XXXX) — no plot numbers
                 if (isExport || resolution <= RES_THRESHOLD.LABELS) {
-                    // Try multiple field name variants used in Mityana NLIS FGB
-                    const plotNo = feature.get('PlotNumber')
-                        || feature.get('Plot Number')
-                        || feature.get('PLOTNUMBER')
-                        || feature.get('plot_number')
-                        || feature.get('PLOT NO')
-                        || feature.get('Plot_No')
-                        || feature.get('nlis_id');
-                    if (plotNo != null) {
+                    const cacheKey = '__mitRefIdLabelCache';
+                    let labelCache = feature.get(cacheKey);
+                    if (!labelCache || labelCache.revision !== geomRevision) {
+                        const rawId = feature.getId != null ? feature.getId() : null;
+                        let refIndex = 1;
+                        if (rawId != null && !isNaN(parseInt(rawId))) {
+                            refIndex = Math.abs(parseInt(rawId)) % 9999 + 1;
+                        } else {
+                            const ext = geometry.getExtent();
+                            refIndex = (Math.abs(Math.round((ext[0] + ext[1]) * 100)) % 9999) + 1;
+                        }
+                        const refId = 'R-' + String(refIndex).padStart(4, '0');
                         const centroid = ol.extent.getCenter(geometry.getExtent());
                         const fontSize = isExport ? Math.round(11 * exportScale) : 11;
-                        styles.push(new ol.style.Style({
+                        const labelStyle = new ol.style.Style({
                             geometry: new ol.geom.Point(centroid),
                             text: new ol.style.Text({
-                                text: plotNo.toString(),
+                                text: refId,
                                 font: `bold ${fontSize}px sans-serif`,
                                 fill: new ol.style.Fill({ color: '#000000' }),
                                 stroke: new ol.style.Stroke({
@@ -23461,41 +23420,11 @@
                                 textBaseline: 'middle',
                                 overflow: true
                             })
-                        }));
+                        });
+                        labelCache = { revision: geomRevision, style: labelStyle };
+                        feature.set(cacheKey, labelCache, true);
                     }
-                }
-
-                // Tier 2: edge distance labels at close zoom (or always in export)
-                if (isExport || resolution <= DETAIL_ZOOM_GATE.DISTANCES) {
-                    const cacheKey = isExport ? '__mityanaNlisDistCacheExport' : '__mityanaNlisDistCache';
-                    let cache = feature.get(cacheKey);
-                    if (!cache || cache.revision !== geomRevision) {
-                        const distStyles = [];
-                        for (let i = 0; i < coordinates.length - 1; i++) {
-                            const dist = getEdgeDistance(coordinates[i], coordinates[i + 1]);
-                            const fontSize = isExport ? Math.round(12 * exportScale) : 12;
-                            distStyles.push(new ol.style.Style({
-                                geometry: new ol.geom.LineString([coordinates[i], coordinates[i + 1]]),
-                                text: new ol.style.Text({
-                                    text: `${dist.toFixed(2)} m`,
-                                    font: `bold ${fontSize}px sans-serif`,
-                                    fill: new ol.style.Fill({ color: '#1a1a1a' }),
-                                    stroke: new ol.style.Stroke({
-                                        color: '#ffffff',
-                                        width: isExport ? 2 * exportScale : 2
-                                    }),
-                                    offsetY: isExport ? -10 * exportScale : -10,
-                                    placement: 'line',
-                                    textAlign: 'center',
-                                    overflow: true,
-                                    maxAngle: Math.PI / 4
-                                })
-                            }));
-                        }
-                        cache = { revision: geomRevision, styles: distStyles };
-                        feature.set(cacheKey, cache, true);
-                    }
-                    styles.push(...cache.styles);
+                    styles.push(labelCache.style);
                 }
 
                 return styles;
@@ -23802,7 +23731,7 @@
 
             // Create GSPNET Layer Group
             const gspnetLayerGroup = new ol.layer.Group({
-                title: 'GSPNET LAYERS',
+                title: 'GSPNET REF LAYERS',
                 fold: 'close',
                 layers: gspnetLayers,
                 zIndex: 900 // Above base maps
@@ -24432,11 +24361,13 @@
             }
 
             // Add Layer Switcher with improved configuration
-            const layerSwitcher = new ol.control.LayerSwitcher({
+            // ol-layerswitcher exposes itself as window.LayerSwitcher, NOT ol.control.LayerSwitcher
+            const LayerSwitcherCtor = window.LayerSwitcher || (ol.control && ol.control.LayerSwitcher);
+            const layerSwitcher = new LayerSwitcherCtor({
                 tipLabel: 'Layers',
                 groupSelectStyle: 'none',
                 activationMode: 'click',
-                startActive: true
+                startActive: false
             });
             map.addControl(layerSwitcher);
             // Force an explicit panel refresh so newly added groups reliably appear.
@@ -48061,6 +47992,84 @@ function smoothChaikin(points) {
                     });
                 });
 
+                // Annotate measurement
+                document.getElementById('measureAnnotate').addEventListener('click', function () {
+                    clearMeasurementInteractions();
+                    this.classList.add('active');
+                    measureType = 'annotate';
+
+                    currentMeasureInteraction = new ol.interaction.Select({
+                        condition: ol.events.condition.singleClick
+                    });
+
+                    map.addInteraction(currentMeasureInteraction);
+                    document.getElementById('stopMeasurement').style.display = 'inline-block';
+                    enableCrosshair();
+                    showToast('Click a parcel to annotate its boundaries.', 'info');
+
+                    currentMeasureInteraction.on('select', function (evt) {
+                        if (evt.selected.length > 0) {
+                            const feature = evt.selected[0];
+                            const geometry = feature.getGeometry();
+                            
+                            if (geometry && (geometry.getType() === 'Polygon' || geometry.getType() === 'MultiPolygon')) {
+                                let allRings = [];
+                                if (geometry.getType() === 'Polygon') {
+                                    allRings = geometry.getCoordinates();
+                                } else {
+                                    geometry.getCoordinates().forEach(poly => {
+                                        allRings.push(...poly);
+                                    });
+                                }
+
+                                allRings.forEach(ring => {
+                                    for (let i = 0; i < ring.length - 1; i++) {
+                                        const p1 = ring[i];
+                                        const p2 = ring[i + 1];
+                                        
+                                        const from = ol.proj.transform(p1, 'EPSG:3857', 'EPSG:4326');
+                                        const to = ol.proj.transform(p2, 'EPSG:3857', 'EPSG:4326');
+                                        const distance = vincentyDistance(from[0], from[1], to[0], to[1]);
+                                        
+                                        const distanceText = distance > 1000 ? 
+                                            `${(distance / 1000).toFixed(2)} km` : 
+                                            `${distance.toFixed(2)} m`;
+                                            
+                                        const segmentFeature = new ol.Feature({
+                                            geometry: new ol.geom.LineString([p1, p2]),
+                                            measurement: distanceText
+                                        });
+                                        
+                                        segmentFeature.setStyle(new ol.style.Style({
+                                            stroke: new ol.style.Stroke({
+                                                color: 'transparent',
+                                                width: 0
+                                            }),
+                                            text: new ol.style.Text({
+                                                text: distanceText,
+                                                font: 'bold 12px "Segoe UI", Calibri, sans-serif',
+                                                fill: new ol.style.Fill({ color: '#000000' }),
+                                                stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }),
+                                                placement: 'line',
+                                                textBaseline: 'bottom',
+                                                offsetY: -2
+                                            })
+                                        }));
+                                        
+                                        measurementSource.addFeature(segmentFeature);
+                                    }
+                                });
+                                showToast('Parcel boundaries annotated', 'success');
+                            } else {
+                                showToast('Please click on a polygon parcel.', 'warning');
+                            }
+                            
+                            // Clear selection to allow adding more
+                            currentMeasureInteraction.getFeatures().clear();
+                        }
+                    });
+                });
+
                 // Clear measurements
                 document.getElementById('clearMeasurements').addEventListener('click', function () {
                     if (confirm('Clear all measurements?')) {
@@ -48648,42 +48657,61 @@ function smoothChaikin(points) {
                         return;
                     }
 
-                    // Then try FlatGeobuf layers (GSPNET LAYERS)
+                    // Then try FlatGeobuf layers (GSPNET REF LAYERS)
                     const flatGeobufFeatures = getFlatGeobufFeatureInfo(pixel);
                     if (flatGeobufFeatures && flatGeobufFeatures.length > 0) {
-                        let content = '<h3>Feature Information</h3>';
-                        flatGeobufFeatures.forEach(feature => {
-                            const props = feature.getProperties();
-                            const layerName = props._layer || 'Unknown Layer';
+                        // Derive internal Ref ID from the first matched feature (same logic as style fn)
+                        const refFeature = flatGeobufFeatures[0];
+                        const refGeom = refFeature.getGeometry();
+                        const rawId = refFeature.getId != null ? refFeature.getId() : null;
+                        let refIndex = 1;
+                        if (rawId != null && !isNaN(parseInt(rawId))) {
+                            refIndex = Math.abs(parseInt(rawId)) % 9999 + 1;
+                        } else if (refGeom) {
+                            const ext = refGeom.getExtent();
+                            refIndex = (Math.abs(Math.round((ext[0] + ext[1]) * 100)) % 9999) + 1;
+                        }
+                        const refId = 'R-' + String(refIndex).padStart(4, '0');
+                        const layerName = refFeature.get('__layerTitle') || 'GSPNET REF';
 
-                            content += `<h4 style="margin-top:15px; margin-bottom:5px; color:#2c3e50;">${layerName}</h4>`;
-                            content += '<table border="1" style="border-collapse:collapse; font-size:12px; width:100%; margin-bottom:10px;">';
-
-                            for (let key in props) {
-                                if (key !== 'geometry' && key !== '_layer') {
-                                    const value = props[key];
-                                    let displayValue = value;
-
-                                    // Format different data types nicely
-                                    if (value === null || value === undefined) {
-                                        displayValue = '<em>null</em>';
-                                    } else if (typeof value === 'boolean') {
-                                        displayValue = value ? 'Yes' : 'No';
-                                    } else if (typeof value === 'number') {
-                                        // Format numbers nicely
-                                        displayValue = Number.isInteger(value) ?
-                                            value.toLocaleString() :
-                                            value.toFixed(3).toLocaleString();
-                                    } else if (typeof value === 'object') {
-                                        displayValue = JSON.stringify(value, null, 2);
-                                    }
-
-                                    content += `<tr><td style="padding:4px; background-color:#f5f5f5; font-weight:bold;">${key}</td><td style="padding:4px;">${displayValue}</td></tr>`;
-                                }
+                        let areaHa = '0.000';
+                        if (refGeom) {
+                            try {
+                                const areaSqM = ol.sphere.getArea(refGeom);
+                                areaHa = (areaSqM / 10000).toFixed(4);
+                            } catch (e) {
+                                console.error('Area calc error', e);
                             }
-                            content += '</table>';
-                        });
-                        featureInfoContent.innerHTML = content;
+                        }
+
+                        featureInfoContent.innerHTML = `
+                            <div style="font-family:'Inter',system-ui,sans-serif;padding:4px 0;">
+                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                                    <span style="background:#1a3c5e;color:#fff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.5px;">GSPNET REF</span>
+                                    <span style="font-size:11px;color:#64748b;">${layerName}</span>
+                                </div>
+
+                                <div style="background:linear-gradient(135deg,#0f2444,#1a3c5e);border-radius:10px;padding:14px 16px;margin-bottom:12px;text-align:center;">
+                                    <div style="color:#94a3b8;font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Internal Reference ID</div>
+                                    <div style="color:#fff;font-size:22px;font-weight:800;letter-spacing:2px;">${refId}</div>
+                                    <div style="color:#64748b;font-size:10px;margin-top:4px;">GSPNET cadastral reference — not a government identifier</div>
+                                </div>
+
+                                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="color:#475569; font-size:12px; font-weight:600;">Estimated Area:</span>
+                                    <span style="color:#0f2444; font-size:14px; font-weight:800;">${areaHa} <span style="font-size:11px; font-weight:600; color:#64748b;">Ha</span></span>
+                                </div>
+
+                                <div style="background:#f0f9ff;border-left:3px solid #0ea5e9;border-radius:0 6px 6px 0;padding:10px 12px;font-size:11px;color:#0369a1;line-height:1.6;">
+                                    <strong>ℹ Unofficial Data Notice</strong><br>
+                                    This spatial information is provided for planning, reconnaissance, and reference purposes only. It is not an official government record.<br><br>
+                                    For official land registry prints, title verification, or deed plans, please contact your nearest <strong>Ministry Zonal Office (MZO)</strong>.
+                                </div>
+
+                                <div style="text-align:center;margin-top:12px;font-size:10px;color:#94a3b8;">
+                                    © Geospatial Network Uganda · GSPNET Platform
+                                </div>
+                            </div>`;
                         return;
                     }
 
