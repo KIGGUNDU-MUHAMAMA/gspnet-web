@@ -1,141 +1,324 @@
+/**
+ * GSP.NET — Mapillary Upload Engine
+ *
+ * Non-blocking background upload of captured rover images to Mapillary
+ * via the Cloudflare Worker proxy (rupload.facebook.com protocol).
+ *
+ * Features:
+ *  - Camera overlay closes immediately — upload runs silently in background
+ *  - SHA-256 hashes + GPS metadata saved to Supabase before upload fires
+ *  - Persistent retry toast on failure (images kept in IndexedDB until success)
+ *  - Handles both new {data, hash, lat, lon, ts} and legacy plain-string formats
+ */
 
+const MAPILLARY_PROXY_URL = 'https://mapillary.kiggundumuhamad.workers.dev/upload';
 
+// Module-level state for retry
+var _activeSessionKey   = null;
+var _activeSupabaseRowId = null;
+
+// ─────────────────────────────────────────────────────────────
+//  Main entry point — called by closeRoverCamera()
+//  Runs entirely in the background; never blocks the UI.
+// ─────────────────────────────────────────────────────────────
 window.startMapillaryUploadQueue = async function() {
     try {
-        const keys = await mapillaryStore.keys();
+        var keys = await mapillaryStore.keys();
         if (keys.length === 0) {
-            console.log('No Mapillary captures to upload.');
+            console.log('[Mapillary] No captures in queue.');
             return;
         }
-        
-        // Show upload UI
-        const overlay = document.getElementById('rover-camera-overlay');
-        overlay.classList.add('active'); // Ensure it's visible for progress
-        const hudTop = document.querySelector('.hud-top-bar');
-        const hudReticle = document.querySelector('.hud-center-reticle');
-        const hudBottom = document.querySelector('.hud-bottom-bar');
-        if (hudTop) hudTop.style.display = 'none';
-        if (hudReticle) hudReticle.style.display = 'none';
-        if (hudBottom) hudBottom.style.display = 'none';
-        
-        const progressWidget = document.getElementById('rover-upload-progress');
-        const progressText = document.getElementById('rover-upload-text');
-        const progressFill = document.getElementById('rover-upload-fill');
-        
-        progressWidget.style.display = 'block';
-        progressText.innerText = `Packaging ${keys.length} images...`;
-        progressFill.style.width = '10%';
-        
-        // 1. Create a ZIP file of all images
-        const zip = new JSZip();
-        for (let i = 0; i < keys.length; i++) {
-            const key = keys[i];
-            const base64Str = await mapillaryStore.getItem(key);
-            // Remove 'data:image/jpeg;base64,' prefix
-            const b64Data = base64Str.split(',')[1];
-            zip.file(key, b64Data, {base64: true});
+
+        // Generate a unique, resumable session key
+        var sessionKey = (typeof crypto !== 'undefined' && crypto.randomUUID)
+            ? crypto.randomUUID().replace(/-/g, '')
+            : 'gsp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        var fileName = sessionKey + '.zip';
+
+        _activeSessionKey = sessionKey;
+
+        // ── Immediate non-blocking feedback ──────────────────
+        if (window.showToast) {
+            window.showToast(
+                '\ud83d\udce1 Uploading ' + keys.length + ' images to Mapillary in the background\u2026',
+                'info',
+                5000
+            );
         }
-        
-        progressText.innerText = `Compressing ${keys.length} images...`;
-        progressFill.style.width = '30%';
-        
-        const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
-        
-        progressText.innerText = `Uploading via Mapillary Proxy...`;
-        progressFill.style.width = '40%';
-        
-        // POST the Zip Blob to Cloudflare Worker Proxy
-        // IMPORTANT: Replace this URL with your deployed Cloudflare worker URL!
-        const MAPILLARY_PROXY_URL = 'https://mapillary.kiggundumuhamad.workers.dev/upload';
-        
-        await new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
+
+        // ── Read all items from IndexedDB ─────────────────────
+        var imageHashes = [];
+        var gpsStart    = null;
+        var gpsEnd      = null;
+        var zip         = new JSZip();
+
+        for (var i = 0; i < keys.length; i++) {
+            var key  = keys[i];
+            var item = await mapillaryStore.getItem(key);
+
+            // Support both new {data,hash,lat,lon,ts} and legacy base64-string
+            var base64Str, hashVal, itemLat, itemLon, itemTs;
+            if (item && typeof item === 'object' && item.data) {
+                base64Str = item.data;
+                hashVal   = item.hash  || '';
+                itemLat   = item.lat   || null;
+                itemLon   = item.lon   || null;
+                itemTs    = item.ts    || null;
+            } else {
+                // Legacy format — plain base64 string
+                base64Str = item;
+                hashVal   = '';
+                itemLat   = null;
+                itemLon   = null;
+                itemTs    = null;
+            }
+
+            var b64Data = base64Str.split(',')[1];
+            zip.file(key, b64Data, { base64: true });
+
+            if (!gpsStart && itemLat) gpsStart = { lat: itemLat, lon: itemLon };
+            if (itemLat)              gpsEnd   = { lat: itemLat, lon: itemLon };
+
+            imageHashes.push({
+                filename:      key,
+                sha256:        hashVal,
+                lat:           itemLat,
+                lon:           itemLon,
+                timestamp_utc: itemTs,
+            });
+        }
+
+        // ── Save evidence metadata to Supabase ───────────────
+        // Done before upload so the record exists even if upload fails.
+        var supabaseRowId = null;
+        if (window.supabaseClient) {
+            try {
+                var authResult = await window.supabaseClient.auth.getUser();
+                var currentUser = authResult && authResult.data && authResult.data.user;
+
+                if (currentUser) {
+                    var insertPayload = {
+                        user_id:               currentUser.id,
+                        session_key:           sessionKey,
+                        image_count:           keys.length,
+                        status:                'uploading',
+                        gps_start_lat:         gpsStart ? gpsStart.lat : null,
+                        gps_start_lon:         gpsStart ? gpsStart.lon : null,
+                        gps_end_lat:           gpsEnd   ? gpsEnd.lat   : null,
+                        gps_end_lon:           gpsEnd   ? gpsEnd.lon   : null,
+                        image_hashes:          imageHashes,
+                        mapillary_session_key: sessionKey,
+                    };
+
+                    var insertResult = await window.supabaseClient
+                        .from('mapillary_upload_sessions')
+                        .insert(insertPayload)
+                        .select('id')
+                        .single();
+
+                    if (insertResult && insertResult.data) {
+                        supabaseRowId = insertResult.data.id;
+                    }
+                }
+            } catch (supaErr) {
+                // Supabase failure is non-fatal — upload still proceeds
+                console.warn('[Mapillary] Supabase metadata save failed (non-fatal):', supaErr.message || supaErr);
+            }
+        }
+        _activeSupabaseRowId = supabaseRowId;
+
+        // ── Compress all images into a ZIP ────────────────────
+        var zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+
+        // ── POST ZIP to Cloudflare Worker proxy ───────────────
+        await new Promise(function(resolve, reject) {
+            var xhr = new XMLHttpRequest();
             xhr.open('POST', MAPILLARY_PROXY_URL, true);
-            
-            xhr.upload.onprogress = (e) => {
-                if (e.lengthComputable) {
-                    const pct = (e.loaded / e.total) * 60; // 40% to 100%
-                    progressFill.style.width = `${40 + pct}%`;
-                }
-            };
-            
-            xhr.onload = () => {
+
+            // Pass session metadata via headers (not body) so Worker can extract them
+            xhr.setRequestHeader('X-Session-Key', sessionKey);
+            xhr.setRequestHeader('X-File-Name',   fileName);
+            xhr.setRequestHeader('X-File-Size',   zipBlob.size.toString());
+            xhr.setRequestHeader('Content-Type',  'application/zip');
+
+            xhr.timeout = 120000; // 2 minutes — generous for cellular networks
+
+            xhr.onload = async function() {
                 if (xhr.status >= 200 && xhr.status < 300) {
+                    // ── Success path ──────────────────────────
+                    await mapillaryStore.clear();
+                    captureCount = 0;
+
+                    // Update Supabase status to 'complete'
+                    if (window.supabaseClient && supabaseRowId) {
+                        try {
+                            await window.supabaseClient
+                                .from('mapillary_upload_sessions')
+                                .update({
+                                    status:       'complete',
+                                    completed_at: new Date().toISOString(),
+                                })
+                                .eq('id', supabaseRowId);
+                        } catch (e) {
+                            console.warn('[Mapillary] Supabase status update failed:', e);
+                        }
+                    }
+
                     resolve();
+
+                    if (window.showToast) {
+                        window.showToast(
+                            '\u2705 ' + keys.length + ' images successfully published to Mapillary! They will appear on Street View within a few hours.',
+                            'success',
+                            10000
+                        );
+                    }
                 } else {
-                    reject(new Error(`Proxy Upload failed: ${xhr.status} ${xhr.responseText}`));
+                    // Parse error from Worker response
+                    var errMsg = 'Upload failed (HTTP ' + xhr.status + ')';
+                    try {
+                        var parsed = JSON.parse(xhr.responseText);
+                        if (parsed && parsed.error) errMsg = parsed.error;
+                    } catch (e) { /* ignore parse error */ }
+                    reject(new Error(errMsg));
                 }
             };
-            
-            xhr.onerror = () => reject(new Error('Network error during Proxy Upload'));
+
+            xhr.ontimeout = function() {
+                reject(new Error('Upload timed out. Please check your internet / VPN connection and retry.'));
+            };
+
+            xhr.onerror = function() {
+                reject(new Error('Network error during upload. Please check your internet / VPN connection and retry.'));
+            };
+
             xhr.send(zipBlob);
         });
-        
-        progressFill.style.width = '100%';
-        progressText.innerText = `Upload Complete!`;
-        
-        // 4. Clear IndexedDB on success
-        await mapillaryStore.clear();
-        
-        // Reset and hide UI after 3 seconds
-        setTimeout(() => {
-            progressWidget.style.display = 'none';
-            overlay.classList.remove('active');
-            
-            // Restore HUD elements
-            if (hudTop) hudTop.style.display = '';
-            if (hudReticle) hudReticle.style.display = '';
-            if (hudBottom) hudBottom.style.display = '';
-            
-            if (window.showToast) window.showToast('Images successfully published to Mapillary!', 'success');
-        }, 3000);
-        
-    } catch (err) {
-        console.error('Mapillary Upload Error:', err);
-        const progressText = document.getElementById('rover-upload-text');
-        if (progressText) progressText.innerText = 'Upload Failed. Will retry later.';
-        
-        setTimeout(() => {
-            const overlay = document.getElementById('rover-camera-overlay');
-            if (overlay) overlay.classList.remove('active');
-            document.getElementById('rover-upload-progress').style.display = 'none';
-        }, 3000);
+
+    } catch (uploadErr) {
+        console.error('[Mapillary] Upload failed:', uploadErr);
+
+        // Update Supabase status to 'failed'
+        if (window.supabaseClient && _activeSupabaseRowId) {
+            try {
+                await window.supabaseClient
+                    .from('mapillary_upload_sessions')
+                    .update({
+                        status:        'failed',
+                        error_message: uploadErr.message || 'Unknown error',
+                    })
+                    .eq('id', _activeSupabaseRowId);
+            } catch (e) { /* non-fatal */ }
+        }
+
+        // Show persistent retry toast
+        _showRetryToast(uploadErr.message || 'Unknown error. Check VPN connection.');
     }
 };
 
+// ─────────────────────────────────────────────────────────────
+//  Retry — re-runs upload with the same IndexedDB queue
+// ─────────────────────────────────────────────────────────────
+window.retryMapillaryUpload = async function() {
+    var retryToast = document.getElementById('mly-retry-toast');
+    if (retryToast) retryToast.remove();
+    await window.startMapillaryUploadQueue();
+};
+
+// ─────────────────────────────────────────────────────────────
+//  Persistent retry toast — shown on upload failure
+// ─────────────────────────────────────────────────────────────
+function _showRetryToast(errMessage) {
+    // Remove existing if any
+    var existing = document.getElementById('mly-retry-toast');
+    if (existing) existing.remove();
+
+    var toast = document.createElement('div');
+    toast.id  = 'mly-retry-toast';
+    toast.style.cssText = [
+        'position:fixed',
+        'bottom:80px',
+        'left:50%',
+        'transform:translateX(-50%)',
+        'background:rgba(185,28,28,0.97)',
+        'color:#fff',
+        'border-radius:14px',
+        'padding:14px 20px',
+        'display:flex',
+        'align-items:center',
+        'gap:14px',
+        'z-index:99999',
+        'font-family:inherit',
+        'font-size:0.88rem',
+        'max-width:90vw',
+        'box-shadow:0 6px 24px rgba(0,0,0,0.45)',
+        'backdrop-filter:blur(10px)',
+        '-webkit-backdrop-filter:blur(10px)',
+    ].join(';');
+
+    toast.innerHTML = [
+        '<span>\u274c Mapillary upload failed: ' + _escHtml(errMessage) + '</span>',
+        '<button onclick="window.retryMapillaryUpload()" style="',
+            'background:#fff;color:#b91c1c;border:none;border-radius:8px;',
+            'padding:7px 16px;cursor:pointer;font-weight:700;font-size:0.85rem;white-space:nowrap;',
+        '">&#8635; Retry</button>',
+        '<button onclick="document.getElementById(\'mly-retry-toast\').remove()" style="',
+            'background:transparent;color:rgba(255,255,255,0.7);border:none;cursor:pointer;',
+            'font-size:1.2rem;line-height:1;padding:0 4px;',
+        '">\u00d7</button>',
+    ].join('');
+
+    document.body.appendChild(toast);
+}
+
+function _escHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Save locally as ZIP (for 'local' capture mode — unchanged)
+// ─────────────────────────────────────────────────────────────
 window.downloadLocalMapillaryQueue = async function() {
     try {
-        const keys = await mapillaryStore.keys();
+        var keys = await mapillaryStore.keys();
         if (keys.length === 0) {
-            console.log('No Mapillary captures to save.');
+            console.log('[Mapillary] No captures to save locally.');
             return;
         }
-        
-        const zip = new JSZip();
-        for (let i = 0; i < keys.length; i++) {
-            const key = keys[i];
-            const base64Str = await mapillaryStore.getItem(key);
-            const b64Data = base64Str.split(',')[1];
-            zip.file(key, b64Data, {base64: true});
+
+        var zip = new JSZip();
+        for (var i = 0; i < keys.length; i++) {
+            var key  = keys[i];
+            var item = await mapillaryStore.getItem(key);
+            // Support both new {data,...} format and legacy base64-string
+            var base64Str = (item && typeof item === 'object' && item.data) ? item.data : item;
+            var b64Data   = base64Str.split(',')[1];
+            zip.file(key, b64Data, { base64: true });
         }
-        
-        if (window.showToast) window.showToast(`Zipping ${keys.length} images...`, 'info');
-        const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
-        
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(zipBlob);
-        a.download = `GSP_Rover_Captures_${timestamp}.zip`;
+
+        if (window.showToast) window.showToast('Zipping ' + keys.length + ' images\u2026', 'info', 3000);
+
+        var zipBlob   = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+        var timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        var a         = document.createElement('a');
+        a.href        = URL.createObjectURL(zipBlob);
+        a.download    = 'GSP_Rover_Captures_' + timestamp + '.zip';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(a.href);
-        
+
         await mapillaryStore.clear();
-        if (window.showToast) window.showToast('Images successfully saved locally as ZIP!', 'success');
-        
+        captureCount = 0;
+
+        if (window.showToast) window.showToast('\u2705 Images saved locally as ZIP!', 'success', 5000);
+
     } catch (err) {
-        console.error('Local Save Error:', err);
-        if (window.showToast) window.showToast('Failed to save images locally.', 'error');
+        console.error('[Mapillary] Local save error:', err);
+        if (window.showToast) window.showToast('Failed to save images locally: ' + err.message, 'error');
     }
 };
