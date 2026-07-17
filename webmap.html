@@ -17636,26 +17636,25 @@
                                     </div>
                                     <div class="dem-step-body">
                                         <div style="display:flex;flex-direction:column;gap:6px;">
+                                            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:2px solid #e5e7eb;border-radius:6px;cursor:pointer;transition:border-color 0.2s;" id="demSrcLabelRGB">
+                                                <input type="radio" name="demDataset" value="RGB" id="demSrcRGB" checked style="margin-top:2px;accent-color:#3b82f6;">
+                                                <div style="font-weight:700;font-size:0.84rem;color:#1e293b;margin-top:1px;">1. Terrain RGB Tiles (AWS Mapzen)</div>
+                                            </label>
+                                            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:2px solid #e5e7eb;border-radius:6px;cursor:pointer;transition:border-color 0.2s;" id="demSrcLabelCOG">
+                                                <input type="radio" name="demDataset" value="COG" id="demSrcCOG" style="margin-top:2px;accent-color:#3b82f6;">
+                                                <div style="font-weight:700;font-size:0.84rem;color:#1e293b;margin-top:1px;">2. Direct COG Fetching (Copernicus 30m)</div>
+                                            </label>
                                             <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:2px solid #e5e7eb;border-radius:6px;cursor:pointer;transition:border-color 0.2s;" id="demSrcLabelCOP30">
-                                                <input type="radio" name="demDataset" value="COP30" id="demSrcCOP30" checked style="margin-top:2px;accent-color:#3b82f6;">
-                                                <div>
-                                                    <div style="font-weight:700;font-size:0.84rem;color:#1e293b;">Copernicus DEM GLO-30</div>
-                                                    <div style="font-size:0.76rem;color:#64748b;">Best global accuracy &middot; ~30m resolution &middot; ESA Copernicus programme</div>
-                                                </div>
+                                                <input type="radio" name="demDataset" value="COP30" id="demSrcCOP30" style="margin-top:2px;accent-color:#3b82f6;">
+                                                <div style="font-weight:700;font-size:0.84rem;color:#1e293b;margin-top:1px;">3. Copernicus DEM GLO-30 (Proxy)</div>
                                             </label>
                                             <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:2px solid #e5e7eb;border-radius:6px;cursor:pointer;transition:border-color 0.2s;" id="demSrcLabelNASA">
                                                 <input type="radio" name="demDataset" value="NASADEM" id="demSrcNASA" style="margin-top:2px;accent-color:#3b82f6;">
-                                                <div>
-                                                    <div style="font-weight:700;font-size:0.84rem;color:#1e293b;">NASA DEM (NASADEM)</div>
-                                                    <div style="font-size:0.76rem;color:#64748b;">SRTM-derived, improved voids filled &middot; ~30m &middot; Recommended fallback</div>
-                                                </div>
+                                                <div style="font-weight:700;font-size:0.84rem;color:#1e293b;margin-top:1px;">4. NASA DEM (Proxy)</div>
                                             </label>
                                             <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:2px solid #e5e7eb;border-radius:6px;cursor:pointer;transition:border-color 0.2s;" id="demSrcLabelSRTM">
                                                 <input type="radio" name="demDataset" value="SRTMGL1" id="demSrcSRTM" style="margin-top:2px;accent-color:#3b82f6;">
-                                                <div>
-                                                    <div style="font-weight:700;font-size:0.84rem;color:#1e293b;">SRTM 1-Arc-Second</div>
-                                                    <div style="font-size:0.76rem;color:#64748b;">Original Shuttle Radar Topography Mission &middot; ~30m &middot; Last resort</div>
-                                                </div>
+                                                <div style="font-weight:700;font-size:0.84rem;color:#1e293b;margin-top:1px;">5. SRTM 1-Arc-Second (Proxy)</div>
                                             </label>
                                         </div>
                                         <p style="font-size:0.76rem;color:#94a3b8;margin-top:8px;padding:6px 8px;background:#f8fafc;border-radius:4px;">
@@ -17831,26 +17830,25 @@
                                     </div>
                                     <div class="dem-step-body">
                                         <div style="display:flex;flex-direction:column;gap:6px;">
-                                            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:2px solid #e5e7eb;border-radius:6px;cursor:pointer;">
-                                                <input type="radio" name="demDatasetB" value="COP30" id="demSrcCOP30B" checked style="margin-top:2px;accent-color:#3b82f6;">
-                                                <div>
-                                                    <div style="font-weight:700;font-size:0.84rem;color:#1e293b;">Copernicus DEM GLO-30</div>
-                                                    <div style="font-size:0.76rem;color:#64748b;">Best global accuracy &middot; ~30m &middot; ESA</div>
-                                                </div>
+                                            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:2px solid #e5e7eb;border-radius:6px;cursor:pointer;transition:border-color 0.2s;" id="demSrcLabelRGBB">
+                                                <input type="radio" name="demDatasetB" value="RGB" id="demSrcRGBB" checked style="margin-top:2px;accent-color:#3b82f6;">
+                                                <div style="font-weight:700;font-size:0.84rem;color:#1e293b;margin-top:1px;">1. Terrain RGB Tiles (AWS Mapzen)</div>
                                             </label>
-                                            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:2px solid #e5e7eb;border-radius:6px;cursor:pointer;">
+                                            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:2px solid #e5e7eb;border-radius:6px;cursor:pointer;transition:border-color 0.2s;" id="demSrcLabelCOGB">
+                                                <input type="radio" name="demDatasetB" value="COG" id="demSrcCOGB" style="margin-top:2px;accent-color:#3b82f6;">
+                                                <div style="font-weight:700;font-size:0.84rem;color:#1e293b;margin-top:1px;">2. Direct COG Fetching (Copernicus 30m)</div>
+                                            </label>
+                                            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:2px solid #e5e7eb;border-radius:6px;cursor:pointer;transition:border-color 0.2s;" id="demSrcLabelCOP30B">
+                                                <input type="radio" name="demDatasetB" value="COP30" id="demSrcCOP30B" style="margin-top:2px;accent-color:#3b82f6;">
+                                                <div style="font-weight:700;font-size:0.84rem;color:#1e293b;margin-top:1px;">3. Copernicus DEM GLO-30 (Proxy)</div>
+                                            </label>
+                                            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:2px solid #e5e7eb;border-radius:6px;cursor:pointer;transition:border-color 0.2s;" id="demSrcLabelNASAB">
                                                 <input type="radio" name="demDatasetB" value="NASADEM" id="demSrcNASAB" style="margin-top:2px;accent-color:#3b82f6;">
-                                                <div>
-                                                    <div style="font-weight:700;font-size:0.84rem;color:#1e293b;">NASA DEM (NASADEM)</div>
-                                                    <div style="font-size:0.76rem;color:#64748b;">SRTM-derived, improved &middot; ~30m</div>
-                                                </div>
+                                                <div style="font-weight:700;font-size:0.84rem;color:#1e293b;margin-top:1px;">4. NASA DEM (Proxy)</div>
                                             </label>
-                                            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:2px solid #e5e7eb;border-radius:6px;cursor:pointer;">
+                                            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:2px solid #e5e7eb;border-radius:6px;cursor:pointer;transition:border-color 0.2s;" id="demSrcLabelSRTMB">
                                                 <input type="radio" name="demDatasetB" value="SRTMGL1" id="demSrcSRTMB" style="margin-top:2px;accent-color:#3b82f6;">
-                                                <div>
-                                                    <div style="font-weight:700;font-size:0.84rem;color:#1e293b;">SRTM 1-Arc-Second</div>
-                                                    <div style="font-size:0.76rem;color:#64748b;">Original SRTM &middot; ~30m &middot; Last resort</div>
-                                                </div>
+                                                <div style="font-weight:700;font-size:0.84rem;color:#1e293b;margin-top:1px;">5. SRTM 1-Arc-Second (Proxy)</div>
                                             </label>
                                         </div>
                                     </div>
@@ -45843,6 +45841,133 @@ function smoothChaikin(points) {
                     }
                 }
 
+                // Direct COG Fetching (Element84 STAC -> S3)
+                async function _fetchDirectCOG(s, w, n, e, progressId) {
+                    _txt(progressId, 'Querying Element84 STAC API...');
+                    const stacReq = await fetch('https://earth-search.aws.element84.com/v1/search', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ collections: ['cop-dem-glo-30'], bbox: [w, s, e, n] })
+                    });
+                    if (!stacReq.ok) throw new Error('STAC API Error: ' + stacReq.status);
+                    const stacRes = await stacReq.json();
+                    if (!stacRes.features || stacRes.features.length === 0) throw new Error('No COG found for this extent.');
+                    
+                    const asset = stacRes.features[0].assets.data.href;
+                    const httpUrl = asset.replace('s3://copernicus-dem-30m/', 'https://copernicus-dem-30m.s3.eu-central-1.amazonaws.com/');
+                    
+                    _txt(progressId, 'Reading COG pixels directly from AWS S3...');
+                    if (!window.GeoTIFF) {
+                        await new Promise((res,rej) => {
+                            const sc = document.createElement('script');
+                            sc.src = 'https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js';
+                            sc.onload = res; sc.onerror = rej; document.head.appendChild(sc);
+                        });
+                    }
+                    const tiff = await GeoTIFF.fromUrl(httpUrl);
+                    const img = await tiff.getImage();
+                    
+                    const imgBbox = img.getBoundingBox();
+                    const rx = img.getWidth() / (imgBbox[2] - imgBbox[0]);
+                    const ry = img.getHeight() / (imgBbox[3] - imgBbox[1]);
+                    
+                    let wLeft = Math.floor((w - imgBbox[0]) * rx);
+                    let wRight = Math.ceil((e - imgBbox[0]) * rx);
+                    let wTop = Math.floor((imgBbox[3] - n) * ry);
+                    let wBottom = Math.ceil((imgBbox[3] - s) * ry);
+                    
+                    wLeft = Math.max(0, wLeft); wRight = Math.min(img.getWidth(), wRight);
+                    wTop = Math.max(0, wTop); wBottom = Math.min(img.getHeight(), wBottom);
+                    
+                    if (wLeft >= wRight || wTop >= wBottom) throw new Error('Extent outside of STAC item bounds');
+                    
+                    const rasters = await img.readRasters({ window: [wLeft, wTop, wRight, wBottom] });
+                    const elevData = rasters[0];
+                    const width = wRight - wLeft;
+                    const height = wBottom - wTop;
+                    
+                    const grid = [];
+                    const lonStep = (imgBbox[2]-imgBbox[0])/img.getWidth();
+                    const latStep = (imgBbox[3]-imgBbox[1])/img.getHeight();
+                    
+                    for (let r = 0; r < height; r++) {
+                        for (let c = 0; c < width; c++) {
+                            const val = elevData[r * width + c];
+                            if (val > -9000) {
+                                const ptLon = imgBbox[0] + lonStep * (wLeft + c + 0.5);
+                                const ptLat = imgBbox[3] - latStep * (wTop + r + 0.5);
+                                if (ptLon >= w && ptLon <= e && ptLat >= s && ptLat <= n) {
+                                    grid.push({ lat: ptLat, lon: ptLon, elev: val });
+                                }
+                            }
+                        }
+                    }
+                    return grid;
+                }
+
+                // Terrain RGB Tiles Fetching
+                async function _fetchTerrainRGB(s, w, n, e, progressId) {
+                    _txt(progressId, 'Determining Mapzen RGB tiles...');
+                    const z = 13;
+                    const lon2tile = (lon, z) => Math.floor((lon + 180) / 360 * Math.pow(2, z));
+                    const lat2tile = (lat, z) => Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, z));
+                    const tile2lon = (x, z) => (x / Math.pow(2, z) * 360 - 180);
+                    const tile2lat = (y, z) => { const n = Math.PI - 2 * Math.PI * y / Math.pow(2, z); return (180 / Math.PI * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)))); };
+                    
+                    const txMin = lon2tile(w, z), txMax = lon2tile(e, z);
+                    const tyMin = lat2tile(n, z), tyMax = lat2tile(s, z);
+                    
+                    const grid = [];
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 256; canvas.height = 256;
+                    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                    
+                    const totalTiles = (txMax - txMin + 1) * (tyMax - tyMin + 1);
+                    if (totalTiles > 60) throw new Error('Extent too large for RGB fallback (limit ~60 tiles). Try a smaller extent.');
+                    
+                    let loaded = 0;
+                    for (let ty = tyMin; ty <= tyMax; ty++) {
+                        for (let tx = txMin; tx <= txMax; tx++) {
+                            loaded++;
+                            _txt(progressId, `Fetching RGB Tile ${loaded}/${totalTiles}...`);
+                            const url = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${tx}/${ty}.png`;
+                            const img = new Image();
+                            img.crossOrigin = 'Anonymous';
+                            await new Promise((res, rej) => { img.onload = res; img.onerror = () => res(); img.src = url; });
+                            if (!img.complete || img.naturalWidth === 0) continue; // skip broken tiles
+                            
+                            ctx.clearRect(0,0,256,256);
+                            ctx.drawImage(img, 0, 0);
+                            const imgData = ctx.getImageData(0,0,256,256).data;
+                            
+                            const tLon1 = tile2lon(tx, z);
+                            const tLon2 = tile2lon(tx + 1, z);
+                            const tLat1 = tile2lat(ty, z);
+                            const tLat2 = tile2lat(ty + 1, z);
+                            
+                            const dLon = (tLon2 - tLon1) / 256;
+                            const dLat = (tLat1 - tLat2) / 256;
+                            
+                            for (let py = 0; py < 256; py++) {
+                                const ptLat = tLat1 - dLat * (py + 0.5);
+                                if (ptLat < s || ptLat > n) continue;
+                                for (let px = 0; px < 256; px++) {
+                                    const ptLon = tLon1 + dLon * (px + 0.5);
+                                    if (ptLon < w || ptLon > e) continue;
+                                    
+                                    const idx = (py * 256 + px) * 4;
+                                    const r = imgData[idx]; const g = imgData[idx+1]; const b = imgData[idx+2];
+                                    if (imgData[idx+3] === 0) continue;
+                                    const elev = (r * 256 + g + b / 256) - 32768;
+                                    grid.push({ lat: ptLat, lon: ptLon, elev });
+                                }
+                            }
+                        }
+                    }
+                    if (grid.length === 0) throw new Error('No elevation data decoded from RGB tiles.');
+                    return grid;
+                }
+
                 // Main fetch - Mode A
                 async function _fetchDEMA() {
                     const bounds = _getDemExtentBounds();
@@ -45857,13 +45982,24 @@ function smoothChaikin(points) {
                     _txt('demProgressText','Requesting '+dataset+' via secure proxy...');
                     let grid=null, src=null;
                     try {
-                        const r = await _fetchViaEdge(dataset, south, west, north, east);
-                        const p = await _parseGeoTiff(r.buf);
-                        grid = _buildGrid(p.width, p.height, p.bbox, p.elevData);
-                        src = r.srcLabel || r.srcType;
-                        if (r.fallback) {
-                            _txt('demFallbackText', dataset+' unavailable - using '+r.srcLabel+'. Results may differ slightly.');
-                            _show('demFallbackBanner',true);
+                        if (dataset === 'COG') {
+                            _txt('demProgressText','Querying STAC and fetching Direct COG...');
+                            grid = await _fetchDirectCOG(south, west, north, east, 'demProgressText');
+                            src = 'Copernicus 30m (Direct COG)';
+                        } else if (dataset === 'RGB') {
+                            _txt('demProgressText','Fetching Terrain RGB Tiles...');
+                            grid = await _fetchTerrainRGB(south, west, north, east, 'demProgressText');
+                            src = 'Mapzen Terrain RGB (AWS)';
+                        } else {
+                            _txt('demProgressText','Requesting '+dataset+' via secure proxy...');
+                            const r = await _fetchViaEdge(dataset, south, west, north, east);
+                            const p = await _parseGeoTiff(r.buf);
+                            grid = _buildGrid(p.width, p.height, p.bbox, p.elevData);
+                            src = r.srcLabel || r.srcType;
+                            if (r.fallback) {
+                                _txt('demFallbackText', dataset+' unavailable - using '+r.srcLabel+'. Results may differ slightly.');
+                                _show('demFallbackBanner',true);
+                            }
                         }
                     } catch(err) {
                         if (err.message==='all_sources_unavailable') {
@@ -45901,13 +46037,24 @@ function smoothChaikin(points) {
                     _txt('demProgressTextB','Requesting '+dataset+' via secure proxy...');
                     let grid=null, src=null;
                     try {
-                        const r = await _fetchViaEdge(dataset, south, west, north, east);
-                        const p = await _parseGeoTiff(r.buf);
-                        grid = _buildGrid(p.width, p.height, p.bbox, p.elevData);
-                        src = r.srcLabel || r.srcType;
-                        if (r.fallback) {
-                            _txt('demFallbackTextB', dataset+' unavailable - using '+r.srcLabel+'.');
-                            _show('demFallbackBannerB',true);
+                        if (dataset === 'COG') {
+                            _txt('demProgressTextB','Querying STAC and fetching Direct COG...');
+                            grid = await _fetchDirectCOG(south, west, north, east, 'demProgressTextB');
+                            src = 'Copernicus 30m (Direct COG)';
+                        } else if (dataset === 'RGB') {
+                            _txt('demProgressTextB','Fetching Terrain RGB Tiles...');
+                            grid = await _fetchTerrainRGB(south, west, north, east, 'demProgressTextB');
+                            src = 'Mapzen Terrain RGB (AWS)';
+                        } else {
+                            _txt('demProgressTextB','Requesting '+dataset+' via secure proxy...');
+                            const r = await _fetchViaEdge(dataset, south, west, north, east);
+                            const p = await _parseGeoTiff(r.buf);
+                            grid = _buildGrid(p.width, p.height, p.bbox, p.elevData);
+                            src = r.srcLabel || r.srcType;
+                            if (r.fallback) {
+                                _txt('demFallbackTextB', dataset+' unavailable - using '+r.srcLabel+'.');
+                                _show('demFallbackBannerB',true);
+                            }
                         }
                     } catch(err) {
                         if (err.message==='all_sources_unavailable') {
