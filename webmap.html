@@ -13076,6 +13076,7 @@
             line-height: 1.5;
             margin-bottom: 12px;
             font-size: 14px;
+            white-space: pre-wrap;
         }
 
         .post-location {
@@ -13213,6 +13214,7 @@
             font-size: 13px;
             line-height: 1.4;
             margin-bottom: 8px;
+            white-space: pre-wrap;
         }
 
         .comment-actions {
@@ -13665,6 +13667,7 @@
             font-size: 14px;
             line-height: 1.4;
             margin-bottom: 4px;
+            white-space: pre-wrap;
         }
 
         .message-time {
@@ -51488,27 +51491,7 @@ function smoothChaikin(points) {
                     // Load recent messages from Supabase
                     await loadRecentMessages();
 
-                    // Play synthetic notification chime (Web Audio API)
-            function playNotificationSound() {
-                if (localStorage.getItem('chatMuted') === 'true') return;
-                try {
-                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                    if (!AudioCtx) return;
-                    const ctx = new AudioCtx();
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.connect(gain);
-                    gain.connect(ctx.destination);
-                    osc.frequency.value = 830; // Pleasant crisp sine chime
-                    osc.type = 'sine';
-                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
-                    osc.start();
-                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-                    osc.stop(ctx.currentTime + 0.3);
-                } catch (e) {
-                    console.warn('Web Audio playback skipped:', e);
-                }
-            }
+
 
             // Helper to parse date for headers
             function getFriendlyDateString(isoString) {
@@ -51798,27 +51781,7 @@ function smoothChaikin(points) {
                 }
             }
 
-            // Play synthetic notification chime (Web Audio API)
-            function playNotificationSound() {
-                if (localStorage.getItem('chatMuted') === 'true') return;
-                try {
-                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                    if (!AudioCtx) return;
-                    const ctx = new AudioCtx();
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.connect(gain);
-                    gain.connect(ctx.destination);
-                    osc.frequency.value = 830; // Pleasant crisp sine chime
-                    osc.type = 'sine';
-                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
-                    osc.start();
-                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-                    osc.stop(ctx.currentTime + 0.3);
-                } catch (e) {
-                    console.warn('Web Audio playback skipped:', e);
-                }
-            }
+
 
             // Helper to parse date for headers
             function getFriendlyDateString(isoString) {
@@ -60141,20 +60104,48 @@ function smoothChaikin(points) {
                 const uid = ChatSystem.currentUser?.id;
                 if (!uid || uid === 'demo-user' || !supabase) return;
 
+                // 1. Fetch the latest server state first
+                await hydrateThreadReadMap();
+                await hydrateRoomReadMap();
+
                 const localThreadReads = loadInboxLastSeenMap();
                 const localRoomReads = loadRoomLastReads();
+                let threadUpdatesNeeded = false;
+                let roomUpdatesNeeded = false;
 
-                const threadEntries = Object.entries(localThreadReads);
-                for (const [partnerId, lastReadAt] of threadEntries) {
-                    if (!partnerId || !lastReadAt) continue;
-                    await upsertThreadReadCursor(partnerId, lastReadAt);
+                // 2. Sync Threads
+                for (const [partnerId, localReadAt] of Object.entries(localThreadReads)) {
+                    if (!partnerId || !localReadAt) continue;
+                    const serverReadAt = ChatSystem.threadReadMap.get(String(partnerId));
+                    if (!serverReadAt || new Date(localReadAt) > new Date(serverReadAt)) {
+                        await upsertThreadReadCursor(partnerId, localReadAt);
+                    }
                 }
+                for (const [partnerId, serverReadAt] of ChatSystem.threadReadMap.entries()) {
+                    const localReadAt = localThreadReads[partnerId];
+                    if (!localReadAt || new Date(serverReadAt) > new Date(localReadAt)) {
+                        localThreadReads[partnerId] = serverReadAt;
+                        threadUpdatesNeeded = true;
+                    }
+                }
+                if (threadUpdatesNeeded) saveInboxLastSeenMap(localThreadReads);
 
-                const roomEntries = Object.entries(localRoomReads);
-                for (const [roomId, lastReadAt] of roomEntries) {
-                    if (!roomId || !lastReadAt) continue;
-                    await upsertRoomReadCursor(roomId, lastReadAt);
+                // 3. Sync Rooms
+                for (const [roomId, localReadAt] of Object.entries(localRoomReads)) {
+                    if (!roomId || !localReadAt) continue;
+                    const serverReadAt = ChatSystem.roomReadMap.get(String(roomId));
+                    if (!serverReadAt || new Date(localReadAt) > new Date(serverReadAt)) {
+                        await upsertRoomReadCursor(roomId, localReadAt);
+                    }
                 }
+                for (const [roomId, serverReadAt] of ChatSystem.roomReadMap.entries()) {
+                    const localReadAt = localRoomReads[roomId];
+                    if (!localReadAt || new Date(serverReadAt) > new Date(localReadAt)) {
+                        localRoomReads[roomId] = serverReadAt;
+                        roomUpdatesNeeded = true;
+                    }
+                }
+                if (roomUpdatesNeeded) saveRoomLastReads(localRoomReads);
             }
 
             function formatShortThreadTime(iso) {
@@ -60531,8 +60522,20 @@ function smoothChaikin(points) {
                     await loadChatRooms();
 
                     // Play synthetic notification chime (Web Audio API)
-            function playNotificationSound() {
+            function playNotificationSound(messageText = 'You received a new message', senderName = 'New Message') {
                 if (localStorage.getItem('chatMuted') === 'true') return;
+                
+                if (document.hidden && Notification.permission === 'granted') {
+                    try {
+                        new Notification(senderName, {
+                            body: messageText,
+                            icon: 'assets/icon-192x192.png'
+                        });
+                    } catch (e) {
+                        console.warn('Browser Notification failed:', e);
+                    }
+                }
+
                 try {
                     const AudioCtx = window.AudioContext || window.webkitAudioContext;
                     if (!AudioCtx) return;
@@ -60541,7 +60544,7 @@ function smoothChaikin(points) {
                     const gain = ctx.createGain();
                     osc.connect(gain);
                     gain.connect(ctx.destination);
-                    osc.frequency.value = 830; // Pleasant crisp sine chime
+                    osc.frequency.value = 830; 
                     osc.type = 'sine';
                     gain.gain.setValueAtTime(0.08, ctx.currentTime);
                     osc.start();
@@ -61668,27 +61671,7 @@ function smoothChaikin(points) {
                 }
             }
 
-            // Play synthetic notification chime (Web Audio API)
-            function playNotificationSound() {
-                if (localStorage.getItem('chatMuted') === 'true') return;
-                try {
-                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                    if (!AudioCtx) return;
-                    const ctx = new AudioCtx();
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.connect(gain);
-                    gain.connect(ctx.destination);
-                    osc.frequency.value = 830; // Pleasant crisp sine chime
-                    osc.type = 'sine';
-                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
-                    osc.start();
-                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-                    osc.stop(ctx.currentTime + 0.3);
-                } catch (e) {
-                    console.warn('Web Audio playback skipped:', e);
-                }
-            }
+
 
             // Helper to parse date for headers
             function getFriendlyDateString(isoString) {
@@ -61718,7 +61701,9 @@ function smoothChaikin(points) {
                                 await loadRoomPosts(ChatSystem.currentRoom);
                                 // Play notification sound if sent by other user
                                 if (String(payload.new.user_id) !== String(ChatSystem.currentUser.id)) {
-                                    playNotificationSound();
+                                    const sender = ChatSystem.users ? ChatSystem.users.get(String(payload.new.user_id)) : null;
+                                    const senderName = sender ? (sender.username || sender.full_name || 'Someone') : 'New Message';
+                                    playNotificationSound(payload.new.content || 'You received a new message', senderName);
                                 }
                             }
                             scheduleSocialChatBadgeRefresh();
@@ -61837,10 +61822,18 @@ function smoothChaikin(points) {
                             // Check if active thread matches incoming payload
                             if (partner && openInbox && String(targetPartnerId) === String(partner.id)) {
                                 await loadConversation(partner.id, { showUnreadDivider: false });
-                                if (!isFromMe) playNotificationSound();
+                                if (!isFromMe) {
+                                    const sender = ChatSystem.users ? ChatSystem.users.get(String(payload.new.sender_id)) : null;
+                                    const senderName = sender ? (sender.username || sender.full_name || 'Someone') : 'New Message';
+                                    playNotificationSound(payload.new.content || 'You received a new message', senderName);
+                                }
                             } else {
                                 await refreshInboxSummaries();
-                                if (!isFromMe) playNotificationSound();
+                                if (!isFromMe) {
+                                    const sender = ChatSystem.users ? ChatSystem.users.get(String(payload.new.sender_id)) : null;
+                                    const senderName = sender ? (sender.username || sender.full_name || 'Someone') : 'New Message';
+                                    playNotificationSound(payload.new.content || 'You received a new message', senderName);
+                                }
                             }
                         }
                     )
@@ -62060,16 +62053,16 @@ function smoothChaikin(points) {
                     if (partnerAvatarEl) partnerAvatarEl.style.display = 'none';
                 });
 
-                // Enter key handlers: Shift+Enter sends, Enter inserts newline
-                document.getElementById('post-input')?.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter' && e.shiftKey) {
+                // Enter key handlers: Enter sends, Shift+Enter inserts newline
+                document.getElementById('post-input')?.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
                         document.getElementById('post-submit-btn').click();
                     }
                 });
 
-                document.getElementById('message-input')?.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter' && e.shiftKey) {
+                document.getElementById('message-input')?.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
                         document.getElementById('message-send-btn').click();
                     }
@@ -62121,6 +62114,90 @@ function smoothChaikin(points) {
                             muteBtn.querySelector('i').className = muted ? 'fas fa-bell-slash' : 'fas fa-bell';
                         });
                     }
+                })();
+
+                // Push Notification toggle
+                (function() {
+                    const pushBtn = document.getElementById('chatPushBtn');
+                    if (!pushBtn) return;
+
+                    const VAPID_PUBLIC_KEY = 'BEhzoXPHClBEpWUOpe5bbXT2O2AKBj4g1EtF8CHy-xKiPGbAHjiCQzXZ3kpRIXoOS9AgYGQO8ujuZydkEct-mMw';
+                    
+                    function urlBase64ToUint8Array(base64String) {
+                        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+                        const base64 = (base64String + padding)
+                            .replace(/\-/g, '+')
+                            .replace(/_/g, '/');
+                        const rawData = window.atob(base64);
+                        const outputArray = new Uint8Array(rawData.length);
+                        for (let i = 0; i < rawData.length; ++i) {
+                            outputArray[i] = rawData.charCodeAt(i);
+                        }
+                        return outputArray;
+                    }
+
+                    // Check if already subscribed to change icon
+                    if ('serviceWorker' in navigator && 'PushManager' in window) {
+                        navigator.serviceWorker.ready.then(function(reg) {
+                            reg.pushManager.getSubscription().then(function(sub) {
+                                if (sub) {
+                                    pushBtn.classList.add('active');
+                                    pushBtn.querySelector('i').className = 'fas fa-check-circle';
+                                    pushBtn.title = 'Push Notifications Enabled';
+                                    pushBtn.style.color = '#4CAF50';
+                                }
+                            });
+                        });
+                    }
+
+                    pushBtn.addEventListener('click', async function() {
+                        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                            alert('Push notifications are not supported in this browser.');
+                            return;
+                        }
+                        if (!ChatSystem.currentUser || !ChatSystem.currentUser.id) {
+                            alert('You must be logged in to enable push notifications.');
+                            return;
+                        }
+
+                        try {
+                            const permission = await Notification.requestPermission();
+                            if (permission !== 'granted') {
+                                alert('Permission for notifications was denied.');
+                                return;
+                            }
+
+                            const registration = await navigator.serviceWorker.ready;
+                            const subscription = await registration.pushManager.subscribe({
+                                userVisibleOnly: true,
+                                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                            });
+
+                            const subJSON = subscription.toJSON();
+                            const { error } = await supabase
+                                .from('push_subscriptions')
+                                .upsert({
+                                    user_id: ChatSystem.currentUser.id,
+                                    endpoint: subJSON.endpoint,
+                                    p256dh: subJSON.keys.p256dh,
+                                    auth: subJSON.keys.auth
+                                }, { onConflict: 'user_id, endpoint' });
+                            
+                            if (error) {
+                                console.error('Error saving push subscription:', error);
+                                alert('Failed to save subscription to database.');
+                            } else {
+                                pushBtn.classList.add('active');
+                                pushBtn.querySelector('i').className = 'fas fa-check-circle';
+                                pushBtn.title = 'Push Notifications Enabled';
+                                pushBtn.style.color = '#4CAF50';
+                                alert('Push notifications enabled successfully! You will now receive alerts even when the app is closed.');
+                            }
+                        } catch (error) {
+                            console.error('Push subscription failed:', error);
+                            alert('Failed to enable push notifications: ' + error.message);
+                        }
+                    });
                 })();
 
                 // Auto-expand textareas in compact input bars
@@ -62862,6 +62939,9 @@ MANDATORY VIDEO RULE: After every explanation, you MUST check Section 9 (Video T
                     <button type="button" id="tab-bot" class="chat-tab">AI Assistant</button>
                 </div>
                 <div class="chat-controls">
+                    <button type="button" class="chat-push-btn" id="chatPushBtn" title="Enable Push Notifications" style="margin-right: 8px;">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
                     <button type="button" class="chat-mute-btn" id="chatMuteBtn" title="Mute notifications">
                         <i class="fas fa-bell"></i>
                     </button>
@@ -62913,7 +62993,7 @@ MANDATORY VIDEO RULE: After every explanation, you MUST check Section 9 (Video T
                             <button type="button" class="chat-attach-option" id="share-location-btn"><i class="fas fa-crosshairs"></i> Location</button>
                         </div>
                     </div>
-                    <textarea id="post-input" placeholder="Type a message... (Shift+Enter to send)" rows="1"></textarea>
+                    <textarea id="post-input" placeholder="Type a message..." rows="1"></textarea>
                     <button id="post-submit-btn" class="chat-input-send-btn" title="Send"><i class="fas fa-paper-plane"></i></button>
                 </div>
             </div>
@@ -62960,7 +63040,7 @@ MANDATORY VIDEO RULE: After every explanation, you MUST check Section 9 (Video T
                                     <button type="button" class="chat-attach-option" id="message-share-location-btn"><i class="fas fa-crosshairs"></i> Location</button>
                                 </div>
                             </div>
-                            <textarea id="message-input" placeholder="Type a message... (Shift+Enter to send)" rows="1"></textarea>
+                            <textarea id="message-input" placeholder="Type a message..." rows="1"></textarea>
                             <button id="message-send-btn" class="chat-input-send-btn" title="Send"><i class="fas fa-paper-plane"></i></button>
                         </div>
                     </div>
@@ -63004,7 +63084,7 @@ MANDATORY VIDEO RULE: After every explanation, you MUST check Section 9 (Video T
                             <button type="button" id="bot-clear-history-btn" class="chat-input-attach-btn" title="Clear memory" style="width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #dc3545; cursor: pointer; border: 1px solid #f5c2c7; background: #fff0f1;">
                                 <i class="fas fa-trash-alt"></i>
                             </button>
-                            <textarea id="bot-message-input" placeholder="Ask AI a question... (Shift+Enter to send)" rows="1" style="flex: 1; resize: none;"></textarea>
+                            <textarea id="bot-message-input" placeholder="Ask AI a question..." rows="1" style="flex: 1; resize: none;"></textarea>
                             <button id="bot-message-send-btn" class="chat-input-send-btn" title="Send"><i class="fas fa-paper-plane"></i></button>
                         </div>
                         <div style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px;">
