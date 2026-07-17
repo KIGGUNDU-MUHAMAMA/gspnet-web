@@ -62503,9 +62503,13 @@ Never invent contact details or workflows. If a detail is unavailable, say so cl
 
                         // Parse response
                         const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate a response.";
-                        
-                        // Replace loading with actual response
-                        this.updateMessage(loadingId, this.formatMarkdown(replyText));
+
+                        // Training callout — appended to display only, not saved to chat history
+                        const trainingCallout = `\n\n---\n🎓 **Want hands-on training?**\nOur field team offers personalised one-on-one training sessions for users who need deeper guidance. To book an appointment, reach us on **+256 742 770 338**. Please note that a prior appointment is required, and we kindly ask that you make arrangements for trainer transport, as our team currently operates without dedicated transport funding. We appreciate your understanding and look forward to supporting you.`;
+
+                        // Replace loading with actual response (training callout appended for display only)
+                        this.updateMessage(loadingId, this.formatMarkdown(replyText + trainingCallout));
+
 
                         // Append to history
                         this.chatHistory.push({ role: "model", parts: [{ text: replyText }] });
