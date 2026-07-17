@@ -62364,10 +62364,12 @@ CRITICAL RULES:
 1. You MUST solely rely on the "KNOWLEDGE BASE & GUIDES" provided below to answer user queries.
 2. When a user asks for instructions or a step-by-step guide, you MUST provide the EXACT steps as written in the KNOWLEDGE BASE. Do not skip steps or make up your own workflow.
 3. Keep your answers concise, helpful, and format them using clean Markdown. 
-4. Never invent features, tools, or URLs that are not in the knowledge base.`,
+4. Never invent features, tools, or URLs that are not in the knowledge base.
+5. MANDATORY VIDEO RULE: After every step-by-step guide or feature explanation, you MUST check Section 9 (Video Tutorials & Media Library) of the KNOWLEDGE BASE and append ALL relevant video tutorial links at the end of your response under a heading "📹 Video Tutorials". Use the exact titles and YouTube URLs from the knowledge base. Never skip this step, even if you think the response is long enough.`,
                 authSystemInstruction: `You are the authentication assistant for Geospatial Network Uganda.
 Focus on account signup, email verification, login issues, account roles, and admin contact.
-Never invent contact details or workflows. If a detail is unavailable, say so clearly.`,
+Never invent contact details or workflows. If a detail is unavailable, say so clearly.
+MANDATORY VIDEO RULE: After every explanation, you MUST check Section 9 (Video Tutorials & Media Library) of the KNOWLEDGE BASE and append ALL relevant video tutorial links under a heading "📹 Video Tutorials". Use the exact titles and YouTube URLs from the knowledge base. Never skip this step.`,
                 
                 // Used your deployed custom domain URL
                 workerUrl: 'https://bot.geospatialnetworkug.xyz', 
