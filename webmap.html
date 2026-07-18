@@ -67064,14 +67064,36 @@ MANDATORY VIDEO RULE: After every explanation, you MUST check Section 9 (Video T
 
                     let r2Key, r2Url;
 
-                    // Store in Supabase Storage (Zero-Cost Edition)
-                    const bucket = 'case-evidence';
-                    const path   = `${CH.currentCaseId}/${Date.now()}_${file.name}`;
-                    const { error: uploadErr } = await sb.storage.from(bucket).upload(path, file);
-                    if (uploadErr) throw uploadErr;
-                    const { data: urlData } = sb.storage.from(bucket).getPublicUrl(path);
-                    r2Key = path;
-                    r2Url = urlData?.publicUrl || path;
+                    if (WORKER_BASE_URL && !WORKER_BASE_URL.includes('YOUR_SUBDOMAIN')) {
+                        // Use Cloudflare R2 via Worker pre-signed URL
+                        const preRes = await fetch(`${WORKER_BASE_URL}/upload`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ caseId: CH.currentCaseId, fileName: file.name, contentType: file.type })
+                        });
+                        const pre = await preRes.json();
+                        if (!pre.uploadUrl) throw new Error('No upload URL from worker');
+
+                        // PUT the file to R2
+                        await fetch(pre.uploadUrl, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': file.type },
+                            body: file
+                        });
+
+                        r2Key = pre.key;
+                        r2Url = `${WORKER_BASE_URL}/download/${encodeURIComponent(r2Key)}`;
+
+                    } else {
+                        // Fallback: store in Supabase Storage if R2 not configured yet
+                        const bucket = 'case-evidence';
+                        const path   = `${CH.currentCaseId}/${Date.now()}_${file.name}`;
+                        const { error: uploadErr } = await sb.storage.from(bucket).upload(path, file);
+                        if (uploadErr) throw uploadErr;
+                        const { data: urlData } = sb.storage.from(bucket).getPublicUrl(path);
+                        r2Key = path;
+                        r2Url = urlData?.publicUrl || path;
+                    }
 
                     // Record in DB
                     const { error: dbErr } = await sb.from('case_evidence').insert({
@@ -67115,11 +67137,17 @@ MANDATORY VIDEO RULE: After every explanation, you MUST check Section 9 (Video T
             if (!r2Key) return;
             try {
                 let url;
-                // Supabase storage (Zero-Cost Edition)
-                const sb = getSupabase();
-                if (sb) {
-                    const { data } = await sb.storage.from('case-evidence').createSignedUrl(r2Key, 3600);
-                    url = data?.signedUrl;
+                if (WORKER_BASE_URL && !WORKER_BASE_URL.includes('YOUR_SUBDOMAIN')) {
+                    const res = await fetch(`${WORKER_BASE_URL}/download/${encodeURIComponent(r2Key)}`);
+                    const data = await res.json();
+                    url = data.downloadUrl;
+                } else {
+                    // Supabase storage fallback
+                    const sb = getSupabase();
+                    if (sb) {
+                        const { data } = await sb.storage.from('case-evidence').createSignedUrl(r2Key, 3600);
+                        url = data?.signedUrl;
+                    }
                 }
                 if (url) window.open(url, '_blank');
             } catch (err) {

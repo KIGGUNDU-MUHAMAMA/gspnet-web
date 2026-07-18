@@ -1,0 +1,14 @@
+name = "gspnet-cases"
+main = "worker.js"
+compatibility_date = "2024-09-23"
+
+# ── Cloudflare R2 Bucket ─────────────────────────────────────────────────────
+# Create this bucket in your Cloudflare Dashboard → R2 → Create Bucket
+# Bucket name: gspnet-cases
+[[r2_buckets]]
+binding  = "CASE_FILES"
+bucket_name = "gspnet-cases"
+
+# ── Workers AI ───────────────────────────────────────────────────────────────
+[ai]
+binding = "AI"
