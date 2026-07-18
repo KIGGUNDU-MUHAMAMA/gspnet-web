@@ -6638,6 +6638,135 @@
             display: flex;
         }
 
+        /* ─── CASES COLLABORATION HUB ────────────────────────────────────────── */
+        .cases-hub-view { flex-direction: column; height: 100%; background: var(--chat-bg, #0f172a); position: relative; }
+        .cases-feed-panel { display: flex; flex-direction: column; height: 100%; }
+        .cases-feed-toolbar { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(15,23,42,0.9); }
+        .cases-filter-row { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+        .cases-filter-btn { padding: 4px 10px; border: 1px solid #334155; border-radius: 20px; background: transparent; color: #94a3b8; font-size: 11px; cursor: pointer; transition: all 0.2s; }
+        .cases-filter-btn.active, .cases-filter-btn:hover { background: #1e40af; color: #fff; border-color: #3b82f6; }
+        .cases-search-input { width: 100%; padding: 7px 10px; border: 1px solid #334155; border-radius: 8px; background: #1e293b; color: #f1f5f9; font-size: 12px; outline: none; }
+        .cases-search-input:focus { border-color: #3b82f6; }
+        .cases-feed-list { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+        .cases-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #64748b; text-align: center; }
+        .cases-empty-state p { font-size: 13px; }
+        /* Case Card */
+        .case-card { background: linear-gradient(135deg, rgba(30,41,59,0.9), rgba(15,23,42,0.95)); border: 1px solid #334155; border-radius: 12px; padding: 12px; cursor: pointer; transition: all 0.2s; }
+        .case-card:hover { border-color: #3b82f6; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(59,130,246,0.15); }
+        .case-card.status-red { border-left: 4px solid #ef4444; }
+        .case-card.status-yellow { border-left: 4px solid #f59e0b; }
+        .case-card.status-green { border-left: 4px solid #10b981; }
+        .case-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+        .case-card-num { font-size: 12px; font-weight: 700; color: #38bdf8; letter-spacing: 0.5px; }
+        .cases-status-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .cases-status-badge.red { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+        .cases-status-badge.yellow { background: rgba(245,158,11,0.15); color: #fcd34d; border: 1px solid rgba(245,158,11,0.3); }
+        .cases-status-badge.green { background: rgba(16,185,129,0.15); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.3); }
+        .case-card-parcel { font-size: 13px; font-weight: 600; color: #f1f5f9; margin-bottom: 4px; }
+        .case-card-meta { font-size: 11px; color: #64748b; display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+        .case-card-footer { display: flex; align-items: center; justify-content: space-between; }
+        .case-card-stats { display: flex; gap: 10px; font-size: 11px; color: #64748b; }
+        .case-card-stats span { display: flex; align-items: center; gap: 4px; }
+        .case-card-fly-btn { padding: 4px 10px; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.3); color: #60a5fa; border-radius: 6px; font-size: 11px; cursor: pointer; transition: all 0.2s; }
+        .case-card-fly-btn:hover { background: rgba(59,130,246,0.25); }
+        /* Case Detail */
+        .cases-detail-panel { display: flex; flex-direction: column; height: 100%; background: #0f172a; position: relative; }
+        .cases-detail-header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(15,23,42,0.95); flex-shrink: 0; position: relative; z-index: 10; }
+        .cases-back-btn { background: transparent; border: none; color: #60a5fa; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 6px; white-space: nowrap; }
+        .cases-back-btn:hover { background: rgba(59,130,246,0.1); }
+        .cases-detail-title-area { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; position: relative; }
+        .cases-detail-case-number { font-size: 12px; font-weight: 700; color: #38bdf8; }
+        .cases-detail-actions { display: flex; gap: 6px; }
+        .cases-icon-btn { width: 30px; height: 30px; border-radius: 8px; border: 1px solid #334155; background: transparent; color: #94a3b8; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.2s; }
+        .cases-status-dropdown { position: absolute; top: calc(100% + 4px); left: 0; background: rgba(30,41,59,0.98); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 4px; display: flex; flex-direction: column; min-width: 140px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 100; backdrop-filter: blur(10px); }
+        .cases-status-dropdown .status-option { padding: 8px 12px; font-size: 12px; color: #f1f5f9; cursor: pointer; display: flex; align-items: center; gap: 8px; border-radius: 4px; transition: background 0.2s; }
+        .cases-status-dropdown .status-option:hover { background: rgba(255,255,255,0.1); }
+        .cases-status-badge { transition: opacity 0.2s; }
+        .cases-status-badge.clickable:hover { opacity: 0.8; cursor: pointer; }
+        .cases-icon-btn:hover { background: rgba(255,255,255,0.07); color: #f1f5f9; }
+        .cases-icon-btn--status { border-color: rgba(245,158,11,0.4); color: #fbbf24; }
+        .cases-icon-btn--court { border-color: rgba(239,68,68,0.4); color: #f87171; }
+        .cases-detail-info { padding: 10px 12px; background: rgba(30,41,59,0.5); border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 11px; color: #94a3b8; flex-shrink: 0; }
+        .cases-detail-info .info-row { display: flex; flex-wrap: wrap; gap: 12px; }
+        .cases-detail-info .info-item { display: flex; align-items: center; gap: 5px; }
+        .cases-detail-info .info-item i { color: #3b82f6; }
+        /* Members bar */
+        .cases-members-bar { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); flex-shrink: 0; overflow-x: auto; }
+        .cases-members-list { display: flex; gap: 6px; align-items: center; }
+        .cases-member-chip { display: flex; align-items: center; gap: 5px; padding: 3px 8px 3px 3px; background: rgba(30,41,59,0.8); border: 1px solid #334155; border-radius: 20px; font-size: 10px; color: #cbd5e1; }
+        .cases-member-avatar { width: 20px; height: 20px; border-radius: 50%; background: #1e40af; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #fff; flex-shrink: 0; background-size: cover; background-position: center; }
+        .cases-add-member-btn { width: 26px; height: 26px; border-radius: 50%; border: 1px dashed #334155; background: transparent; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; transition: all 0.2s; }
+        .cases-add-member-btn:hover { border-color: #3b82f6; color: #60a5fa; }
+        /* Online bar */
+        .cases-online-bar { padding: 4px 12px; font-size: 10px; color: #64748b; background: rgba(16,185,129,0.04); border-bottom: 1px solid rgba(255,255,255,0.04); min-height: 22px; flex-shrink: 0; }
+        /* Messages feed */
+        .cases-messages-feed { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+        .case-msg { display: flex; gap: 8px; align-items: flex-start; }
+        .case-msg-avatar { width: 28px; height: 28px; border-radius: 50%; background: #1e40af; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0; background-size: cover; background-position: center; }
+        .case-msg-body { flex: 1; min-width: 0; }
+        .case-msg-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+        .case-msg-name { font-size: 11px; font-weight: 600; color: #60a5fa; }
+        .case-msg-role { font-size: 10px; color: #64748b; background: rgba(255,255,255,0.05); padding: 1px 6px; border-radius: 10px; }
+        .case-msg-time { font-size: 10px; color: #475569; }
+        .case-msg-text { font-size: 12px; color: #cbd5e1; line-height: 1.5; word-break: break-word; }
+        .case-msg-text a { color: #60a5fa; }
+        .case-msg.system { opacity: 0.7; }
+        .case-msg.system .case-msg-avatar { background: #334155; }
+        .case-msg.system .case-msg-text { font-style: italic; color: #64748b; }
+        .case-msg.status_change .case-msg-text { font-weight: 600; }
+        /* Typing indicator */
+        .cases-typing-indicator { padding: 4px 12px; font-size: 11px; color: #64748b; font-style: italic; flex-shrink: 0; }
+        /* Evidence shelf */
+        .cases-evidence-shelf { border-top: 1px solid rgba(255,255,255,0.06); padding: 8px 12px; flex-shrink: 0; max-height: 120px; overflow-y: auto; }
+        .cases-evidence-shelf-title { font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .cases-evidence-list { display: flex; flex-wrap: wrap; gap: 6px; }
+        .cases-evidence-item { background: rgba(30,41,59,0.8); border: 1px solid #334155; border-radius: 8px; padding: 5px 8px; display: flex; align-items: center; gap: 6px; font-size: 11px; color: #cbd5e1; cursor: pointer; transition: all 0.2s; }
+        .cases-evidence-item:hover { border-color: #3b82f6; }
+        .cases-evidence-item i { color: #60a5fa; }
+        .cases-evidence-thumb { width: 32px; height: 32px; border-radius: 4px; background-size: cover; background-position: center; border: 1px solid #334155; }
+        /* AI panel */
+        .cases-ai-panel { border-top: 1px solid rgba(16,185,129,0.2); background: rgba(16,185,129,0.04); padding: 8px; display: flex; flex-direction: column; gap: 6px; max-height: 200px; flex-shrink: 0; }
+        .cases-ai-header { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #34d399; }
+        .cases-ai-close-btn { margin-left: auto; background: transparent; border: none; color: #64748b; cursor: pointer; font-size: 14px; }
+        .cases-ai-messages { flex: 1; overflow-y: auto; max-height: 110px; display: flex; flex-direction: column; gap: 4px; }
+        .cases-ai-msg { font-size: 11px; padding: 5px 8px; border-radius: 6px; }
+        .cases-ai-msg.user { background: rgba(59,130,246,0.1); color: #93c5fd; align-self: flex-end; }
+        .cases-ai-msg.ai { background: rgba(16,185,129,0.08); color: #6ee7b7; }
+        .cases-ai-input-row { display: flex; gap: 6px; }
+        .cases-ai-input-row input { flex: 1; padding: 6px 10px; border: 1px solid rgba(16,185,129,0.3); border-radius: 8px; background: rgba(15,23,42,0.9); color: #f1f5f9; font-size: 11px; outline: none; }
+        .cases-ai-input-row button { padding: 6px 10px; background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: #34d399; border-radius: 8px; cursor: pointer; }
+        /* Input bar */
+        .cases-input-bar { display: flex; align-items: flex-end; gap: 6px; padding: 8px 10px; border-top: 1px solid rgba(255,255,255,0.08); background: rgba(15,23,42,0.95); flex-shrink: 0; }
+        .cases-input-attach-row { display: flex; flex-direction: column; gap: 4px; }
+        .cases-attach-btn { width: 30px; height: 30px; border-radius: 8px; border: 1px solid #334155; background: transparent; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.2s; }
+        .cases-attach-btn:hover { border-color: #3b82f6; color: #60a5fa; }
+        .cases-comment-input { flex: 1; resize: none; padding: 8px 10px; border: 1px solid #334155; border-radius: 8px; background: #1e293b; color: #f1f5f9; font-size: 12px; outline: none; max-height: 80px; overflow-y: auto; }
+        .cases-comment-input:focus { border-color: #3b82f6; }
+        .cases-send-btn:hover { transform: scale(1.1); }
+        
+        /* Notifications Dropdown */
+        .cases-notifications-dropdown { position: absolute; top: 60px; right: 20px; width: 320px; max-height: 400px; background: #1e293b; border: 1px solid #334155; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 9999; display: flex; flex-direction: column; overflow: hidden; }
+        .notif-header { padding: 12px 16px; background: #0f172a; border-bottom: 1px solid #334155; font-weight: 600; color: #f8fafc; font-size: 14px; }
+        .notif-list { flex: 1; overflow-y: auto; }
+        .notif-item { padding: 12px 16px; border-bottom: 1px solid #334155; cursor: pointer; transition: background 0.2s; }
+        .notif-item:hover { background: #334155; }
+        .notif-item.unread { background: rgba(59,130,246,0.1); }
+        .notif-title { font-size: 13px; font-weight: 600; color: #f1f5f9; margin-bottom: 4px; }
+        .notif-body { font-size: 12px; color: #94a3b8; }
+        .notif-time { font-size: 10px; color: #64748b; margin-top: 6px; }
+        .notif-empty { padding: 20px; text-align: center; color: #64748b; font-size: 13px; }
+
+        /* Modals */
+        .cases-modal-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); z-index: 200; display: flex; align-items: center; justify-content: center; }
+        .cases-modal-box { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 20px; width: 90%; max-width: 320px; }
+        .cases-modal-box h3 { margin: 0 0 12px; color: #f1f5f9; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+        .cases-status-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+        .cases-status-option-btn { padding: 10px 14px; border: 1px solid #334155; border-radius: 8px; background: rgba(255,255,255,0.03); color: #cbd5e1; cursor: pointer; text-align: left; font-size: 13px; transition: all 0.2s; }
+        .cases-status-option-btn:hover { background: rgba(255,255,255,0.08); border-color: #3b82f6; }
+        .cases-modal-cancel-btn { width: 100%; padding: 8px; background: transparent; border: 1px solid #334155; border-radius: 8px; color: #64748b; cursor: pointer; font-size: 12px; margin-top: 4px; }
+        .cases-modal-cancel-btn:hover { border-color: #ef4444; color: #f87171; }
+        /* ─── END CASES COLLABORATION HUB ────────────────────────────────────── */
+
         /* Quality Flags Button */
         .quality-flags-btn {
             position: relative;
@@ -26302,36 +26431,11 @@
             }
 
             function switchQualityFlagsTab(tabName) {
-                qualityFlagsState.currentTab = tabName;
-
-                // Update tab buttons
-                document.querySelectorAll('.quality-tab').forEach(tab => {
-                    if (tab) tab.classList.remove('active');
-                });
-                const activeTabBtn = document.getElementById(tabName === 'flag' ? 'flagTabBtn' : 'checkTabBtn');
-                if (activeTabBtn) {
-                    activeTabBtn.classList.add('active');
-                } else {
-                    console.error('Quality Flags: Tab button not found for', tabName);
+                qualityFlagsState.currentTab = 'flag';
+                const flagSection = document.getElementById('flagSection');
+                if (flagSection) {
+                    flagSection.classList.add('active');
                 }
-
-                // Hide detail section first
-                const flagDetailSection = document.getElementById('flagDetailSection');
-                if (flagDetailSection) flagDetailSection.style.display = 'none';
-
-                // Update sections - hide all first
-                document.querySelectorAll('.quality-section').forEach(section => {
-                    if (section) section.classList.remove('active');
-                });
-
-                // Show the active section
-                const activeSection = document.getElementById(tabName === 'flag' ? 'flagSection' : 'checkSection');
-                if (activeSection) {
-                    activeSection.classList.add('active');
-                } else {
-                    console.error('Quality Flags: Section not found for', tabName);
-                }
-
                 savePanelState();
             }
 
@@ -26600,7 +26704,7 @@
                     }
                     if (dupRes.error) throw dupRes.error;
                     if (dupRes.data && dupRes.data.length > 0) {
-                        showToast('A quality flag already exists for this parcel ID. Use Check Flags to review it.', 'warning');
+                        showToast('A quality flag already exists for this parcel ID. Check the Cases tab in the Chat Hub to review it.', 'warning');
                         submitBtn.disabled = false;
                         submitBtn.innerHTML = '<i class="fas fa-flag"></i> Submit Flag';
                         return;
@@ -26609,10 +26713,14 @@
                     const newFlag = await createFlag(flagData);
                     let newCase = null;
                     try {
-                        newCase = await createCorroborationCaseForFlag(newFlag, p, userCtx);
+                        if (window.CaseHub && window.CaseHub.createParcelCaseFromFlag) {
+                            newCase = await window.CaseHub.createParcelCaseFromFlag(newFlag, userCtx);
+                        } else {
+                            console.warn('CaseHub not found. Case not auto-created from flag.');
+                        }
                     } catch (caseError) {
-                        console.warn('[Corroboration] Case creation failed after flag insert:', caseError);
-                        showToast('Flag saved, but corroboration case could not be opened automatically.', 'warning', 7000);
+                        console.warn('[CaseHub] Case creation failed after flag insert:', caseError);
+                        showToast('Flag saved, but case could not be opened automatically.', 'warning', 7000);
                     }
 
                     clearQualityFlagParcelHighlight();
@@ -48510,6 +48618,13 @@ function smoothChaikin(points) {
                     return;
                 }
 
+                // Phase 1d: Fetch corresponding parcel_cases for Case Integration
+                let caseRows = [];
+                try {
+                    let caseRes = await supabase.from('parcel_cases').select('*').ilike('parcel_unique_id', uid.trim());
+                    if (!caseRes.error && caseRes.data) caseRows = caseRes.data;
+                } catch(e) { console.warn('Case fetch error', e); }
+
                 if (!flagsSection) return;
 
                 if (flagRows.length === 0) {
@@ -48536,6 +48651,15 @@ function smoothChaikin(points) {
                         add('Submitted', typeof formatDate === 'function' ? formatDate(flag.created_at) : flag.created_at);
                         add('Updated', typeof formatDate === 'function' ? formatDate(flag.updated_at) : flag.updated_at);
                         add('Status', flag.status);
+                        
+                        // Phase 1d: Show Case Activity & Join button
+                        const matchedCase = caseRows.find(c => c.flag_id === flag.id);
+                        if (matchedCase) {
+                            fh += `<tr><td colspan="2" style="padding-top:10px;">
+                                <button onclick="if(window.CH && CH.openCaseFromPopup) CH.openCaseFromPopup('${matchedCase.id}')" style="width:100%;padding:8px;background:rgba(59,130,246,0.1);color:#3b82f6;border:1px solid rgba(59,130,246,0.3);border-radius:6px;cursor:pointer;font-weight:bold;transition:all 0.2s;"><i class="fas fa-users"></i> Join Case Discussion</button>
+                            </td></tr>`;
+                        }
+                        
                         fh += '</table></div>';
                     });
 
@@ -63082,6 +63206,7 @@ MANDATORY VIDEO RULE: After every explanation, you MUST check Section 9 (Video T
                 <div class="chat-tabs">
                     <button type="button" id="tab-rooms" class="chat-tab active">Chat Rooms<span class="chat-tab-badge" id="tab-rooms-badge" aria-hidden="true"></span></button>
                     <button type="button" id="tab-inbox" class="chat-tab">Inbox<span class="chat-tab-badge" id="tab-inbox-badge" aria-hidden="true"></span></button>
+                    <button type="button" id="tab-cases" class="chat-tab">📋 Cases<span class="chat-tab-badge" id="tab-cases-badge" aria-hidden="true"></span></button>
                     <button type="button" id="tab-ledger" class="chat-tab">Live Transactions</button>
                     <button type="button" id="tab-bot" class="chat-tab">AI Assistant</button>
                 </div>
@@ -63241,6 +63366,161 @@ MANDATORY VIDEO RULE: After every explanation, you MUST check Section 9 (Video T
                     </div>
                 </div>
             </div>
+            <!-- ═══════════════════════════════════════════════════════════════
+                 CASES VIEW — Parcel Case Collaboration Hub
+                 ═══════════════════════════════════════════════════════════════ -->
+            <div id="cases-view" class="chat-view cases-hub-view">
+                <!-- CASE FEED (list of all cases) -->
+                <div id="cases-feed-panel" class="cases-feed-panel">
+                    <div class="cases-feed-toolbar">
+                        <div class="cases-filter-row">
+                            <button type="button" class="cases-filter-btn active" data-status="all">All</button>
+                            <button type="button" class="cases-filter-btn" data-status="red">🔴 Open</button>
+                            <button type="button" class="cases-filter-btn" data-status="yellow">🟡 Review</button>
+                            <button type="button" class="cases-filter-btn" data-status="green">🟢 Resolved</button>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center; position:relative;">
+                            <input type="text" id="cases-search-input" placeholder="Search parcel ID or district..." class="cases-search-input" style="flex:1;">
+                            <button type="button" class="cases-attach-btn" id="notificationsBtn" title="Alerts & Updates" style="position:relative;">
+                                <i class="fas fa-bell"></i>
+                                <span class="unread-badge" id="notificationsBadge" style="display:none; position:absolute; top:-5px; right:-5px; font-size:9px; padding:2px 4px; border-radius:50%; background:#ef4444; color:#fff;">0</span>
+                            </button>
+                            <!-- Notifications Dropdown -->
+                            <div id="notificationsDropdown" class="cases-notifications-dropdown" style="display:none; top:36px; right:0;">
+                                <div class="notif-header">Alerts & Updates</div>
+                                <div id="notificationsList" class="notif-list">
+                                    <div class="notif-empty">No new alerts.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="cases-feed-list" class="cases-feed-list">
+                        <div class="cases-empty-state">
+                            <i class="fas fa-folder-open" style="font-size:36px;color:#64748b;margin-bottom:12px;"></i>
+                            <p>No cases found. Flag a parcel to create a case.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CASE DETAIL (opens when a case card is clicked) -->
+                <div id="cases-detail-panel" class="cases-detail-panel" style="display:none;">
+                    <!-- Header -->
+                    <div class="cases-detail-header">
+                        <button type="button" id="cases-back-btn" class="cases-back-btn">
+                            <i class="fas fa-arrow-left"></i> Cases
+                        </button>
+                        <div class="cases-detail-title-area">
+                            <span id="cases-detail-case-number" class="cases-detail-case-number"></span>
+                            <div style="position: relative;">
+                                <span id="cases-detail-status-badge" class="cases-status-badge"></span>
+                                <div id="cases-status-dropdown" class="cases-status-dropdown" style="display:none;">
+                                    <div class="status-option" data-status="open"><i class="fas fa-circle" style="color:#ef4444;"></i> Open</div>
+                                    <div class="status-option" data-status="review"><i class="fas fa-circle" style="color:#f59e0b;"></i> Review</div>
+                                    <div class="status-option" data-status="resolved"><i class="fas fa-circle" style="color:#10b981;"></i> Resolved</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="cases-detail-actions">
+                            <button type="button" id="cases-fly-to-btn" class="cases-icon-btn" title="Fly to parcel on map">
+                                <i class="fas fa-crosshairs"></i>
+                            </button>
+                            <button type="button" id="cases-court-report-btn" class="cases-icon-btn cases-icon-btn--court" title="Generate court report" style="display:none;">
+                                <i class="fas fa-gavel"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Parcel Info Strip -->
+                    <div id="cases-detail-info" class="cases-detail-info"></div>
+
+                    <!-- Members Row -->
+                    <div class="cases-members-bar">
+                        <div id="cases-members-list" class="cases-members-list"></div>
+                        <button type="button" id="cases-add-member-btn" class="cases-add-member-btn" title="Add member">
+                            <i class="fas fa-user-plus"></i>
+                        </button>
+                    </div>
+
+                    <!-- Live Members Indicator -->
+                    <div id="cases-online-bar" class="cases-online-bar"></div>
+
+                    <!-- Message Feed -->
+                    <div id="cases-messages-feed" class="cases-messages-feed"></div>
+
+                    <!-- Typing Indicator -->
+                    <div id="cases-typing-indicator" class="cases-typing-indicator" style="display:none;"></div>
+
+                    <!-- Evidence Shelf -->
+                    <div id="cases-evidence-shelf" class="cases-evidence-shelf">
+                        <div class="cases-evidence-shelf-title"><i class="fas fa-paperclip"></i> Evidence</div>
+                        <div id="cases-evidence-list" class="cases-evidence-list"></div>
+                    </div>
+
+                    <!-- AI Assistant Panel (inline) -->
+                    <div id="cases-ai-panel" class="cases-ai-panel" style="display:none;">
+                        <div class="cases-ai-header">
+                            <i class="fas fa-robot"></i> AI Case Assistant
+                            <button type="button" id="cases-ai-close-btn" class="cases-ai-close-btn"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div id="cases-ai-messages" class="cases-ai-messages"></div>
+                        <div class="cases-ai-input-row">
+                            <input type="text" id="cases-ai-input" placeholder="Ask about this case...">
+                            <button type="button" id="cases-ai-send-btn"><i class="fas fa-paper-plane"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- Input Bar -->
+                    <div class="cases-input-bar">
+                        <div class="cases-input-attach-row">
+                            <label class="cases-attach-btn" title="Upload evidence">
+                                <i class="fas fa-paperclip"></i>
+                                <input type="file" id="cases-evidence-input" multiple accept="image/*,.dxf,.csv,.xlsx,.xls,.pdf" style="display:none;">
+                            </label>
+                            <button type="button" id="cases-ai-toggle-btn" class="cases-attach-btn" title="Ask AI about this case">
+                                <i class="fas fa-robot"></i>
+                            </button>
+                            <button type="button" id="cases-rover-broadcast-btn" class="cases-attach-btn" title="Broadcast my rover location to team" style="display:none;">
+                                <i class="fas fa-satellite-dish"></i>
+                            </button>
+                        </div>
+                        <textarea id="cases-comment-input" placeholder="Add a comment..." rows="1" class="cases-comment-input"></textarea>
+                        <button type="button" id="cases-comment-send-btn" class="cases-send-btn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Change Status Modal -->
+            <div id="cases-status-modal" class="cases-modal-overlay" style="display:none;">
+                <div class="cases-modal-box">
+                    <h3><i class="fas fa-traffic-light"></i> Change Case Status</h3>
+                    <p style="font-size:12px;color:#94a3b8;margin-bottom:16px;">Only RSU, Admin, or the case creator can change the status.</p>
+                    <div class="cases-status-options">
+                        <button type="button" class="cases-status-option-btn" data-status="red">
+                            🔴 <strong>Red</strong> — Bad / Unresolved
+                        </button>
+                        <button type="button" class="cases-status-option-btn" data-status="yellow">
+                            🟡 <strong>Yellow</strong> — Needs Review
+                        </button>
+                        <button type="button" class="cases-status-option-btn" data-status="green">
+                            🟢 <strong>Green</strong> — Verified / Resolved
+                        </button>
+                    </div>
+                    <button type="button" id="cases-status-modal-close" class="cases-modal-cancel-btn">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Add Member Modal -->
+            <div id="cases-member-modal" class="cases-modal-overlay" style="display:none;">
+                <div class="cases-modal-box">
+                    <h3><i class="fas fa-user-plus"></i> Add Team Member</h3>
+                    <input type="text" id="cases-member-search" placeholder="Search users by name or role..." style="width:100%;padding:8px;border:1px solid #334155;border-radius:6px;background:#1e293b;color:#f8fafc;margin-bottom:8px;">
+                    <div id="cases-member-search-results" style="max-height:180px;overflow-y:auto;margin-bottom:12px;"></div>
+                    <button type="button" id="cases-member-modal-close" class="cases-modal-cancel-btn">Cancel</button>
+                </div>
+            </div>
+
             <!-- Profile Edit Modal -->
             <div id="profile-edit-modal" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center;">
                 <style>
@@ -65957,15 +66237,7 @@ MANDATORY VIDEO RULE: After every explanation, you MUST check Section 9 (Video T
                 <button class="dock-close" id="qualityFlagsClose">&times;</button>
             </div>
             <div class="dock-body">
-                <!-- Tab Selection -->
-                <div class="quality-tabs">
-                    <button class="quality-tab active" data-tab="flag" id="flagTabBtn">
-                        <i class="fas fa-flag"></i> Flag Parcel
-                    </button>
-                    <button class="quality-tab" data-tab="check" id="checkTabBtn">
-                        <i class="fas fa-search"></i> Find Parcel Case
-                    </button>
-                </div>
+                <!-- Tab Selection Removed (Mobile Friendly single-view) -->
 
                 <!-- Flag Parcel Section -->
                 <div class="quality-section active" id="flagSection">
@@ -66049,90 +66321,7 @@ MANDATORY VIDEO RULE: After every explanation, you MUST check Section 9 (Video T
                     </form>
                 </div>
 
-                <!-- Check Flags Section -->
-                <div class="quality-section" id="checkSection">
-                    <!-- Filters -->
-                    <div class="filters-section">
-                        <div class="form-group">
-                            <label for="checkSurveyLayer">Survey polygon layer</label>
-                            <select id="checkSurveyLayer" class="form-select">
-                                <option value="">Select layer</option>
-                                <option value="BLB-UNTITLED">BLB-UNTITLED</option>
-                                <option value="UNTITLED UTM ZONE 36S">UNTITLED UTM ZONE 36S</option>
-                                <option value="UNTITLED UTM ZONE 36N">UNTITLED UTM ZONE 36N</option>
-                                <option value="TITLE TRACTS UTM ZONE 36S">TITLE TRACTS UTM ZONE 36S</option>
-                                <option value="TITLE TRACTS UTM ZONE 36N">TITLE TRACTS UTM ZONE 36N</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="checkSurveyUniqueId">Parcel unique ID</label>
-                            <input type="text" id="checkSurveyUniqueId" class="form-input" placeholder="e.g. TT36N-069">
-                        </div>
-
-
-                        <button type="button" class="btn btn-primary" id="searchFlagsBtn">
-                            <i class="fas fa-search"></i> Find Parcel Case
-                        </button>
-                        <button type="button" class="btn btn-secondary" id="clearFiltersBtn">
-                            <i class="fas fa-times"></i> Clear
-                        </button>
-                    </div>
-
-                    <!-- Statistics -->
-                    <div class="statistics-section" id="statisticsSection" style="display: none;">
-                        <h5>Statistics</h5>
-                        <div class="stats-grid">
-                            <div class="stat-item red">
-                                <span class="stat-value" id="statRed">0</span>
-                                <span class="stat-label">Bad Data</span>
-                            </div>
-                            <div class="stat-item yellow">
-                                <span class="stat-value" id="statYellow">0</span>
-                                <span class="stat-label">Needs Review</span>
-                            </div>
-                            <div class="stat-item green">
-                                <span class="stat-value" id="statGreen">0</span>
-                                <span class="stat-label">Verified</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Flags List -->
-                    <div class="flags-list-container">
-                        <div id="flagsList" class="flags-list">
-                            <div class="empty-state">
-                                <i class="fas fa-search"></i>
-                            </div>
-                        </div>
-                        <div id="flagsLoading" class="loading-state" style="display: none;">
-                            <i class="fas fa-spinner fa-spin"></i> Looking up parcel case...
-                        </div>
-                    </div>
-
-                    <!-- Export Options -->
-                    <div class="export-section" id="exportSection" style="display: none;">
-                        <button type="button" class="btn btn-success" id="exportCSVBtn">
-                            <i class="fas fa-file-csv"></i> Export CSV
-                        </button>
-                        <button type="button" class="btn btn-success" id="exportPDFBtn">
-                            <i class="fas fa-file-pdf"></i> Export PDF
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Flag Detail View (shown when flag is selected) -->
-                <div class="quality-section" id="flagDetailSection" style="display: none;">
-                    <div class="flag-detail-header">
-                        <button type="button" class="btn-back" id="backToListBtn">
-                            <i class="fas fa-arrow-left"></i> Back to Search
-                        </button>
-                        <h4 id="flagDetailTitle">Parcel Case Details</h4>
-                    </div>
-                    <div id="flagDetailContent" class="flag-detail-content">
-                        <!-- Populated dynamically -->
-                    </div>
-                </div>
+                <!-- Old Check Flags Section Removed -->
             </div>
         </div>
 
@@ -66164,7 +66353,1345 @@ MANDATORY VIDEO RULE: After every explanation, you MUST check Section 9 (Video T
     <!-- ============================================ -->
 
 
+    <!-- ============================================ -->
+    <!-- PARCEL CASE COLLABORATION HUB JAVASCRIPT     -->
+    <!-- ============================================ -->
+    <script>
+    (function () {
+        'use strict';
+
+        // ─── CONFIG ─────────────────────────────────────────────────────────────
+        // IMPORTANT: Replace this URL with your deployed Cloudflare Worker URL
+        const WORKER_BASE_URL = 'https://gspnet-cases.geospatialnetworkug.xyz';
+        // e.g. 'https://gspnet-cases.muhamama.workers.dev'
+
+        // ─── STATE ──────────────────────────────────────────────────────────────
+        const CH = {
+            currentCaseId: null,
+            currentCase:   null,
+            cases:         [],
+            filterStatus:  'all',
+            searchText:    '',
+            wsConn:        null,      // active WebSocket for current case room
+            roverWatchId:  null,      // navigator.geolocation watch id
+            roverActive:   false,
+            typingTimer:   null,
+            typingPeers:   {},        // userId → timeout handle
+            supaRealtime:  null,      // Supabase realtime channel for case list
+            msgChannel:    null,      // Supabase realtime channel for case messages
+            uploadQueue:   [],
+        };
+
+        // ─── HELPERS ────────────────────────────────────────────────────────────
+        function qs(id) { return document.getElementById(id); }
+        function ts() { return new Date().toISOString(); }
+        function ago(iso) {
+            if (!iso) return '';
+            const secs = Math.floor((Date.now() - new Date(iso)) / 1000);
+            if (secs < 60)   return 'just now';
+            if (secs < 3600) return Math.floor(secs/60) + 'm ago';
+            if (secs < 86400) return Math.floor(secs/3600) + 'h ago';
+            return new Date(iso).toLocaleDateString('en-GB', { day:'numeric', month:'short' });
+        }
+        function statusEmoji(s) {
+            return { red: '🔴', yellow: '🟡', green: '🟢' }[s] || '⚪';
+        }
+        function statusLabel(s) {
+            return { red: 'Open', yellow: 'Review', green: 'Resolved' }[s] || s;
+        }
+        function fileIcon(type) {
+            if (!type) return 'fa-file';
+            if (type === 'photo') return 'fa-image';
+            if (type === 'dxf')   return 'fa-drafting-compass';
+            if (type === 'pdf')   return 'fa-file-pdf';
+            if (type === 'csv' || type === 'excel') return 'fa-file-excel';
+            return 'fa-file';
+        }
+        function getSupabase() { return window.supabaseClient || window.supabase || null; }
+        function getCurrentUser() {
+            // Try multiple ways the app stores the current user
+            if (window._chatCurrentUser) return window._chatCurrentUser;
+            if (window.chatState && window.chatState.currentUser) return window.chatState.currentUser;
+            return null;
+        }
+
+        // ─── INIT ────────────────────────────────────────────────────────────────
+        function initCasesHub() {
+            // Wire tab click
+            const tabBtn = qs('tab-cases');
+            if (tabBtn) {
+                tabBtn.addEventListener('click', () => {
+                    switchToCasesView();
+                });
+            }
+
+            // Wire filter buttons
+            document.querySelectorAll('.cases-filter-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.cases-filter-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    CH.filterStatus = btn.dataset.status;
+                    renderCaseFeed();
+                });
+            });
+
+            // Wire search
+            const searchInput = qs('cases-search-input');
+            if (searchInput) {
+                searchInput.addEventListener('input', () => {
+                    CH.searchText = searchInput.value.toLowerCase();
+                    renderCaseFeed();
+                });
+            }
+
+            // Back button
+            const backBtn = qs('cases-back-btn');
+            if (backBtn) backBtn.addEventListener('click', showCaseFeed);
+
+            // Fly to parcel
+            const flyBtn = qs('cases-fly-to-btn');
+            if (flyBtn) flyBtn.addEventListener('click', flyToCurrentCase);
+
+            // Status dropdown option clicks
+            document.addEventListener('click', (e) => {
+                if (e.target.closest('.status-option')) {
+                    const newStatus = e.target.closest('.status-option').dataset.status;
+                    if (newStatus && typeof changeStatus === 'function') {
+                        changeStatus(newStatus);
+                    }
+                    const dropdown = qs('cases-status-dropdown');
+                    if (dropdown) dropdown.style.display = 'none';
+                }
+                
+                // Close dropdown if clicking outside
+                if (!e.target.closest('#cases-detail-status-badge') && !e.target.closest('#cases-status-dropdown')) {
+                    const dropdown = qs('cases-status-dropdown');
+                    if (dropdown) dropdown.style.display = 'none';
+                }
+            });
+
+            // Court report
+            const courtBtn = qs('cases-court-report-btn');
+            if (courtBtn) courtBtn.addEventListener('click', generateCourtReport);
+
+            // Status option buttons
+            document.querySelectorAll('.cases-status-option-btn').forEach(btn => {
+                btn.addEventListener('click', () => changeStatus(btn.dataset.status));
+            });
+
+            // Add member
+            const addMemberBtn = qs('cases-add-member-btn');
+            if (addMemberBtn) addMemberBtn.addEventListener('click', openMemberModal);
+
+            const memberModalClose = qs('cases-member-modal-close');
+            if (memberModalClose) memberModalClose.addEventListener('click', closeMemberModal);
+
+            const memberSearch = qs('cases-member-search');
+            if (memberSearch) memberSearch.addEventListener('input', searchProfiles);
+
+            // Send comment
+            const sendBtn = qs('cases-comment-send-btn');
+            if (sendBtn) sendBtn.addEventListener('click', sendCaseComment);
+
+            const commentInput = qs('cases-comment-input');
+            if (commentInput) {
+                commentInput.addEventListener('keydown', e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendCaseComment();
+                    }
+                });
+                commentInput.addEventListener('input', () => {
+                    // Auto-resize
+                    commentInput.style.height = 'auto';
+                    commentInput.style.height = Math.min(commentInput.scrollHeight, 80) + 'px';
+                    // Typing broadcast
+                    broadcastTyping();
+                });
+            }
+
+            // Evidence upload
+            const evidenceInput = qs('cases-evidence-input');
+            if (evidenceInput) evidenceInput.addEventListener('change', handleEvidenceUpload);
+
+            // AI toggle
+            const aiToggleBtn = qs('cases-ai-toggle-btn');
+            if (aiToggleBtn) aiToggleBtn.addEventListener('click', toggleAIPanel);
+
+            const aiCloseBtn = qs('cases-ai-close-btn');
+            if (aiCloseBtn) aiCloseBtn.addEventListener('click', toggleAIPanel);
+
+            const aiSendBtn = qs('cases-ai-send-btn');
+            if (aiSendBtn) aiSendBtn.addEventListener('click', sendAIQuestion);
+
+            const aiInput = qs('cases-ai-input');
+            if (aiInput) aiInput.addEventListener('keydown', e => {
+                if (e.key === 'Enter') sendAIQuestion();
+            });
+
+            // Rover broadcast
+            const roverBtn = qs('cases-rover-broadcast-btn');
+            if (roverBtn) roverBtn.addEventListener('click', toggleRoverBroadcast);
+
+            // Subscribe to case list changes
+            subscribeToGlobalCaseUpdates();
+        }
+
+        // ─── VIEW SWITCHING ──────────────────────────────────────────────────────
+        function switchToCasesView() {
+            // Let the existing chat tab system handle the active state
+            document.querySelectorAll('.chat-view').forEach(v => v.classList.remove('active'));
+            const view = qs('cases-view');
+            if (view) view.classList.add('active');
+
+            showCaseFeed();
+            loadCases();
+        }
+
+        function showCaseFeed() {
+            const feed   = qs('cases-feed-panel');
+            const detail = qs('cases-detail-panel');
+            if (feed)   feed.style.display = 'flex';
+            if (detail) detail.style.display = 'none';
+
+            // Disconnect WebSocket if leaving detail
+            disconnectWS();
+        }
+
+        async function showCaseDetail(caseId) {
+            const sb = getSupabase();
+            if (!sb) return;
+
+            const feed   = qs('cases-feed-panel');
+            const detail = qs('cases-detail-panel');
+            if (feed)   feed.style.display = 'none';
+            if (detail) detail.style.display = 'flex';
+
+            CH.currentCaseId = caseId;
+
+            // Show loading state
+            const msgFeed = qs('cases-messages-feed');
+            if (msgFeed) msgFeed.innerHTML = '<div style="text-align:center;padding:20px;color:#64748b;"><i class="fas fa-spinner fa-spin"></i> Loading case...</div>';
+
+            try {
+                const { data, error } = await sb.rpc('get_case_bundle', { p_case_id: caseId });
+                if (error) throw error;
+
+                const bundle = data;
+                CH.currentCase = bundle.case;
+
+                renderCaseDetailHeader(bundle.case);
+                renderCaseDetailInfo(bundle.case);
+                renderCaseMembers(bundle.members);
+                renderEvidenceShelf(bundle.evidence);
+                renderCaseMessages(bundle.messages);
+
+                // Join user as member (idempotent due to UNIQUE constraint)
+                const user = getCurrentUser();
+                if (user && user.id) {
+                    await sb.from('case_members').upsert(
+                        { case_id: caseId, user_id: user.id, role_in_case: 'participant' },
+                        { onConflict: 'case_id,user_id', ignoreDuplicates: true }
+                    );
+                }
+
+                // Show rover button for field surveyors
+                const roverBtn = qs('cases-rover-broadcast-btn');
+                if (roverBtn) {
+                    const role = (user && user.role) ? user.role.toLowerCase() : '';
+                    roverBtn.style.display = (role.includes('field') || role.includes('survey') || role.includes('rsu'))
+                        ? 'flex' : 'none';
+                }
+
+                // Subscribe to live updates for this case
+                subscribeToCaseMessages(caseId);
+                connectWS(caseId);
+
+            } catch (err) {
+                console.error('[CaseHub] Error loading case:', err);
+                if (msgFeed) msgFeed.innerHTML = '<div style="text-align:center;padding:20px;color:#ef4444;"><i class="fas fa-exclamation-triangle"></i> Error loading case.</div>';
+            }
+        }
+
+        // ─── CASE FEED ───────────────────────────────────────────────────────────
+        async function loadCases() {
+            const sb = getSupabase();
+            if (!sb) return;
+
+            const feedList = qs('cases-feed-list');
+            if (feedList) feedList.innerHTML = '<div class="cases-empty-state"><i class="fas fa-spinner fa-spin" style="font-size:24px;"></i><p>Loading cases...</p></div>';
+
+            try {
+                let query = sb.from('parcel_cases')
+                    .select(`id, case_number, parcel_unique_id, survey_layer, district, current_status, created_at, reason,
+                             centroid_lat, centroid_lng,
+                             case_messages(count), case_members(count)`)
+                    .order('created_at', { ascending: false })
+                    .limit(50);
+
+                const { data, error } = await query;
+                if (error) throw error;
+
+                CH.cases = data || [];
+                renderCaseFeed();
+
+            } catch (err) {
+                console.error('[CaseHub] loadCases error:', err);
+                if (feedList) feedList.innerHTML = `<div class="cases-empty-state" style="color:#ef4444;"><p>Error loading cases: ${err.message}</p></div>`;
+            }
+        }
+
+        function renderCaseFeed() {
+            const feedList = qs('cases-feed-list');
+            if (!feedList) return;
+
+            let filtered = CH.cases;
+            if (CH.filterStatus !== 'all') {
+                filtered = filtered.filter(c => c.current_status === CH.filterStatus);
+            }
+            if (CH.searchText) {
+                filtered = filtered.filter(c =>
+                    (c.parcel_unique_id || '').toLowerCase().includes(CH.searchText) ||
+                    (c.district || '').toLowerCase().includes(CH.searchText) ||
+                    (c.case_number || '').toLowerCase().includes(CH.searchText)
+                );
+            }
+
+            if (filtered.length === 0) {
+                feedList.innerHTML = `<div class="cases-empty-state">
+                    <i class="fas fa-folder-open" style="font-size:36px;color:#64748b;margin-bottom:12px;"></i>
+                    <p>No cases found. Flag a parcel to open a case.</p>
+                </div>`;
+                return;
+            }
+
+            feedList.innerHTML = filtered.map(c => buildCaseCard(c)).join('');
+
+            // Wire card clicks
+            feedList.querySelectorAll('.case-card').forEach(card => {
+                card.addEventListener('click', (e) => {
+                    if (e.target.closest('.case-card-fly-btn')) return;
+                    showCaseDetail(card.dataset.caseId);
+                });
+            });
+
+            feedList.querySelectorAll('.case-card-fly-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    flyToCoords(parseFloat(btn.dataset.lat), parseFloat(btn.dataset.lng));
+                });
+            });
+        }
+
+        function buildCaseCard(c) {
+            const msgCount = c.case_messages ? (Array.isArray(c.case_messages) ? c.case_messages.length : (c.case_messages[0]?.count || 0)) : 0;
+            const memberCount = c.case_members ? (Array.isArray(c.case_members) ? c.case_members.length : (c.case_members[0]?.count || 0)) : 0;
+            const hasCoords = c.centroid_lat && c.centroid_lng;
+            return `
+            <div class="case-card status-${c.current_status}" data-case-id="${c.id}">
+                <div class="case-card-header">
+                    <span class="case-card-num">${c.case_number || 'PENDING'}</span>
+                    <span class="cases-status-badge ${c.current_status}">${statusEmoji(c.current_status)} ${statusLabel(c.current_status)}</span>
+                </div>
+                <div class="case-card-parcel"><i class="fas fa-map-marker-alt" style="color:#3b82f6;margin-right:5px;"></i>${c.parcel_unique_id || '—'}</div>
+                <div class="case-card-meta">
+                    <span><i class="fas fa-globe-africa"></i> ${c.district || 'Unknown District'}</span>
+                    <span><i class="fas fa-layer-group"></i> ${c.survey_layer || '—'}</span>
+                    <span><i class="fas fa-clock"></i> ${ago(c.created_at)}</span>
+                </div>
+                <div class="case-card-footer">
+                    <div class="case-card-stats">
+                        <span><i class="fas fa-comments"></i> ${msgCount}</span>
+                        <span><i class="fas fa-users"></i> ${memberCount}</span>
+                    </div>
+                    ${hasCoords ? `<button class="case-card-fly-btn" data-lat="${c.centroid_lat}" data-lng="${c.centroid_lng}" title="Fly to parcel on map"><i class="fas fa-crosshairs"></i> Fly to</button>` : ''}
+                </div>
+            </div>`;
+        }
+
+        // ─── CASE DETAIL RENDER ──────────────────────────────────────────────────
+        function renderCaseDetailHeader(c) {
+            const numEl    = qs('cases-detail-case-number');
+            const badgeEl  = qs('cases-detail-status-badge');
+            const courtBtn  = qs('cases-court-report-btn');
+
+            const user = getCurrentUser();
+            const role = (user && user.role) ? user.role.toLowerCase() : '';
+            const isPrivileged = role.includes('rsu') || role.includes('admin') || role.includes('senior') || role.includes('district');
+
+            if (numEl)   numEl.textContent = c.case_number || 'NEW CASE';
+            if (badgeEl) {
+                badgeEl.textContent  = `${statusEmoji(c.current_status)} ${statusLabel(c.current_status)}` + (isPrivileged ? ' ▾' : '');
+                badgeEl.className    = `cases-status-badge ${c.current_status}${isPrivileged ? ' clickable' : ''}`;
+                
+                badgeEl.onclick = function() {
+                    if (!isPrivileged) return;
+                    const dropdown = qs('cases-status-dropdown');
+                    if (dropdown) dropdown.style.display = dropdown.style.display === 'none' ? 'flex' : 'none';
+                };
+            }
+
+            if (courtBtn)  courtBtn.style.display  = isPrivileged ? 'flex' : 'none';
+        }
+
+        function renderCaseDetailInfo(c) {
+            const el = qs('cases-detail-info');
+            if (!el) return;
+            el.innerHTML = `
+            <div class="info-row">
+                <span class="info-item"><i class="fas fa-map-marker-alt"></i> <strong>${c.parcel_unique_id}</strong></span>
+                <span class="info-item"><i class="fas fa-globe-africa"></i> ${c.district || '—'}</span>
+                ${c.county ? `<span class="info-item"><i class="fas fa-map"></i> ${c.county}</span>` : ''}
+                <span class="info-item"><i class="fas fa-layer-group"></i> ${c.survey_layer || '—'}</span>
+                ${c.reason ? `<span class="info-item" style="color:#fcd34d;"><i class="fas fa-exclamation-circle" style="color:#f59e0b;"></i> ${c.reason.substring(0, 80)}${c.reason.length>80?'…':''}</span>` : ''}
+            </div>`;
+        }
+
+        function renderCaseMembers(members) {
+            const list = qs('cases-members-list');
+            if (!list) return;
+            list.innerHTML = (members || []).map(m => {
+                const initials = (m.username || m.user_id || '?').substring(0, 2).toUpperCase();
+                const avatar = m.avatar_url ? `background-image:url(${m.avatar_url})` : '';
+                return `<div class="cases-member-chip" title="${m.username || 'Member'} — ${m.role_in_case || 'participant'}">
+                    <div class="cases-member-avatar" style="${avatar}">${avatar ? '' : initials}</div>
+                    ${m.username || 'User'}
+                </div>`;
+            }).join('');
+        }
+
+        function renderCaseMessages(messages) {
+            const feed = qs('cases-messages-feed');
+            if (!feed) return;
+            feed.innerHTML = '';
+            if (!messages || messages.length === 0) {
+                feed.innerHTML = '<div style="text-align:center;padding:20px;color:#64748b;font-size:12px;">No messages yet. Add the first comment.</div>';
+                return;
+            }
+            // Messages come in DESC from DB, reverse to show chronological
+            const sorted = [...messages].reverse();
+            sorted.forEach(msg => appendMessageToFeed(msg, false));
+            feed.scrollTop = feed.scrollHeight;
+        }
+
+        function appendMessageToFeed(msg, scroll = true) {
+            const feed = qs('cases-messages-feed');
+            if (!feed) return;
+
+            const isSystem = ['system', 'status_change', 'rover_ping'].includes(msg.message_type);
+            const name = msg.sender_name || 'System';
+            const initials = name.substring(0, 2).toUpperCase();
+            const time = ago(msg.created_at || ts());
+
+            const el = document.createElement('div');
+            el.className = `case-msg ${msg.message_type || 'comment'}`;
+            el.dataset.msgId = msg.id;
+
+            let contentHtml = escapeHtml(msg.content);
+            // Highlight coordinates
+            contentHtml = contentHtml.replace(/(\d+\.\d+)[, ]+(\d+\.\d+)/g, '<a href="javascript:void(0)" class="case-coord-link" data-lat="$1" data-lng="$2"><i class="fas fa-crosshairs"></i> $1, $2</a>');
+
+            el.innerHTML = `
+                <div class="case-msg-avatar">${initials}</div>
+                <div class="case-msg-body">
+                    <div class="case-msg-meta">
+                        <span class="case-msg-name">${escapeHtml(name)}</span>
+                        ${msg.sender_role ? `<span class="case-msg-role">${escapeHtml(msg.sender_role)}</span>` : ''}
+                        <span class="case-msg-time">${time}</span>
+                    </div>
+                    <div class="case-msg-text">${contentHtml}</div>
+                    ${msg.metadata && msg.metadata.evidence_name ? `<div style="font-size:10px;color:#60a5fa;margin-top:4px;"><i class="fas fa-paperclip"></i> ${escapeHtml(msg.metadata.evidence_name)}</div>` : ''}
+                </div>`;
+
+            // Wire coordinate links
+            el.querySelectorAll('.case-coord-link').forEach(a => {
+                a.addEventListener('click', () => {
+                    flyToCoords(parseFloat(a.dataset.lat), parseFloat(a.dataset.lng));
+                });
+            });
+
+            feed.appendChild(el);
+            if (scroll) feed.scrollTop = feed.scrollHeight;
+        }
+
+        function renderEvidenceShelf(evidence) {
+            const list = qs('cases-evidence-list');
+            if (!list) return;
+            if (!evidence || evidence.length === 0) {
+                list.innerHTML = '<span style="font-size:11px;color:#475569;">No evidence uploaded yet.</span>';
+                return;
+            }
+            list.innerHTML = evidence.map(ev => {
+                const isPhoto = ev.file_type === 'photo';
+                const thumb = isPhoto && ev.thumbnail_r2_url ? `background-image:url(${ev.thumbnail_r2_url})` : '';
+                return `<div class="cases-evidence-item" data-r2-key="${ev.r2_key}" title="${escapeHtml(ev.file_name)}">
+                    ${isPhoto && thumb
+                        ? `<div class="cases-evidence-thumb" style="${thumb}"></div>`
+                        : `<i class="fas ${fileIcon(ev.file_type)}"></i>`}
+                    <span style="max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(ev.file_name)}</span>
+                </div>`;
+            }).join('');
+
+            list.querySelectorAll('.cases-evidence-item').forEach(item => {
+                item.addEventListener('click', () => openEvidenceFile(item.dataset.r2Key));
+            });
+        }
+
+        // ─── SUPABASE REALTIME ───────────────────────────────────────────────────
+        function subscribeToGlobalCaseUpdates() {
+            const sb = getSupabase();
+            if (!sb) return;
+
+            if (CH.supaRealtime) {
+                try { sb.removeChannel(CH.supaRealtime); } catch (_) {}
+            }
+
+            CH.supaRealtime = sb.channel('parcel_cases_realtime')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'parcel_cases' }, payload => {
+                    if (payload.eventType === 'INSERT') {
+                        CH.cases.unshift(payload.new);
+                        renderCaseFeed();
+                        // Badge
+                        const badge = qs('tab-cases-badge');
+                        if (badge) { badge.textContent = '•'; badge.style.display = 'inline'; }
+                        
+                        if (window.CH && window.CH.addNotification) {
+                            window.CH.addNotification('New Case Opened', `Parcel ${payload.new.parcel_unique_id} flagged.`, payload.new.id);
+                        }
+                    } else if (payload.eventType === 'UPDATE') {
+                        const idx = CH.cases.findIndex(c => c.id === payload.new.id);
+                        if (idx >= 0) CH.cases[idx] = { ...CH.cases[idx], ...payload.new };
+                        renderCaseFeed();
+                        if (CH.currentCaseId === payload.new.id) {
+                            renderCaseDetailHeader(payload.new);
+                        }
+                    }
+                })
+                .subscribe();
+        }
+
+        function subscribeToCaseMessages(caseId) {
+            const sb = getSupabase();
+            if (!sb) return;
+
+            if (CH.msgChannel) {
+                try { sb.removeChannel(CH.msgChannel); } catch (_) {}
+            }
+
+            CH.msgChannel = sb.channel(`case_messages_${caseId}`)
+                .on('postgres_changes', {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'case_messages',
+                    filter: `case_id=eq.${caseId}`
+                }, payload => {
+                    appendMessageToFeed(payload.new, true);
+                })
+                .subscribe();
+        }
+
+        // ─── WEBSOCKET (Durable Object) ──────────────────────────────────────────
+        function connectWS(caseId) {
+            disconnectWS();
+
+            const user = getCurrentUser();
+            if (!user || !WORKER_BASE_URL || WORKER_BASE_URL.includes('YOUR_SUBDOMAIN')) return;
+
+            const wsUrl = WORKER_BASE_URL.replace(/^http/, 'ws') + `/ws/${caseId}?userId=${user.id}&name=${encodeURIComponent(user.displayName || user.username || 'User')}&role=${encodeURIComponent(user.role || 'participant')}`;
+
+            try {
+                const ws = new WebSocket(wsUrl);
+                CH.wsConn = ws;
+
+                ws.addEventListener('open', () => {
+                    console.log('[CaseHub WS] Connected to room', caseId);
+                });
+
+                ws.addEventListener('message', ev => {
+                    try { handleWSMessage(JSON.parse(ev.data)); }
+                    catch (_) {}
+                });
+
+                ws.addEventListener('close', () => { CH.wsConn = null; });
+                ws.addEventListener('error', () => { CH.wsConn = null; });
+
+            } catch (err) {
+                console.warn('[CaseHub WS] Could not connect:', err);
+            }
+        }
+
+        function disconnectWS() {
+            if (CH.wsConn) {
+                try { CH.wsConn.close(); } catch (_) {}
+                CH.wsConn = null;
+            }
+            stopRoverBroadcast();
+        }
+
+        function sendWS(data) {
+            if (CH.wsConn && CH.wsConn.readyState === WebSocket.OPEN) {
+                CH.wsConn.send(JSON.stringify(data));
+            }
+        }
+
+        function handleWSMessage(msg) {
+            switch (msg.type) {
+                case 'history':
+                    // History events already loaded from Supabase; skip
+                    break;
+                case 'presence':
+                    handlePresence(msg);
+                    break;
+                case 'online_members':
+                    renderOnlineBar(msg.members);
+                    break;
+                case 'typing':
+                    showTypingIndicator(msg);
+                    break;
+                case 'rover_location':
+                    handleRoverLocationBroadcast(msg);
+                    break;
+            }
+        }
+
+        function handlePresence(msg) {
+            const bar = qs('cases-online-bar');
+            if (!bar) return;
+            const existing = bar.querySelector(`[data-user="${msg.userId}"]`);
+            if (msg.action === 'left') {
+                if (existing) existing.remove();
+            } else {
+                if (!existing) {
+                    const span = document.createElement('span');
+                    span.dataset.user = msg.userId;
+                    span.style.cssText = 'display:inline-flex;align-items:center;gap:4px;margin-right:8px;';
+                    span.innerHTML = `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;"></span>${escapeHtml(msg.name)}`;
+                    bar.appendChild(span);
+                }
+            }
+        }
+
+        function renderOnlineBar(members) {
+            const bar = qs('cases-online-bar');
+            if (!bar) return;
+            if (!members || members.length === 0) {
+                bar.textContent = 'No one else is online in this case right now.';
+                return;
+            }
+            bar.innerHTML = '🟢 Online: ' + members.map(m =>
+                `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:8px;">${escapeHtml(m.name)} <span style="font-size:9px;color:#64748b;">(${m.role})</span></span>`
+            ).join('');
+        }
+
+        function broadcastTyping() {
+            clearTimeout(CH.typingTimer);
+            sendWS({ type: 'typing', action: 'start' });
+            CH.typingTimer = setTimeout(() => {
+                sendWS({ type: 'typing', action: 'stop' });
+            }, 2000);
+        }
+
+        function showTypingIndicator(msg) {
+            const el = qs('cases-typing-indicator');
+            if (!el) return;
+            const uid = msg.userId;
+            if (msg.action === 'start') {
+                CH.typingPeers[uid] = { name: msg.senderName || 'Someone' };
+            } else {
+                delete CH.typingPeers[uid];
+            }
+            const names = Object.values(CH.typingPeers).map(p => p.name);
+            if (names.length === 0) {
+                el.style.display = 'none';
+                el.textContent = '';
+            } else {
+                el.style.display = 'block';
+                el.textContent = names.join(', ') + (names.length === 1 ? ' is typing…' : ' are typing…');
+            }
+        }
+
+        // ─── SEND COMMENT ────────────────────────────────────────────────────────
+        async function sendCaseComment() {
+            const input = qs('cases-comment-input');
+            if (!input) return;
+            const text = input.value.trim();
+            if (!text || !CH.currentCaseId) return;
+
+            const sb = getSupabase();
+            if (!sb) return;
+
+            const user = await getCurrentAuthenticatedUserContext();
+
+            input.value = '';
+            input.style.height = 'auto';
+
+            try {
+                const { error } = await sb.from('case_messages').insert({
+                    case_id:     CH.currentCaseId,
+                    sender_id:   user ? user.id : null,
+                    sender_name: user ? (user.displayName || user.username || 'User') : 'Anonymous',
+                    sender_role: user ? (user.role || 'participant') : 'visitor',
+                    message_type: 'comment',
+                    content:      text
+                });
+                if (error) throw error;
+            } catch (err) {
+                console.error('[CaseHub] sendCaseComment error:', err);
+                if (typeof showToast === 'function') showToast('Failed to send message: ' + err.message, 'error');
+            }
+        }
+
+        // ─── EVIDENCE UPLOAD ─────────────────────────────────────────────────────
+        async function handleEvidenceUpload(e) {
+            const files = Array.from(e.target.files);
+            if (!files.length || !CH.currentCaseId) return;
+
+            const sb = getSupabase();
+            if (!sb) return;
+
+            const user = await getCurrentAuthenticatedUserContext();
+
+            for (const file of files) {
+                try {
+                    if (typeof showToast === 'function') showToast(`Uploading ${file.name}...`, 'info', 3000);
+
+                    let fileType = 'other';
+                    if (file.type.startsWith('image/'))                           fileType = 'photo';
+                    else if (file.name.endsWith('.dxf'))                           fileType = 'dxf';
+                    else if (file.name.endsWith('.pdf'))                           fileType = 'pdf';
+                    else if (file.name.endsWith('.csv'))                           fileType = 'csv';
+                    else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) fileType = 'excel';
+
+                    let r2Key, r2Url;
+
+                    if (WORKER_BASE_URL && !WORKER_BASE_URL.includes('YOUR_SUBDOMAIN')) {
+                        // Use Cloudflare R2 via Worker pre-signed URL
+                        const preRes = await fetch(`${WORKER_BASE_URL}/upload`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ caseId: CH.currentCaseId, fileName: file.name, contentType: file.type })
+                        });
+                        const pre = await preRes.json();
+                        if (!pre.uploadUrl) throw new Error('No upload URL from worker');
+
+                        // PUT the file to R2
+                        await fetch(pre.uploadUrl, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': file.type },
+                            body: file
+                        });
+
+                        r2Key = pre.key;
+                        r2Url = `${WORKER_BASE_URL}/download/${encodeURIComponent(r2Key)}`;
+
+                    } else {
+                        // Fallback: store in Supabase Storage if R2 not configured yet
+                        const bucket = 'case-evidence';
+                        const path   = `${CH.currentCaseId}/${Date.now()}_${file.name}`;
+                        const { error: uploadErr } = await sb.storage.from(bucket).upload(path, file);
+                        if (uploadErr) throw uploadErr;
+                        const { data: urlData } = sb.storage.from(bucket).getPublicUrl(path);
+                        r2Key = path;
+                        r2Url = urlData?.publicUrl || path;
+                    }
+
+                    // Record in DB
+                    const { error: dbErr } = await sb.from('case_evidence').insert({
+                        case_id:       CH.currentCaseId,
+                        uploaded_by:   user ? user.id : null,
+                        uploader_name: user ? (user.displayName || user.username || 'User') : 'Anonymous',
+                        file_name:     file.name,
+                        file_type:     fileType,
+                        r2_key:        r2Key,
+                        r2_url:        r2Url,
+                        file_size_bytes: file.size
+                    });
+                    if (dbErr) throw dbErr;
+
+                    // Post system message
+                    await sb.from('case_messages').insert({
+                        case_id:     CH.currentCaseId,
+                        sender_id:   user ? user.id : null,
+                        sender_name: user ? (user.displayName || user.username || 'User') : 'Anonymous',
+                        sender_role: user ? (user.role || 'participant') : 'visitor',
+                        message_type: 'evidence',
+                        content: `📎 Uploaded evidence: ${file.name}`,
+                        metadata: { evidence_name: file.name, file_type: fileType }
+                    });
+
+                    if (typeof showToast === 'function') showToast(`${file.name} uploaded successfully`, 'success');
+
+                    // Reload evidence shelf
+                    const { data: evData } = await sb.from('case_evidence').select('*').eq('case_id', CH.currentCaseId).order('created_at');
+                    renderEvidenceShelf(evData);
+
+                } catch (err) {
+                    console.error('[CaseHub] upload error:', err);
+                    if (typeof showToast === 'function') showToast(`Upload failed: ${err.message}`, 'error');
+                }
+            }
+            e.target.value = '';
+        }
+
+        async function openEvidenceFile(r2Key) {
+            if (!r2Key) return;
+            try {
+                let url;
+                if (WORKER_BASE_URL && !WORKER_BASE_URL.includes('YOUR_SUBDOMAIN')) {
+                    const res = await fetch(`${WORKER_BASE_URL}/download/${encodeURIComponent(r2Key)}`);
+                    const data = await res.json();
+                    url = data.downloadUrl;
+                } else {
+                    // Supabase storage fallback
+                    const sb = getSupabase();
+                    if (sb) {
+                        const { data } = await sb.storage.from('case-evidence').createSignedUrl(r2Key, 3600);
+                        url = data?.signedUrl;
+                    }
+                }
+                if (url) window.open(url, '_blank');
+            } catch (err) {
+                console.error('[CaseHub] openEvidenceFile error:', err);
+            }
+        }
+
+        // ─── STATUS CHANGE ───────────────────────────────────────────────────────
+        function openStatusModal() {
+            const modal = qs('cases-status-modal');
+            if (modal) modal.style.display = 'flex';
+        }
+        function closeStatusModal() {
+            const modal = qs('cases-status-modal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        async function changeStatus(newStatus) {
+            const dropdown = qs('cases-status-dropdown');
+            if (dropdown) dropdown.style.display = 'none';
+            const sb = getSupabase();
+            if (!sb || !CH.currentCaseId) return;
+
+            const user = await getCurrentAuthenticatedUserContext();
+
+            try {
+                const { error } = await sb.from('parcel_cases').update({ current_status: newStatus }).eq('id', CH.currentCaseId);
+                if (error) throw error;
+
+                // Also update the original flag if linked
+                if (CH.currentCase && CH.currentCase.flag_id) {
+                    await sb.from('parcel_flags').update({ flag_type: newStatus }).eq('id', CH.currentCase.flag_id);
+                }
+
+                // Post a system message
+                await sb.from('case_messages').insert({
+                    case_id:     CH.currentCaseId,
+                    sender_id:   user ? user.id : null,
+                    sender_name: user ? (user.displayName || user.username || 'User') : 'System',
+                    sender_role: user ? (user.role || 'participant') : 'system',
+                    message_type: 'status_change',
+                    content: `${statusEmoji(newStatus)} Status changed to ${statusLabel(newStatus).toUpperCase()} by ${user ? (user.displayName || 'User') : 'Admin'}`
+                });
+
+                if (typeof showToast === 'function') showToast(`Case status updated to ${statusLabel(newStatus)}`, 'success');
+
+                // Update local state
+                if (CH.currentCase) CH.currentCase.current_status = newStatus;
+                renderCaseDetailHeader(CH.currentCase);
+
+            } catch (err) {
+                console.error('[CaseHub] changeStatus error:', err);
+                if (typeof showToast === 'function') showToast('Error changing status: ' + err.message, 'error');
+            }
+        }
+
+        // ─── COURT REPORT ────────────────────────────────────────────────────────
+        async function generateCourtReport() {
+            const sb = getSupabase();
+            if (!sb || !CH.currentCaseId) return;
+
+            if (typeof showToast === 'function') showToast('Generating court report...', 'info', 5000);
+
+            try {
+                const c = CH.currentCase;
+
+                // Fetch all messages for this case
+                const { data: msgs } = await sb.from('case_messages')
+                    .select('*').eq('case_id', CH.currentCaseId).order('created_at');
+
+                const { data: members } = await sb.from('case_members')
+                    .select('*').eq('case_id', CH.currentCaseId);
+
+                const { data: evidence } = await sb.from('case_evidence')
+                    .select('*').eq('case_id', CH.currentCaseId);
+
+                if (!window.jspdf) {
+                    if (typeof showToast === 'function') showToast('jsPDF library not found. Please refresh.', 'error');
+                    return;
+                }
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                doc.setFontSize(22);
+                doc.text('SEALED CASE REPORT', 14, 20);
+                doc.setFontSize(11);
+                doc.text(`Generated: ${new Date().toLocaleString('en-UG', { timeZone: 'Africa/Kampala' })}`, 14, 28);
+                
+                doc.setFontSize(14);
+                doc.text(`Case Number: ${c.case_number || c.id.split('-')[0]}`, 14, 40);
+                doc.setFontSize(10);
+                doc.text(`Parcel ID: ${c.parcel_unique_id}`, 14, 46);
+                doc.text(`District: ${c.district || 'Unknown'}`, 14, 52);
+                doc.text(`Current Status: ${c.current_status.toUpperCase()}`, 14, 58);
+                
+                doc.setFontSize(14);
+                doc.text('Case Activity Log', 14, 70);
+                
+                let tableData = [];
+                if (msgs) {
+                    tableData = msgs.map(m => [
+                        new Date(m.created_at).toLocaleString('en-UG', { timeZone: 'Africa/Kampala' }),
+                        m.sender_name || 'System',
+                        m.message_type,
+                        m.content || ''
+                    ]);
+                }
+                
+                doc.autoTable({
+                    startY: 75,
+                    head: [['Date', 'User', 'Type', 'Content']],
+                    body: tableData,
+                    theme: 'grid',
+                    styles: { fontSize: 8, cellPadding: 3 },
+                    headStyles: { fillColor: [44, 62, 80] },
+                    columnStyles: { 3: { cellWidth: 90 } }
+                });
+                
+                const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY : 75;
+                if (evidence && evidence.length > 0) {
+                    doc.text('Evidence Manifest', 14, finalY + 15);
+                    const evData = evidence.map(e => [
+                        new Date(e.created_at).toLocaleString('en-UG', { timeZone: 'Africa/Kampala' }),
+                        e.uploader_name || 'Unknown',
+                        e.file_name || 'attachment',
+                        e.file_type || 'unknown'
+                    ]);
+                    doc.autoTable({
+                        startY: finalY + 20,
+                        head: [['Uploaded', 'User', 'Filename', 'Type']],
+                        body: evData,
+                        theme: 'grid',
+                        styles: { fontSize: 8 },
+                        headStyles: { fillColor: [44, 62, 80] }
+                    });
+                }
+                
+                doc.save(`GSPNET_CourtReport_${c.case_number || 'Case'}.pdf`);
+
+                if (typeof showToast === 'function') showToast('Court report downloaded!', 'success');
+
+            } catch (err) {
+                console.error('[CaseHub] generateCourtReport error:', err);
+                if (typeof showToast === 'function') showToast('Failed to generate report: ' + err.message, 'error');
+            }
+        }
+
+        // ─── MEMBER MANAGEMENT ───────────────────────────────────────────────────
+        function openMemberModal() {
+            const modal = qs('cases-member-modal');
+            if (modal) modal.style.display = 'flex';
+            const results = qs('cases-member-search-results');
+            if (results) results.innerHTML = '<div style="color:#64748b;font-size:12px;padding:8px;">Start typing to search users...</div>';
+        }
+        function closeMemberModal() {
+            const modal = qs('cases-member-modal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        let memberSearchTimer;
+        async function searchProfiles() {
+            clearTimeout(memberSearchTimer);
+            const q = qs('cases-member-search').value.trim();
+            if (q.length < 2) return;
+            memberSearchTimer = setTimeout(async () => {
+                const sb = getSupabase();
+                if (!sb) return;
+                const results = qs('cases-member-search-results');
+                try {
+                    const { data } = await sb.from('profiles').select('id, username, role, avatar_url')
+                        .ilike('username', `%${q}%`).limit(10);
+                    if (!data || data.length === 0) {
+                        results.innerHTML = '<div style="color:#64748b;font-size:12px;padding:8px;">No users found.</div>';
+                        return;
+                    }
+                    results.innerHTML = data.map(u => `
+                        <div style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:6px;cursor:pointer;transition:background 0.15s;" 
+                             class="member-search-result" data-uid="${u.id}" data-name="${escapeHtml(u.username || '')}" data-role="${escapeHtml(u.role || '')}">
+                            <div style="width:28px;height:28px;border-radius:50%;background:#1e40af;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;">
+                                ${(u.username||'?').substring(0,2).toUpperCase()}
+                            </div>
+                            <div>
+                                <div style="font-size:12px;font-weight:600;color:#f1f5f9;">${escapeHtml(u.username||'')}</div>
+                                <div style="font-size:10px;color:#64748b;">${escapeHtml(u.role||'user')}</div>
+                            </div>
+                        </div>`).join('');
+
+                    results.querySelectorAll('.member-search-result').forEach(row => {
+                        row.addEventListener('mouseenter', () => row.style.background = 'rgba(255,255,255,0.06)');
+                        row.addEventListener('mouseleave', () => row.style.background = '');
+                        row.addEventListener('click', () => addMemberToCase(row.dataset.uid, row.dataset.name, row.dataset.role));
+                    });
+
+                } catch (err) {
+                    console.error('[CaseHub] searchProfiles error:', err);
+                }
+            }, 300);
+        }
+
+        async function addMemberToCase(userId, userName, userRole) {
+            const sb = getSupabase();
+            if (!sb || !CH.currentCaseId) return;
+            try {
+                await sb.from('case_members').upsert(
+                    { case_id: CH.currentCaseId, user_id: userId, role_in_case: userRole || 'participant' },
+                    { onConflict: 'case_id,user_id', ignoreDuplicates: true }
+                );
+                // Post system message
+                const user = getCurrentUser();
+                await sb.from('case_messages').insert({
+                    case_id:     CH.currentCaseId,
+                    sender_id:   user ? user.id : null,
+                    sender_name: 'System',
+                    sender_role: 'system',
+                    message_type: 'system',
+                    content: `👤 ${userName} (${userRole || 'participant'}) was added to this case.`
+                });
+                if (typeof showToast === 'function') showToast(`${userName} added to case`, 'success');
+                closeMemberModal();
+            } catch (err) {
+                console.error('[CaseHub] addMemberToCase error:', err);
+                if (typeof showToast === 'function') showToast('Error adding member: ' + err.message, 'error');
+            }
+        }
+
+        // ─── AI ASSISTANT ────────────────────────────────────────────────────────
+        function toggleAIPanel() {
+            const panel = qs('cases-ai-panel');
+            if (!panel) return;
+            panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+        }
+
+        async function sendAIQuestion() {
+            const input = qs('cases-ai-input');
+            if (!input) return;
+            const q = input.value.trim();
+            if (!q) return;
+            input.value = '';
+
+            const msgs = qs('cases-ai-messages');
+            if (msgs) {
+                const userDiv = document.createElement('div');
+                userDiv.className = 'cases-ai-msg user';
+                userDiv.textContent = q;
+                msgs.appendChild(userDiv);
+                msgs.scrollTop = msgs.scrollHeight;
+            }
+
+            // Build case context
+            const c = CH.currentCase;
+            const context = c ? `Case: ${c.case_number} | Parcel: ${c.parcel_unique_id} | District: ${c.district} | Status: ${c.current_status} | Reason: ${c.reason}` : '';
+            const systemInstruction = `You are the official AI Case Analyst for Geospatial Network Uganda. Use the following context about the current case to answer the user's questions accurately and concisely.\n\n${context}`;
+
+            try {
+                // Connect to user's Cloudflare Gemini Worker
+                const workerUrl = 'https://bot.geospatialnetworkug.xyz';
+                
+                appendAIMsg('Thinking... <i class="fas fa-spinner fa-spin"></i>', false);
+
+                const payload = {
+                    contents: [{ role: "user", parts: [{ text: q }] }],
+                    systemInstruction: {
+                        parts: [{ text: systemInstruction }]
+                    }
+                };
+
+                const res = await fetch(workerUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                // Remove thinking msg
+                if (msgs && msgs.lastChild && msgs.lastChild.innerHTML.includes('fa-spinner')) {
+                    msgs.removeChild(msgs.lastChild);
+                }
+
+                if (!res.ok) throw new Error('Network response was not ok. Status: ' + res.status);
+                
+                const data = await res.json();
+                const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate a response.";
+                
+                appendAIMsg(replyText, true);
+
+            } catch (err) {
+                // Remove thinking msg if error
+                if (msgs && msgs.lastChild && msgs.lastChild.innerHTML.includes('fa-spinner')) {
+                    msgs.removeChild(msgs.lastChild);
+                }
+                appendAIMsg('Configured to use your Cloudflare Gemini Worker. Please ensure it is deployed and configured correctly. Error: ' + err.message, false);
+            }
+        }
+
+        function appendAIMsg(text, isMarkdown = false) {
+            const msgs = qs('cases-ai-messages');
+            if (!msgs) return;
+            const div = document.createElement('div');
+            div.className = 'cases-ai-msg ai';
+            
+            if (isMarkdown && typeof window.botConfig !== 'undefined' && window.botConfig.formatMarkdown) {
+                div.innerHTML = window.botConfig.formatMarkdown(text);
+            } else if (isMarkdown) {
+                div.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+            } else {
+                div.innerHTML = text; // allow spinner html
+            }
+            
+            msgs.appendChild(div);
+            msgs.scrollTop = msgs.scrollHeight;
+        }
+
+        // ─── ROVER LOCATION BROADCAST ────────────────────────────────────────────
+        function toggleRoverBroadcast() {
+            if (CH.roverActive) {
+                stopRoverBroadcast();
+            } else {
+                startRoverBroadcast();
+            }
+        }
+
+        function startRoverBroadcast() {
+            if (!navigator.geolocation) {
+                if (typeof showToast === 'function') showToast('Geolocation not supported', 'error');
+                return;
+            }
+            CH.roverActive = true;
+            const btn = qs('cases-rover-broadcast-btn');
+            if (btn) { btn.style.borderColor = '#10b981'; btn.style.color = '#34d399'; }
+
+            CH.roverWatchId = navigator.geolocation.watchPosition(pos => {
+                const { latitude, longitude, accuracy } = pos.coords;
+                sendWS({
+                    type: 'rover_location',
+                    lat: latitude,
+                    lng: longitude,
+                    accuracy: accuracy
+                });
+                // Also post a message to DB every 60s (throttled)
+                postRoverLocationMessage(latitude, longitude, accuracy);
+            }, err => {
+                console.error('[CaseHub Rover]', err);
+                stopRoverBroadcast();
+            }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 });
+
+            if (typeof showToast === 'function') showToast('🛰️ Broadcasting rover location to team...', 'info', 4000);
+        }
+
+        let lastRoverMsgTs = 0;
+        async function postRoverLocationMessage(lat, lng, accuracy) {
+            if (Date.now() - lastRoverMsgTs < 60000) return; // throttle to 1 per minute
+            lastRoverMsgTs = Date.now();
+
+            const sb = getSupabase();
+            if (!sb || !CH.currentCaseId) return;
+            const user = getCurrentUser();
+            await sb.from('case_messages').insert({
+                case_id:     CH.currentCaseId,
+                sender_id:   user ? user.id : null,
+                sender_name: user ? (user.displayName || user.username || 'Field Surveyor') : 'Field Surveyor',
+                sender_role: user ? (user.role || 'field_surveyor') : 'field_surveyor',
+                message_type: 'rover_ping',
+                content: `🛰️ Rover position: ${lat.toFixed(6)}, ${lng.toFixed(6)} (±${Math.round(accuracy)}m)`,
+                metadata: { lat, lng, accuracy }
+            });
+        }
+
+        function stopRoverBroadcast() {
+            CH.roverActive = false;
+            if (CH.roverWatchId !== null) {
+                navigator.geolocation.clearWatch(CH.roverWatchId);
+                CH.roverWatchId = null;
+            }
+            const btn = qs('cases-rover-broadcast-btn');
+            if (btn) { btn.style.borderColor = ''; btn.style.color = ''; }
+        }
+
+        function handleRoverLocationBroadcast(msg) {
+            // Show rover position on map if map is available
+            if (window.map && msg.lat && msg.lng) {
+                // Use the existing GSP Rover layer if available, else fly there
+                if (window.map.flyTo) {
+                    // We just show a toast rather than hijacking the map view
+                    const name = msg.senderName || 'Field Surveyor';
+                    if (typeof showToast === 'function')
+                        showToast(`🛰️ ${name}: ${parseFloat(msg.lat).toFixed(5)}, ${parseFloat(msg.lng).toFixed(5)}`, 'info', 5000);
+                }
+            }
+        }
+
+        // ─── MAP FLY-TO ──────────────────────────────────────────────────────────
+        function flyToCoords(lat, lng) {
+            if (!lat || !lng) return;
+            if (window.map && window.map.flyTo) {
+                window.map.flyTo({ center: [lng, lat], zoom: 16 });
+            }
+            // Close chat panel so map is visible
+            const chatPanel = document.getElementById('chatPanel');
+            if (chatPanel && chatPanel.classList.contains('open')) {
+                chatPanel.classList.remove('open');
+            }
+        }
+
+        function flyToCurrentCase() {
+            const c = CH.currentCase;
+            if (c && c.centroid_lat && c.centroid_lng) {
+                flyToCoords(c.centroid_lat, c.centroid_lng);
+            }
+        }
+
+        // ─── PUBLIC API (for flag submit to open a case automatically) ───────────
+        async function createParcelCaseFromFlag(flag, user) {
+            const sb = getSupabase();
+            if (!sb) return null;
+
+            try {
+                // Check if case already exists for this flag
+                const { data: existing } = await sb.from('parcel_cases')
+                    .select('id').eq('flag_id', flag.id).limit(1);
+                if (existing && existing.length > 0) return existing[0];
+
+                const { data: newCase, error } = await sb.from('parcel_cases').insert({
+                    flag_id:         flag.id,
+                    parcel_unique_id: flag.survey_unique_id || flag.block || '',
+                    survey_layer:    flag.survey_layer_name || null,
+                    district:        flag.district || null,
+                    county:          flag.county || null,
+                    centroid_lat:    flag.lat || null,
+                    centroid_lng:    flag.lng || null,
+                    current_status:  flag.flag_type || 'red',
+                    reason:          flag.reason || null,
+                    created_by:      user ? user.id : null
+                }).select().single();
+
+                if (error) throw error;
+
+                // Auto-add creator as member
+                if (user && user.id) {
+                    await sb.from('case_members').insert({
+                        case_id:     newCase.id,
+                        user_id:     user.id,
+                        role_in_case: user.role || 'creator'
+                    }).catch(() => {});
+                }
+
+                // Opening system message
+                await sb.from('case_messages').insert({
+                    case_id:     newCase.id,
+                    sender_id:   user ? user.id : null,
+                    sender_name: 'System',
+                    sender_role: 'system',
+                    message_type: 'system',
+                    content: `🚀 Case opened for parcel ${newCase.parcel_unique_id} — ${flag.reason || 'No reason given'}`
+                });
+
+                return newCase;
+            } catch (err) {
+                console.error('[CaseHub] createParcelCaseFromFlag error:', err);
+                return null;
+            }
+        }
+
+        // Expose for use by the existing Quality Flags submit handler
+        window.CaseHub = {
+            createParcelCaseFromFlag,
+            showCaseDetail,
+            switchToCasesView,
+            loadCases
+        };
+        
+        window.CH = {
+            openCaseFromPopup: function(caseId) {
+                const chatBtn = document.getElementById('chatBtn');
+                if (chatBtn && !chatBtn.classList.contains('active')) chatBtn.click();
+                
+                switchToCasesView();
+                showCaseDetail(caseId);
+            },
+            addNotification: function(title, body, caseId) {
+                const list = document.getElementById('notificationsList');
+                if (!list) return;
+                const empty = list.querySelector('.notif-empty');
+                if (empty) empty.remove();
+                
+                const div = document.createElement('div');
+                div.className = 'notif-item unread';
+                div.innerHTML = `<div class="notif-title">${escapeHtml(title)}</div><div class="notif-body">${escapeHtml(body)}</div><div class="notif-time">Just now</div>`;
+                div.onclick = () => {
+                    if (window.CH && window.CH.openCaseFromPopup) window.CH.openCaseFromPopup(caseId);
+                    const nd = document.getElementById('notificationsDropdown');
+                    if(nd) nd.style.display = 'none';
+                };
+                list.prepend(div);
+                
+                const badge = document.getElementById('notificationsBadge');
+                const nd = document.getElementById('notificationsDropdown');
+                if (badge && nd && nd.style.display === 'none') {
+                    let cnt = parseInt(badge.textContent) || 0;
+                    badge.textContent = cnt + 1;
+                    badge.style.display = 'inline-block';
+                }
+            }
+        };
+
+        // Wire up notifications button
+        setTimeout(() => {
+            const notifBtn = document.getElementById('notificationsBtn');
+            const notifDropdown = document.getElementById('notificationsDropdown');
+            if (notifBtn && notifDropdown) {
+                notifBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isHidden = notifDropdown.style.display === 'none';
+                    notifDropdown.style.display = isHidden ? 'flex' : 'none';
+                    if (isHidden) {
+                        const badge = document.getElementById('notificationsBadge');
+                        if(badge) { badge.style.display = 'none'; badge.textContent = '0'; }
+                    }
+                });
+                document.addEventListener('click', (e) => {
+                    if (!notifDropdown.contains(e.target) && e.target !== notifBtn && !notifBtn.contains(e.target)) {
+                        notifDropdown.style.display = 'none';
+                    }
+                });
+            }
+        }, 500);
+
+        // ─── UTILITY ────────────────────────────────────────────────────────────
+        function escapeHtml(str) {
+            if (typeof str !== 'string') return str || '';
+            return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+        }
+
+        // ─── BOOTSTRAP ──────────────────────────────────────────────────────────
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initCasesHub);
+        } else {
+            // Defer slightly so chat tabs are registered first
+            setTimeout(initCasesHub, 200);
+        }
+
+    })();
+    </script>
+
     <!-- Symbols Library Module -->
+
     <script type="module">
         console.log('[SYMBOLS] Module script started');
 
