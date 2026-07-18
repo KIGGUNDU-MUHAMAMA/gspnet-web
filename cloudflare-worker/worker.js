@@ -48,28 +48,40 @@ export default {
         }
 
         try {
-            // ── 1. R2 Pre-signed Upload URL ──────────────────────────────────
-            if (path === '/upload' && request.method === 'POST') {
-                const body = await request.json();
-                const { caseId, fileName, contentType } = body;
+            // ── 1. R2 Direct Upload URL ──────────────────────────────────────
+            if (path.startsWith('/upload/') && request.method === 'PUT') {
+                const parts = path.split('/'); // ['', 'upload', caseId, fileName]
+                const caseId = parts[2];
+                const fileName = decodeURIComponent(parts.slice(3).join('/'));
                 if (!caseId || !fileName) {
-                    return json({ error: 'caseId and fileName required' }, 400, origin);
+                    return json({ error: 'caseId and fileName required in URL' }, 400, origin);
                 }
                 const key = `cases/${caseId}/${Date.now()}_${fileName}`;
-                const uploadUrl = await env.CASE_FILES.createPresignedUrl('PUT', key, {
-                    expiresIn: 300,
-                    httpMetadata: { contentType: contentType || 'application/octet-stream' }
+                
+                await env.CASE_FILES.put(key, request.body, {
+                    httpMetadata: { contentType: request.headers.get('Content-Type') || 'application/octet-stream' }
                 });
-                return json({ uploadUrl, key }, 200, origin);
+                return json({ key }, 200, origin);
             }
 
-            // ── 2. R2 Pre-signed Download URL ────────────────────────────────
+            // ── 2. R2 Direct Download URL ────────────────────────────────────
             if (path.startsWith('/download/') && request.method === 'GET') {
                 const key = decodeURIComponent(path.replace('/download/', ''));
-                const downloadUrl = await env.CASE_FILES.createPresignedUrl('GET', key, {
-                    expiresIn: 3600 // 1 hour
-                });
-                return json({ downloadUrl }, 200, origin);
+                const object = await env.CASE_FILES.get(key);
+                
+                if (!object) {
+                    return json({ error: 'File not found' }, 404, origin);
+                }
+                
+                const headers = new Headers();
+                object.writeHttpMetadata(headers);
+                headers.set('etag', object.httpEtag);
+                
+                // Ensure CORS headers are attached to the file response
+                const cors = corsHeaders(origin);
+                for (const [k, v] of Object.entries(cors)) headers.set(k, v);
+                
+                return new Response(object.body, { headers });
             }
 
             // ── 3. WebSocket → Durable Object Room ───────────────────────────

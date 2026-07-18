@@ -66362,7 +66362,7 @@ MANDATORY VIDEO RULE: After every explanation, you MUST check Section 9 (Video T
 
         // ─── CONFIG ─────────────────────────────────────────────────────────────
         // IMPORTANT: Replace this URL with your deployed Cloudflare Worker URL
-        const WORKER_BASE_URL = 'https://gspnet-cases.geospatialnetworkug.xyz';
+        const WORKER_BASE_URL = 'https://gspnet-cases.kiggundumuhamad.workers.dev';
         // e.g. 'https://gspnet-cases.muhamama.workers.dev'
 
         // ─── STATE ──────────────────────────────────────────────────────────────
@@ -67064,24 +67064,22 @@ MANDATORY VIDEO RULE: After every explanation, you MUST check Section 9 (Video T
 
                     let r2Key, r2Url;
 
-                    if (WORKER_BASE_URL && !WORKER_BASE_URL.includes('YOUR_SUBDOMAIN')) {
-                        // Use Cloudflare R2 via Worker pre-signed URL
-                        const preRes = await fetch(`${WORKER_BASE_URL}/upload`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ caseId: CH.currentCaseId, fileName: file.name, contentType: file.type })
-                        });
-                        const pre = await preRes.json();
-                        if (!pre.uploadUrl) throw new Error('No upload URL from worker');
-
-                        // PUT the file to R2
-                        await fetch(pre.uploadUrl, {
+                    if (WORKER_BASE_URL && !WORKER_BASE_URL.includes('YOUR_SUBDOMAIN') && !WORKER_BASE_URL.includes('geospatialnetworkug.xyz')) {
+                        // Stream the file directly to the Cloudflare Worker via PUT
+                        const uploadEndpoint = `${WORKER_BASE_URL}/upload/${CH.currentCaseId}/${encodeURIComponent(file.name)}`;
+                        const uploadRes = await fetch(uploadEndpoint, {
                             method: 'PUT',
-                            headers: { 'Content-Type': file.type },
+                            headers: { 'Content-Type': file.type || 'application/octet-stream' },
                             body: file
                         });
-
-                        r2Key = pre.key;
+                        
+                        if (!uploadRes.ok) {
+                            const errData = await uploadRes.json().catch(()=>({}));
+                            throw new Error(errData.error || `Worker upload failed: ${uploadRes.status}`);
+                        }
+                        
+                        const uploadData = await uploadRes.json();
+                        r2Key = uploadData.key;
                         r2Url = `${WORKER_BASE_URL}/download/${encodeURIComponent(r2Key)}`;
 
                     } else {
@@ -67137,10 +67135,9 @@ MANDATORY VIDEO RULE: After every explanation, you MUST check Section 9 (Video T
             if (!r2Key) return;
             try {
                 let url;
-                if (WORKER_BASE_URL && !WORKER_BASE_URL.includes('YOUR_SUBDOMAIN')) {
-                    const res = await fetch(`${WORKER_BASE_URL}/download/${encodeURIComponent(r2Key)}`);
-                    const data = await res.json();
-                    url = data.downloadUrl;
+                if (WORKER_BASE_URL && !WORKER_BASE_URL.includes('YOUR_SUBDOMAIN') && !WORKER_BASE_URL.includes('geospatialnetworkug.xyz')) {
+                    // The worker now directly returns the file stream, no presigned URL needed
+                    url = `${WORKER_BASE_URL}/download/${encodeURIComponent(r2Key)}`;
                 } else {
                     // Supabase storage fallback
                     const sb = getSupabase();
