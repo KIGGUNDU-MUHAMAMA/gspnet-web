@@ -7503,6 +7503,17 @@
             .quality-flags-dock {
                 width: 100vw;
                 min-width: 100%;
+                max-width: 100%;
+                height: 50vh;
+                top: auto;
+                bottom: 0;
+                transform: translateY(100%);
+                border-top-left-radius: 16px;
+                border-top-right-radius: 16px;
+                box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+            }
+            .quality-flags-dock[aria-hidden="false"] {
+                transform: translateY(0);
             }
         }
 
