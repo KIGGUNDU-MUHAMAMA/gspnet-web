@@ -1986,10 +1986,21 @@
             statusDiv.textContent = 'Loading symbols...';
         }
 
-        // 1. Load from OpenLayers source
-        if (window._slFeaturesSource) {
-            const features = window._slFeaturesSource.getFeatures();
-            features.forEach(f => renderSymbolFeature3D(f));
+        // 1. Load from OpenLayers source (but ONLY within the current 3D view extent!)
+        if (window._slFeaturesSource && viewer) {
+            const rect = viewer.camera.computeViewRectangle(viewer.scene.globe.ellipsoid);
+            if (rect) {
+                const w = Cesium.Math.toDegrees(rect.west);
+                const s = Cesium.Math.toDegrees(rect.south);
+                const e = Cesium.Math.toDegrees(rect.east);
+                const n = Cesium.Math.toDegrees(rect.north);
+                
+                // Convert WGS84 bounding box to EPSG:3857 for OpenLayers extent query
+                const extent3857 = ol.proj.transformExtent([w, s, e, n], 'EPSG:4326', 'EPSG:3857');
+                
+                const features = window._slFeaturesSource.getFeaturesInExtent(extent3857);
+                features.forEach(f => renderSymbolFeature3D(f));
+            }
         }
 
         // 2. Load from Supabase
@@ -2304,13 +2315,23 @@
 
     window.cesium3dRefreshSymbols = () => {
         if (!symbolsLibEnabled) return;
-        if (window._slFeaturesSource) {
-            const features = window._slFeaturesSource.getFeatures();
-            features.forEach(f => renderSymbolFeature3D(f));
-            
-            const statusDiv = document.getElementById('cesium3dSymbolsStatus');
-            if (statusDiv) {
-                statusDiv.textContent = `${symbolsLibEntities.size} features loaded`;
+        
+        if (window._slFeaturesSource && viewer) {
+            const rect = viewer.camera.computeViewRectangle(viewer.scene.globe.ellipsoid);
+            if (rect) {
+                const w = Cesium.Math.toDegrees(rect.west);
+                const s = Cesium.Math.toDegrees(rect.south);
+                const e = Cesium.Math.toDegrees(rect.east);
+                const n = Cesium.Math.toDegrees(rect.north);
+                
+                const extent3857 = ol.proj.transformExtent([w, s, e, n], 'EPSG:4326', 'EPSG:3857');
+                const features = window._slFeaturesSource.getFeaturesInExtent(extent3857);
+                features.forEach(f => renderSymbolFeature3D(f));
+                
+                const statusDiv = document.getElementById('cesium3dSymbolsStatus');
+                if (statusDiv) {
+                    statusDiv.textContent = `${symbolsLibEntities.size} features loaded`;
+                }
             }
         }
     };
