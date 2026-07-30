@@ -22865,6 +22865,26 @@
                 });
 
                 polygonLayers[layerName] = layer;
+
+                // Force reload when layer becomes visible — fixes stale cache /
+                // invisible-layer refresh issue where newly saved polygons
+                // would not display when the layer was toggled on.
+                layer.on('change:visible', function () {
+                    if (this.getVisible()) {
+                        // 1. Clear any cached "no data" entries for this layer
+                        Object.keys(polygonLoadCache).forEach(k => {
+                            if (k.startsWith(layerName + '_')) {
+                                delete polygonLoadCache[k];
+                            }
+                        });
+                        // 2. Full clear and refresh
+                        if (typeof source.refresh === 'function') {
+                            source.refresh();
+                        } else {
+                            source.clear();
+                        }
+                    }
+                });
             });
 
             // Create layer group
@@ -23895,6 +23915,59 @@
             // Per-layer debounce map — prevents layers from cancelling each other's load
             const polygonLoadDebounceByLayer = {};
 
+            // ==========================================
+            // WKB Hex Parser for PostGIS geometries
+            // ==========================================
+            function parseWkbHex(hexString) {
+                if (!hexString || typeof hexString !== 'string') return null;
+                try {
+                    const isLittleEndian = hexString.substring(0, 2) === '01';
+                    const buffer = new Uint8Array(hexString.match(/[\da-f]{2}/gi).map(h => parseInt(h, 16))).buffer;
+                    const view = new DataView(buffer);
+                    let byteOffset = 1;
+                    const type = view.getUint32(byteOffset, isLittleEndian);
+                    byteOffset += 4;
+                    if (type & 0x20000000) byteOffset += 4; // SRID
+                    const baseType = type & 0xFF;
+                    
+                    function readPolygon() {
+                        const numRings = view.getUint32(byteOffset, isLittleEndian);
+                        byteOffset += 4;
+                        const rings = [];
+                        for (let i = 0; i < numRings; i++) {
+                            const numPoints = view.getUint32(byteOffset, isLittleEndian);
+                            byteOffset += 4;
+                            const points = [];
+                            for (let j = 0; j < numPoints; j++) {
+                                const x = view.getFloat64(byteOffset, isLittleEndian);
+                                byteOffset += 8;
+                                const y = view.getFloat64(byteOffset, isLittleEndian);
+                                byteOffset += 8;
+                                points.push([x, y]);
+                            }
+                            rings.push(points);
+                        }
+                        return rings;
+                    }
+                    
+                    if (baseType === 3) return { type: 'Polygon', coordinates: readPolygon() };
+                    if (baseType === 6) {
+                        const numPolys = view.getUint32(byteOffset, isLittleEndian);
+                        byteOffset += 4;
+                        const coords = [];
+                        for (let i=0; i<numPolys; i++) {
+                            byteOffset += 5; // byte order + type
+                            coords.push(readPolygon());
+                        }
+                        return { type: 'MultiPolygon', coordinates: coords };
+                    }
+                    return null;
+                } catch (e) {
+                    console.error("WKB Parse error", e);
+                    return null;
+                }
+            }
+
             async function loadPolygonsForExtent(layerName, extent, projection, source) {
                 // Per-layer debounce (avoid one layer cancelling another's load)
                 if (polygonLoadDebounceByLayer[layerName]) {
@@ -23917,11 +23990,14 @@
 
                         console.log(`[Survey] Loading polygons for layer: ${layerName}`);
 
-                        // Query Supabase for this layer's polygons
-                        const { data, error } = await supabase
-                            .from('polygon_features')
-                            .select('*')
-                            .eq('layer_name', layerName);
+                        // Query Supabase using our new Server-Side Spatial Bounding Box Filter
+                        const { data, error } = await supabase.rpc('get_polygons_in_extent', {
+                            min_lon: bottomLeft[0],
+                            min_lat: bottomLeft[1],
+                            max_lon: topRight[0],
+                            max_lat: topRight[1],
+                            target_layer: layerName
+                        });
 
                         if (error) {
                             console.error(`[Survey] Supabase error loading "${layerName}":`, error.message, error.code);
@@ -23943,34 +24019,52 @@
                         data.forEach(polygon => {
                             try {
                                 // Parse geometry from database
-                                const geom = polygon.geometry;
-                                if (!geom || !geom.coordinates) return;
+                                let geom = polygon.geometry;
 
-                                // Compute bounding box of entire geometry
-                                let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
-                                const rings = geom.type === 'Polygon'
-                                    ? geom.coordinates
-                                    : (geom.type === 'MultiPolygon' ? geom.coordinates.flat(1) : []);
-
-                                rings.forEach(ring => {
-                                    ring.forEach(coord => {
-                                        if (coord[0] < minLon) minLon = coord[0];
-                                        if (coord[0] > maxLon) maxLon = coord[0];
-                                        if (coord[1] < minLat) minLat = coord[1];
-                                        if (coord[1] > maxLat) maxLat = coord[1];
-                                    });
-                                });
-
-                                // Skip if polygon is entirely outside the current view extent
-                                if (maxLon < bottomLeft[0] || minLon > topRight[0] ||
-                                    maxLat < bottomLeft[1] || minLat > topRight[1]) {
+                                // ── Diagnostic: log geometry format for debugging ──
+                                if (!geom) {
+                                    console.warn(`[Survey][DIAG] ${polygon.unique_id}: geometry is NULL`);
                                     return;
                                 }
+                                
+                                if (typeof geom === 'string') {
+                                    // Try JSON parse first
+                                    try {
+                                        const parsed = JSON.parse(geom);
+                                        if (parsed && parsed.coordinates) {
+                                            polygon.geometry = parsed;
+                                            geom = parsed;
+                                        }
+                                    } catch (_e) {
+                                        // If not JSON, try WKB Hex Parser
+                                        if (geom.length > 20 && /^[0-9a-fA-F]+$/.test(geom)) {
+                                            const wkbParsed = parseWkbHex(geom);
+                                            if (wkbParsed) {
+                                                polygon.geometry = wkbParsed;
+                                                geom = wkbParsed;
+                                            } else {
+                                                console.warn(`[Survey][DIAG] ${polygon.unique_id}: geometry WKB parse failed.`);
+                                            }
+                                        } else {
+                                            console.warn(`[Survey][DIAG] ${polygon.unique_id}: geometry is STRING but not WKB or JSON`);
+                                        }
+                                    }
+                                }
+                                
+                                if (!geom || !geom.coordinates) {
+                                    console.warn(`[Survey][DIAG] ${polygon.unique_id}: geometry has NO .coordinates (type=${typeof geom}, keys=${Object.keys(geom||{})})`, geom);
+                                    return;
+                                }
+                                
+                                const finalGeom = polygon.geometry;
+
+                                // Bounding box filter is now handled server-side via get_polygons_in_extent RPC
+                                // so we don't need to manually compute and filter here!
 
                                 // Create OL feature
                                 const feature = format.readFeature({
                                     type: 'Feature',
-                                    geometry: geom,
+                                    geometry: finalGeom,
                                     properties: {
                                         unique_id: polygon.unique_id,
                                         layer_name: polygon.layer_name,
@@ -24491,8 +24585,8 @@
                 return styles;
             }
 
-            // Update refresh function
-            function refreshPolygonLayers() {
+            // Update refresh function and expose to window for external scripts (like cad-integration.js)
+            window.refreshPolygonLayers = function() {
                 // Clear cache and reload all polygon layers
                 polygonLoadCache = {};
                 Object.values(polygonLayerSources).forEach(source => {
@@ -24506,7 +24600,7 @@
                 // Trigger reload by slightly changing view (fallback)
                 const currentExtent = map.getView().calculateExtent();
                 map.getView().fit(currentExtent, { duration: 0 });
-            }
+            };
 
             // Add Layer Switcher with improved configuration
             // ol-layerswitcher exposes itself as window.LayerSwitcher, NOT ol.control.LayerSwitcher
@@ -36600,10 +36694,23 @@
                     }
 
                     // Parse geometry and zoom to it
+                    let geomObj = data.geometry;
+                    if (typeof geomObj === 'string') {
+                        try {
+                            const parsed = JSON.parse(geomObj);
+                            if (parsed && parsed.coordinates) geomObj = parsed;
+                        } catch(e) {
+                            if (geomObj.length > 20 && /^[0-9a-fA-F]+$/.test(geomObj) && typeof parseWkbHex === 'function') {
+                                const wkbParsed = parseWkbHex(geomObj);
+                                if (wkbParsed) geomObj = wkbParsed;
+                            }
+                        }
+                    }
+
                     const format = new ol.format.GeoJSON();
                     const feature = format.readFeature({
                         type: 'Feature',
-                        geometry: data.geometry
+                        geometry: geomObj
                     }, {
                         dataProjection: 'EPSG:4326',
                         featureProjection: 'EPSG:3857'

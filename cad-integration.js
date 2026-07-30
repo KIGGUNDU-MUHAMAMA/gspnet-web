@@ -253,10 +253,14 @@ async function saveTraced(layerName){
   setStatus('Saving to '+layerName+'\u2026','');
   var fmt=new ol.format.GeoJSON();
   var parcels=S.tracedFeatures.map(function(feat,idx){
+    // Calculate area in EPSG:3857 (meters) before transforming to WGS84
+    var ring3857 = feat.getGeometry().getCoordinates()[0] || [];
+    var a3857=0;for(var i=0;i<ring3857.length-1;i++)a3857+=(ring3857[i][0]*ring3857[i+1][1])-(ring3857[i+1][0]*ring3857[i][1]);
+    var areaSqm = Math.abs(a3857/2);
+    
     var gj=fmt.writeFeatureObject(feat,{featureProjection:'EPSG:3857',dataProjection:'EPSG:4326'});
     var ring=(gj.geometry&&gj.geometry.coordinates&&gj.geometry.coordinates[0])||[];
-    var a=0;for(var i=0;i<ring.length-1;i++)a+=(ring[i][0]*ring[i+1][1])-(ring[i+1][0]*ring[i][1]);
-    return{parcelId:'DXF-'+(idx+1),geometry:gj.geometry,area_hectares:Math.abs(a/2)*1e-10,num_vertices:ring.length};
+    return{parcelId:'DXF-'+(idx+1),geometry:gj.geometry,area_hectares:areaSqm/10000,num_vertices:ring.length};
   });
   try{
     var sb=window.supabase;if(!sb)throw new Error('Supabase not available');
@@ -266,7 +270,7 @@ async function saveTraced(layerName){
     var res=JSON.parse(await resp.text());
     if(res.savedCount){setStatus('\u2713 Saved '+res.savedCount+' polygon(s) to '+layerName,'success');if(typeof window.logUserContribution==='function')window.logUserContribution('assistant_upload',{count:res.savedCount,type:'dxf'});}
     else setStatus('Response: '+JSON.stringify(res).substring(0,120),'success');
-    if(typeof refreshPolygonLayers==='function')refreshPolygonLayers();
+    if(typeof window.refreshPolygonLayers==='function')window.refreshPolygonLayers();
   }catch(e){setStatus('Save failed: '+e.message,'error');console.error('[DXF save]',e);}
 }
 
