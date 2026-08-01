@@ -48945,7 +48945,7 @@ function smoothChaikin(points) {
                                 case_id: newCase.id,
                                 sender_id: userCtx.user.id,
                                 message_type: 'system',
-                                content: \`Parcel archived. Reason: \${finalReason}. Status set to \${initialStatus === 'yellow' ? 'Pending Subdivision' : 'Resolved'}.\`
+                                content: `Parcel archived. Reason: ${finalReason}. Status set to ${initialStatus === 'yellow' ? 'Pending Subdivision' : 'Resolved'}.`
                             }]);
 
                         showToast('Parcel archived successfully.', 'success');
