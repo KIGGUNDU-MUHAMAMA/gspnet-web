@@ -315,10 +315,21 @@ async function saveTraced(layerName){
 
     var formData={client:(document.getElementById('polygonClient')||{}).value||'DXF Import',projectName:(document.getElementById('polygonProjectName')||{}).value||'DXF Traced',coordinateSystem:S.crs,district:(document.getElementById('polygonDistrict')||{}).value||'',surveyor:(document.getElementById('polygonSurveyor')||{}).value||'',supervisor:(document.getElementById('polygonSupervisor')||{}).value||'', parentParcelId: parentParcelId, parentUniqueId: parentUniqueId};
     
-    // Always use the edge function so we generate standard IDs (e.g. TT36N-1359)
-    // but the edge function will still link them in the database via parent_parcel_id
-    var resp=await fetch(SB_URL+'/functions/v1/polygon-creator',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'apikey':key},body:JSON.stringify({action:'commit_batch',layerName:layerName,csvFileId:null,formData:formData,parcels:parcels})});
-    var res=JSON.parse(await resp.text());
+    // Completely bypass the cloud edge function to avoid deployment issues and broken fallback logic.
+    // The DB RPC will handle generating standard IDs and inserting the rows securely.
+    const rpcResp = await sb.rpc('save_parcels', {
+        p_layer_name: layerName,
+        p_parcels: parcels,
+        p_user_id: sess.data.session.user.id,
+        p_form_data: formData,
+        p_parent_id: parentParcelId
+    });
+    
+    if (rpcResp.error) {
+        throw new Error(rpcResp.error.message);
+    }
+    
+    var res = rpcResp.data || { savedCount: 0 };
     
     if(res.savedCount){
         setStatus('\u2713 Saved '+res.savedCount+' polygon(s) to '+layerName,'success');
