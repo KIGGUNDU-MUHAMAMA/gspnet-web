@@ -48807,6 +48807,13 @@ function smoothChaikin(points) {
                 // For 'Survey polygon' default layerName
                 const checkLayer = layerName === 'Survey polygon' ? 'Survey Polygons' : layerName;
 
+                // --- Parcel Archiving ---
+                flagsSection.innerHTML += `<div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+                    <button onclick="showArchiveParcelModal('${escapeFeatureInfoHtml(uid)}', '${escapeFeatureInfoHtml(checkLayer)}')\" style="background: white; border: 1px solid #f59e0b; color: #d97706; padding: 8px 12px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; font-weight: bold; transition: all 0.2s;" onmouseover="this.style.background='#fffbeb'" onmouseout="this.style.background='white'">
+                        <i class="fas fa-archive"></i> Archive Parcel
+                    </button>
+                </div>`;
+
                 if (isAuthorized && checkLayer && validLayersForDeletion.includes(checkLayer)) {
                     flagsSection.innerHTML += `<div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
                         <button onclick="showDeleteFeatureModal('${escapeFeatureInfoHtml(uid)}', '${escapeFeatureInfoHtml(checkLayer)}', 'polygon_features', '${escapeFeatureInfoHtml(polygonFeature.getId() || '')}')" style="background: white; border: 1px solid #e11d48; color: #e11d48; padding: 8px 12px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; font-weight: bold; transition: all 0.2s;" onmouseover="this.style.background='#fff1f2'" onmouseout="this.style.background='white'">
@@ -48816,6 +48823,156 @@ function smoothChaikin(points) {
                 }
             }
             
+            // Global function for Archive Parcel modal
+            window.showArchiveParcelModal = function(uid, layerName) {
+                let modal = document.getElementById('archiveParcelModal');
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = 'archiveParcelModal';
+                    modal.className = 'modal';
+                    modal.innerHTML = `
+                        <div class="modal-content" style="max-width: 500px;">
+                            <div class="modal-header">
+                                <h3 style="color: #d97706;"><i class="fas fa-archive"></i> Archive Parcel</h3>
+                                <button class="close-modal" onclick="closeModal('archiveParcelModal')">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="status-message info" style="margin-bottom: 15px;">
+                                    This will hide the parcel from the map and create a tracking case.
+                                </div>
+                                <table style="width: 100%; margin-bottom: 15px; font-size: 14px;">
+                                    <tr><td style="font-weight:bold; width:30%; padding:5px 0;">Feature ID:</td><td id="archiveParcelId" style="padding:5px 0;"></td></tr>
+                                    <tr><td style="font-weight:bold; padding:5px 0;">Layer:</td><td id="archiveLayerName" style="padding:5px 0;"></td></tr>
+                                </table>
+                                
+                                <div class="form-group" style="margin-bottom: 15px;">
+                                    <label for="archiveReason" style="display:block; margin-bottom: 5px; font-weight: bold;">Reason for Archiving <span style="color:red;">*</span></label>
+                                    <select id="archiveReason" class="form-control" style="width: 100%; padding: 8px; margin-bottom: 10px;" onchange="document.getElementById('archiveDetails').style.display = this.value === 'Other' ? 'block' : 'none'">
+                                        <option value="">-- Select a reason --</option>
+                                        <option value="Subdivision">Subdivision</option>
+                                        <option value="Error Correction">Error Correction</option>
+                                        <option value="Boundary Amendment">Boundary Amendment</option>
+                                        <option value="Duplicate Entry">Duplicate Entry</option>
+                                        <option value="Land Consolidation">Land Consolidation</option>
+                                        <option value="Expired Survey">Expired Survey</option>
+                                        <option value="Other">Other (specify below)</option>
+                                    </select>
+                                    <textarea id="archiveDetails" class="form-control" placeholder="Provide more details..." style="width: 100%; padding: 8px; min-height: 80px; display: none;"></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer" style="display: flex; gap: 10px; justify-content: flex-end;">
+                                <button class="btn btn-secondary" onclick="closeModal('archiveParcelModal')">Cancel</button>
+                                <button class="btn btn-primary" id="confirmArchiveBtn" style="background-color: #f59e0b; border-color: #d97706; color: white;">
+                                    <i class="fas fa-archive"></i> Archive Parcel
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
+                    
+                    modal.addEventListener('click', function(e) {
+                        if (e.target === modal) closeModal('archiveParcelModal');
+                    });
+                }
+                
+                // Reset form
+                document.getElementById('archiveReason').value = '';
+                document.getElementById('archiveDetails').value = '';
+                document.getElementById('archiveDetails').style.display = 'none';
+                
+                // Set data
+                document.getElementById('archiveParcelId').textContent = uid || 'Unknown';
+                document.getElementById('archiveLayerName').textContent = layerName || 'Unknown';
+                
+                const confirmBtn = document.getElementById('confirmArchiveBtn');
+                confirmBtn.onclick = async function() {
+                    const reasonSel = document.getElementById('archiveReason').value;
+                    const details = document.getElementById('archiveDetails').value.trim();
+                    
+                    if (!reasonSel) {
+                        showToast('Please select a reason for archiving.', 'error');
+                        return;
+                    }
+                    
+                    const finalReason = reasonSel === 'Other' ? details : (details ? reasonSel + ' - ' + details : reasonSel);
+                    if (reasonSel === 'Other' && !details) {
+                        showToast('Please provide details for the reason.', 'error');
+                        return;
+                    }
+                    
+                    confirmBtn.disabled = true;
+                    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Archiving...';
+                    
+                    try {
+                        const { data: userCtx } = await supabase.auth.getUser();
+                        if (!userCtx || !userCtx.user) throw new Error('Not authenticated');
+
+                        // 1. Update polygon_features
+                        const { error: updateErr } = await supabase
+                            .from('polygon_features')
+                            .update({ 
+                                is_archived: true,
+                                archive_reason: finalReason
+                            })
+                            .eq('unique_id', uid)
+                            .eq('layer_name', layerName);
+                            
+                        if (updateErr) throw updateErr;
+
+                        // 2. Determine case status
+                        const initialStatus = reasonSel === 'Subdivision' ? 'yellow' : 'green';
+
+                        // 3. Create tracking case
+                        const { data: newCase, error: caseErr } = await supabase
+                            .from('parcel_cases')
+                            .insert([{
+                                parcel_unique_id: uid,
+                                survey_layer: layerName,
+                                current_status: initialStatus,
+                                reason: 'Archived: ' + finalReason,
+                                created_by: userCtx.user.id,
+                                case_type: 'archive_parcel'
+                            }])
+                            .select()
+                            .single();
+                            
+                        if (caseErr) throw caseErr;
+
+                        // 4. Add system message to the new case
+                        await supabase
+                            .from('case_messages')
+                            .insert([{
+                                case_id: newCase.id,
+                                sender_id: userCtx.user.id,
+                                message_type: 'system',
+                                content: \`Parcel archived. Reason: \${finalReason}. Status set to \${initialStatus === 'yellow' ? 'Pending Subdivision' : 'Resolved'}.\`
+                            }]);
+
+                        showToast('Parcel archived successfully.', 'success');
+                        closeModal('archiveParcelModal');
+                        
+                        // Close info popup
+                        const featureInfo = document.getElementById('featureInfo');
+                        if (featureInfo) featureInfo.style.display = 'none';
+                        const infoBtn = document.getElementById('infoBtn');
+                        if (infoBtn) infoBtn.classList.remove('active');
+
+                        // Refresh polygons on map
+                        if (typeof window.refreshPolygonLayers === 'function') {
+                            window.refreshPolygonLayers();
+                        }
+                    } catch (err) {
+                        console.error('Archive error:', err);
+                        showToast('Failed to archive: ' + err.message, 'error');
+                    } finally {
+                        confirmBtn.disabled = false;
+                        confirmBtn.innerHTML = '<i class="fas fa-archive"></i> Archive Parcel';
+                    }
+                };
+                
+                showModal('archiveParcelModal');
+            }
+
             // Global function for QC deletion modal
             window.showDeleteFeatureModal = function(uid, layerName, table, featureOlId) {
                 let modal = document.getElementById('qcDeleteFeatureModal');
@@ -66854,6 +67011,73 @@ MANDATORY VIDEO RULE: After every explanation, you MUST check Section 9 (Video T
             }
 
             if (courtBtn)  courtBtn.style.display  = isPrivileged ? 'flex' : 'none';
+
+            // Unarchive Button (Admins only, for archive cases)
+            let unarchiveBtn = qs('cases-unarchive-btn');
+            if (!unarchiveBtn) {
+                unarchiveBtn = document.createElement('button');
+                unarchiveBtn.id = 'cases-unarchive-btn';
+                unarchiveBtn.className = 'cases-header-action-btn';
+                unarchiveBtn.innerHTML = '<i class="fas fa-box-open"></i> Unarchive';
+                unarchiveBtn.style.color = '#10b981';
+                unarchiveBtn.style.borderColor = '#10b981';
+                if (courtBtn) courtBtn.parentNode.insertBefore(unarchiveBtn, courtBtn.nextSibling);
+            }
+            
+            if (isPrivileged && c.case_type === 'archive_parcel') {
+                unarchiveBtn.style.display = 'flex';
+                unarchiveBtn.onclick = async function() {
+                    const confirmUnarchive = confirm('Are you sure you want to unarchive this parcel? It will reappear on the map.');
+                    if (!confirmUnarchive) return;
+                    
+                    try {
+                        unarchiveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                        
+                        // 1. Update polygon_features
+                        const { error: updateErr } = await getSupabase()
+                            .from('polygon_features')
+                            .update({ 
+                                is_archived: false,
+                                archive_reason: null
+                            })
+                            .eq('unique_id', c.parcel_unique_id);
+                            
+                        if (updateErr) throw updateErr;
+
+                        // 2. Update case status to red
+                        const { error: caseErr } = await getSupabase()
+                            .from('parcel_cases')
+                            .update({ current_status: 'red' })
+                            .eq('id', c.id);
+                            
+                        if (caseErr) throw caseErr;
+
+                        // 3. Add system message
+                        const user = getCurrentUser();
+                        await getSupabase()
+                            .from('case_messages')
+                            .insert([{
+                                case_id: c.id,
+                                sender_id: user.id,
+                                message_type: 'system',
+                                content: 'Parcel has been unarchived by an Admin. Status set to Needs Attention (Red).'
+                            }]);
+
+                        if (typeof window.refreshPolygonLayers === 'function') {
+                            window.refreshPolygonLayers();
+                        }
+                        
+                        showCaseDetail(c.id); // reload case
+                        showToast('Parcel unarchived successfully.', 'success');
+                    } catch (err) {
+                        console.error('Unarchive error:', err);
+                        showToast('Failed to unarchive: ' + err.message, 'error');
+                        unarchiveBtn.innerHTML = '<i class="fas fa-box-open"></i> Unarchive';
+                    }
+                };
+            } else {
+                unarchiveBtn.style.display = 'none';
+            }
         }
 
         function renderCaseDetailInfo(c) {

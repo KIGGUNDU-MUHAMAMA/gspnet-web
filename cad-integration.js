@@ -262,13 +262,73 @@ async function saveTraced(layerName){
     var ring=(gj.geometry&&gj.geometry.coordinates&&gj.geometry.coordinates[0])||[];
     return{parcelId:'DXF-'+(idx+1),geometry:gj.geometry,area_hectares:areaSqm/10000,num_vertices:ring.length};
   });
+  
   try{
     var sb=window.supabase;if(!sb)throw new Error('Supabase not available');
     var sess=await sb.auth.getSession();var token=(sess.data.session||{}).access_token||window.supabaseKey||'';var key=window.supabaseKey||'';
-    var formData={client:(document.getElementById('polygonClient')||{}).value||'DXF Import',projectName:(document.getElementById('polygonProjectName')||{}).value||'DXF Traced',coordinateSystem:S.crs,district:(document.getElementById('polygonDistrict')||{}).value||'',surveyor:(document.getElementById('polygonSurveyor')||{}).value||'',supervisor:(document.getElementById('polygonSupervisor')||{}).value||''};
+    
+    // --- Subdivision Geographic Auto-Detection ---
+    let parentParcelId = null;
+    let parentUniqueId = null;
+    
+    if (parcels.length > 0 && sess.data.session) {
+        try {
+            const { data: intersectData, error: intersectErr } = await sb.rpc('find_intersecting_subdivisions', {
+                geojson_geometry: parcels[0].geometry,
+                current_user_id: sess.data.session.user.id
+            });
+            
+            if (!intersectErr && intersectData && intersectData.length > 0) {
+                const parent = intersectData[0];
+                const isSubdiv = await new Promise(resolve => {
+                    let m = document.getElementById('subdivConfirmModal');
+                    if (!m) { m = document.createElement('div'); m.id = 'subdivConfirmModal'; m.className = 'modal'; document.body.appendChild(m); }
+                    m.innerHTML = `
+                        <div class="modal-content" style="max-width: 400px; text-align: center;">
+                            <div style="font-size: 40px; color: #3b82f6; margin-bottom: 15px;"><i class="fas fa-layer-group"></i></div>
+                            <h3 style="margin-bottom: 15px;">Subdivision Detected</h3>
+                            <p style="margin-bottom: 25px; color: #475569; font-size: 15px;">We noticed these new polygons overlap with your archived parcel <strong style="color:#0f172a;">${parent.unique_id}</strong>.<br><br>Are these child parcels for that subdivision?</p>
+                            <div style="display: flex; gap: 10px; justify-content: center;">
+                                <button class="btn btn-secondary" id="subdivNoBtn" style="flex: 1;">No, save normally</button>
+                                <button class="btn btn-primary" id="subdivYesBtn" style="flex: 1; background-color: #3b82f6; border-color: #2563eb;">Yes, link them</button>
+                            </div>
+                        </div>`;
+                    m.style.display = 'flex';
+                    document.getElementById('subdivNoBtn').onclick = () => { m.style.display = 'none'; resolve(false); };
+                    document.getElementById('subdivYesBtn').onclick = () => { m.style.display = 'none'; resolve(true); };
+                });
+                
+                if (isSubdiv) {
+                    parentParcelId = parent.id;
+                    parentUniqueId = parent.unique_id;
+                    setStatus('Linking to parent ' + parentUniqueId + '...', '');
+                }
+            }
+        } catch (e) { console.error('[Intersection Check]', e); }
+    }
+
+    var formData={client:(document.getElementById('polygonClient')||{}).value||'DXF Import',projectName:(document.getElementById('polygonProjectName')||{}).value||'DXF Traced',coordinateSystem:S.crs,district:(document.getElementById('polygonDistrict')||{}).value||'',surveyor:(document.getElementById('polygonSurveyor')||{}).value||'',supervisor:(document.getElementById('polygonSupervisor')||{}).value||'', parentParcelId: parentParcelId, parentUniqueId: parentUniqueId};
     var resp=await fetch(SB_URL+'/functions/v1/polygon-creator',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'apikey':key},body:JSON.stringify({action:'commit_batch',layerName:layerName,csvFileId:null,formData:formData,parcels:parcels})});
     var res=JSON.parse(await resp.text());
-    if(res.savedCount){setStatus('\u2713 Saved '+res.savedCount+' polygon(s) to '+layerName,'success');if(typeof window.logUserContribution==='function')window.logUserContribution('assistant_upload',{count:res.savedCount,type:'dxf'});}
+    
+    if(res.savedCount){
+        setStatus('\u2713 Saved '+res.savedCount+' polygon(s) to '+layerName,'success');
+        if(typeof window.logUserContribution==='function')window.logUserContribution('assistant_upload',{count:res.savedCount,type:'dxf'});
+        
+        // Auto-resolve case if it was a linked subdivision
+        if (parentUniqueId) {
+            try {
+                const { data: cases } = await sb.from('parcel_cases')
+                    .select('id').eq('parcel_unique_id', parentUniqueId).eq('case_type', 'archive_parcel').eq('current_status', 'yellow')
+                    .order('created_at', { ascending: false }).limit(1);
+                if (cases && cases.length > 0) {
+                    await sb.from('parcel_cases').update({ current_status: 'green' }).eq('id', cases[0].id);
+                    await sb.from('case_messages').insert([{ case_id: cases[0].id, sender_id: sess.data.session.user.id, message_type: 'system', content: 'Subdivision child parcels have been uploaded and linked. Status auto-resolved to Green.' }]);
+                    if (typeof window.showToast === 'function') window.showToast('Subdivision case auto-resolved to Green.', 'success');
+                }
+            } catch (ce) { console.error('Case resolve error', ce); }
+        }
+    }
     else setStatus('Response: '+JSON.stringify(res).substring(0,120),'success');
     if(typeof window.refreshPolygonLayers==='function')window.refreshPolygonLayers();
   }catch(e){setStatus('Save failed: '+e.message,'error');console.error('[DXF save]',e);}
