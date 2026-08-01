@@ -11,11 +11,31 @@ CREATE INDEX IF NOT EXISTS polygon_features_geom_idx
 ON public.polygon_features USING GIST (geometry);
 
 -- Step 1: Permanently repair all broken geometries in the table.
--- This fixes unclosed rings, self-intersections, and other topology
--- issues that cause the "Points of LinearRing do not form a closed
--- linestring" error from PostGIS GEOS.
+-- ST_MakeValid can sometimes return a MultiPolygon when fixing a broken
+-- Polygon ring. We use a CASE expression to handle both outcomes:
+--   - If the repair result is still a Polygon → use it directly
+--   - If it became a MultiPolygon → extract the sub-polygon with the
+--     largest area (ST_GeometryN on the result of ST_DumpPoints is complex,
+--     so we use a lateral trick with generate_series)
 UPDATE public.polygon_features
-SET geometry = ST_MakeValid(geometry)
+SET geometry = (
+    CASE
+        WHEN ST_GeometryType(ST_MakeValid(geometry)) = 'ST_Polygon'
+            THEN ST_MakeValid(geometry)
+        WHEN ST_GeometryType(ST_MakeValid(geometry)) IN ('ST_MultiPolygon', 'ST_GeometryCollection')
+            THEN (
+                -- Extract the single sub-geometry with the largest area
+                SELECT ST_GeometryN(ST_MakeValid(pf2.geometry), n)
+                FROM public.polygon_features pf2,
+                     generate_series(1, ST_NumGeometries(ST_MakeValid(pf2.geometry))) AS n
+                WHERE pf2.id = polygon_features.id
+                  AND ST_GeometryType(ST_GeometryN(ST_MakeValid(pf2.geometry), n)) = 'ST_Polygon'
+                ORDER BY ST_Area(ST_GeometryN(ST_MakeValid(pf2.geometry), n)) DESC
+                LIMIT 1
+            )
+        ELSE geometry  -- leave unchanged if repair fails unexpectedly
+    END
+)
 WHERE NOT ST_IsValid(geometry);
 
 -- Step 2: Replace the RPC function to also guard future bad geometries
