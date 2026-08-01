@@ -23990,14 +23990,18 @@
 
                         console.log(`[Survey] Loading polygons for layer: ${layerName}`);
 
-                        // Query Supabase using our new Server-Side Spatial Bounding Box Filter
+                        // Query Supabase using Server-Side Spatial Bounding Box Filter.
+                        // .range(0, 9999) removes the implicit 1000-row default cap that
+                        // Supabase JS applies to all queries. The server-side bbox in
+                        // get_polygons_in_extent already limits results to the current
+                        // map extent, so returning all matching rows here is safe.
                         const { data, error } = await supabase.rpc('get_polygons_in_extent', {
                             min_lon: bottomLeft[0],
                             min_lat: bottomLeft[1],
                             max_lon: topRight[0],
                             max_lat: topRight[1],
                             target_layer: layerName
-                        });
+                        }).range(0, 9999);
 
                         if (error) {
                             console.error(`[Survey] Supabase error loading "${layerName}":`, error.message, error.code);
