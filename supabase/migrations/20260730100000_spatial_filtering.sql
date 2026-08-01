@@ -1,3 +1,8 @@
+-- ============================================================
+-- Migration: Fix unclosed polygon rings (IllegalArgumentException)
+-- Run this in your Supabase SQL Editor
+-- ============================================================
+
 -- Enable PostGIS if not already enabled
 CREATE EXTENSION IF NOT EXISTS postgis;
 
@@ -5,7 +10,16 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE INDEX IF NOT EXISTS polygon_features_geom_idx 
 ON public.polygon_features USING GIST (geometry);
 
--- Create RPC function to fetch polygons within an extent
+-- Step 1: Permanently repair all broken geometries in the table.
+-- This fixes unclosed rings, self-intersections, and other topology
+-- issues that cause the "Points of LinearRing do not form a closed
+-- linestring" error from PostGIS GEOS.
+UPDATE public.polygon_features
+SET geometry = ST_MakeValid(geometry)
+WHERE NOT ST_IsValid(geometry);
+
+-- Step 2: Replace the RPC function to also guard future bad geometries
+-- by wrapping geometry with ST_MakeValid() before calling ST_Intersects.
 CREATE OR REPLACE FUNCTION public.get_polygons_in_extent(
   min_lon float, 
   min_lat float, 
@@ -20,9 +34,11 @@ AS $$
   FROM public.polygon_features
   WHERE layer_name = target_layer
   AND is_archived = false
+  AND ST_IsValid(geometry)
   AND ST_Intersects(
-    geometry, 
+    ST_MakeValid(geometry), 
     ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat, 4326)
   )
   ORDER BY created_at DESC;
 $$;
+
