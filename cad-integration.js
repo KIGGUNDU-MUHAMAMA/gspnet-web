@@ -308,8 +308,24 @@ async function saveTraced(layerName){
     }
 
     var formData={client:(document.getElementById('polygonClient')||{}).value||'DXF Import',projectName:(document.getElementById('polygonProjectName')||{}).value||'DXF Traced',coordinateSystem:S.crs,district:(document.getElementById('polygonDistrict')||{}).value||'',surveyor:(document.getElementById('polygonSurveyor')||{}).value||'',supervisor:(document.getElementById('polygonSupervisor')||{}).value||'', parentParcelId: parentParcelId, parentUniqueId: parentUniqueId};
-    var resp=await fetch(SB_URL+'/functions/v1/polygon-creator',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'apikey':key},body:JSON.stringify({action:'commit_batch',layerName:layerName,csvFileId:null,formData:formData,parcels:parcels})});
-    var res=JSON.parse(await resp.text());
+    
+    var res;
+    if (parentUniqueId) {
+        // Bypass edge function for subdivisions to avoid duplicate ID issues on undeployed cloud functions
+        const rpcResp = await sb.rpc('save_subdivision_parcels', {
+            p_layer_name: layerName,
+            p_parent_unique_id: parentUniqueId,
+            p_parent_id: parentParcelId,
+            p_parcels: parcels,
+            p_user_id: sess.data.session.user.id,
+            p_form_data: formData
+        });
+        if (rpcResp.error) throw new Error(rpcResp.error.message);
+        res = { savedCount: rpcResp.data?.savedCount || 0 };
+    } else {
+        var resp=await fetch(SB_URL+'/functions/v1/polygon-creator',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'apikey':key},body:JSON.stringify({action:'commit_batch',layerName:layerName,csvFileId:null,formData:formData,parcels:parcels})});
+        res=JSON.parse(await resp.text());
+    }
     
     if(res.savedCount){
         setStatus('\u2713 Saved '+res.savedCount+' polygon(s) to '+layerName,'success');
