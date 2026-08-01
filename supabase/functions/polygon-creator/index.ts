@@ -256,8 +256,41 @@ async function generateUniqueIds(
   admin: ReturnType<typeof createClient>,
   layerName: string,
   count: number,
+  parentUniqueId?: string
 ): Promise<string[]> {
   const prefix = LAYER_PREFIX[layerName] ?? "POLY";
+
+  // Handle Subdivision Naming (e.g., TT36N-001 -> TT36N-001-1, TT36N-001-2)
+  if (parentUniqueId) {
+    const ids: string[] = [];
+    const escapedParent = parentUniqueId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    
+    // Find all existing children of this parent
+    const { data: existingRows } = await admin
+      .from("polygon_features")
+      .select("unique_id")
+      .ilike("unique_id", `${parentUniqueId}-%`);
+
+    let maxChildSeq = 0;
+    const regex = new RegExp(`^${escapedParent}-(\\d+)$`);
+    
+    for (const row of existingRows || []) {
+      const m = String(row.unique_id || "").match(regex);
+      if (m) {
+        const seq = Number(m[1]);
+        if (Number.isFinite(seq) && seq > maxChildSeq) {
+          maxChildSeq = seq;
+        }
+      }
+    }
+
+    for (let i = 0; i < count; i++) {
+      maxChildSeq++;
+      ids.push(`${parentUniqueId}-${maxChildSeq}`);
+    }
+    return ids;
+  }
+
 
   function parseSeq(id: string): number | null {
     const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -336,11 +369,12 @@ async function insertPolygonRowsWithRetry(
   baseRows: Array<Record<string, unknown>>,
   layerName: string,
   maxAttempts = 4,
+  parentUniqueId?: string
 ) {
   let lastError: { message?: string } | null = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const uniqueIds = await generateUniqueIds(admin, layerName, baseRows.length);
+    const uniqueIds = await generateUniqueIds(admin, layerName, baseRows.length, parentUniqueId);
     const rows = baseRows.map((row, idx) => ({ ...row, unique_id: uniqueIds[idx] }));
 
     const { data, error } = await admin
@@ -485,6 +519,7 @@ Deno.serve(async (req) => {
           coordinate_system: formData.coordinateSystem || "EPSG:4326",
           additional_info: [formAdditional, parcelTag].filter(Boolean).join(" | "),
           csv_file_id: csvFileId,
+          parent_parcel_id: formData.parentParcelId || null,
           geometry: p.geometry || null,
           area_hectares: Number(p.area_hectares || 0),
           num_vertices: Number(p.num_vertices || 0),
@@ -493,7 +528,7 @@ Deno.serve(async (req) => {
         };
       });
 
-      const { data, error } = await insertPolygonRowsWithRetry(admin, baseRows, layerName, 4);
+      const { data, error } = await insertPolygonRowsWithRetry(admin, baseRows, layerName, 4, formData.parentUniqueId);
       if (error) return fail(500, `Failed to save parcels: ${error.message}`);
 
       return ok({
