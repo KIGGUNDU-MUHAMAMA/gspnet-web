@@ -7,44 +7,41 @@
 CREATE EXTENSION IF NOT EXISTS postgis;
 
 -- Create spatial index for fast bounding box queries on polygon_features
-CREATE INDEX IF NOT EXISTS polygon_features_geom_idx 
+CREATE INDEX IF NOT EXISTS polygon_features_geom_idx
 ON public.polygon_features USING GIST (geometry);
 
--- Step 1: Permanently repair all broken geometries in the table.
--- ST_MakeValid can sometimes return a MultiPolygon when fixing a broken
--- Polygon ring. We use a CASE expression to handle both outcomes:
---   - If the repair result is still a Polygon → use it directly
---   - If it became a MultiPolygon → extract the sub-polygon with the
---     largest area (ST_GeometryN on the result of ST_DumpPoints is complex,
---     so we use a lateral trick with generate_series)
+-- Step 1: Repair rows where geometry is still a plain Polygon after ST_MakeValid.
+-- This covers the common case (unclosed ring, minor topology error).
 UPDATE public.polygon_features
-SET geometry = (
-    CASE
-        WHEN ST_GeometryType(ST_MakeValid(geometry)) = 'ST_Polygon'
-            THEN ST_MakeValid(geometry)
-        WHEN ST_GeometryType(ST_MakeValid(geometry)) IN ('ST_MultiPolygon', 'ST_GeometryCollection')
-            THEN (
-                -- Extract the single sub-geometry with the largest area
-                SELECT ST_GeometryN(ST_MakeValid(pf2.geometry), n)
-                FROM public.polygon_features pf2,
-                     generate_series(1, ST_NumGeometries(ST_MakeValid(pf2.geometry))) AS n
-                WHERE pf2.id = polygon_features.id
-                  AND ST_GeometryType(ST_GeometryN(ST_MakeValid(pf2.geometry), n)) = 'ST_Polygon'
-                ORDER BY ST_Area(ST_GeometryN(ST_MakeValid(pf2.geometry), n)) DESC
-                LIMIT 1
-            )
-        ELSE geometry  -- leave unchanged if repair fails unexpectedly
-    END
-)
-WHERE NOT ST_IsValid(geometry);
+SET geometry = ST_MakeValid(geometry)
+WHERE NOT ST_IsValid(geometry)
+  AND ST_GeometryType(ST_MakeValid(geometry)) = 'ST_Polygon';
 
--- Step 2: Replace the RPC function to also guard future bad geometries
--- by wrapping geometry with ST_MakeValid() before calling ST_Intersects.
+-- Step 2: For rows where ST_MakeValid produced a MultiPolygon or
+-- GeometryCollection, extract the largest polygon sub-part by area.
+-- ST_Dump explodes any geometry into its component parts, letting us
+-- pick the biggest polygon with a simple ORDER BY / LIMIT.
+UPDATE public.polygon_features pf
+SET geometry = (
+  SELECT (dp).geom
+  FROM ST_Dump(ST_MakeValid(pf2.geometry)) dp
+  WHERE pf2.id = pf.id
+    AND ST_GeometryType((dp).geom) = 'ST_Polygon'
+  ORDER BY ST_Area((dp).geom) DESC
+  LIMIT 1
+)
+FROM public.polygon_features pf2
+WHERE pf2.id = pf.id
+  AND NOT ST_IsValid(pf.geometry)
+  AND ST_GeometryType(ST_MakeValid(pf.geometry)) IN ('ST_MultiPolygon', 'ST_GeometryCollection');
+
+-- Step 3: RPC function to fetch polygons within a bounding box extent.
+-- ST_IsValid guard prevents any remaining bad rows from crashing GEOS.
 CREATE OR REPLACE FUNCTION public.get_polygons_in_extent(
-  min_lon float, 
-  min_lat float, 
-  max_lon float, 
-  max_lat float, 
+  min_lon float,
+  min_lat float,
+  max_lon float,
+  max_lat float,
   target_layer text
 )
 RETURNS SETOF public.polygon_features
@@ -53,12 +50,11 @@ AS $$
   SELECT *
   FROM public.polygon_features
   WHERE layer_name = target_layer
-  AND is_archived = false
-  AND ST_IsValid(geometry)
-  AND ST_Intersects(
-    ST_MakeValid(geometry), 
-    ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat, 4326)
-  )
+    AND is_archived = false
+    AND ST_IsValid(geometry)
+    AND ST_Intersects(
+      geometry,
+      ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat, 4326)
+    )
   ORDER BY created_at DESC;
 $$;
-
