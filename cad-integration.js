@@ -303,8 +303,14 @@ async function saveTraced(layerName){
                     parentUniqueId = parent.unique_id;
                     setStatus('Linking to parent ' + parentUniqueId + '...', '');
                 }
+            } else if (intersectErr) {
+                console.error('[Intersection RPC Error]', intersectErr);
+                alert('Warning: Auto-detect subdivision failed: ' + intersectErr.message);
             }
-        } catch (e) { console.error('[Intersection Check]', e); }
+        } catch (e) { 
+            console.error('[Intersection Check Exception]', e);
+            alert('Warning: Auto-detect subdivision exception: ' + e.message);
+        }
     }
 
     var formData={client:(document.getElementById('polygonClient')||{}).value||'DXF Import',projectName:(document.getElementById('polygonProjectName')||{}).value||'DXF Traced',coordinateSystem:S.crs,district:(document.getElementById('polygonDistrict')||{}).value||'',surveyor:(document.getElementById('polygonSurveyor')||{}).value||'',supervisor:(document.getElementById('polygonSupervisor')||{}).value||'', parentParcelId: parentParcelId, parentUniqueId: parentUniqueId};
