@@ -48907,47 +48907,19 @@ function smoothChaikin(points) {
                         const { data: userCtx } = await supabase.auth.getUser();
                         if (!userCtx || !userCtx.user) throw new Error('Not authenticated');
 
-                        // 1. Update polygon_features
-                        const { error: updateErr } = await supabase
-                            .from('polygon_features')
-                            .update({ 
-                                is_archived: true,
-                                archive_reason: finalReason
-                            })
-                            .eq('unique_id', uid)
-                            .eq('layer_name', layerName);
-                            
-                        if (updateErr) throw updateErr;
-
-                        // 2. Determine case status
+                        // 1. Determine case status
                         const initialStatus = reasonSel === 'Subdivision' ? 'yellow' : 'green';
 
-                        // 3. Create tracking case
-                        const { data: newCase, error: caseErr } = await supabase
-                            .from('parcel_cases')
-                            .insert([{
-                                parcel_unique_id: uid,
-                                survey_layer: layerName,
-                                current_status: initialStatus,
-                                reason: 'Archived: ' + finalReason,
-                                created_by: userCtx.user.id,
-                                case_type: 'archive_parcel'
-                            }])
-                            .select()
-                            .single();
-                            
-                        if (caseErr) throw caseErr;
+                        // 2. Call the secure RPC to perform the transaction, bypassing RLS
+                        const { data: rpcData, error: rpcErr } = await supabase.rpc('archive_parcel_transaction', {
+                            p_unique_id: uid,
+                            p_layer_name: layerName,
+                            p_reason: finalReason,
+                            p_status: initialStatus,
+                            p_user_id: userCtx.user.id
+                        });
 
-                        // 4. Add system message to the new case
-                        await supabase
-                            .from('case_messages')
-                            .insert([{
-                                case_id: newCase.id,
-                                sender_id: userCtx.user.id,
-                                message_type: 'system',
-                                content: `Parcel archived. Reason: ${finalReason}. Status set to ${initialStatus === 'yellow' ? 'Pending Subdivision' : 'Resolved'}.`
-                            }]);
-
+                        if (rpcErr) throw rpcErr;
                         showToast('Parcel archived successfully.', 'success');
                         document.getElementById('archiveParcelModal').style.display='none';
                         
