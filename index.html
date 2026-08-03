@@ -4,6 +4,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Sentry SDK Setup -->
+    <script src="https://js.sentry-cdn.com/05baab1156c02176526db4a5941887df.min.js" crossorigin="anonymous"></script>
+    <script>
+      Sentry.onLoad(function() {
+        Sentry.init({
+          dsn: "https://05baab1156c02176526db4a5941887df@o4511845335105536.ingest.us.sentry.io/4511845522669568",
+          dataCollection: { }
+        });
+      });
+    </script>
     <title>GEOSPATIALNETWORKUG - Professional GIS Login</title>
     <!-- Core SEO Meta Tags -->
     <meta name="description" content="GEOSPATIALNETWORKUG: A professional, FFPLA-aligned GIS platform integrating 3D terrain modeling, automated valuation, property markets, and a 24/7 AI.">
