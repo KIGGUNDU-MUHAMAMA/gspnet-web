@@ -73792,13 +73792,13 @@ if ('serviceWorker' in navigator) {
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            // Add a custom install button to the main sidebar or user menu dynamically
-            const userMenu = document.getElementById('userProfileDetails');
-            if (userMenu && !document.getElementById('pwa-install-btn')) {
+            // Add a custom install button dynamically floating at the bottom
+            if (!document.getElementById('pwa-install-btn')) {
                 const btn = document.createElement('button');
                 btn.id = 'pwa-install-btn';
-                btn.innerHTML = '<i class="fas fa-download"></i> Install App on Phone';
-                btn.style.cssText = 'width: 100%; text-align: left; background: none; border: none; padding: 10px 15px; color: #10b981; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 14px; margin-top: 10px; border-top: 1px solid #e2e8f0;';
+                btn.innerHTML = '<i class="fas fa-download"></i> Install GSPNET App';
+                btn.style.cssText = 'position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 99999; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 12px 24px; border-radius: 50px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 15px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4); border: 1px solid rgba(255,255,255,0.2); white-space: nowrap;';
+                
                 btn.onclick = async () => {
                     if (deferredPrompt) {
                         deferredPrompt.prompt();
@@ -73809,7 +73809,7 @@ if ('serviceWorker' in navigator) {
                         deferredPrompt = null;
                     }
                 };
-                userMenu.appendChild(btn);
+                document.body.appendChild(btn);
             }
         });
 
