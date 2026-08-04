@@ -15,7 +15,6 @@
         });
       });
     </script>
-    <meta http-equiv="Permissions-Policy" content="geolocation=()">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <title>GEOSPATIALNETWORKUG - WEB MAPPING PLATFORM</title>
     <!-- Core SEO Meta Tags -->
@@ -17235,8 +17234,14 @@
                             <label for="printCRS">Grid CRS:</label>
                             <select id="printCRS">
                                 <option value="none">No Grid</option>
+                                <option value="EPSG:32635">WGS84 UTM 35N</option>
                                 <option value="EPSG:32636">WGS84 UTM 36N</option>
+                                <option value="EPSG:32735">WGS84 UTM 35S</option>
+                                <option value="EPSG:32736">WGS84 UTM 36S</option>
+                                <option value="EPSG:21095">Arc1960 UTM 35N</option>
                                 <option value="EPSG:21096">Arc1960 UTM 36N</option>
+                                <option value="EPSG:21035">Arc1960 UTM 35S</option>
+                                <option value="EPSG:21036">Arc1960 UTM 36S</option>
                                 <option value="EPSG:4326">WGS84 Geographic</option>
                             </select>
                         </div>
@@ -50195,6 +50200,16 @@ function smoothChaikin(points) {
             const printBtn = document.getElementById('printBtn');
             if (printBtn) {
                 printBtn.addEventListener('click', function () {
+                    // Check if main map is initialized to prevent errors
+                    const mainMap = window.map || (typeof map !== 'undefined' ? map : null);
+                    if (!mainMap) {
+                        console.warn('Map not yet initialized. Please wait.');
+                        if (typeof showToast === 'function') {
+                            showToast('Map is still loading, please wait.', 'warning');
+                        }
+                        return;
+                    }
+
                     // Open the print dialog modal
                     const printModal = document.getElementById('printDialogModal');
                     if (!printModal) {

@@ -387,7 +387,7 @@ function bindUi() {
   extractCoordsBtn.addEventListener("click", extractCoords);
   flagFeatureBtn.addEventListener("click", submitFlag);
   locateBtn.addEventListener("click", locateMe);
-  printBtn.addEventListener("click", () => window.print());
+  // printBtn listener is handled in webmap.html for the custom print layout
   infoBtn.addEventListener("click", () => {
     setStatus(
       statusEl,
