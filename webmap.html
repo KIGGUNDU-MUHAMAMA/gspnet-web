@@ -16612,10 +16612,20 @@
                                 
                                 <label style="font-size: 0.8em; color: #7f8c8d; margin-bottom: -5px;">Coordinate System *</label>
                                 <select id="jrj-crs" style="padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px;" required>
-                                    <option value="EPSG:32636">WGS84 UTM Zone 36N</option>
-                                    <option value="EPSG:32736">WGS84 UTM Zone 36S</option>
-                                    <option value="EPSG:21096">Arc 1960 UTM Zone 36N</option>
-                                    <option value="EPSG:21036">Arc 1960 UTM Zone 36S</option>
+                                    <option value="EPSG:4326">WGS84 (lat/lon) — EPSG:4326</option>
+                                    <option value="EPSG:3857">Web Mercator — EPSG:3857</option>
+                                    <option value="EPSG:21095">Arc 1960 / UTM zone 35N — EPSG:21095</option>
+                                    <option value="EPSG:21035">Arc 1960 / UTM zone 35S — EPSG:21035</option>
+                                    <option value="EPSG:21096">Arc 1960 / UTM zone 36N — EPSG:21096</option>
+                                    <option value="EPSG:21036">Arc 1960 / UTM zone 36S — EPSG:21036</option>
+                                    <option value="EPSG:21097">Arc 1960 / UTM zone 37N — EPSG:21097</option>
+                                    <option value="EPSG:21037">Arc 1960 / UTM zone 37S — EPSG:21037</option>
+                                    <option value="EPSG:32635">WGS84 / UTM zone 35N — EPSG:32635</option>
+                                    <option value="EPSG:32735">WGS84 / UTM zone 35S — EPSG:32735</option>
+                                    <option value="EPSG:32636">WGS84 / UTM zone 36N — EPSG:32636</option>
+                                    <option value="EPSG:32736">WGS84 / UTM zone 36S — EPSG:32736</option>
+                                    <option value="EPSG:32637">WGS84 / UTM zone 37N — EPSG:32637</option>
+                                    <option value="EPSG:32737">WGS84 / UTM zone 37S — EPSG:32737</option>
                                 </select>
                                 
                                 <label style="font-size: 0.8em; color: #7f8c8d; margin-bottom: -5px;">Multiplying Factor (MF) *</label>
@@ -16718,12 +16728,20 @@
                                     <div style="margin-bottom: 10px;">
                                         <label style="font-size: 0.8em; color: #7f8c8d;">Export Coordinate System (for DXF)</label>
                                         <select id="analysis-export-crs" style="width: 100%; padding: 6px; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 13px;">
+                                            <option value="EPSG:4326">WGS84 (lat/lon) — EPSG:4326</option>
                                             <option value="EPSG:3857">Web Mercator (Default - EPSG:3857)</option>
-                                            <option value="EPSG:4326">WGS84 Lat/Lon (EPSG:4326)</option>
-                                            <option value="EPSG:21095">Arc 1960 UTM Zone 35N (EPSG:21095)</option>
-                                            <option value="EPSG:21096">Arc 1960 UTM Zone 36N (EPSG:21096)</option>
-                                            <option value="EPSG:32635">WGS84 UTM Zone 35N (EPSG:32635)</option>
-                                            <option value="EPSG:32636">WGS84 UTM Zone 36N (EPSG:32636)</option>
+                                            <option value="EPSG:21095">Arc 1960 / UTM zone 35N (EPSG:21095)</option>
+                                            <option value="EPSG:21035">Arc 1960 / UTM zone 35S (EPSG:21035)</option>
+                                            <option value="EPSG:21096">Arc 1960 / UTM zone 36N (EPSG:21096)</option>
+                                            <option value="EPSG:21036">Arc 1960 / UTM zone 36S (EPSG:21036)</option>
+                                            <option value="EPSG:21097">Arc 1960 / UTM zone 37N (EPSG:21097)</option>
+                                            <option value="EPSG:21037">Arc 1960 / UTM zone 37S (EPSG:21037)</option>
+                                            <option value="EPSG:32635">WGS84 / UTM zone 35N (EPSG:32635)</option>
+                                            <option value="EPSG:32735">WGS84 / UTM zone 35S (EPSG:32735)</option>
+                                            <option value="EPSG:32636">WGS84 / UTM zone 36N (EPSG:32636)</option>
+                                            <option value="EPSG:32736">WGS84 / UTM zone 36S (EPSG:32736)</option>
+                                            <option value="EPSG:32637">WGS84 / UTM zone 37N (EPSG:32637)</option>
+                                            <option value="EPSG:32737">WGS84 / UTM zone 37S (EPSG:32737)</option>
                                         </select>
                                     </div>
 
@@ -17234,15 +17252,20 @@
                             <label for="printCRS">Grid CRS:</label>
                             <select id="printCRS">
                                 <option value="none">No Grid</option>
-                                <option value="EPSG:32635">WGS84 UTM 35N</option>
-                                <option value="EPSG:32636">WGS84 UTM 36N</option>
-                                <option value="EPSG:32735">WGS84 UTM 35S</option>
-                                <option value="EPSG:32736">WGS84 UTM 36S</option>
-                                <option value="EPSG:21095">Arc1960 UTM 35N</option>
-                                <option value="EPSG:21096">Arc1960 UTM 36N</option>
-                                <option value="EPSG:21035">Arc1960 UTM 35S</option>
-                                <option value="EPSG:21036">Arc1960 UTM 36S</option>
-                                <option value="EPSG:4326">WGS84 Geographic</option>
+                                <option value="EPSG:4326">WGS84 (lat/lon) — EPSG:4326</option>
+                                <option value="EPSG:3857">Web Mercator — EPSG:3857</option>
+                                <option value="EPSG:21095">Arc 1960 / UTM zone 35N — EPSG:21095</option>
+                                <option value="EPSG:21035">Arc 1960 / UTM zone 35S — EPSG:21035</option>
+                                <option value="EPSG:21096">Arc 1960 / UTM zone 36N — EPSG:21096</option>
+                                <option value="EPSG:21036">Arc 1960 / UTM zone 36S — EPSG:21036</option>
+                                <option value="EPSG:21097">Arc 1960 / UTM zone 37N — EPSG:21097</option>
+                                <option value="EPSG:21037">Arc 1960 / UTM zone 37S — EPSG:21037</option>
+                                <option value="EPSG:32635">WGS84 / UTM zone 35N — EPSG:32635</option>
+                                <option value="EPSG:32735">WGS84 / UTM zone 35S — EPSG:32735</option>
+                                <option value="EPSG:32636">WGS84 / UTM zone 36N — EPSG:32636</option>
+                                <option value="EPSG:32736">WGS84 / UTM zone 36S — EPSG:32736</option>
+                                <option value="EPSG:32637">WGS84 / UTM zone 37N — EPSG:32637</option>
+                                <option value="EPSG:32737">WGS84 / UTM zone 37S — EPSG:32737</option>
                             </select>
                         </div>
                         
@@ -17320,11 +17343,20 @@
                                     <label for="terrainProjectCRS">Coordinate System *</label>
                                     <select id="terrainProjectCRS" class="form-select" required>
                                         <option value="">Select coordinate system...</option>
-                                        <option value="EPSG:32636">WGS84 UTM Zone 36N (EPSG:32636)</option>
-                                        <option value="EPSG:32736">WGS84 UTM Zone 36S (EPSG:32736)</option>
-                                        <option value="EPSG:21096">Arc1960 UTM Zone 36N (EPSG:21096)</option>
-                                        <option value="EPSG:21036">Arc1960 UTM Zone 36S (EPSG:21036)</option>
-                                        <option value="EPSG:4326">WGS84 Geographic (EPSG:4326)</option>
+                                        <option value="EPSG:4326">WGS84 (lat/lon) — EPSG:4326</option>
+                                        <option value="EPSG:3857">Web Mercator — EPSG:3857</option>
+                                        <option value="EPSG:21095">Arc 1960 / UTM zone 35N — EPSG:21095</option>
+                                        <option value="EPSG:21035">Arc 1960 / UTM zone 35S — EPSG:21035</option>
+                                        <option value="EPSG:21096">Arc 1960 / UTM zone 36N — EPSG:21096</option>
+                                        <option value="EPSG:21036">Arc 1960 / UTM zone 36S — EPSG:21036</option>
+                                        <option value="EPSG:21097">Arc 1960 / UTM zone 37N — EPSG:21097</option>
+                                        <option value="EPSG:21037">Arc 1960 / UTM zone 37S — EPSG:21037</option>
+                                        <option value="EPSG:32635">WGS84 / UTM zone 35N — EPSG:32635</option>
+                                        <option value="EPSG:32735">WGS84 / UTM zone 35S — EPSG:32735</option>
+                                        <option value="EPSG:32636">WGS84 / UTM zone 36N — EPSG:32636</option>
+                                        <option value="EPSG:32736">WGS84 / UTM zone 36S — EPSG:32736</option>
+                                        <option value="EPSG:32637">WGS84 / UTM zone 37N — EPSG:32637</option>
+                                        <option value="EPSG:32737">WGS84 / UTM zone 37S — EPSG:32737</option>
                                     </select>
                                 </div>
 
@@ -17705,11 +17737,20 @@
                             <div class="form-group">
                                 <label for="csvCoordinateSystem">Coordinate System *</label>
                                 <select id="csvCoordinateSystem" class="form-select">
-                                    <option value="EPSG:32636">WGS84 UTM Zone 36N (EPSG:32636)</option>
-                                    <option value="EPSG:21096">Arc1960 UTM Zone 36N (EPSG:21096)</option>
-                                    <option value="EPSG:21036">Arc1960 UTM Zone 36S (EPSG:21036)</option>
-                                    <option value="EPSG:32736">WGS84 UTM Zone 36S (EPSG:32736)</option>
-                                    <option value="EPSG:4326">WGS84 Geographic (EPSG:4326)</option>
+                                    <option value="EPSG:4326">WGS84 (lat/lon) — EPSG:4326</option>
+                                    <option value="EPSG:3857">Web Mercator — EPSG:3857</option>
+                                    <option value="EPSG:21095">Arc 1960 / UTM zone 35N — EPSG:21095</option>
+                                    <option value="EPSG:21035">Arc 1960 / UTM zone 35S — EPSG:21035</option>
+                                    <option value="EPSG:21096">Arc 1960 / UTM zone 36N — EPSG:21096</option>
+                                    <option value="EPSG:21036">Arc 1960 / UTM zone 36S — EPSG:21036</option>
+                                    <option value="EPSG:21097">Arc 1960 / UTM zone 37N — EPSG:21097</option>
+                                    <option value="EPSG:21037">Arc 1960 / UTM zone 37S — EPSG:21037</option>
+                                    <option value="EPSG:32635">WGS84 / UTM zone 35N — EPSG:32635</option>
+                                    <option value="EPSG:32735">WGS84 / UTM zone 35S — EPSG:32735</option>
+                                    <option value="EPSG:32636">WGS84 / UTM zone 36N — EPSG:32636</option>
+                                    <option value="EPSG:32736">WGS84 / UTM zone 36S — EPSG:32736</option>
+                                    <option value="EPSG:32637">WGS84 / UTM zone 37N — EPSG:32637</option>
+                                    <option value="EPSG:32737">WGS84 / UTM zone 37S — EPSG:32737</option>
                                 </select>
                             </div>
                         </div>
@@ -17933,11 +17974,20 @@
                                                 <i class="fas fa-globe" style="color:#8b5cf6;"></i> Coordinate System
                                             </label>
                                             <select id="demCsvCoordSystem" class="form-select" style="margin-top:4px;">
-                                                <option value="EPSG:32636">WGS84 / UTM Zone 36N (EPSG:32636) -- Default Uganda</option>
-                                                <option value="EPSG:21096">Arc 1960 / UTM Zone 36N (EPSG:21096)</option>
-                                                <option value="EPSG:21036">Arc 1960 / UTM Zone 36S (EPSG:21036)</option>
-                                                <option value="EPSG:32736">WGS84 / UTM Zone 36S (EPSG:32736)</option>
-                                                <option value="EPSG:4326">WGS84 Geographic -- Lat/Lon (EPSG:4326)</option>
+                                                <option value="EPSG:4326">WGS84 (lat/lon) — EPSG:4326</option>
+                                                <option value="EPSG:3857">Web Mercator — EPSG:3857</option>
+                                                <option value="EPSG:21095">Arc 1960 / UTM zone 35N — EPSG:21095</option>
+                                                <option value="EPSG:21035">Arc 1960 / UTM zone 35S — EPSG:21035</option>
+                                                <option value="EPSG:21096">Arc 1960 / UTM zone 36N — EPSG:21096</option>
+                                                <option value="EPSG:21036">Arc 1960 / UTM zone 36S — EPSG:21036</option>
+                                                <option value="EPSG:21097">Arc 1960 / UTM zone 37N — EPSG:21097</option>
+                                                <option value="EPSG:21037">Arc 1960 / UTM zone 37S — EPSG:21037</option>
+                                                <option value="EPSG:32635">WGS84 / UTM zone 35N — EPSG:32635</option>
+                                                <option value="EPSG:32735">WGS84 / UTM zone 35S — EPSG:32735</option>
+                                                <option value="EPSG:32636">WGS84 / UTM zone 36N — EPSG:32636</option>
+                                                <option value="EPSG:32736">WGS84 / UTM zone 36S — EPSG:32736</option>
+                                                <option value="EPSG:32637">WGS84 / UTM zone 37N — EPSG:32637</option>
+                                                <option value="EPSG:32737">WGS84 / UTM zone 37S — EPSG:32737</option>
                                             </select>
                                         </div>
                                         <div style="border:2px dashed #f97316;border-radius:8px;padding:14px;text-align:center;background:#fff7ed;cursor:pointer;" id="demCsvDropZone">
@@ -19892,9 +19942,20 @@
                             <div class="coord-input-group">
                                 <label for="coordCrs">Coordinate Reference System:</label>
                                 <select id="coordCrs" class="crs-selector">
-                                    <option value="EPSG:32636">WGS84 UTM Zone 36N (Default)</option>
-                                    <option value="EPSG:21096">Arc1960 UTM Zone 36N — EPSG:21096</option>
-                                    <option value="EPSG:4326">WGS84 Geographic (Lat/Lon) — EPSG:4326</option>
+                                    <option value="EPSG:4326">WGS84 (lat/lon) — EPSG:4326</option>
+                                    <option value="EPSG:3857">Web Mercator — EPSG:3857</option>
+                                    <option value="EPSG:21095">Arc 1960 / UTM zone 35N — EPSG:21095</option>
+                                    <option value="EPSG:21035">Arc 1960 / UTM zone 35S — EPSG:21035</option>
+                                    <option value="EPSG:21096">Arc 1960 / UTM zone 36N — EPSG:21096</option>
+                                    <option value="EPSG:21036">Arc 1960 / UTM zone 36S — EPSG:21036</option>
+                                    <option value="EPSG:21097">Arc 1960 / UTM zone 37N — EPSG:21097</option>
+                                    <option value="EPSG:21037">Arc 1960 / UTM zone 37S — EPSG:21037</option>
+                                    <option value="EPSG:32635">WGS84 / UTM zone 35N — EPSG:32635</option>
+                                    <option value="EPSG:32735">WGS84 / UTM zone 35S — EPSG:32735</option>
+                                    <option value="EPSG:32636">WGS84 / UTM zone 36N (Default) — EPSG:32636</option>
+                                    <option value="EPSG:32736">WGS84 / UTM zone 36S — EPSG:32736</option>
+                                    <option value="EPSG:32637">WGS84 / UTM zone 37N — EPSG:32637</option>
+                                    <option value="EPSG:32737">WGS84 / UTM zone 37S — EPSG:32737</option>
                                 </select>
                             </div>
 
@@ -19919,9 +19980,20 @@
                             <div class="coord-input-group">
                                 <label for="csvCrs">Coordinate Reference System of CSV:</label>
                                 <select id="csvCrs" class="crs-selector">
-                                    <option value="EPSG:32636">WGS84 UTM Zone 36N (Default)</option>
-                                    <option value="EPSG:21096">Arc1960 UTM Zone 36N — EPSG:21096</option>
-                                    <option value="EPSG:4326">WGS84 Geographic (Lat/Lon) — EPSG:4326</option>
+                                    <option value="EPSG:4326">WGS84 (lat/lon) — EPSG:4326</option>
+                                    <option value="EPSG:3857">Web Mercator — EPSG:3857</option>
+                                    <option value="EPSG:21095">Arc 1960 / UTM zone 35N — EPSG:21095</option>
+                                    <option value="EPSG:21035">Arc 1960 / UTM zone 35S — EPSG:21035</option>
+                                    <option value="EPSG:21096">Arc 1960 / UTM zone 36N — EPSG:21096</option>
+                                    <option value="EPSG:21036">Arc 1960 / UTM zone 36S — EPSG:21036</option>
+                                    <option value="EPSG:21097">Arc 1960 / UTM zone 37N — EPSG:21097</option>
+                                    <option value="EPSG:21037">Arc 1960 / UTM zone 37S — EPSG:21037</option>
+                                    <option value="EPSG:32635">WGS84 / UTM zone 35N — EPSG:32635</option>
+                                    <option value="EPSG:32735">WGS84 / UTM zone 35S — EPSG:32735</option>
+                                    <option value="EPSG:32636">WGS84 / UTM zone 36N (Default) — EPSG:32636</option>
+                                    <option value="EPSG:32736">WGS84 / UTM zone 36S — EPSG:32736</option>
+                                    <option value="EPSG:32637">WGS84 / UTM zone 37N — EPSG:32637</option>
+                                    <option value="EPSG:32737">WGS84 / UTM zone 37S — EPSG:32737</option>
                                 </select>
                             </div>
 
@@ -20005,11 +20077,20 @@
                         <div class="coordsearch-form-group">
                             <label for="search-manual-crs">Coordinate System</label>
                             <select id="search-manual-crs" class="coordsearch-select">
+                                <option value="EPSG:4326">WGS84 (lat/lon) — EPSG:4326</option>
+                                <option value="EPSG:3857">Web Mercator — EPSG:3857</option>
+                                <option value="EPSG:21095">Arc 1960 / UTM zone 35N — EPSG:21095</option>
+                                <option value="EPSG:21035">Arc 1960 / UTM zone 35S — EPSG:21035</option>
                                 <option value="EPSG:21096">Arc 1960 / UTM zone 36N — EPSG:21096</option>
                                 <option value="EPSG:21036">Arc 1960 / UTM zone 36S — EPSG:21036</option>
+                                <option value="EPSG:21097">Arc 1960 / UTM zone 37N — EPSG:21097</option>
+                                <option value="EPSG:21037">Arc 1960 / UTM zone 37S — EPSG:21037</option>
+                                <option value="EPSG:32635">WGS84 / UTM zone 35N — EPSG:32635</option>
+                                <option value="EPSG:32735">WGS84 / UTM zone 35S — EPSG:32735</option>
                                 <option value="EPSG:32636">WGS84 / UTM zone 36N — EPSG:32636</option>
                                 <option value="EPSG:32736">WGS84 / UTM zone 36S — EPSG:32736</option>
-                                <option value="EPSG:4326">WGS84 (lat/lon) — EPSG:4326</option>
+                                <option value="EPSG:32637">WGS84 / UTM zone 37N — EPSG:32637</option>
+                                <option value="EPSG:32737">WGS84 / UTM zone 37S — EPSG:32737</option>
                             </select>
                         </div>
                         <div class="coordsearch-row">
@@ -20035,11 +20116,20 @@
                         <div class="coordsearch-form-group">
                             <label for="search-csv-crs">Coordinate System</label>
                             <select id="search-csv-crs" class="coordsearch-select">
+                                <option value="EPSG:4326">WGS84 (lat/lon) — EPSG:4326</option>
+                                <option value="EPSG:3857">Web Mercator — EPSG:3857</option>
+                                <option value="EPSG:21095">Arc 1960 / UTM zone 35N — EPSG:21095</option>
+                                <option value="EPSG:21035">Arc 1960 / UTM zone 35S — EPSG:21035</option>
                                 <option value="EPSG:21096">Arc 1960 / UTM zone 36N — EPSG:21096</option>
                                 <option value="EPSG:21036">Arc 1960 / UTM zone 36S — EPSG:21036</option>
+                                <option value="EPSG:21097">Arc 1960 / UTM zone 37N — EPSG:21097</option>
+                                <option value="EPSG:21037">Arc 1960 / UTM zone 37S — EPSG:21037</option>
+                                <option value="EPSG:32635">WGS84 / UTM zone 35N — EPSG:32635</option>
+                                <option value="EPSG:32735">WGS84 / UTM zone 35S — EPSG:32735</option>
                                 <option value="EPSG:32636">WGS84 / UTM zone 36N — EPSG:32636</option>
                                 <option value="EPSG:32736">WGS84 / UTM zone 36S — EPSG:32736</option>
-                                <option value="EPSG:4326">WGS84 (lat/lon) — EPSG:4326</option>
+                                <option value="EPSG:32637">WGS84 / UTM zone 37N — EPSG:32637</option>
+                                <option value="EPSG:32737">WGS84 / UTM zone 37S — EPSG:32737</option>
                             </select>
                         </div>
                         <div class="coordsearch-form-group">
@@ -20108,15 +20198,21 @@
                     <option value="">— Select coordinate system —</option>
                     <optgroup label="WGS 84">
                         <option value="EPSG:4326">WGS 84 — Geographic (Lat/Lon) · EPSG:4326</option>
+                        <option value="EPSG:3857">Web Mercator — EPSG:3857</option>
                         <option value="EPSG:32635">WGS 84 / UTM Zone 35N · EPSG:32635</option>
-                        <option value="EPSG:32636" selected>WGS 84 / UTM Zone 36N · EPSG:32636</option>
                         <option value="EPSG:32735">WGS 84 / UTM Zone 35S · EPSG:32735</option>
+                        <option value="EPSG:32636" selected>WGS 84 / UTM Zone 36N · EPSG:32636</option>
                         <option value="EPSG:32736">WGS 84 / UTM Zone 36S · EPSG:32736</option>
+                        <option value="EPSG:32637">WGS 84 / UTM Zone 37N · EPSG:32637</option>
+                        <option value="EPSG:32737">WGS 84 / UTM Zone 37S · EPSG:32737</option>
                     </optgroup>
                     <optgroup label="Arc 1960">
                         <option value="EPSG:21095">Arc 1960 / UTM Zone 35N · EPSG:21095</option>
+                        <option value="EPSG:21035">Arc 1960 / UTM Zone 35S · EPSG:21035</option>
                         <option value="EPSG:21096">Arc 1960 / UTM Zone 36N · EPSG:21096</option>
-                        <option value="EPSG:21036">Arc 1960 / UTM Zone 36 South · EPSG:21036</option>
+                        <option value="EPSG:21036">Arc 1960 / UTM Zone 36S · EPSG:21036</option>
+                        <option value="EPSG:21097">Arc 1960 / UTM Zone 37N · EPSG:21097</option>
+                        <option value="EPSG:21037">Arc 1960 / UTM Zone 37S · EPSG:21037</option>
                     </optgroup>
                 </select>
 
@@ -20318,17 +20414,20 @@
             });
 
             // PATCH: register authoritative proj4 definitions for WGS84 UTM and Arc1960 BEFORE creating the map/view
-            proj4.defs("EPSG:32636", "+proj=utm +zone=36 +datum=WGS84 +units=m +no_defs");
-            proj4.defs("EPSG:32736", "+proj=utm +zone=36 +south +datum=WGS84 +units=m +no_defs");
             proj4.defs("EPSG:32635", "+proj=utm +zone=35 +datum=WGS84 +units=m +no_defs");
             proj4.defs("EPSG:32735", "+proj=utm +zone=35 +south +datum=WGS84 +units=m +no_defs");
+            proj4.defs("EPSG:32636", "+proj=utm +zone=36 +datum=WGS84 +units=m +no_defs");
+            proj4.defs("EPSG:32736", "+proj=utm +zone=36 +south +datum=WGS84 +units=m +no_defs");
+            proj4.defs("EPSG:32637", "+proj=utm +zone=37 +datum=WGS84 +units=m +no_defs");
+            proj4.defs("EPSG:32737", "+proj=utm +zone=37 +south +datum=WGS84 +units=m +no_defs");
 
             // Arc1960 UTM authoritative (include TOWGS84). Use these values from EPSG registry:
+            proj4.defs("EPSG:21095", "+proj=utm +zone=35 +a=6378249.145 +rf=293.465 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs +type=crs");
+            proj4.defs("EPSG:21035", "+proj=utm +zone=35 +south +a=6378249.145 +rf=293.465 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs +type=crs");
             proj4.defs("EPSG:21096", "+proj=utm +zone=36 +a=6378249.145 +rf=293.465 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs +type=crs");
             proj4.defs("EPSG:21036", "+proj=utm +zone=36 +south +a=6378249.145 +rf=293.465 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs +type=crs");
-            proj4.defs("EPSG:21095", "+proj=utm +zone=35 +a=6378249.145 +rf=293.465 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs +type=crs");
-            proj4.defs("EPSG:32637", "+proj=utm +zone=37 +datum=WGS84 +units=m +no_defs");
-            proj4.defs("EPSG:21035", "+proj=utm +zone=35 +south +a=6378249.145 +rf=293.465 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs +type=crs");
+            proj4.defs("EPSG:21097", "+proj=utm +zone=37 +a=6378249.145 +rf=293.465 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs +type=crs");
+            proj4.defs("EPSG:21037", "+proj=utm +zone=37 +south +a=6378249.145 +rf=293.465 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs +type=crs");
 
             if (ol.proj.proj4 && typeof ol.proj.proj4.register === "function") {
                 ol.proj.proj4.register(proj4);
