@@ -22568,15 +22568,15 @@
                 { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/masaka.nlis.fgb', title: 'GSPNET-MSK-REF' },
                 { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/masindi.nlis.fgb', title: 'GSPNET-MSN-REF' },
                 { url: 'https://data.geospatialnetworkug.xyz/DGB/flatgeobuf/mbale.nlis.fgb', title: 'GSPNET-MBA-REF' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mbarara.nlis.fgb', title: 'GSPNET-MBR-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mbarara.nlis.fgb', fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/geojeson2/mbarara.nlis.fgb', title: 'GSPNET-MBR-REF' },
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson/mityana.nlis.fgb', fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/geojeson/mityana.nlis.fgb', title: 'GSPNET-MIT-REF' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/moroto.nlis.fgb', title: 'GSPNET-MOR-REF' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mpigi.nlis.fgb', title: 'GSPNET-MPI-REF' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson/mukono.nlis1.fgb', title: 'GSPNET-MUK-REF-A' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson/mukono.nlis2.fgb', title: 'GSPNET-MUK-REF-B' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/rukingiri.nlis.fgb', title: 'GSPNET-RUK-REF' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/Ssoroti.nlis.fgb', title: 'GSPNET-SRT-REF' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/tororo.nlis.fgb', title: 'GSPNET-TRR-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/moroto.nlis.fgb', fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/geojeson2/moroto.nlis.fgb', title: 'GSPNET-MOR-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/mpigi.nlis.fgb', fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/geojeson2/mpigi.nlis.fgb', title: 'GSPNET-MPI-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson/mukono.nlis1.fgb', fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/geojeson/mukono.nlis1.fgb', title: 'GSPNET-MUK-REF-A' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson/mukono.nlis2.fgb', fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/geojeson/mukono.nlis2.fgb', title: 'GSPNET-MUK-REF-B' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/rukingiri.nlis.fgb', fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/geojeson2/rukingiri.nlis.fgb', title: 'GSPNET-RUK-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/Ssoroti.nlis.fgb', fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/geojeson2/Ssoroti.nlis.fgb', title: 'GSPNET-SRT-REF' },
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/tororo.nlis.fgb', fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/geojeson2/tororo.nlis.fgb', title: 'GSPNET-TRR-REF' },
                 { url: 'https://data.geospatialnetworkug.xyz/WAKISO/wakiso.nlis1.fgb', title: 'GSPNET-WKS-REF-A' },
                 { url: 'https://data.geospatialnetworkug.xyz/WAKISO/wakiso.nlis2.fgb', title: 'GSPNET-WKS-REF-B' }
             ];
@@ -22585,7 +22585,7 @@
             const environmentalData = [
                 { url: 'https://data.geospatialnetworkug.xyz/geojeson/uganda_wetlands.fgb', fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/geojeson/uganda_wetlands.fgb', title: 'NEMA (REF)' },
                 { url: 'https://data.geospatialnetworkug.xyz/WAKISO/uganda-forests-reserve.fgb', title: 'Uganda Forests Reserve (REF)' },
-                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/protectedareas.fgb', title: 'Protected Areas (REF)' }
+                { url: 'https://data.geospatialnetworkug.xyz/geojeson2/protectedareas.fgb', fallbackUrl: 'https://pub-ff7ec6bf8cab4d7e875563980b2cbf11.r2.dev/geojeson2/protectedareas.fgb', title: 'Protected Areas (REF)' }
             ];
 
             // Create buffered extent function for FlatGeobuf loading strategy
@@ -23377,7 +23377,7 @@
                 // It has NO relationship to any NLIS, plot, or government identifier.
                 if (isExport || resolution <= RES_THRESHOLD.LABELS) {
                     const cacheKey = '__gspnetRefIdLabelCache';
-                    let labelCache = feature.get(cacheKey);
+                    let labelCache = feature[cacheKey];
                     if (!labelCache || labelCache.revision !== geomRevision) {
                         // Generate internal Ref ID from feature's unique ID in the FGB source
                         const rawId = feature.getId != null ? feature.getId() : null;
@@ -23408,7 +23408,7 @@
                             })
                         });
                         labelCache = { revision: geomRevision, style: labelStyle };
-                        feature.set(cacheKey, labelCache, true);
+                        feature[cacheKey] = labelCache;
                     }
                     styles.push(labelCache.style);
                 }
@@ -23416,7 +23416,7 @@
                 // TIER 2: Corner circles only at very close zoom (or always in export)
                 if (isExport || resolution <= DETAIL_ZOOM_GATE.FULL_DETAIL) {
                     const cacheKey = isExport ? '__gspnetCornerStylesCacheExport' : '__gspnetCornerStylesCache';
-                    let cornerStylesCache = feature.get(cacheKey);
+                    let cornerStylesCache = feature[cacheKey];
                     if (!cornerStylesCache || cornerStylesCache.revision !== geomRevision) {
                         const cornerStyles = [];
                         const circleRadius = isExport ? 4 * exportScale : 4;
@@ -23434,7 +23434,7 @@
                             }));
                         }
                         cornerStylesCache = { revision: geomRevision, styles: cornerStyles };
-                        feature.set(cacheKey, cornerStylesCache, true);
+                        feature[cacheKey] = cornerStylesCache;
                     }
                     styles.push(...cornerStylesCache.styles);
                 }
@@ -23573,7 +23573,7 @@
                 // Tier 1: internal GSPNET Ref ID label (R-XXXX) — no plot numbers
                 if (isExport || resolution <= RES_THRESHOLD.LABELS) {
                     const cacheKey = '__mitRefIdLabelCache';
-                    let labelCache = feature.get(cacheKey);
+                    let labelCache = feature[cacheKey];
                     if (!labelCache || labelCache.revision !== geomRevision) {
                         const rawId = feature.getId != null ? feature.getId() : null;
                         let refIndex = 1;
@@ -23602,7 +23602,7 @@
                             })
                         });
                         labelCache = { revision: geomRevision, style: labelStyle };
-                        feature.set(cacheKey, labelCache, true);
+                        feature[cacheKey] = labelCache;
                     }
                     styles.push(labelCache.style);
                 }
@@ -24209,7 +24209,7 @@
                         } else {
                             const cacheKey = '__parcelLabelStyleCache';
                             const labelText = nlisId.toString();
-                            let labelStyleCache = feature.get(cacheKey);
+                            let labelStyleCache = feature[cacheKey];
                             if (!labelStyleCache || labelStyleCache.revision !== geomRevision || labelStyleCache.text !== labelText) {
                                 const centroid = ol.extent.getCenter(geometry.getExtent());
                                 labelStyleCache = {
@@ -24228,7 +24228,7 @@
                                         })
                                     })
                                 };
-                                feature.set(cacheKey, labelStyleCache, true);
+                                feature[cacheKey] = labelStyleCache;
                             }
                             styles.push(labelStyleCache.style);
                         }
@@ -24238,7 +24238,7 @@
                 // TIER 2: Distance labels only at closer zoom (or always in export)
                 if (isExport || resolution <= DETAIL_ZOOM_GATE.DISTANCES) {
                     const cacheKey = isExport ? '__parcelDistanceStylesCacheExport' : '__parcelDistanceStylesCache';
-                    let distanceStylesCache = feature.get(cacheKey);
+                    let distanceStylesCache = feature[cacheKey];
                     if (!distanceStylesCache || distanceStylesCache.revision !== geomRevision) {
                         const distanceStyles = [];
                         for (let i = 0; i < coordinates.length - 1; i++) {
@@ -24265,7 +24265,7 @@
                             }));
                         }
                         distanceStylesCache = { revision: geomRevision, styles: distanceStyles };
-                        feature.set(cacheKey, distanceStylesCache, true);
+                        feature[cacheKey] = distanceStylesCache;
                     }
                     styles.push(...distanceStylesCache.styles);
                 }
@@ -24273,7 +24273,7 @@
                 // TIER 3: Survey markers only at very close zoom (or always in export)
                 if (isExport || resolution <= DETAIL_ZOOM_GATE.FULL_DETAIL) {
                     const cacheKey = isExport ? '__parcelCornerStylesCacheExport' : '__parcelCornerStylesCache';
-                    let cornerStylesCache = feature.get(cacheKey);
+                    let cornerStylesCache = feature[cacheKey];
                     if (!cornerStylesCache || cornerStylesCache.revision !== geomRevision) {
                         const cornerStyles = [];
                         const circleRadius = isExport ? 4 * exportScale : 4;
@@ -24300,7 +24300,7 @@
                             }));
                         }
                         cornerStylesCache = { revision: geomRevision, styles: cornerStyles };
-                        feature.set(cacheKey, cornerStylesCache, true);
+                        feature[cacheKey] = cornerStylesCache;
                     }
                     styles.push(...cornerStylesCache.styles);
                 }
@@ -24456,7 +24456,7 @@
                         } else {
                             const cacheKey = '__surveyLabelStyleCache';
                             const labelText = uniqueId.toString();
-                            let labelStyleCache = feature.get(cacheKey);
+                            let labelStyleCache = feature[cacheKey];
                             if (!labelStyleCache || labelStyleCache.revision !== geomRevision || labelStyleCache.text !== labelText) {
                                 const centroid = ol.extent.getCenter(geometry.getExtent());
                                 labelStyleCache = {
@@ -24475,7 +24475,7 @@
                                         })
                                     })
                                 };
-                                feature.set(cacheKey, labelStyleCache, true);
+                                feature[cacheKey] = labelStyleCache;
                             }
                             styles.push(labelStyleCache.style);
                         }
@@ -24486,7 +24486,7 @@
                 if (isExport || resolution <= DETAIL_ZOOM_GATE.DISTANCES) {
                     // 2a — Distance labels along edges
                     const distCacheKey = isExport ? '__surveyDistanceStylesCacheExport' : '__surveyDistanceStylesCache';
-                    let distanceStylesCache = feature.get(distCacheKey);
+                    let distanceStylesCache = feature[distCacheKey];
                     if (!distanceStylesCache || distanceStylesCache.revision !== geomRevision) {
                         const distanceStyles = [];
                         for (let i = 0; i < coordinates.length - 1; i++) {
@@ -24513,13 +24513,13 @@
                             }));
                         }
                         distanceStylesCache = { revision: geomRevision, styles: distanceStyles };
-                        feature.set(distCacheKey, distanceStylesCache, true);
+                        feature[distCacheKey] = distanceStylesCache;
                     }
                     styles.push(...distanceStylesCache.styles);
 
                     // 2b — Corner markers
                     const cornerCacheKey = isExport ? '__surveyCornerStylesCacheExport' : '__surveyCornerStylesCache';
-                    let cornerStylesCache = feature.get(cornerCacheKey);
+                    let cornerStylesCache = feature[cornerCacheKey];
                     if (!cornerStylesCache || cornerStylesCache.revision !== geomRevision) {
                         const cornerStyles = [];
                         const circleRadius = isExport ? 4 * exportScale : 4;
@@ -24547,7 +24547,7 @@
                             }));
                         }
                         cornerStylesCache = { revision: geomRevision, styles: cornerStyles };
-                        feature.set(cornerCacheKey, cornerStylesCache, true);
+                        feature[cornerCacheKey] = cornerStylesCache;
                     }
                     styles.push(...cornerStylesCache.styles);
                 }
@@ -24555,7 +24555,7 @@
                 // ── TIER 3: Area label at deepest zoom (res ≤ 0.45, or always in export) ──
                 if (isExport || resolution <= DETAIL_ZOOM_GATE.FULL_DETAIL) {
                     const areaCacheKey = isExport ? '__surveyAreaStyleCacheExport' : '__surveyAreaStyleCache';
-                    let areaStyleCache = feature.get(areaCacheKey);
+                    let areaStyleCache = feature[areaCacheKey];
                     if (!areaStyleCache || areaStyleCache.revision !== geomRevision) {
                         // Compute area on-the-fly using UTM Shoelace (matches AutoCAD)
                         const wgs84Coords = coordinates.map(coord =>
@@ -24597,7 +24597,7 @@
                                 })
                             })
                         };
-                        feature.set(areaCacheKey, areaStyleCache, true);
+                        feature[areaCacheKey] = areaStyleCache;
                     }
                     styles.push(areaStyleCache.style);
                 }
