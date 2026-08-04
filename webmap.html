@@ -3821,6 +3821,398 @@
             box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
         }
 
+        /* ═══════════════════════════════════════════════════════════
+           Settings Side-Drawer
+           ═══════════════════════════════════════════════════════════ */
+        .settings-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10001;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .settings-overlay.active {
+            display: block;
+            opacity: 1;
+        }
+
+        .settings-drawer {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 380px;
+            height: 100vh;
+            height: 100dvh;
+            background: #ffffff;
+            box-shadow: -8px 0 30px rgba(0, 0, 0, 0.15);
+            z-index: 10002;
+            display: flex;
+            flex-direction: column;
+            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        .settings-drawer.open {
+            right: 0;
+        }
+
+        .settings-header {
+            background: linear-gradient(135deg, var(--primary, #1a2a6c), var(--secondary, #2c3e50));
+            color: white;
+            padding: 18px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .settings-header h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            letter-spacing: 0.3px;
+        }
+        .settings-header h2 i {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        .settings-close-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .settings-close-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        /* User Card */
+        .settings-user-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 16px 20px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f8fafc;
+        }
+        .settings-user-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary, #1a2a6c), var(--accent, #3498db));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 18px;
+            flex-shrink: 0;
+            background-size: cover;
+            background-position: center;
+        }
+        .settings-user-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+        .settings-user-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: #1e293b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .settings-user-email {
+            font-size: 12px;
+            color: #64748b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Settings Body */
+        .settings-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+        .settings-body::-webkit-scrollbar {
+            width: 4px;
+        }
+        .settings-body::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        /* Group Labels */
+        .settings-group-label {
+            padding: 12px 20px 6px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .settings-group-divider {
+            height: 1px;
+            background: #e5e7eb;
+            margin: 4px 20px;
+        }
+
+        /* Settings Item */
+        .settings-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background 0.15s;
+            text-decoration: none;
+            color: inherit;
+        }
+        .settings-item:hover {
+            background: #f1f5f9;
+        }
+        .settings-item-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        .settings-item-icon.blue { background: #eff6ff; color: #3b82f6; }
+        .settings-item-icon.purple { background: #f5f3ff; color: #8b5cf6; }
+        .settings-item-icon.amber { background: #fffbeb; color: #f59e0b; }
+        .settings-item-icon.green { background: #f0fdf4; color: #22c55e; }
+        .settings-item-icon.red { background: #fef2f2; color: #ef4444; }
+        .settings-item-icon.slate { background: #f1f5f9; color: #64748b; }
+        .settings-item-icon.teal { background: #f0fdfa; color: #14b8a6; }
+        .settings-item-icon.rose { background: #fff1f2; color: #f43f5e; }
+        .settings-item-icon.indigo { background: #eef2ff; color: #6366f1; }
+        .settings-item-icon.cyan { background: #ecfeff; color: #06b6d4; }
+
+        .settings-item-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .settings-item-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #1e293b;
+        }
+        .settings-item-desc {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 1px;
+        }
+        .settings-item-chevron {
+            color: #cbd5e1;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        /* Toggle Switch */
+        .settings-toggle {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+        .settings-toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .settings-toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: #cbd5e1;
+            border-radius: 24px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .settings-toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+        }
+        .settings-toggle input:checked + .settings-toggle-slider {
+            background: #3b82f6;
+        }
+        .settings-toggle input:checked + .settings-toggle-slider::before {
+            transform: translateX(20px);
+        }
+
+        /* Logout Button */
+        .settings-logout-section {
+            padding: 12px 20px 20px;
+            flex-shrink: 0;
+            border-top: 1px solid #e5e7eb;
+        }
+        .settings-logout-btn {
+            width: 100%;
+            padding: 12px;
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        .settings-logout-btn:hover {
+            background: #fee2e2;
+            border-color: #fca5a5;
+        }
+
+        /* Feedback Form (inline in drawer) */
+        .settings-feedback-form {
+            display: none;
+            padding: 16px 20px;
+            flex-direction: column;
+            gap: 12px;
+            animation: settingsFadeIn 0.2s ease;
+        }
+        .settings-feedback-form.active {
+            display: flex;
+        }
+        .settings-feedback-form h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .settings-feedback-input {
+            padding: 10px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .settings-feedback-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .settings-feedback-textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        .settings-feedback-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .settings-feedback-submit {
+            flex: 1;
+            padding: 10px;
+            background: linear-gradient(135deg, var(--primary, #1a2a6c), var(--accent, #3498db));
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .settings-feedback-submit:hover {
+            opacity: 0.9;
+        }
+        .settings-feedback-cancel {
+            padding: 10px 18px;
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .settings-feedback-cancel:hover {
+            background: #e2e8f0;
+        }
+
+        /* About Card */
+        .settings-about-card {
+            display: none;
+            margin: 8px 20px;
+            padding: 16px;
+            background: linear-gradient(135deg, #f8fafc, #eef2ff);
+            border: 1px solid #e0e7ff;
+            border-radius: 12px;
+            animation: settingsFadeIn 0.2s ease;
+        }
+        .settings-about-card.active {
+            display: block;
+        }
+        .settings-about-card .about-app-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 2px;
+        }
+        .settings-about-card .about-tagline {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 10px;
+        }
+        .settings-about-card .about-detail {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #475569;
+            padding: 4px 0;
+        }
+        .settings-about-card .about-detail span:last-child {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        @keyframes settingsFadeIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive — full-width on mobile */
+        @media (max-width: 768px) {
+            .settings-drawer {
+                width: 100%;
+                right: -100%;
+            }
+        }
+
         .contact-info {
             flex: 1;
             min-width: 150px;
@@ -15679,11 +16071,10 @@
                     </div>
                 </div>
                 <div class="controls-container">
-                    <!-- Layer counter added -->
-                    <div class="layer-counter" title="Active Layers">
-                        <i class="fas fa-layer-group"></i>
-                        <span id="activeLayerCount">0</span>
-                    </div>
+                    <!-- Settings button (replaces layer counter) -->
+                    <button type="button" class="control-btn" id="settingsBtn" title="Settings">
+                        <i class="fas fa-cog"></i> <span>Settings</span>
+                    </button>
                     <button type="button" class="control-btn" id="parcelSearchBtn" title="Parcel Search">
                         <i class="fas fa-search"></i> <span>PARCEL SEARCH</span>
                     </button>
@@ -24792,7 +25183,8 @@
                         count++;
                     }
                 });
-                document.getElementById('activeLayerCount').textContent = count;
+                const el = document.getElementById('activeLayerCount');
+                if (el) el.textContent = count;
             }
 
             // Monitor layer visibility changes
@@ -63935,6 +64327,534 @@ MANDATORY VIDEO RULE: After every explanation, you MUST check Section 9 (Video T
                 </div>
             </div>
         </div>
+
+        <!-- ═══════════════════════════════════════════════════════════
+             Settings Side-Drawer
+             ═══════════════════════════════════════════════════════════ -->
+        <div class="settings-overlay" id="settingsOverlay"></div>
+        <div class="settings-drawer" id="settingsDrawer">
+            <!-- Header -->
+            <div class="settings-header">
+                <h2><i class="fas fa-cog"></i> Settings</h2>
+                <button type="button" class="settings-close-btn" id="settingsCloseBtn" aria-label="Close settings">&times;</button>
+            </div>
+
+            <!-- User Card -->
+            <div class="settings-user-card">
+                <div class="settings-user-avatar" id="settingsUserAvatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="settings-user-info">
+                    <div class="settings-user-name" id="settingsUserName">User</div>
+                    <div class="settings-user-email" id="settingsUserEmail">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Scrollable Body -->
+            <div class="settings-body" id="settingsBody">
+                <!-- Default Settings List -->
+                <div id="settingsListView">
+                    <!-- Account & Profile -->
+                    <div class="settings-group-label">Account & Profile</div>
+                    <div class="settings-item" id="settingsProfile">
+                        <div class="settings-item-icon blue"><i class="fas fa-user-circle"></i></div>
+                        <div class="settings-item-content">
+                            <div class="settings-item-label">Profile</div>
+                            <div class="settings-item-desc">Edit your username and avatar</div>
+                        </div>
+                        <i class="fas fa-chevron-right settings-item-chevron"></i>
+                    </div>
+                    <div class="settings-item" id="settingsNotifications">
+                        <div class="settings-item-icon purple"><i class="fas fa-bell"></i></div>
+                        <div class="settings-item-content">
+                            <div class="settings-item-label">Notifications</div>
+                            <div class="settings-item-desc">Chat and system alerts</div>
+                        </div>
+                        <label class="settings-toggle">
+                            <input type="checkbox" id="settingsNotifToggle" checked>
+                            <span class="settings-toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="settings-group-divider"></div>
+
+                    <!-- Appearance -->
+                    <div class="settings-group-label">Appearance</div>
+                    <div class="settings-item" id="settingsDarkMode">
+                        <div class="settings-item-icon slate"><i class="fas fa-moon"></i></div>
+                        <div class="settings-item-content">
+                            <div class="settings-item-label">Dark Mode</div>
+                            <div class="settings-item-desc">Switch to dark theme</div>
+                        </div>
+                        <label class="settings-toggle">
+                            <input type="checkbox" id="settingsDarkToggle">
+                            <span class="settings-toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="settings-group-divider"></div>
+
+                    <!-- Help & Feedback -->
+                    <div class="settings-group-label">Help & Feedback</div>
+                    <div class="settings-item" id="settingsUserGuide">
+                        <div class="settings-item-icon teal"><i class="fas fa-book-open"></i></div>
+                        <div class="settings-item-content">
+                            <div class="settings-item-label">User Guide</div>
+                            <div class="settings-item-desc">Learn how to use GSPNet</div>
+                        </div>
+                        <i class="fas fa-external-link-alt settings-item-chevron"></i>
+                    </div>
+                    <div class="settings-item" id="settingsReportBug">
+                        <div class="settings-item-icon red"><i class="fas fa-bug"></i></div>
+                        <div class="settings-item-content">
+                            <div class="settings-item-label">Report a Bug</div>
+                            <div class="settings-item-desc">Send a bug report to the admin</div>
+                        </div>
+                        <i class="fas fa-chevron-right settings-item-chevron"></i>
+                    </div>
+                    <div class="settings-item" id="settingsSuggestFeature">
+                        <div class="settings-item-icon amber"><i class="fas fa-lightbulb"></i></div>
+                        <div class="settings-item-content">
+                            <div class="settings-item-label">Suggest a Feature</div>
+                            <div class="settings-item-desc">Share your ideas with us</div>
+                        </div>
+                        <i class="fas fa-chevron-right settings-item-chevron"></i>
+                    </div>
+
+                    <div class="settings-group-divider"></div>
+
+                    <!-- System -->
+                    <div class="settings-group-label">System</div>
+                    <div class="settings-item" id="settingsClearCache">
+                        <div class="settings-item-icon cyan"><i class="fas fa-broom"></i></div>
+                        <div class="settings-item-content">
+                            <div class="settings-item-label">Clear Local Cache</div>
+                            <div class="settings-item-desc">Free space and fix tile issues</div>
+                        </div>
+                        <i class="fas fa-chevron-right settings-item-chevron"></i>
+                    </div>
+
+                    <div class="settings-group-divider"></div>
+
+                    <!-- About & Legal -->
+                    <div class="settings-group-label">About & Legal</div>
+                    <div class="settings-item" id="settingsAbout">
+                        <div class="settings-item-icon indigo"><i class="fas fa-info-circle"></i></div>
+                        <div class="settings-item-content">
+                            <div class="settings-item-label">About GSPNet</div>
+                            <div class="settings-item-desc">Version and developer info</div>
+                        </div>
+                        <i class="fas fa-chevron-down settings-item-chevron" id="settingsAboutChevron"></i>
+                    </div>
+                    <!-- About Card (expandable inline) -->
+                    <div class="settings-about-card" id="settingsAboutCard">
+                        <div class="about-app-name">Geospatial Network Uganda</div>
+                        <div class="about-tagline">Professional GIS Web Mapping Platform</div>
+                        <div class="about-detail"><span>Developer</span><span>NAS Surveyors Ltd</span></div>
+                        <div class="about-detail"><span>Version</span><span>v2.0</span></div>
+                        <div class="about-detail"><span>Framework</span><span>OpenLayers</span></div>
+                        <div class="about-detail"><span>Contact</span><span>kiggundumuhamad@gmail.com</span></div>
+                    </div>
+                    <div class="settings-item" id="settingsPrivacy">
+                        <div class="settings-item-icon green"><i class="fas fa-shield-alt"></i></div>
+                        <div class="settings-item-content">
+                            <div class="settings-item-label">Privacy Policy</div>
+                        </div>
+                        <i class="fas fa-external-link-alt settings-item-chevron"></i>
+                    </div>
+                    <div class="settings-item" id="settingsTerms">
+                        <div class="settings-item-icon slate"><i class="fas fa-file-contract"></i></div>
+                        <div class="settings-item-content">
+                            <div class="settings-item-label">Terms of Use</div>
+                        </div>
+                        <i class="fas fa-external-link-alt settings-item-chevron"></i>
+                    </div>
+                </div>
+
+                <!-- Feedback Form (hidden by default) -->
+                <div class="settings-feedback-form" id="settingsFeedbackForm">
+                    <h3 id="feedbackFormTitle"><i class="fas fa-bug"></i> Report a Bug</h3>
+                    <input type="text" class="settings-feedback-input" id="feedbackSubject" placeholder="Subject (e.g. Map tiles not loading)">
+                    <textarea class="settings-feedback-input settings-feedback-textarea" id="feedbackDescription" placeholder="Describe the issue or suggestion in detail..."></textarea>
+                    <div class="settings-feedback-actions">
+                        <button type="button" class="settings-feedback-submit" id="feedbackSubmitBtn">
+                            <i class="fas fa-paper-plane"></i> Send
+                        </button>
+                        <button type="button" class="settings-feedback-cancel" id="feedbackCancelBtn">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logout (anchored at bottom) -->
+            <div class="settings-logout-section">
+                <button type="button" class="settings-logout-btn" id="settingsLogoutBtn">
+                    <i class="fas fa-sign-out-alt"></i> Log Out
+                </button>
+            </div>
+        </div>
+
+        <script>
+        /* ═══════════════════════════════════════════════════════════
+           Settings Drawer Logic
+           ═══════════════════════════════════════════════════════════ */
+        (function () {
+            'use strict';
+
+            const SETTINGS_ADMIN_EMAIL = 'kiggundumuhamad@gmail.com';
+            let feedbackType = 'bug'; // 'bug' or 'feature'
+
+            // ── DOM refs ───────────────────────────────────────────
+            const drawer       = document.getElementById('settingsDrawer');
+            const overlay      = document.getElementById('settingsOverlay');
+            const closeBtn     = document.getElementById('settingsCloseBtn');
+            const openBtn      = document.getElementById('settingsBtn');
+            const listView     = document.getElementById('settingsListView');
+            const feedbackForm = document.getElementById('settingsFeedbackForm');
+
+            // ── Open / Close ───────────────────────────────────────
+            function openSettings() {
+                drawer.classList.add('open');
+                overlay.classList.add('active');
+                populateUserCard();
+                syncToggles();
+            }
+            function closeSettings() {
+                drawer.classList.remove('open');
+                overlay.classList.remove('active');
+                // Reset to list view
+                listView.style.display = '';
+                feedbackForm.classList.remove('active');
+            }
+
+            if (openBtn)  openBtn.addEventListener('click', openSettings);
+            if (closeBtn) closeBtn.addEventListener('click', closeSettings);
+            if (overlay)  overlay.addEventListener('click', closeSettings);
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && drawer.classList.contains('open')) {
+                    closeSettings();
+                }
+            });
+
+            // ── Populate User Card ─────────────────────────────────
+            function populateUserCard() {
+                const avatarEl = document.getElementById('settingsUserAvatar');
+                const nameEl   = document.getElementById('settingsUserName');
+                const emailEl  = document.getElementById('settingsUserEmail');
+                if (!avatarEl || !nameEl || !emailEl) return;
+
+                let username = 'User';
+                let email = '';
+                let avatarUrl = null;
+
+                // Try ChatSystem first (has profile data)
+                if (typeof ChatSystem !== 'undefined' && ChatSystem.currentUser) {
+                    username = ChatSystem.currentUser.username || ChatSystem.currentUser.display_name || 'User';
+                    email = ChatSystem.currentUser.email || '';
+                    avatarUrl = ChatSystem.currentUser.avatar_url || null;
+                }
+                // Fallback to chatState
+                else if (typeof chatState !== 'undefined' && chatState.currentUser) {
+                    username = chatState.currentUser.username || 'User';
+                    email = chatState.currentUser.email || '';
+                }
+
+                nameEl.textContent = username;
+                emailEl.textContent = email || 'Signed in';
+
+                if (avatarUrl) {
+                    avatarEl.innerHTML = '';
+                    avatarEl.style.backgroundImage = `url(${avatarUrl})`;
+                } else {
+                    avatarEl.style.backgroundImage = 'none';
+                    const initials = username.charAt(0).toUpperCase();
+                    avatarEl.innerHTML = initials;
+                }
+            }
+
+            // ── Sync toggle states ─────────────────────────────────
+            function syncToggles() {
+                // Dark mode
+                const darkToggle = document.getElementById('settingsDarkToggle');
+                if (darkToggle) {
+                    const currentTheme = document.documentElement.getAttribute('data-theme') || localStorage.getItem('theme') || 'light';
+                    darkToggle.checked = currentTheme === 'dark';
+                }
+                // Notifications
+                const notifToggle = document.getElementById('settingsNotifToggle');
+                if (notifToggle) {
+                    const muted = localStorage.getItem('chat_muted') === 'true';
+                    notifToggle.checked = !muted;
+                }
+            }
+
+            // ── Profile ────────────────────────────────────────────
+            document.getElementById('settingsProfile')?.addEventListener('click', function () {
+                closeSettings();
+                
+                // Ensure chat panel is open first
+                const chatPanel = document.getElementById('chatPanel');
+                if (chatPanel && !chatPanel.classList.contains('open')) {
+                    const chatBtn = document.getElementById('chatBtn');
+                    if (chatBtn) chatBtn.click();
+                }
+                
+                // Click the existing profile button in chat
+                setTimeout(() => {
+                    const profileBtn = document.getElementById('inbox-profile-btn') || document.getElementById('headerProfileBtn');
+                    if (profileBtn) profileBtn.click();
+                }, 300);
+            });
+
+            // ── Notifications Toggle ───────────────────────────────
+            document.getElementById('settingsNotifToggle')?.addEventListener('change', function () {
+                const muted = !this.checked;
+                localStorage.setItem('chat_muted', muted);
+
+                // Sync with the chat mute button
+                const muteBtn = document.getElementById('chatMuteBtn');
+                if (muteBtn) {
+                    const icon = muteBtn.querySelector('i');
+                    if (icon) {
+                        icon.className = muted ? 'fas fa-bell-slash' : 'fas fa-bell';
+                    }
+                }
+
+                if (typeof showToast === 'function') {
+                    showToast(muted ? 'Notifications muted' : 'Notifications enabled', 'info', 2000);
+                }
+            });
+
+            // ── Dark Mode Toggle ───────────────────────────────────
+            document.getElementById('settingsDarkToggle')?.addEventListener('change', function () {
+                const newTheme = this.checked ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+
+                // Sync the chat panel theme toggle if it exists
+                const chatThemeBtn = document.getElementById('themeToggleBtn');
+                if (chatThemeBtn) {
+                    const icon = chatThemeBtn.querySelector('i');
+                    if (icon) {
+                        icon.className = newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+                    }
+                }
+
+                // Apply dark theme to chat panel
+                const chatPanel = document.getElementById('chatPanel');
+                if (chatPanel) {
+                    if (newTheme === 'dark') {
+                        chatPanel.classList.add('dark-theme');
+                    } else {
+                        chatPanel.classList.remove('dark-theme');
+                    }
+                }
+
+                if (typeof showToast === 'function') {
+                    showToast(`${newTheme === 'dark' ? 'Dark' : 'Light'} mode activated`, 'info', 2000);
+                }
+            });
+
+            // ── User Guide ─────────────────────────────────────────
+            document.getElementById('settingsUserGuide')?.addEventListener('click', function () {
+                window.open('about.html', '_blank');
+            });
+
+            // ── Report a Bug / Suggest a Feature ───────────────────
+            function showFeedbackForm(type) {
+                feedbackType = type;
+                const title = document.getElementById('feedbackFormTitle');
+                const subject = document.getElementById('feedbackSubject');
+
+                if (type === 'bug') {
+                    title.innerHTML = '<i class="fas fa-bug"></i> Report a Bug';
+                    subject.placeholder = 'Subject (e.g. Map tiles not loading)';
+                } else {
+                    title.innerHTML = '<i class="fas fa-lightbulb"></i> Suggest a Feature';
+                    subject.placeholder = 'Feature title (e.g. Offline map support)';
+                }
+
+                // Clear form
+                subject.value = '';
+                document.getElementById('feedbackDescription').value = '';
+
+                // Switch view
+                listView.style.display = 'none';
+                feedbackForm.classList.add('active');
+            }
+
+            document.getElementById('settingsReportBug')?.addEventListener('click', () => showFeedbackForm('bug'));
+            document.getElementById('settingsSuggestFeature')?.addEventListener('click', () => showFeedbackForm('feature'));
+
+            document.getElementById('feedbackCancelBtn')?.addEventListener('click', function () {
+                feedbackForm.classList.remove('active');
+                listView.style.display = '';
+            });
+
+            document.getElementById('feedbackSubmitBtn')?.addEventListener('click', async function () {
+                const subject = document.getElementById('feedbackSubject').value.trim();
+                const description = document.getElementById('feedbackDescription').value.trim();
+
+                if (!description) {
+                    if (typeof showToast === 'function') showToast('Please provide a description', 'warning');
+                    return;
+                }
+
+                const submitBtn = this;
+                const originalHTML = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                submitBtn.disabled = true;
+
+                try {
+                    // Build message content
+                    const typeLabel = feedbackType === 'bug' ? '🐛 Bug Report' : '💡 Feature Suggestion';
+                    const messageContent = `${typeLabel}\n━━━━━━━━━━━━━━━━━━━━\nSubject: ${subject || '(No subject)'}\n\n${description}`;
+
+                    // Look up admin user ID
+                    let adminUserId = null;
+                    let adminUsername = 'Admin';
+                    try {
+                        const { data } = await supabase.from('profiles').select('*').ilike('username', '%kiggundu%').limit(1).maybeSingle();
+                        if (data) {
+                            adminUserId = data.id;
+                            adminUsername = data.username || 'Admin';
+                        } else {
+                            const { data: dataRole } = await supabase.from('profiles').select('*').in('role', ['admin', 'ADMIN', 'RSU']).limit(1).maybeSingle();
+                            if (dataRole) {
+                                adminUserId = dataRole.id;
+                                adminUsername = dataRole.username || 'Admin';
+                            }
+                        }
+                    } catch (e) {
+                        console.warn("Could not find admin profile for feedback.", e);
+                    }
+
+                    // Get current user info
+                    let currentUserId = null;
+                    let currentUsername = 'Unknown User';
+
+                    if (typeof ChatSystem !== 'undefined' && ChatSystem.currentUser) {
+                        currentUserId = ChatSystem.currentUser.id;
+                        currentUsername = ChatSystem.currentUser.username || 'User';
+                    } else if (typeof chatState !== 'undefined' && chatState.currentUser) {
+                        currentUserId = chatState.currentUser.id;
+                        currentUsername = chatState.currentUser.username || 'User';
+                    }
+
+                    if (!currentUserId) {
+                        if (typeof getCurrentAuthenticatedUserContext === 'function') {
+                            const ctx = await getCurrentAuthenticatedUserContext();
+                            if (ctx) {
+                                currentUserId = ctx.id;
+                                currentUsername = ctx.displayName || ctx.email?.split('@')[0] || 'User';
+                            }
+                        }
+                    }
+
+                    if (!currentUserId) {
+                        throw new Error('You must be logged in to submit feedback.');
+                    }
+
+                    // Send as a chat message to admin
+                    // Send as a DM to admin
+                    const insertData = {
+                        sender_id: currentUserId,
+                        receiver_id: adminUserId,
+                        sender_username: currentUsername,
+                        receiver_username: adminUsername,
+                        content: messageContent
+                    };
+
+                    const { data, error } = await supabase
+                        .from('private_messages')
+                        .insert([insertData])
+                        .select();
+
+                    if (error) throw error;
+
+                    if (typeof showToast === 'function') {
+                        showToast(feedbackType === 'bug' ? 'Bug report sent successfully!' : 'Feature suggestion sent!', 'success');
+                    }
+
+                    // Return to settings list
+                    feedbackForm.classList.remove('active');
+                    listView.style.display = '';
+
+                } catch (err) {
+                    console.error('Settings feedback error:', err);
+                    if (typeof showToast === 'function') {
+                        showToast('Failed to send: ' + (err.message || 'Unknown error'), 'error');
+                    }
+                } finally {
+                    submitBtn.innerHTML = originalHTML;
+                    submitBtn.disabled = false;
+                }
+            });
+
+            // ── Clear Local Cache ──────────────────────────────────
+            document.getElementById('settingsClearCache')?.addEventListener('click', async function () {
+                if (!confirm('This will clear cached map tiles and app data. Your login session will be preserved.\n\nThe page will reload after clearing. Continue?')) return;
+
+                try {
+                    // Using location.reload(true) is equivalent to Ctrl+Shift+R
+                    // We skip localStorage.clear() so auth and other settings remain intact.
+
+                    if (typeof showToast === 'function') {
+                        showToast('Cache cleared successfully! Reloading...', 'success');
+                    }
+                    setTimeout(() => location.reload(true), 1500);
+                } catch (err) {
+                    console.error('Cache clear error:', err);
+                    if (typeof showToast === 'function') {
+                        showToast('Error clearing cache: ' + err.message, 'error');
+                    }
+                }
+            });
+
+            // ── About (toggle expand) ──────────────────────────────
+            document.getElementById('settingsAbout')?.addEventListener('click', function () {
+                const card = document.getElementById('settingsAboutCard');
+                const chevron = document.getElementById('settingsAboutChevron');
+                if (card) {
+                    const isOpen = card.classList.toggle('active');
+                    if (chevron) {
+                        chevron.className = isOpen ? 'fas fa-chevron-up settings-item-chevron' : 'fas fa-chevron-down settings-item-chevron';
+                    }
+                }
+            });
+
+            // ── Privacy Policy ─────────────────────────────────────
+            document.getElementById('settingsPrivacy')?.addEventListener('click', function () {
+                window.open('privacy.html', '_blank');
+            });
+
+            // ── Terms of Use ───────────────────────────────────────
+            document.getElementById('settingsTerms')?.addEventListener('click', function () {
+                window.open('terms.html', '_blank');
+            });
+
+            // ── Log Out ────────────────────────────────────────────
+            document.getElementById('settingsLogoutBtn')?.addEventListener('click', async function () {
+                if (!confirm('Are you sure you want to log out?')) return;
+
+                try {
+                    if (typeof supabase !== 'undefined' && supabase.auth) {
+                        await supabase.auth.signOut();
+                    }
+                } catch (e) {
+                    console.warn('SignOut API error (non-fatal):', e);
+                }
+
+                // Clear auth artifacts
+                document.cookie = 'supabase_auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                localStorage.removeItem('supabase.auth.token');
+                localStorage.removeItem('supabase.auth.session');
+
+                window.location.href = 'index.html';
+            });
+
+        })();
+        </script>
 
         <!-- Property Valuation Panel -->
         <div class="valuation-panel" id="valuationPanel">
