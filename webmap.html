@@ -50918,11 +50918,9 @@ function smoothChaikin(points) {
                             resolve(null);
                         }
                     });
-
-                    // Trigger render
-                    setTimeout(() => {
-                        tempMap.renderSync();
-                    }, 100);
+                    // No manual renderSync is necessary here. 
+                    // setTarget() and updateSize() naturally queue a render frame,
+                    // and 'rendercomplete' will fire when all tiles/layers are fully loaded and rendered.
                 });
             }
 
