@@ -1,0 +1,33 @@
+name: Sentry Release Tracking
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sentry-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required by Sentry to detect commits
+
+      - name: Create Sentry Release
+        run: |
+          # Install the cli
+          curl -sL https://sentry.io/get-cli/ | bash
+
+          # Setup configuration values
+          export SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
+          export SENTRY_ORG=nas-surveying-consults
+          export SENTRY_PROJECT=geospatial-network-webmap
+          
+          # Propose version based on latest commit hash
+          VERSION=`sentry-cli releases propose-version`
+
+          # Workflow to create releases
+          sentry-cli releases new "$VERSION"
+          sentry-cli releases set-commits "$VERSION" --auto
+          sentry-cli releases finalize "$VERSION"
