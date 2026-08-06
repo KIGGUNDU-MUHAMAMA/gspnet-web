@@ -1321,6 +1321,11 @@
             return [];
         }
 
+        _polygonRing(feature) {
+            const rings = this._polygonRings(feature);
+            return rings.length > 0 ? rings[0] : [];
+        }
+
         _downloadBlob(blob, filename) {
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);

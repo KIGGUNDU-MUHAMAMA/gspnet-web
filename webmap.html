@@ -37851,14 +37851,22 @@
                 const mapElement = document.getElementById('map');
 
                 if (!document.fullscreenElement) {
-                    if (mapElement.requestFullscreen) {
-                        mapElement.requestFullscreen();
-                    } else if (mapElement.mozRequestFullScreen) {
-                        mapElement.mozRequestFullScreen();
-                    } else if (mapElement.webkitRequestFullscreen) {
-                        mapElement.webkitRequestFullscreen();
-                    } else if (mapElement.msRequestFullscreen) {
-                        mapElement.msRequestFullscreen();
+                    try {
+                        if (mapElement.requestFullscreen) {
+                            const p = mapElement.requestFullscreen();
+                            if (p && p.catch) p.catch(err => console.warn('Fullscreen failed:', err));
+                        } else if (mapElement.mozRequestFullScreen) {
+                            const p = mapElement.mozRequestFullScreen();
+                            if (p && p.catch) p.catch(err => console.warn('Fullscreen failed:', err));
+                        } else if (mapElement.webkitRequestFullscreen) {
+                            const p = mapElement.webkitRequestFullscreen();
+                            if (p && p.catch) p.catch(err => console.warn('Fullscreen failed:', err));
+                        } else if (mapElement.msRequestFullscreen) {
+                            const p = mapElement.msRequestFullscreen();
+                            if (p && p.catch) p.catch(err => console.warn('Fullscreen failed:', err));
+                        }
+                    } catch (e) {
+                        console.warn('Fullscreen failed:', e);
                     }
                     showToast('Full screen mode enabled', 'info');
                 } else {
@@ -50663,14 +50671,22 @@ function smoothChaikin(points) {
                 const mapElement = document.getElementById('map');
 
                 if (!document.fullscreenElement) {
-                    if (mapElement.requestFullscreen) {
-                        mapElement.requestFullscreen();
-                    } else if (mapElement.mozRequestFullScreen) {
-                        mapElement.mozRequestFullScreen();
-                    } else if (mapElement.webkitRequestFullscreen) {
-                        mapElement.webkitRequestFullscreen();
-                    } else if (mapElement.msRequestFullscreen) {
-                        mapElement.msRequestFullscreen();
+                    try {
+                        if (mapElement.requestFullscreen) {
+                            const p = mapElement.requestFullscreen();
+                            if (p && p.catch) p.catch(err => console.warn('Fullscreen failed:', err));
+                        } else if (mapElement.mozRequestFullScreen) {
+                            const p = mapElement.mozRequestFullScreen();
+                            if (p && p.catch) p.catch(err => console.warn('Fullscreen failed:', err));
+                        } else if (mapElement.webkitRequestFullscreen) {
+                            const p = mapElement.webkitRequestFullscreen();
+                            if (p && p.catch) p.catch(err => console.warn('Fullscreen failed:', err));
+                        } else if (mapElement.msRequestFullscreen) {
+                            const p = mapElement.msRequestFullscreen();
+                            if (p && p.catch) p.catch(err => console.warn('Fullscreen failed:', err));
+                        }
+                    } catch (e) {
+                        console.warn('Fullscreen failed:', e);
                     }
                     showToast('Full screen mode enabled', 'info');
                 } else {
@@ -61559,7 +61575,7 @@ function smoothChaikin(points) {
                     await loadChatRooms();
 
                     // Play synthetic notification chime (Web Audio API)
-            function playNotificationSound(messageText = 'You received a new message', senderName = 'New Message') {
+            window.playNotificationSound = function playNotificationSound(messageText = 'You received a new message', senderName = 'New Message') {
                 if (localStorage.getItem('chatMuted') === 'true') return;
                 
                 if (document.hidden && Notification.permission === 'granted') {
@@ -65903,7 +65919,7 @@ MANDATORY VIDEO RULE: After every explanation, you MUST check Section 9 (Video T
                     checkCount++;
                     // Check dependencies - use window object to access global variables
                     const mapReady = typeof window.map !== 'undefined';
-                    const pinsReady = typeof projectPinsSource !== 'undefined' || typeof window.projectPinsSource !== 'undefined';
+                    const pinsReady = typeof window.projectPinsSource !== 'undefined';
                     const supabaseReady = typeof supabase !== 'undefined' || typeof window.supabase !== 'undefined';
                     // Only check window.UGANDA_DISTRICTS to avoid ReferenceError if const is not yet initialized
                     const districtsReady = typeof window.UGANDA_DISTRICTS !== 'undefined';
@@ -66896,7 +66912,7 @@ MANDATORY VIDEO RULE: After every explanation, you MUST check Section 9 (Video T
 
                 try {
                     // Check if projectPinsSource exists
-                    if (typeof projectPinsSource === 'undefined' || !projectPinsSource) {
+                    if (typeof window.projectPinsSource === 'undefined' || !window.projectPinsSource) {
                         console.error('Project pins source not available');
                         showToast('Map layer not initialized', 'error');
                         return;
@@ -67467,8 +67483,8 @@ MANDATORY VIDEO RULE: After every explanation, you MUST check Section 9 (Video T
                             if (searchSortBy) searchSortBy.value = 'uploaded_at DESC';
                             if (resultsList) resultsList.innerHTML = '<p class="no-results">Use the search form above to find projects.</p>';
                             if (resultsCount) resultsCount.textContent = 'No results';
-                            if (typeof projectPinsSource !== 'undefined' && projectPinsSource) {
-                                projectPinsSource.clear();
+                            if (typeof window.projectPinsSource !== 'undefined' && window.projectPinsSource) {
+                                window.projectPinsSource.clear();
                             }
                         });
                         console.log('Project Library: Reset button handler attached');
@@ -73997,7 +74013,7 @@ function rvOnArrival() {
   if (nextIdx < RV.corners.length) {
     setTimeout(() => window.rvGoToCorner(nextIdx), 3000);
   } else {
-    setTimeout(rvStopStakeout, 3000);
+    setTimeout(window.rvCloseStakeout, 3000);
   }
 }
 

@@ -71,7 +71,7 @@ const SpatialAnalysis = {
             title: 'Analysis Results'
         });
 
-        if (window.map) {
+        if (window.map && typeof window.map.addLayer === 'function') {
             window.map.addLayer(this.layer);
         }
 
@@ -424,12 +424,12 @@ const SpatialAnalysis = {
 document.addEventListener('DOMContentLoaded', () => {
     // Small delay to ensure OpenLayers is fully loaded
     setTimeout(() => {
-        if (window.map) {
+        if (window.map && typeof window.map.addLayer === 'function') {
             SpatialAnalysis.init();
         } else {
-            console.warn("[Spatial Analysis] window.map not found yet. Retrying...");
+            console.warn("[Spatial Analysis] window.map not fully loaded yet. Retrying...");
             const checkMap = setInterval(() => {
-                if (window.map) {
+                if (window.map && typeof window.map.addLayer === 'function') {
                     clearInterval(checkMap);
                     SpatialAnalysis.init();
                 }
